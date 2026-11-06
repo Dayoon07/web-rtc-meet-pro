@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: web-rtc-meet-pro-server
+  datasource:
+    url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/FREEPDB1}
+    username: ${DB_USERNAME:wrmp}
+    password: ${DB_PASSWORD:wrmp}
+    driver-class-name: oracle.jdbc.OracleDriver
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  jpa:
+    open-in-view: false
+    hibernate:
+      # 스키마는 db/schema.sql 로 관리하고, JPA 는 엔티티와 일치하는지만 검증한다
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${PORT:8080}
+
+app:
+  jwt:
+    # 32바이트 이상. 운영에서는 반드시 JWT_SECRET 환경변수로 교체
+    secret: ${JWT_SECRET:local-dev-secret-change-me-0123456789abcdef}
+    issuer: web-rtc-meet-pro
+    access-token-ttl: 30m
+    refresh-token-ttl: 14d
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  oauth2:
+    google:
+      # 비워 두면 구글 로그인이 비활성화되고 로그인 화면에서 버튼이 비활성으로 표시된다.
+      # Google Cloud Console 승인된 리디렉션 URI: http://localhost:5173/login/oauth2/code/google
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+    # 로그인 성공 시 ?code=<1회용 코드> 를 붙여 리다이렉트. 클라이언트가 /api/auth/oauth/exchange 로 토큰 교환
+    success-redirect: ${OAUTH_SUCCESS_REDIRECT:http://localhost:5173/oauth/callback}
+    failure-redirect: ${OAUTH_FAILURE_REDIRECT:http://localhost:5173/login}
+  storage:
+    # 프로필 이미지 저장 위치. /uploads/** 로 서빙된다
+    upload-dir: ${UPLOAD_DIR:./uploads}
+  media:
+    # mediasoup 사이드카(apps/media)와 같은 값이어야 한다. 운영에서는 반드시 환경변수로 교체
+    jwt-secret: ${MEDIA_JWT_SECRET:local-media-secret-change-me-0123456789abcdef}
+    internal-secret: ${MEDIA_INTERNAL_SECRET:local-internal-secret-change-me}
+    # 브라우저가 접속할 사이드카 주소. 비우면 같은 출처의 /media/socket.io (dev 는 Vite 프록시 → 4000)
+    public-url: ${MEDIA_PUBLIC_URL:}
+  meeting:
+    reminder-interval: 30s

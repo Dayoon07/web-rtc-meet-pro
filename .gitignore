@@ -1,0 +1,21 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+*.log
+
+# 프로필 이미지 업로드 (app.storage.upload-dir)
+uploads/
+
+# Env
+.env
+.env.*
+!.env.example

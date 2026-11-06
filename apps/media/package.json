@@ -1,0 +1,22 @@
+{
+  "name": "@wrmp/media",
+  "private": true,
+  "version": "0.1.0",
+  "description": "mediasoup SFU sidecar. 인증·기록은 Spring 서버가, 미디어 중계만 여기서 한다.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jose": "^6.2.15",
+    "mediasoup": "^3.32.2",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}
