@@ -63,6 +63,35 @@ kotlin {
     }
 }
 
+/*
+ * 운영 서버 주소를 빌드할 때 넣는다. 비우면 플랫폼별 개발 주소(에뮬레이터 10.0.2.2, 데스크톱 localhost).
+ *   ./gradlew :androidApp:assembleRelease -Plimeet.apiUrl=https://example.com -Plimeet.webUrl=https://example.com
+ */
+val limeetApiUrl = providers.gradleProperty("limeet.apiUrl").orElse("")
+val limeetWebUrl = providers.gradleProperty("limeet.webUrl").orElse(limeetApiUrl)
+val buildEnvDir = layout.buildDirectory.dir("generated/buildEnv/kotlin")
+val generateBuildEnv by tasks.registering {
+    inputs.property("apiUrl", limeetApiUrl)
+    inputs.property("webUrl", limeetWebUrl)
+    outputs.dir(buildEnvDir)
+    doLast {
+        val file = buildEnvDir.get().file("com/webrtcmeetpro/BuildEnv.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            |package com.webrtcmeetpro
+            |
+            |/** 빌드할 때 -Plimeet.apiUrl / -Plimeet.webUrl 로 넣은 운영 주소 (자동 생성 파일) */
+            |object BuildEnv {
+            |    const val API_URL: String = "${limeetApiUrl.get()}"
+            |    const val WEB_URL: String = "${limeetWebUrl.get()}"
+            |}
+            |""".trimMargin(),
+        )
+    }
+}
+kotlin.sourceSets.commonMain { kotlin.srcDir(generateBuildEnv) }
+
 compose.resources {
     packageOfResClass = "com.webrtcmeetpro.resources"
 }

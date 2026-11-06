@@ -1,0 +1,28 @@
+# DOMAIN 으로 Let's Encrypt 인증서를 자동 발급받아 https 로 서비스한다.
+# 브라우저는 모두 같은 출처로 붙고, 경로별로 서버/사이드카에 나눠 보낸다 (개발 때 Vite 프록시와 같은 규칙)
+{$DOMAIN} {
+	encode zstd gzip
+
+	# 사이드카 → 서버 콜백 전용. 외부에서는 막는다
+	handle /internal/* {
+		respond 404
+	}
+
+	# Spring 서버: REST, STOMP 웹소켓, 프로필 이미지, 구글 로그인 왕복
+	@server path /api/* /ws /ws/* /uploads/* /oauth2/* /login/oauth2/*
+	handle @server {
+		reverse_proxy server:8080
+	}
+
+	# mediasoup 사이드카 (socket.io 시그널링). 미디어(UDP 40000-40200)는 프록시를 거치지 않고 직접 붙는다
+	handle /media/* {
+		reverse_proxy host.docker.internal:4000
+	}
+
+	# 웹 클라이언트 (SPA): 없는 경로는 index.html
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

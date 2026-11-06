@@ -127,6 +127,11 @@ Windows 설치 파일은 `gradlew :composeApp:packageMsi` (또는 `packageExe`).
 adb reverse tcp:5173 tcp:5173
 ```
 
+### 6. 운영 배포
+
+Oracle Cloud VM 한 대에 Docker Compose 로 DB·서버·사이드카·웹(Caddy https)을 올린다. Render 는 WebRTC 미디어(UDP)를 열 수 없어 쓰지 않는다.
+자세한 순서는 [deploy/README.md](deploy/README.md).
+
 ## 기능 규칙
 
 | 기능 | 규칙 |

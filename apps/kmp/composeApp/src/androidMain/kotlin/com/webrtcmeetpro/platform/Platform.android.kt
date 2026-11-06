@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.webrtcmeetpro.BuildEnv
 import com.webrtcmeetpro.MainActivity
 import com.webrtcmeetpro.core.data.PREFERENCES_FILE_NAME
 import com.webrtcmeetpro.core.data.createPreferencesDataStore
@@ -78,13 +79,18 @@ class AndroidNotifier(private val context: Context) : SystemNotifier {
 }
 
 /**
- * Android 전용 값.
- * 에뮬레이터에서 PC 의 localhost 는 10.0.2.2. 실기기는 PC 의 LAN IP 로 바꾼다.
+ * Android 전용 값. 운영 빌드는 -Plimeet.apiUrl 로 넣은 주소(BuildEnv)를 쓴다.
+ * 개발: 에뮬레이터에서 PC 의 localhost 는 10.0.2.2. 실기기는 PC 의 LAN IP 로 바꾼다.
  * 웹 주소는 localhost: 브라우저는 https 또는 localhost 에서만 카메라를 허용하므로
  * 개발 중엔 `adb reverse tcp:5173 tcp:5173` 으로 PC 의 5173 을 에뮬레이터 localhost 로 연결해 쓴다.
  */
 fun androidPlatformModule(context: Context) = module {
-    single { ApiConfig(baseUrl = "http://10.0.2.2:8080", webUrl = "http://localhost:5173") }
+    single {
+        ApiConfig(
+            baseUrl = BuildEnv.API_URL.ifEmpty { "http://10.0.2.2:8080" },
+            webUrl = BuildEnv.WEB_URL.ifEmpty { "http://localhost:5173" },
+        )
+    }
     single { createPreferencesDataStore(context.filesDir.resolve(PREFERENCES_FILE_NAME).absolutePath) }
     single<SystemNotifier> { AndroidNotifier(context) }
 }

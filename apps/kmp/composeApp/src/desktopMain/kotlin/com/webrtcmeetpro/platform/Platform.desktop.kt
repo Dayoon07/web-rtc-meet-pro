@@ -3,6 +3,7 @@ package com.webrtcmeetpro.platform
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidedValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.webrtcmeetpro.BuildEnv
 import com.webrtcmeetpro.core.data.PREFERENCES_FILE_NAME
 import com.webrtcmeetpro.core.data.createPreferencesDataStore
 import com.webrtcmeetpro.core.network.ApiConfig
@@ -56,12 +57,17 @@ private fun appDataDir(): File {
     return dir.apply { mkdirs() }
 }
 
-/** 서버 주소는 -Dlimeet.api=… / LIMEET_API_URL, 웹 주소는 -Dlimeet.web=… / LIMEET_WEB_URL 로 바꿀 수 있다 */
+/**
+ * 서버 주소 우선순위: -Dlimeet.api=… > LIMEET_API_URL > 빌드 때 넣은 BuildEnv > localhost 개발 서버
+ * (웹 주소도 같은 방식: -Dlimeet.web / LIMEET_WEB_URL)
+ */
 fun desktopPlatformModule() = module {
     single {
         ApiConfig(
-            baseUrl = System.getProperty("limeet.api") ?: System.getenv("LIMEET_API_URL") ?: "http://localhost:8080",
-            webUrl = System.getProperty("limeet.web") ?: System.getenv("LIMEET_WEB_URL") ?: "http://localhost:5173",
+            baseUrl = System.getProperty("limeet.api") ?: System.getenv("LIMEET_API_URL")
+                ?: BuildEnv.API_URL.ifEmpty { "http://localhost:8080" },
+            webUrl = System.getProperty("limeet.web") ?: System.getenv("LIMEET_WEB_URL")
+                ?: BuildEnv.WEB_URL.ifEmpty { "http://localhost:5173" },
         )
     }
     single { createPreferencesDataStore(File(appDataDir(), PREFERENCES_FILE_NAME).absolutePath) }

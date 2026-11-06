@@ -21,6 +21,9 @@ spring:
 
 server:
   port: ${PORT:8080}
+  # 운영은 Caddy(https) 뒤에서 돈다. X-Forwarded-Proto/Host 를 믿어야 구글 로그인 redirect_uri 가 https://도메인 으로 만들어진다.
+  # native = Tomcat RemoteIpValve: 사설 IP(도커 네트워크·localhost)에서 온 프록시 헤더만 신뢰
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:native}
 
 app:
   jwt:
