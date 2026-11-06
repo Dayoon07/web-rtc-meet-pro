@@ -3,6 +3,14 @@ import type { Consumer, Producer, Transport } from 'mediasoup-client/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { type Meeting, meetingApi } from '@/entities/meeting'
+import {
+  type EffectSettings,
+  type EffectsStatus,
+  hasEffects,
+  loadEffectSettings,
+  saveEffectSettings,
+  VideoEffectsProcessor,
+} from '@/features/video-effects'
 
 export type Source = 'mic' | 'camera' | 'screen'
 
@@ -38,16 +46,29 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
   const [state, setState] = useState<RoomState>({ phase: 'joining' })
   const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [peers, setPeers] = useState<Record<string, RemotePeer>>({})
-  const [local, setLocal] = useState<{ mic: boolean; camera: boolean; screen: boolean; hand: boolean; stream: MediaStream | null; screenStream: MediaStream | null }>({
+  const [local, setLocal] = useState<{
+    mic: boolean
+    camera: boolean
+    screen: boolean
+    hand: boolean
+    /** 내 타일에 보여 줄 카메라 트랙. 효과를 켜면 효과가 들어간 트랙 */
+    previewTrack: MediaStreamTrack | null
+    screenStream: MediaStream | null
+  }>({
     mic: false,
     camera: false,
     screen: false,
     hand: false,
-    stream: null,
+    previewTrack: null,
     screenStream: null,
   })
   const [chat, setChat] = useState<InMeetingChat[]>([])
   const [deviceError, setDeviceError] = useState(false)
+  const [effects, setEffects] = useState<EffectSettings>(loadEffectSettings)
+  const [effectsStatus, setEffectsStatus] = useState<EffectsStatus>('idle')
+  /** 카메라 원본 트랙. 효과를 끄면 다시 이걸 보낸다 */
+  const rawCamera = useRef<MediaStreamTrack | null>(null)
+  const effectsProcessor = useRef<VideoEffectsProcessor | null>(null)
 
   const socketRef = useRef<Socket | null>(null)
   const deviceRef = useRef<Device | null>(null)
@@ -121,6 +142,40 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
     })
     producers.current[source] = producer
     return producer
+  }, [])
+
+  /**
+   * 배경·스티커 효과 적용. 카메라 producer 의 트랙만 바꿔 끼우므로(replaceTrack) 재협상 없이
+   * 상대방 화면에도 바로 반영된다. 설정은 이 브라우저에 저장돼 다음 회의에도 켜진다.
+   */
+  const applyEffects = useCallback(async (next: EffectSettings) => {
+    setEffects(next)
+    saveEffectSettings(next)
+    const raw = rawCamera.current
+    const producer = producers.current.camera
+    if (!raw || !producer) return
+
+    if (!hasEffects(next)) {
+      const processor = effectsProcessor.current
+      if (!processor) return
+      effectsProcessor.current = null
+      await producer.replaceTrack({ track: raw })
+      processor.stop()
+      setEffectsStatus('idle')
+      setLocal((l) => ({ ...l, previewTrack: raw }))
+      return
+    }
+
+    let processor = effectsProcessor.current
+    if (!processor) {
+      processor = new VideoEffectsProcessor(raw)
+      processor.onStatus = setEffectsStatus
+      effectsProcessor.current = processor
+      await producer.replaceTrack({ track: processor.output })
+      const output = processor.output
+      setLocal((l) => ({ ...l, previewTrack: output }))
+    }
+    await processor.update(next)
   }, [])
 
   // ------------------------------------------------------------------ join
@@ -210,8 +265,12 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
         const video = localStream?.getVideoTracks()[0]
         if (audio) await produce(audio, 'mic')
         if (video) await produce(video, 'camera')
-        setLocal((l) => ({ ...l, stream: localStream, mic: !!audio, camera: !!video }))
+        rawCamera.current = video ?? null
+        setLocal((l) => ({ ...l, previewTrack: video ?? null, mic: !!audio, camera: !!video }))
         setState({ phase: 'joined' })
+        // 지난번에 쓰던 효과가 있으면 다시 켠다 (모델은 그동안 원본 화면을 보낸다)
+        const saved = loadEffectSettings()
+        if (video && hasEffects(saved)) void applyEffects(saved).catch(console.warn)
       } catch (error) {
         if (!cancelled) setState({ phase: 'failed', error })
       }
@@ -219,6 +278,9 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
 
     return () => {
       cancelled = true
+      effectsProcessor.current?.stop()
+      effectsProcessor.current = null
+      rawCamera.current = null
       localStream?.getTracks().forEach((t) => t.stop())
       Object.values(producers.current).forEach((p) => p?.track?.stop())
       producers.current = {}
@@ -228,7 +290,7 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
       socketRef.current?.disconnect()
       socketRef.current = null
     }
-  }, [meetingId, request, consume, produce])
+  }, [meetingId, request, consume, produce, applyEffects])
 
   // ------------------------------------------------------------------ controls
   const toggle = async (source: 'mic' | 'camera') => {
@@ -289,5 +351,8 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
     toggleHand,
     sendChat,
     leave,
+    effects,
+    effectsStatus,
+    setEffects: (next: EffectSettings) => void applyEffects(next).catch(console.warn),
   }
 }

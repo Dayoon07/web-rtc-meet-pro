@@ -6,9 +6,11 @@
 |---|---|---|
 | mediasoup 미디어 | VM 이라 UDP 40000-40200 을 직접 열 수 있음 | 웹 서비스는 HTTP(S) 포트 하나만 프록시 → **WebRTC 미디어(UDP) 불가** |
 | Oracle DB | 같은 VM 에 Oracle Free 컨테이너, 또는 Autonomous DB(무료) | Oracle 미제공 (외부 DB 를 따로 써야 함) |
-| 비용 | Ampere A1 4코어·24GB 까지 무료 | 무료 플랜은 15분 무사용 시 잠듦 |
+| 비용 | Ampere A1 **2 OCPU·12GB** 까지 무료 (2026-06 에 4·24GB 에서 절반으로 줄었음) | 무료 플랜은 15분 무사용 시 잠듦 |
 
 화상회의 SFU 를 직접 운영해야 해서 **VM 한 대(Oracle Cloud)에 전부** 올리는 구성을 기본으로 한다.
+2 OCPU·12GB 면 Oracle Free(약 2GB) + 서버 + 사이드카 + 웹이 함께 돈다. 사이드카 워커는 `MEDIASOUP_WORKERS=2` 이하로 둔다.
+무료 한도는 예고 없이 바뀐 적이 있으니 만들기 전에 [공식 문서](https://docs.oracle.com/iaas/Content/FreeTier/freetier.htm)를 한 번 확인한다.
 Render 를 꼭 쓰려면 서버·웹만 Render 에 두고 mediasoup 사이드카와 DB 는 여전히 VM 이 필요하므로 이점이 거의 없다.
 
 ```
@@ -21,7 +23,7 @@ Render 를 꼭 쓰려면 서버·웹만 Render 에 두고 mediasoup 사이드카
 ## 1. VM 만들기
 
 1. Oracle Cloud 콘솔 → Compute → Instances → Create
-   - Image: **Ubuntu 24.04**, Shape: **VM.Standard.A1.Flex** (Ampere, 예: 4 OCPU / 24GB — Always Free 범위)
+   - Image: **Ubuntu 24.04**, Shape: **VM.Standard.A1.Flex** (Ampere, **2 OCPU / 12GB** — 현재 Always Free 한도 전부)
    - SSH 키 등록, 공인 IP 할당
 2. Networking → 해당 VCN 의 **Security List** → Ingress Rules 추가
    - TCP 80, 443

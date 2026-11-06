@@ -1,7 +1,8 @@
-import { Hand, Link2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Users, Video, VideoOff, X } from 'lucide-react'
+import { Hand, Link2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Users, Video, VideoOff, X } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { EffectsPanel, hasEffects } from '@/features/video-effects'
 import { errorMessage } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
@@ -106,7 +107,7 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
   const fmt = useFormat()
   const room = useMeetingRoom(meetingId, selfName)
   const narrow = useNarrowScreen()
-  const [panel, setPanel] = useState<'chat' | 'people' | null>(null)
+  const [panel, setPanel] = useState<'chat' | 'people' | 'effects' | null>(null)
   const [draft, setDraft] = useState('')
   const [seenChat, setSeenChat] = useState(0)
   const [elapsed, setElapsed] = useState('00:00')
@@ -176,7 +177,7 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
       key="self"
       name={t('room.you', { name: selfName })}
       avatar={selfAvatar}
-      stream={room.local.stream}
+      video={room.local.previewTrack ?? undefined}
       videoOn={room.local.camera}
       micOn={room.local.mic}
       hand={room.local.hand}
@@ -254,12 +255,16 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
         {panel && (
           <aside className="fixed inset-0 z-20 flex flex-col bg-gray-900 sm:static sm:w-80 sm:shrink-0 sm:rounded-2xl">
             <div className="flex h-12 items-center justify-between border-b border-white/10 px-4">
-              <p className="font-semibold">{panel === 'chat' ? t('room.chat') : `${t('room.people')} (${total})`}</p>
+              <p className="font-semibold">
+                {panel === 'chat' ? t('room.chat') : panel === 'effects' ? t('room.effects.title') : `${t('room.people')} (${total})`}
+              </p>
               <button type="button" onClick={() => setPanel(null)} aria-label={t('common.close')} className="rounded-lg p-1.5 hover:bg-white/10">
                 <X className="size-4" />
               </button>
             </div>
-            {panel === 'people' ? (
+            {panel === 'effects' ? (
+              <EffectsPanel settings={room.effects} status={room.effectsStatus} cameraOn={room.local.camera} onChange={room.setEffects} />
+            ) : panel === 'people' ? (
               <ul className="flex-1 overflow-y-auto p-2">
                 {[{ peerId: 'self', name: t('room.you', { name: selfName }), avatar: selfAvatar, mic: room.local.mic, hand: room.local.hand, host: false }, ...room.peers.map((p) => ({ peerId: p.peerId, name: p.name, avatar: p.avatar, mic: !!p.tracks.mic && !p.paused.mic, hand: p.handRaised, host: p.isHost }))].map((p) => (
                   <li key={p.peerId} className="flex items-center gap-3 rounded-lg px-2 py-2">
@@ -313,6 +318,9 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
         </ControlButton>
         <ControlButton label={t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand')} onClick={room.toggleHand}>
           <Hand className={cn(room.local.hand && 'text-amber-400')} />
+        </ControlButton>
+        <ControlButton label={t('room.effects.title')} onClick={() => setPanel(panel === 'effects' ? null : 'effects')}>
+          <Sparkles className={cn(hasEffects(room.effects) && 'text-brand-300')} />
         </ControlButton>
         <ControlButton label={t('room.chat')} onClick={() => setPanel(panel === 'chat' ? null : 'chat')} badge={panel === 'chat' ? 0 : room.chat.length - seenChat}>
           <MessageSquare />

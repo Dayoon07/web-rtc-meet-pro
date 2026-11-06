@@ -35,11 +35,7 @@ web-rtc-meet-pro/
 docker compose up -d oracle
 ```
 
-로컬에 Oracle XE 가 이미 1521 포트를 쓰고 있으면 포트를 바꿔 띄우고, 서버의 `DB_URL` 도 맞춘다.
-
-```bash
-ORACLE_PORT=1522 docker compose up -d oracle
-```
+컨테이너는 **1522** 포트로 뜬다 (로컬에 설치된 Oracle XE 가 쓰는 1521 과 겹치지 않게). 서버의 기본 `DB_URL` 도 1522 라서 따로 설정할 필요가 없다.
 
 **B. 로컬 Oracle XE** — 사용할 스키마로 접속해 `db/schema.sql` → `db/seed.sql` 순서로 실행한 뒤, 서버 환경변수를 설정한다.
 
@@ -50,7 +46,7 @@ ORACLE_PORT=1522 docker compose up -d oracle
 
 | 환경변수 | 기본값 |
 |---|---|
-| `DB_URL` | `jdbc:oracle:thin:@//localhost:1521/FREEPDB1` |
+| `DB_URL` | `jdbc:oracle:thin:@//localhost:1522/FREEPDB1` |
 | `DB_USERNAME` / `DB_PASSWORD` | `wrmp` / `wrmp` |
 | `JWT_SECRET` | 개발용 값 (운영에서 반드시 교체, 32바이트 이상) |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` |
@@ -65,6 +61,8 @@ ORACLE_PORT=1522 docker compose up -d oracle
 cd apps/server
 gradlew bootRun
 ```
+
+IntelliJ: **저장소 루트를 열고** 루트 `settings.gradle.kts` 를 Gradle 프로젝트로 가져오면(알림의 *Load Gradle Project*, 또는 파일 우클릭 → *Link Gradle Project*) 서버와 앱이 함께 잡힌다. 그 뒤 `ServerApplication.kt` 의 실행 버튼으로 바로 켤 수 있다. Gradle JVM 은 JDK 21 로 맞춘다 (Settings → Build Tools → Gradle).
 
 JPA 는 `ddl-auto: validate` 라서 테이블을 만들지 않고 엔티티와 스키마가 맞는지만 검사한다. 스키마 변경은 `db/schema.sql` 에서 한다.
 
@@ -144,6 +142,7 @@ Oracle Cloud VM 한 대에 Docker Compose 로 DB·서버·사이드카·웹(Cadd
 | 회의 종료 | 마지막 사람이 나가면 ENDED. 예정 시간 안이면 다시 들어와서 재개 가능. 입장만 하고 아무도 없는 회의는 예정 종료 후 자동 종료 |
 | 알림 | DB 에는 `type + params` 만 저장 → 클라이언트가 사용자 언어·시간대로 문장 생성. 접속 중이면 STOMP 로 즉시, 탭이 백그라운드면 브라우저 알림 |
 | 시간 | API 는 항상 오프셋 포함 ISO(`2026-11-06T10:00:00+09:00`)로 주고받음 → 다른 시간대 사용자도 정확 |
+| 회의 효과 | 회의 중 **배경**(흐림·그라데이션·사진·내 사진)과 **얼굴 스티커**(고양이·강아지·곰·선글라스·카우보이·학사모·하트 눈). MediaPipe(사람 분리 + 얼굴 478점)로 카메라 화면을 다시 그려 그 트랙을 보내므로 상대방에게도 보인다. 설정은 브라우저에 저장, 내 사진은 서버로 안 보냄 |
 | 다국어 | `apps/client/src/shared/i18n/locales/{ko,en,ja,zh}.ts`. ko 가 원본이고 나머지는 같은 구조여야 빌드됨. 서버 에러는 `code` 로 보내고 클라이언트가 번역 |
 
 ## 백엔드 구조 (DDD)
