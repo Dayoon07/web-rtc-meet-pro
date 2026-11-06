@@ -32,13 +32,14 @@ web-rtc-meet-pro/
 로컬 개발은 PC 에 설치된 **Oracle XE 21c** (`localhost:1521/XEPDB1`)를 쓴다. 도커는 운영 배포에만 쓴다.
 
 처음 한 번, 저장소 루트에서 SYSTEM 계정으로 아래를 실행하면 `wrmp`/`wrmp` 계정을 만들고 테이블과 플랜 초기값을 넣는다 (SYSTEM 비밀번호는 XE 설치 때 정한 것).
+**`NLS_LANG` 을 먼저 설정해야 한글(플랜 이름)이 깨지지 않는다.** PowerShell 은 `set` 이 아니라 `$env:` 로 설정한다 (cmd 라면 `set NLS_LANG=KOREAN_KOREA.AL32UTF8`).
 
-```bash
-set NLS_LANG=KOREAN_KOREA.AL32UTF8
+```powershell
+$env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
 ```
 
-```bash
-sqlplus system@//localhost:1521/XEPDB1 @db/local-setup.sql
+```powershell
+sqlplus system@//localhost:1521/XEPDB1 '@db/local-setup.sql'
 ```
 
 SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql` 을 열고 *스크립트 실행*(F5)해도 된다.
