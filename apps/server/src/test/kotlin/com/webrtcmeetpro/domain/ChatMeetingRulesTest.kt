@@ -1,11 +1,11 @@
 package com.webrtcmeetpro.domain
 
-import com.webrtcmeetpro.chat.domain.ChatRoom
-import com.webrtcmeetpro.chat.domain.ChatRoomMember
-import com.webrtcmeetpro.chat.domain.ChatRoomType
-import com.webrtcmeetpro.common.config.JacksonConfig
-import com.webrtcmeetpro.meeting.domain.Meeting
-import com.webrtcmeetpro.meeting.domain.MeetingStatus
+import com.webrtcmeetpro.domain.chat.ChatRoom
+import com.webrtcmeetpro.domain.chat.ChatRoomMember
+import com.webrtcmeetpro.domain.chat.ChatRoomType
+import com.webrtcmeetpro.config.JacksonConfig
+import com.webrtcmeetpro.domain.meeting.Meeting
+import com.webrtcmeetpro.domain.meeting.MeetingStatus
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.LocalDateTime

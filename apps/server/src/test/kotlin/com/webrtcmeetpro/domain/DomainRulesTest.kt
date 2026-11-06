@@ -1,17 +1,17 @@
 package com.webrtcmeetpro.domain
 
-import com.webrtcmeetpro.auth.domain.RefreshToken
+import com.webrtcmeetpro.domain.auth.RefreshToken
 import com.webrtcmeetpro.common.error.BusinessException
-import com.webrtcmeetpro.user.application.ImageUpload
-import com.webrtcmeetpro.user.application.UserService
-import com.webrtcmeetpro.user.domain.User
-import com.webrtcmeetpro.user.domain.UserProfile
+import com.webrtcmeetpro.application.user.ImageUpload
+import com.webrtcmeetpro.application.user.UserService
+import com.webrtcmeetpro.domain.user.User
+import com.webrtcmeetpro.domain.user.UserProfile
 import java.time.Year
-import com.webrtcmeetpro.plan.domain.Payment
-import com.webrtcmeetpro.plan.domain.PaymentStatus
-import com.webrtcmeetpro.plan.domain.Plan
-import com.webrtcmeetpro.team.domain.InvitationStatus
-import com.webrtcmeetpro.team.domain.TeamInvitation
+import com.webrtcmeetpro.domain.plan.Payment
+import com.webrtcmeetpro.domain.plan.PaymentStatus
+import com.webrtcmeetpro.domain.plan.Plan
+import com.webrtcmeetpro.domain.team.InvitationStatus
+import com.webrtcmeetpro.domain.team.TeamInvitation
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.LocalDateTime
