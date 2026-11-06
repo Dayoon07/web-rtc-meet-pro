@@ -121,6 +121,12 @@ gradlew :androidApp:assembleDebug
 APK 는 `androidApp/build/outputs/apk/debug/`. 에뮬레이터는 `http://10.0.2.2:8080`(PC 의 localhost)로 붙는다. 실기기는 `Platform.android.kt` 의 주소를 PC 의 LAN IP 로 바꾼다.
 Windows 설치 파일은 `gradlew :composeApp:packageMsi` (또는 `packageExe`).
 
+앱에서 화상회의에 들어가면 로그인된 상태로 브라우저(웹 클라이언트)의 회의실이 열린다. 브라우저는 https 또는 localhost 에서만 카메라를 허용하므로, 에뮬레이터에서 개발할 때는 PC 의 5173 포트를 에뮬레이터 localhost 로 연결해 둔다.
+
+```bash
+adb reverse tcp:5173 tcp:5173
+```
+
 ## 기능 규칙
 
 | 기능 | 규칙 |
@@ -174,6 +180,7 @@ com/webrtcmeetpro/
 | POST | `/api/auth/signup` · `/login` · `/refresh` · `/logout` | 가입(프로필+약관) / 로그인 / 토큰 회전 / 로그아웃 |
 | GET | `/api/auth/email-availability?email=` · `/providers` | 이메일 중복 / 구글 사용 가능 여부 |
 | GET | `/oauth2/authorization/google` → POST `/api/auth/oauth/exchange` | 구글 로그인 |
+| POST | `/api/sessions/web-handoff` | 앱 → 브라우저 로그인 넘기기용 60초 1회용 코드 (`/oauth/callback?code=…&next=…`) |
 | GET · PUT | `/api/users/me` · `/me/profile` | 내 정보 / 프로필(온보딩) |
 | POST · DELETE | `/api/users/me/profile-image` | 프로필 사진 (매직 바이트로 형식 판별) |
 | GET · PUT | `/api/plans` · `/api/subscriptions/me` | 플랜 / 내 구독·변경 |
@@ -214,26 +221,31 @@ UI 는 Tailwind CSS v4. 흰 배경 기본 + 다크 모드, 포인트 컬러는 �
 apps/kmp/
 ├─ composeApp/                 화면·네비게이션·DI (Compose Multiplatform)
 │  └─ src/
-│     ├─ commonMain/           App, 로그인·홈·팀·회의·설정 화면, ViewModel, Koin 모듈
+│     ├─ commonMain/           App, 화면(feature/*), ViewModel, Koin 모듈, expect 선언
 │     │  └─ composeResources/  values(en) · values-ko · values-ja · values-zh 문자열
-│     ├─ androidMain/          MainActivity, Application, 언어 전환·날짜 형식·서버 주소(10.0.2.2)
-│     └─ desktopMain/          main() (창), 언어 전환·날짜 형식·서버 주소·%APPDATA% 저장 경로
+│     ├─ jvmSharedMain/        Android·Desktop 공통 JVM 코드 (java.time 날짜 형식, 국가 이름)
+│     ├─ androidMain/          MainActivity, Application, 언어 전환, 알림(NotificationCompat), 서버 주소(10.0.2.2)
+│     └─ desktopMain/          main() (창), 언어 전환, 알림(트레이 풍선), 서버 주소, %APPDATA% 저장 경로
 ├─ androidApp/                 APK 껍데기: applicationId, 매니페스트, 아이콘만
 └─ core/
    ├─ model/                   서버 API 모델 (@Serializable)
-   ├─ network/                 Ktor 클라이언트 — Bearer 자동 첨부, 401 시 토큰 회전, ErrorResponse → ApiException
-   ├─ data/                    DataStore(토큰·테마·언어), 리포지토리
+   ├─ network/                 Ktor 클라이언트 — Bearer 자동 첨부, 401 시 토큰 회전, ErrorResponse → ApiException,
+   │                           StompClient(웹소켓 STOMP 1.2 최소 구현: 채팅·알림 실시간 수신, 자동 재연결)
+   ├─ data/                    DataStore(토큰·테마·언어), 리포지토리, 실시간 이벤트·배지
    └─ designsystem/            보라 라이트/다크 테마, 버튼·카드·아바타(Coil) 등 공통 컴포넌트
 ```
 
-- 공통으로 쓸 수 있는 건 전부 `commonMain`/`core` 에 있다. 플랫폼 코드는 언어 전환(`LocalAppLocale`)과 날짜 형식(`formatDateTime`) 두 개의 `expect/actual`, 그리고 서버 주소·저장 경로를 넣는 플랫폼 Koin 모듈뿐이다.
+- 화면: 로그인·회원가입, 홈(다가오는 회의·내 팀·알림 종), 채팅(팀별 방 목록, 1:1, 그룹 — 팀 소유자만, 방 초대·나가기), 회의(예정/지난, 예약, 상세, 취소, 참여), 팀(받은 초대 수락·거절, 팀 만들기, 이메일 초대·취소), 알림, 설정.
+- 실시간: 로그인 동안 STOMP 연결 하나를 유지해 새 메시지·알림을 받는다. 다른 화면에 있으면 시스템 알림(Android 알림 / Windows 트레이)을 띄운다. 앱이 꺼져 있을 때의 푸시(FCM)는 아직 없다.
+- 화상회의: 앱이 `POST /api/sessions/web-handoff` 로 60초짜리 1회용 코드를 받아 `웹/oauth/callback?code=…&next=/meet/{id}` 를 브라우저로 연다. mediasoup 네이티브 클라이언트는 아직 없다.
+- 공통으로 쓸 수 있는 건 전부 `commonMain`/`core` 에 있다. JVM API 가 필요한 것은 `jvmSharedMain` 한 곳에, 정말 다른 것(언어 전환, 시스템 알림, 서버 주소·저장 경로)만 `androidMain`/`desktopMain` 에 둔다.
 - 좁은 화면(폰)은 하단 탭, 넓은 창(태블릿·데스크톱)은 왼쪽 레일 — 같은 화면 코드가 폭에 따라 바뀐다.
 - `androidApp` 이 따로 있는 이유: AGP 9 부터 `kotlin.multiplatform` 과 `com.android.application` 을 한 모듈에 둘 수 없다. 그래서 `composeApp` 은 Android 라이브러리 타깃(`com.android.kotlin.multiplatform.library`)이고, 실행 APK 만 `androidApp` 이 만든다.
-- 회원가입·구글 로그인·채팅·화상회의 입장은 아직 웹에서만 된다.
+- 구글 로그인·프로필 사진 변경·요금제 변경은 아직 웹에서만 된다.
 
 ## 다음 단계
 
-1. 앱: 채팅(STOMP), 회의 예약, 알림, 화상회의(WebRTC 네이티브), 구글 로그인
+1. 앱: 화상회의 네이티브(WebRTC), 앱이 꺼져 있을 때 푸시(FCM), 구글 로그인
 2. 유료 플랜용 토스페이먼츠 결제 승인 / 빌링
 3. 회의 녹화 (mediasoup PlainTransport → FFmpeg), 플랜 `recording_enabled` 반영
 4. 팀원 내보내기·역할 변경, 초대 메일 발송(SMTP)

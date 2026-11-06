@@ -18,6 +18,18 @@ kotlin {
     }
     jvm("desktop")
 
+    // Android 와 Desktop 은 둘 다 JVM 이라 java.time·Locale 을 쓰는 코드(날짜 형식, 국가 이름 등)는
+    // jvmSharedMain 한 곳에만 둔다. commonMain → jvmSharedMain → androidMain / desktopMain
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("jvmShared") {
+                withJvm()
+                withCompilations { it.platformType == org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.androidJvm }
+            }
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(projects.core.model)

@@ -19,7 +19,25 @@ data class Meeting(
     val status: MeetingStatus,
     val scheduledAt: String,
     val durationMinutes: Int,
+    val startedAt: String? = null,
+    val endedAt: String? = null,
     val host: MeetingUser? = null,
     val invitees: List<MeetingUser> = emptyList(),
     val liveParticipants: Long = 0,
+) {
+    val isOpen get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
+}
+
+/** POST /api/teams/{id}/meetings. scheduledAt 을 비우면 지금 바로 시작. inviteeIds 를 비우면 팀원 전체 */
+@Serializable
+data class ScheduleMeetingRequest(
+    val title: String,
+    val description: String? = null,
+    val scheduledAt: String? = null,
+    val durationMinutes: Int = 60,
+    val inviteeIds: List<Long> = emptyList(),
 )
+
+/** POST /api/sessions/web-handoff → 브라우저로 로그인 상태를 넘기는 60초짜리 1회용 코드 */
+@Serializable
+data class WebHandoff(val code: String)

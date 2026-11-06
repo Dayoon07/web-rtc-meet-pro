@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
@@ -48,6 +49,9 @@ import com.webrtcmeetpro.resources.teams_members
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
+/** onClick 이 있을 때만 눌리게 */
+fun Modifier.clickableIf(onClick: (() -> Unit)?): Modifier = if (onClick == null) this else clickable(onClick = onClick)
+
 /** 서버가 "/uploads/..." 처럼 상대 경로로 주는 이미지를 절대 URL 로 */
 @Composable
 fun resolveImageUrl(path: String?): String? {
@@ -56,9 +60,9 @@ fun resolveImageUrl(path: String?): String? {
 }
 
 @Composable
-fun MeetingCard(meeting: Meeting, modifier: Modifier = Modifier) {
+fun MeetingCard(meeting: Meeting, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     LimeetCard(modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.clickableIf(onClick).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             // 왼쪽 아이콘 칸
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.secondaryContainer),
@@ -125,9 +129,9 @@ fun MeetingStatusBadge(status: MeetingStatus) {
 }
 
 @Composable
-fun TeamCard(team: TeamSummary, modifier: Modifier = Modifier) {
+fun TeamCard(team: TeamSummary, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     LimeetCard(modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.clickableIf(onClick).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             // 팀 첫 글자 (보라 사각형)
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary),

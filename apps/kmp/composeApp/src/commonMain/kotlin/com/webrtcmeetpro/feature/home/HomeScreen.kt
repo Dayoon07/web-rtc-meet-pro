@@ -10,6 +10,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.GroupAdd
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Badge as M3Badge
+import androidx.compose.material.icons.outlined.Notifications
+import com.webrtcmeetpro.core.data.BadgeRepository
+import com.webrtcmeetpro.core.data.RealtimeRepository
+import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
+import com.webrtcmeetpro.resources.meeting_schedule
+import com.webrtcmeetpro.resources.notif_title
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,18 +76,25 @@ class HomeViewModel(
     private val users: UserRepository,
     private val meetings: MeetingRepository,
     private val teams: TeamRepository,
+    badges: BadgeRepository,
+    realtime: RealtimeRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(Loadable<HomeData>())
     val state: StateFlow<Loadable<HomeData>> = _state.asStateFlow()
+    val unreadNotifications: StateFlow<Long> = badges.notificationUnread
 
-    init { refresh() }
+    init {
+        refresh()
+        // 회의 예약·취소, 팀 참여 알림이 오면 홈 요약도 갱신
+        viewModelScope.launch { realtime.notifications.collect { refresh() } }
+    }
 
     fun refresh() {
         _state.update { it.copy(loading = true, errorCode = null) }
         viewModelScope.launch {
             runCatching {
                 coroutineScope {
-                    val me = async { users.me() }
+                    val me = async { users.refresh() }
                     val upcoming = async { meetings.upcoming() }
                     val myTeams = async { teams.teams() }
                     HomeData(me.await(), upcoming.await(), myTeams.await())
@@ -92,9 +109,14 @@ class HomeViewModel(
 fun HomeScreen(
     onOpenMeetings: () -> Unit,
     onOpenTeams: () -> Unit,
+    onOpenMeeting: (Long) -> Unit,
+    onOpenTeam: (Long) -> Unit,
+    onOpenNotifications: () -> Unit,
+    onSchedule: () -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val unread by viewModel.unreadNotifications.collectAsStateWithLifecycle()
     val data = state.data
 
     ScreenList(refreshing = state.loading && data != null, onRefresh = viewModel::refresh) {
@@ -103,7 +125,12 @@ fun HomeScreen(
             if (code != null) item { ErrorState(code, onRetry = viewModel::refresh) } else loadingItem()
             return@ScreenList
         }
-        item { Greeting(data.me) }
+        item { Greeting(data.me, unread, onOpenNotifications) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PrimaryButton(stringResource(Res.string.meeting_schedule), onClick = onSchedule)
+            }
+        }
 
         item {
             SectionHeader(stringResource(Res.string.home_upcoming), Modifier.padding(top = 12.dp)) {
@@ -121,7 +148,7 @@ fun HomeScreen(
                 }
             }
         } else {
-            items(data.upcoming.take(3), key = { "m${it.id}" }) { MeetingCard(it) }
+            items(data.upcoming.take(3), key = { "m${it.id}" }) { MeetingCard(it, onClick = { onOpenMeeting(it.id) }) }
         }
 
         item {
@@ -140,13 +167,13 @@ fun HomeScreen(
                 }
             }
         } else {
-            items(data.teams.take(4), key = { "t${it.id}" }) { TeamCard(it) }
+            items(data.teams.take(4), key = { "t${it.id}" }) { TeamCard(it, onClick = { onOpenTeam(it.id) }) }
         }
     }
 }
 
 @Composable
-private fun Greeting(me: Me) {
+private fun Greeting(me: Me, unread: Long, onOpenNotifications: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Avatar(me.nickname, resolveImageUrl(me.profileImageUrl), size = 52.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -163,6 +190,11 @@ private fun Greeting(me: Me) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        IconButton(onClick = onOpenNotifications) {
+            BadgedBox(badge = { if (unread > 0) M3Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
+                Icon(Icons.Outlined.Notifications, contentDescription = stringResource(Res.string.notif_title))
+            }
         }
     }
 }

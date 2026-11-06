@@ -7,11 +7,11 @@ import com.webrtcmeetpro.core.data.PREFERENCES_FILE_NAME
 import com.webrtcmeetpro.core.data.createPreferencesDataStore
 import com.webrtcmeetpro.core.network.ApiConfig
 import org.koin.dsl.module
+import java.awt.SystemTray
+import java.awt.Toolkit
+import java.awt.TrayIcon
+import java.awt.image.BufferedImage
 import java.io.File
-import java.time.OffsetDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Locale
 
 actual object LocalAppLocale {
@@ -30,11 +30,24 @@ actual object LocalAppLocale {
     }
 }
 
-actual fun formatDateTime(iso: String): String = runCatching {
-    OffsetDateTime.parse(iso)
-        .atZoneSameInstant(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(Locale.getDefault()))
-}.getOrDefault(iso)
+/** Windows 알림 센터 풍선. 트레이를 지원하지 않는 환경이면 조용히 무시 */
+class DesktopNotifier : SystemNotifier {
+    private val icon: TrayIcon? by lazy {
+        if (!SystemTray.isSupported()) return@lazy null
+        runCatching {
+            val image = javaClass.getResource("/tray.png")?.let { Toolkit.getDefaultToolkit().getImage(it) }
+                ?: BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB).apply {
+                    // 리소스가 없으면 보라색 사각형
+                    for (x in 0 until 16) for (y in 0 until 16) setRGB(x, y, 0xFF7C3AED.toInt())
+                }
+            TrayIcon(image, "Limeet Pro").apply { isImageAutoSize = true }.also { SystemTray.getSystemTray().add(it) }
+        }.getOrNull()
+    }
+
+    override fun show(title: String, body: String) {
+        icon?.displayMessage(title, body, TrayIcon.MessageType.INFO)
+    }
+}
 
 /** Windows: %APPDATA%\LimeetPro, 그 밖: ~/.limeetpro */
 private fun appDataDir(): File {
@@ -43,12 +56,14 @@ private fun appDataDir(): File {
     return dir.apply { mkdirs() }
 }
 
-/** 서버 주소는 -Dlimeet.api=... 또는 LIMEET_API_URL 로 바꿀 수 있다 */
+/** 서버 주소는 -Dlimeet.api=… / LIMEET_API_URL, 웹 주소는 -Dlimeet.web=… / LIMEET_WEB_URL 로 바꿀 수 있다 */
 fun desktopPlatformModule() = module {
     single {
         ApiConfig(
             baseUrl = System.getProperty("limeet.api") ?: System.getenv("LIMEET_API_URL") ?: "http://localhost:8080",
+            webUrl = System.getProperty("limeet.web") ?: System.getenv("LIMEET_WEB_URL") ?: "http://localhost:5173",
         )
     }
     single { createPreferencesDataStore(File(appDataDir(), PREFERENCES_FILE_NAME).absolutePath) }
+    single<SystemNotifier> { DesktopNotifier() }
 }

@@ -1,20 +1,34 @@
 package com.webrtcmeetpro.di
 
+import com.webrtcmeetpro.AppViewModel
 import com.webrtcmeetpro.core.data.AuthRepository
+import com.webrtcmeetpro.core.data.BadgeRepository
+import com.webrtcmeetpro.core.data.ChatRepository
 import com.webrtcmeetpro.core.data.MeetingRepository
+import com.webrtcmeetpro.core.data.NotificationRepository
+import com.webrtcmeetpro.core.data.RealtimeRepository
 import com.webrtcmeetpro.core.data.SessionStore
 import com.webrtcmeetpro.core.data.SettingsStore
 import com.webrtcmeetpro.core.data.TeamRepository
 import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.network.LimeetApi
+import com.webrtcmeetpro.core.network.StompClient
 import com.webrtcmeetpro.core.network.TokenStorage
 import com.webrtcmeetpro.core.network.createHttpClient
 import com.webrtcmeetpro.feature.auth.LoginViewModel
+import com.webrtcmeetpro.feature.auth.SignupViewModel
+import com.webrtcmeetpro.feature.chat.ChatListViewModel
+import com.webrtcmeetpro.feature.chat.ChatPresence
+import com.webrtcmeetpro.feature.chat.ChatRoomViewModel
+import com.webrtcmeetpro.feature.chat.NewChatViewModel
 import com.webrtcmeetpro.feature.home.HomeViewModel
+import com.webrtcmeetpro.feature.meetings.MeetingDetailViewModel
 import com.webrtcmeetpro.feature.meetings.MeetingsViewModel
+import com.webrtcmeetpro.feature.meetings.ScheduleMeetingViewModel
+import com.webrtcmeetpro.feature.notifications.NotificationsViewModel
 import com.webrtcmeetpro.feature.settings.SettingsViewModel
+import com.webrtcmeetpro.feature.teams.TeamDetailViewModel
 import com.webrtcmeetpro.feature.teams.TeamsViewModel
-import com.webrtcmeetpro.AppViewModel
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -29,22 +43,37 @@ val dataModule = module {
     singleOf(::SettingsStore)
     single { createHttpClient(get(), get()) }
     singleOf(::LimeetApi)
-    singleOf(::AuthRepository)
+    singleOf(::StompClient)
+    singleOf(::RealtimeRepository)
+    singleOf(::BadgeRepository)
     singleOf(::UserRepository)
+    singleOf(::AuthRepository)
     singleOf(::TeamRepository)
+    singleOf(::ChatRepository)
     singleOf(::MeetingRepository)
+    singleOf(::NotificationRepository)
+    singleOf(::ChatPresence)
 }
 
+/** 화면별 ViewModel. id 를 받는 화면은 koinViewModel { parametersOf(id) } 로 넘긴다 */
 val viewModelModule = module {
     viewModelOf(::AppViewModel)
     viewModelOf(::LoginViewModel)
+    viewModelOf(::SignupViewModel)
     viewModelOf(::HomeViewModel)
-    viewModelOf(::TeamsViewModel)
+    viewModelOf(::ChatListViewModel)
+    viewModelOf(::NewChatViewModel)
+    viewModelOf(::ChatRoomViewModel)
     viewModelOf(::MeetingsViewModel)
+    viewModelOf(::MeetingDetailViewModel)
+    viewModelOf(::ScheduleMeetingViewModel)
+    viewModelOf(::TeamsViewModel)
+    viewModelOf(::TeamDetailViewModel)
+    viewModelOf(::NotificationsViewModel)
     viewModelOf(::SettingsViewModel)
 }
 
-/** Android Application / Desktop main 에서 한 번 호출. platform 은 서버 주소·저장 경로 같은 플랫폼 값 */
+/** Android Application / Desktop main 에서 한 번 호출. platform 은 서버 주소·저장 경로·알림 같은 플랫폼 객체 */
 fun initKoin(platform: Module, extra: KoinApplication.() -> Unit = {}): KoinApplication = startKoin {
     extra()
     modules(platform, dataModule, viewModelModule)

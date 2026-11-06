@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,7 +90,7 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
 }
 
 @Composable
-fun LoginScreen(viewModel: LoginViewModel = koinViewModel()) {
+fun LoginScreen(onSignup: () -> Unit, viewModel: LoginViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showPassword by remember { mutableStateOf(false) }
 
@@ -158,8 +159,10 @@ fun LoginScreen(viewModel: LoginViewModel = koinViewModel()) {
             }
             Text(
                 stringResource(Res.string.login_signup_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable(onClick = onSignup).padding(8.dp),
             )
         }
     }

@@ -10,6 +10,28 @@ data class LoginRequest(val email: String, val password: String)
 data class RefreshRequest(val refreshToken: String)
 
 @Serializable
+enum class Gender { MALE, FEMALE, OTHER }
+
+/** POST /api/auth/signup. phoneNumber 는 E.164 (+821012345678) */
+@Serializable
+data class SignUpRequest(
+    val email: String,
+    val password: String,
+    val nickname: String,
+    val realName: String,
+    val phoneNumber: String,
+    val countryCode: String,
+    val birthYear: Int,
+    val gender: Gender? = null,
+    val termsAgreed: Boolean,
+    val privacyAgreed: Boolean,
+    val marketingAgreed: Boolean = false,
+)
+
+@Serializable
+data class EmailAvailability(val available: Boolean)
+
+@Serializable
 data class AuthTokens(
     val accessToken: String,
     val refreshToken: String,

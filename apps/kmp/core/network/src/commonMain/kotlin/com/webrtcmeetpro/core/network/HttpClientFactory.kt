@@ -15,6 +15,7 @@ import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -23,8 +24,11 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 
-/** 서버 주소. Android 에뮬레이터는 10.0.2.2, 데스크톱은 localhost (플랫폼 DI 모듈에서 정함) */
-data class ApiConfig(val baseUrl: String) {
+/**
+ * 서버 주소. Android 에뮬레이터는 10.0.2.2, 데스크톱은 localhost (플랫폼 DI 모듈에서 정함).
+ * webUrl 은 웹 클라이언트 주소 — 화상회의처럼 아직 브라우저에서만 되는 화면을 열 때 쓴다.
+ */
+data class ApiConfig(val baseUrl: String, val webUrl: String) {
     /** 프로필 이미지처럼 "/uploads/..." 로 오는 경로를 절대 URL 로 */
     fun resolve(pathOrUrl: String?): String? = when {
         pathOrUrl.isNullOrBlank() -> null
@@ -58,6 +62,7 @@ fun createHttpClient(config: ApiConfig, tokens: TokenStorage): HttpClient = Http
         contentType(ContentType.Application.Json)
     }
     install(ContentNegotiation) { json(ApiJson) }
+    install(WebSockets)
     install(HttpTimeout) {
         connectTimeoutMillis = 10_000
         requestTimeoutMillis = 30_000

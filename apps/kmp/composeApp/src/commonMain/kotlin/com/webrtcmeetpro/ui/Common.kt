@@ -4,35 +4,62 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
 import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.app_name
+import com.webrtcmeetpro.resources.common_back
 import com.webrtcmeetpro.resources.common_retry
+import com.webrtcmeetpro.resources.error_ALREADY_TEAM_MEMBER
+import com.webrtcmeetpro.resources.error_CANNOT_INVITE_SELF
+import com.webrtcmeetpro.resources.error_EMAIL_ALREADY_EXISTS
+import com.webrtcmeetpro.resources.error_FORBIDDEN
 import com.webrtcmeetpro.resources.error_INVALID_CREDENTIALS
+import com.webrtcmeetpro.resources.error_INVALID_INPUT
+import com.webrtcmeetpro.resources.error_INVALID_PHONE
+import com.webrtcmeetpro.resources.error_INVITATION_ALREADY_PENDING
+import com.webrtcmeetpro.resources.error_MEETING_NOT_JOINABLE
+import com.webrtcmeetpro.resources.error_MEETING_TIME_IN_PAST
 import com.webrtcmeetpro.resources.error_NETWORK
+import com.webrtcmeetpro.resources.error_PLAN_GROUP_ROOM_LIMIT
+import com.webrtcmeetpro.resources.error_PLAN_MEMBER_LIMIT
+import com.webrtcmeetpro.resources.error_PLAN_TEAM_LIMIT
 import com.webrtcmeetpro.resources.error_SOCIAL_ACCOUNT_ONLY
+import com.webrtcmeetpro.resources.error_UNDERAGE
 import com.webrtcmeetpro.resources.error_UNKNOWN
 import com.webrtcmeetpro.resources.error_USER_NOT_ACTIVE
 import org.jetbrains.compose.resources.stringResource
@@ -51,10 +78,41 @@ fun errorMessage(code: String): String = stringResource(
         "INVALID_CREDENTIALS" -> Res.string.error_INVALID_CREDENTIALS
         "USER_NOT_ACTIVE" -> Res.string.error_USER_NOT_ACTIVE
         "SOCIAL_ACCOUNT_ONLY" -> Res.string.error_SOCIAL_ACCOUNT_ONLY
+        "EMAIL_ALREADY_EXISTS" -> Res.string.error_EMAIL_ALREADY_EXISTS
+        "UNDERAGE" -> Res.string.error_UNDERAGE
+        "INVALID_PHONE" -> Res.string.error_INVALID_PHONE
+        "INVALID_INPUT" -> Res.string.error_INVALID_INPUT
+        "FORBIDDEN", "NOT_TEAM_OWNER", "CANNOT_INVITE", "NOT_MEETING_HOST" -> Res.string.error_FORBIDDEN
+        "PLAN_TEAM_LIMIT" -> Res.string.error_PLAN_TEAM_LIMIT
+        "PLAN_MEMBER_LIMIT" -> Res.string.error_PLAN_MEMBER_LIMIT
+        "PLAN_GROUP_ROOM_LIMIT" -> Res.string.error_PLAN_GROUP_ROOM_LIMIT
+        "CANNOT_INVITE_SELF" -> Res.string.error_CANNOT_INVITE_SELF
+        "ALREADY_TEAM_MEMBER" -> Res.string.error_ALREADY_TEAM_MEMBER
+        "INVITATION_ALREADY_PENDING" -> Res.string.error_INVITATION_ALREADY_PENDING
+        "MEETING_TIME_IN_PAST" -> Res.string.error_MEETING_TIME_IN_PAST
+        "MEETING_NOT_JOINABLE", "MEETING_NOT_STARTED_YET" -> Res.string.error_MEETING_NOT_JOINABLE
         "NETWORK" -> Res.string.error_NETWORK
         else -> Res.string.error_UNKNOWN
     },
 )
+
+/** MainScreen 의 Scaffold 스낵바. 하위 화면이 저장/실패 결과를 잠깐 보여 줄 때 쓴다 */
+val LocalSnackbar = staticCompositionLocalOf { SnackbarHostState() }
+
+/** ViewModel 이 실패 코드를 내면 스낵바로 한 번 보여 주고 지운다 */
+@Composable
+fun ErrorSnackbarEffect(code: String?, onShown: () -> Unit) {
+    val snackbar = LocalSnackbar.current
+    val message = code?.let { errorMessage(it) }
+    // 코드를 지우면 이 effect 가 다시 시작되므로, 스낵바는 화면 수명의 scope 에서 띄운다
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(code) {
+        if (message != null) {
+            onShown()
+            scope.launch { snackbar.showSnackbar(message) }
+        }
+    }
+}
 
 @Composable
 fun ErrorState(code: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
@@ -83,13 +141,54 @@ fun BrandLogo(modifier: Modifier = Modifier, size: Dp = 32.dp, showName: Boolean
     }
 }
 
-/** 화면 제목 + 부제 */
+/** 화면 제목 + 부제 + 오른쪽 버튼 */
 @Composable
-fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        if (subtitle != null) {
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun ScreenTitle(
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    Row(modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            if (subtitle != null) {
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
+        actions()
+    }
+}
+
+/**
+ * 하위 화면(채팅방, 회의 상세 등) 공통 틀: 뒤로 + 제목 + 오른쪽 버튼.
+ * 시스템 인셋은 바깥 MainScreen 이 이미 처리하므로 여기서는 쓰지 않는다.
+ */
+@Composable
+fun DetailScaffold(
+    title: String,
+    onBack: () -> Unit,
+    subtitle: String? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(Res.string.common_back))
+            }
+            Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null) {
+                    Text(subtitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+            }
+            actions()
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        content()
     }
 }
