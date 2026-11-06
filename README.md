@@ -8,7 +8,8 @@ web-rtc-meet-pro/
 ├─ apps/
 │  ├─ client/        Vite + React 19 + TypeScript 7, FSD, Tailwind v4, i18next
 │  ├─ server/        Spring Boot 4.1 + Kotlin 2.3 (Java 21), DDD — API·인증·DB·STOMP·알림 스케줄러
-│  └─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
+│  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
+│  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
 │  ├─ schema.sql     Oracle DDL v0.4 (20 테이블)
 │  └─ seed.sql       플랜 초기값
@@ -101,6 +102,25 @@ npm run dev:client
 
 `/api`·`/uploads`·`/oauth2`·`/login/oauth2`·`/ws` 는 8080, `/media` 는 4000 으로 Vite 가 프록시한다.
 
+### 5. Android · Windows 앱 (apps/kmp)
+
+JDK 21, Android SDK(compileSdk 37 — 없으면 Gradle 이 받아 줌)가 필요하다. 서버(8080)가 떠 있어야 로그인된다.
+
+```bash
+cd apps/kmp
+gradlew :composeApp:run
+```
+
+위는 데스크톱 실행. 서버 주소는 `-Dlimeet.api=…` 또는 `LIMEET_API_URL` 로 바꾼다(기본 `http://localhost:8080`).
+
+```bash
+cd apps/kmp
+gradlew :androidApp:assembleDebug
+```
+
+APK 는 `androidApp/build/outputs/apk/debug/`. 에뮬레이터는 `http://10.0.2.2:8080`(PC 의 localhost)로 붙는다. 실기기는 `Platform.android.kt` 의 주소를 PC 의 LAN IP 로 바꾼다.
+Windows 설치 파일은 `gradlew :composeApp:packageMsi` (또는 `packageExe`).
+
 ## 기능 규칙
 
 | 기능 | 규칙 |
@@ -117,9 +137,21 @@ npm run dev:client
 
 ## 백엔드 구조 (DDD)
 
-바운디드 컨텍스트마다 `domain / application / infrastructure / presentation` 4계층.
+패키지는 **계층 먼저, 그 아래 도메인**으로 나눈다 (`com.webrtcmeetpro.<계층>.<도메인>`).
 
-| 컨텍스트 | 테이블 |
+```
+com/webrtcmeetpro/
+├─ application/     유스케이스 서비스        (auth, chat, meeting, notification, plan, team, user)
+├─ domain/          엔티티 + 리포지토리 포트  (auth, chat, common, meeting, notification, plan, team, user)
+├─ infrastructure/  Spring Data 구현, JWT, STOMP 푸시, 파일 저장
+├─ presentation/    REST 컨트롤러, OAuth 핸들러, 전역 예외 처리
+├─ config/          Security·WebSocket·Jackson 설정, properties/
+├─ external/        외부 시스템 연동 (media: 사이드카 입장 토큰)
+├─ batch/           스케줄러 (meeting: 회의 10분 전 알림)
+└─ common/          error(ErrorCode, BusinessException), web(요청 정보)
+```
+
+| 도메인 | 테이블 |
 |---|---|
 | `user` | users |
 | `auth` | user_social_accounts, refresh_tokens, login_histories |
@@ -176,9 +208,32 @@ src/
 UI 는 Tailwind CSS v4. 흰 배경 기본 + 다크 모드, 포인트 컬러는 보라(`brand-*`, `app/styles/index.css` 의 `@theme`).
 배치는 누구나 아는 패턴: 랜딩·회의실은 Google Meet/Zoom, 로그인은 Slack/Notion 분할 화면, 앱은 Slack/Teams 사이드바, 채팅은 카카오톡/Slack, 요금제는 "가장 인기" 카드.
 
+## 앱 구조 (KMP)
+
+```
+apps/kmp/
+├─ composeApp/                 화면·네비게이션·DI (Compose Multiplatform)
+│  └─ src/
+│     ├─ commonMain/           App, 로그인·홈·팀·회의·설정 화면, ViewModel, Koin 모듈
+│     │  └─ composeResources/  values(en) · values-ko · values-ja · values-zh 문자열
+│     ├─ androidMain/          MainActivity, Application, 언어 전환·날짜 형식·서버 주소(10.0.2.2)
+│     └─ desktopMain/          main() (창), 언어 전환·날짜 형식·서버 주소·%APPDATA% 저장 경로
+├─ androidApp/                 APK 껍데기: applicationId, 매니페스트, 아이콘만
+└─ core/
+   ├─ model/                   서버 API 모델 (@Serializable)
+   ├─ network/                 Ktor 클라이언트 — Bearer 자동 첨부, 401 시 토큰 회전, ErrorResponse → ApiException
+   ├─ data/                    DataStore(토큰·테마·언어), 리포지토리
+   └─ designsystem/            보라 라이트/다크 테마, 버튼·카드·아바타(Coil) 등 공통 컴포넌트
+```
+
+- 공통으로 쓸 수 있는 건 전부 `commonMain`/`core` 에 있다. 플랫폼 코드는 언어 전환(`LocalAppLocale`)과 날짜 형식(`formatDateTime`) 두 개의 `expect/actual`, 그리고 서버 주소·저장 경로를 넣는 플랫폼 Koin 모듈뿐이다.
+- 좁은 화면(폰)은 하단 탭, 넓은 창(태블릿·데스크톱)은 왼쪽 레일 — 같은 화면 코드가 폭에 따라 바뀐다.
+- `androidApp` 이 따로 있는 이유: AGP 9 부터 `kotlin.multiplatform` 과 `com.android.application` 을 한 모듈에 둘 수 없다. 그래서 `composeApp` 은 Android 라이브러리 타깃(`com.android.kotlin.multiplatform.library`)이고, 실행 APK 만 `androidApp` 이 만든다.
+- 회원가입·구글 로그인·채팅·화상회의 입장은 아직 웹에서만 된다.
+
 ## 다음 단계
 
-1. 유료 플랜용 토스페이먼츠 결제 승인 / 빌링
-2. 회의 녹화 (mediasoup PlainTransport → FFmpeg), 플랜 `recording_enabled` 반영
-3. 팀원 내보내기·역할 변경, 초대 메일 발송(SMTP)
-4. 모바일(Android)·데스크톱(Windows) 앱
+1. 앱: 채팅(STOMP), 회의 예약, 알림, 화상회의(WebRTC 네이티브), 구글 로그인
+2. 유료 플랜용 토스페이먼츠 결제 승인 / 빌링
+3. 회의 녹화 (mediasoup PlainTransport → FFmpeg), 플랜 `recording_enabled` 반영
+4. 팀원 내보내기·역할 변경, 초대 메일 발송(SMTP)

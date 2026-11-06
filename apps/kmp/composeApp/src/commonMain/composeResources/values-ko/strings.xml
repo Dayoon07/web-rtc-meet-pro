@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Limeet Pro</string>
+    <string name="common_retry">다시 시도</string>
+    <string name="common_see_all">전체 보기</string>
+
+    <string name="nav_home">홈</string>
+    <string name="nav_teams">팀</string>
+    <string name="nav_meetings">회의</string>
+    <string name="nav_settings">설정</string>
+
+    <string name="login_title">다시 오신 걸 환영해요</string>
+    <string name="login_subtitle">팀 채팅과 화상회의를 한 곳에서</string>
+    <string name="login_email">이메일</string>
+    <string name="login_password">비밀번호</string>
+    <string name="login_submit">로그인</string>
+    <string name="login_show_password">비밀번호 보기</string>
+    <string name="login_hide_password">비밀번호 숨기기</string>
+    <string name="login_signup_hint">아직 계정이 없다면 웹에서 먼저 가입해 주세요.</string>
+
+    <string name="error_INVALID_CREDENTIALS">이메일 또는 비밀번호가 올바르지 않습니다.</string>
+    <string name="error_USER_NOT_ACTIVE">사용할 수 없는 계정입니다.</string>
+    <string name="error_SOCIAL_ACCOUNT_ONLY">구글로 가입한 계정입니다. 웹에서 구글로 로그인해 주세요.</string>
+    <string name="error_NETWORK">서버에 연결할 수 없어요. 네트워크를 확인해 주세요.</string>
+    <string name="error_UNKNOWN">문제가 생겼어요. 잠시 후 다시 시도해 주세요.</string>
+
+    <string name="home_greeting">안녕하세요, %1$s님</string>
+    <string name="home_subtitle">내 팀의 다가오는 일정을 확인하세요.</string>
+    <string name="home_upcoming">다가오는 회의</string>
+    <string name="home_my_teams">내 팀</string>
+    <string name="home_no_meetings">예정된 회의가 없어요</string>
+    <string name="home_no_meetings_body">회의를 예약하면 여기에 보여요.</string>
+    <string name="home_no_teams">아직 속한 팀이 없어요</string>
+    <string name="home_no_teams_body">웹에서 팀을 만들거나 받은 초대를 수락해 보세요.</string>
+
+    <string name="teams_title">팀</string>
+    <string name="teams_members">팀원 %1$d명</string>
+    <string name="role_OWNER">소유자</string>
+    <string name="role_ADMIN">관리자</string>
+    <string name="role_MEMBER">멤버</string>
+
+    <string name="meetings_title">회의</string>
+    <string name="meetings_upcoming">예정</string>
+    <string name="meetings_past">지난 회의</string>
+    <string name="meetings_empty">회의가 없어요</string>
+    <string name="meeting_duration">%1$d분</string>
+    <string name="meeting_live_count">%1$d명 참여 중</string>
+    <string name="meeting_host">주최: %1$s</string>
+    <string name="meeting_status_SCHEDULED">예정</string>
+    <string name="meeting_status_LIVE">진행 중</string>
+    <string name="meeting_status_ENDED">종료</string>
+    <string name="meeting_status_CANCELED">취소됨</string>
+
+    <string name="settings_title">설정</string>
+    <string name="settings_plan">%1$s 플랜</string>
+    <string name="settings_theme">테마</string>
+    <string name="theme_system">시스템</string>
+    <string name="theme_light">라이트</string>
+    <string name="theme_dark">다크</string>
+    <string name="settings_language">언어</string>
+    <string name="lang_system">기기 언어</string>
+    <string name="settings_logout">로그아웃</string>
+</resources>

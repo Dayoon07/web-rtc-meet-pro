@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Limeet Pro</string>
+    <string name="common_retry">再試行</string>
+    <string name="common_see_all">すべて表示</string>
+
+    <string name="nav_home">ホーム</string>
+    <string name="nav_teams">チーム</string>
+    <string name="nav_meetings">会議</string>
+    <string name="nav_settings">設定</string>
+
+    <string name="login_title">おかえりなさい</string>
+    <string name="login_subtitle">チームチャットとビデオ会議をひとつに</string>
+    <string name="login_email">メールアドレス</string>
+    <string name="login_password">パスワード</string>
+    <string name="login_submit">ログイン</string>
+    <string name="login_show_password">パスワードを表示</string>
+    <string name="login_hide_password">パスワードを隠す</string>
+    <string name="login_signup_hint">アカウントがない場合は、先にWebで登録してください。</string>
+
+    <string name="error_INVALID_CREDENTIALS">メールアドレスまたはパスワードが正しくありません。</string>
+    <string name="error_USER_NOT_ACTIVE">このアカウントは利用できません。</string>
+    <string name="error_SOCIAL_ACCOUNT_ONLY">Googleで登録したアカウントです。WebでGoogleログインしてください。</string>
+    <string name="error_NETWORK">サーバーに接続できません。ネットワークを確認してください。</string>
+    <string name="error_UNKNOWN">問題が発生しました。しばらくしてからもう一度お試しください。</string>
+
+    <string name="home_greeting">こんにちは、%1$sさん</string>
+    <string name="home_subtitle">チームの今後の予定を確認しましょう。</string>
+    <string name="home_upcoming">今後の会議</string>
+    <string name="home_my_teams">マイチーム</string>
+    <string name="home_no_meetings">予定された会議はありません</string>
+    <string name="home_no_meetings_body">会議を予約するとここに表示されます。</string>
+    <string name="home_no_teams">まだチームに参加していません</string>
+    <string name="home_no_teams_body">Webでチームを作成するか、招待を承認してください。</string>
+
+    <string name="teams_title">チーム</string>
+    <string name="teams_members">メンバー %1$d人</string>
+    <string name="role_OWNER">オーナー</string>
+    <string name="role_ADMIN">管理者</string>
+    <string name="role_MEMBER">メンバー</string>
+
+    <string name="meetings_title">会議</string>
+    <string name="meetings_upcoming">予定</string>
+    <string name="meetings_past">過去の会議</string>
+    <string name="meetings_empty">会議はありません</string>
+    <string name="meeting_duration">%1$d分</string>
+    <string name="meeting_live_count">%1$d人が参加中</string>
+    <string name="meeting_host">主催: %1$s</string>
+    <string name="meeting_status_SCHEDULED">予定</string>
+    <string name="meeting_status_LIVE">進行中</string>
+    <string name="meeting_status_ENDED">終了</string>
+    <string name="meeting_status_CANCELED">キャンセル</string>
+
+    <string name="settings_title">設定</string>
+    <string name="settings_plan">%1$sプラン</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="theme_system">システム</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="settings_language">言語</string>
+    <string name="lang_system">端末の言語</string>
+    <string name="settings_logout">ログアウト</string>
+</resources>
