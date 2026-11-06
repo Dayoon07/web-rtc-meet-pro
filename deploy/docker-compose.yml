@@ -14,7 +14,7 @@ services:
       - oracle-data:/opt/oracle/oradata
       # 최초 기동(빈 볼륨) 때만 스키마·시드 실행
       - ../db:/db:ro
-      - ../docker/oracle/init.sh:/container-entrypoint-initdb.d/01-init.sh:ro
+      - ./oracle/init.sh:/container-entrypoint-initdb.d/01-init.sh:ro
     healthcheck:
       test: ["CMD", "healthcheck.sh"]
       interval: 10s

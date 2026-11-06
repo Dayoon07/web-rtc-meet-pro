@@ -11,10 +11,10 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql     Oracle DDL v0.4 (20 테이블)
-│  └─ seed.sql       플랜 초기값
-├─ docker/oracle/    컨테이너 최초 기동 시 schema/seed 실행 스크립트
-└─ docker-compose.yml  Oracle Free 23ai
+│  ├─ schema.sql       Oracle DDL v0.4 (20 테이블, 19c 이상)
+│  ├─ seed.sql         플랜 초기값
+│  └─ local-setup.sql  로컬 Oracle XE 에 wrmp 계정 + 테이블 만들기 (한 번만)
+└─ deploy/             운영 배포 (Docker Compose · Caddy) — 도커는 배포에만 쓴다
 ```
 
 ```
@@ -29,24 +29,26 @@ web-rtc-meet-pro/
 
 ### 1. DB
 
-**A. Docker (권장)** — 빈 볼륨으로 처음 뜰 때 `schema.sql`, `seed.sql` 이 자동 실행된다.
+로컬 개발은 PC 에 설치된 **Oracle XE 21c** (`localhost:1521/XEPDB1`)를 쓴다. 도커는 운영 배포에만 쓴다.
+
+처음 한 번, 저장소 루트에서 SYSTEM 계정으로 아래를 실행하면 `wrmp`/`wrmp` 계정을 만들고 테이블과 플랜 초기값을 넣는다 (SYSTEM 비밀번호는 XE 설치 때 정한 것).
 
 ```bash
-docker compose up -d oracle
+set NLS_LANG=KOREAN_KOREA.AL32UTF8
 ```
 
-컨테이너는 **1522** 포트로 뜬다 (로컬에 설치된 Oracle XE 가 쓰는 1521 과 겹치지 않게). 서버의 기본 `DB_URL` 도 1522 라서 따로 설정할 필요가 없다.
+```bash
+sqlplus system@//localhost:1521/XEPDB1 @db/local-setup.sql
+```
 
-**B. 로컬 Oracle XE** — 사용할 스키마로 접속해 `db/schema.sql` → `db/seed.sql` 순서로 실행한 뒤, 서버 환경변수를 설정한다.
-
-> 스키마가 v0.4 로 바뀌었다(채널 → 1:1/그룹 채팅방, 회의 예약·초대, 알림, `plans.max_group_rooms_per_team`).
-> 이전 버전으로 만든 DB 는 `npm run db:reset` (Docker) 또는 테이블을 지우고 다시 실행해야 한다.
+SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql` 을 열고 *스크립트 실행*(F5)해도 된다.
+처음부터 다시 만들려면 SYSTEM 으로 `DROP USER wrmp CASCADE;` 후 다시 실행한다. 스키마를 바꿨을 때도 같다.
 
 ### 2. 서버 (http://localhost:8080)
 
 | 환경변수 | 기본값 |
 |---|---|
-| `DB_URL` | `jdbc:oracle:thin:@//localhost:1522/FREEPDB1` |
+| `DB_URL` | `jdbc:oracle:thin:@//localhost:1521/XEPDB1` (로컬 Oracle XE) |
 | `DB_USERNAME` / `DB_PASSWORD` | `wrmp` / `wrmp` |
 | `JWT_SECRET` | 개발용 값 (운영에서 반드시 교체, 32바이트 이상) |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` |

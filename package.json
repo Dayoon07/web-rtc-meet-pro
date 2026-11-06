@@ -11,9 +11,6 @@
     "build:client": "npm run build -w @wrmp/client",
     "lint:client": "npm run lint -w @wrmp/client",
     "dev:server": "cd apps/server && gradlew bootRun",
-    "build:server": "cd apps/server && gradlew build",
-    "db:up": "docker compose up -d oracle",
-    "db:down": "docker compose down",
-    "db:reset": "docker compose down -v && docker compose up -d oracle"
+    "build:server": "cd apps/server && gradlew build"
   }
 }
