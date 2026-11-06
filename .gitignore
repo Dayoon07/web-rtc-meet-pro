@@ -19,3 +19,8 @@ uploads/
 .env
 .env.*
 !.env.example
+
+# Gradle (루트 컴포지트 빌드)
+/.gradle/
+/build/
+/.kotlin/

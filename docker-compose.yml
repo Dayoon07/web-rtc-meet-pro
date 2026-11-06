@@ -3,8 +3,8 @@ services:
     image: gvenzl/oracle-free:23-slim
     container_name: wrmp-oracle
     ports:
-      # 로컬에 Oracle XE 가 1521 을 쓰고 있으면 ORACLE_PORT=1522 처럼 바꿔서 띄운다
-      - "${ORACLE_PORT:-1521}:1521"
+      # 기본 1522: 로컬에 설치된 Oracle XE(1521)와 겹치지 않게. 서버 기본 DB_URL 도 1522
+      - "${ORACLE_PORT:-1522}:1521"
     environment:
       ORACLE_PASSWORD: oracle
       APP_USER: wrmp
