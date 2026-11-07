@@ -16,6 +16,8 @@ export type Me = {
   /** false 면 온보딩(추가 정보 입력)으로 보낸다 */
   profileCompleted: boolean
   hasPassword: boolean
+  /** false 면 "이메일을 확인해 주세요" 화면으로 보낸다 (이메일 가입 후 인증 전) */
+  emailVerified: boolean
   linkedProviders: string[]
   plan: Plan
 }

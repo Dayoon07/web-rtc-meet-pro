@@ -13,6 +13,11 @@ import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.config.properties.JwtProperties
 import com.webrtcmeetpro.infrastructure.security.JwtTokenProvider
 import com.webrtcmeetpro.common.web.ClientInfo
+import com.webrtcmeetpro.application.mail.MailMessage
+import com.webrtcmeetpro.application.mail.MailSender
+import com.webrtcmeetpro.application.mail.MailService
+import com.webrtcmeetpro.config.properties.WebProperties
+import java.net.URLDecoder
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.domain.plan.Payment
 import com.webrtcmeetpro.domain.plan.PaymentRepository
@@ -76,10 +81,11 @@ class GoogleLoginTest {
         override fun findAllByUserId(userId: Long) = socials.filter { it.userId == userId }
         override fun delete(account: SocialAccount) { socials -= account }
     }
+    private val refreshTokens = mutableListOf<RefreshToken>()
     private val refreshRepo = object : RefreshTokenRepository {
-        override fun save(token: RefreshToken) = assignId(token)
-        override fun findByTokenHash(tokenHash: String): RefreshToken? = null
-        override fun findAllByUserIdAndRevokedAtIsNull(userId: Long) = emptyList<RefreshToken>()
+        override fun save(token: RefreshToken) = assignId(token).also { if (it !in refreshTokens) refreshTokens += it }
+        override fun findByTokenHash(tokenHash: String): RefreshToken? = refreshTokens.find { it.tokenHash == tokenHash }
+        override fun findAllByUserIdAndRevokedAtIsNull(userId: Long) = refreshTokens.filter { it.userId == userId && it.revokedAt == null }
     }
     private val historyRepo = object : LoginHistoryRepository {
         override fun save(history: LoginHistory) = assignId(history).also { histories += it }
@@ -112,8 +118,13 @@ class GoogleLoginTest {
 
     private val encoder = BCryptPasswordEncoder(4)
     private val jwtProps = JwtProperties("test-secret-0123456789abcdef0123456789", "test", Duration.ofMinutes(5), Duration.ofDays(1))
+    private val mails = mutableListOf<MailMessage>()
+    private val verifyTokens = EmailVerificationTokens(jwtProps)
+    private val emailVerification = EmailVerificationService(
+        userRepo, verifyTokens, MailService(object : MailSender { override fun send(message: MailMessage) { mails += message } }), WebProperties("http://web.test"),
+    )
     private val service = AuthService(
-        userRepo, refreshRepo, socialRepo, encoder, JwtTokenProvider(jwtProps), jwtProps, planService, LoginHistoryRecorder(historyRepo),
+        userRepo, refreshRepo, socialRepo, encoder, JwtTokenProvider(jwtProps), jwtProps, planService, LoginHistoryRecorder(historyRepo), emailVerification,
     )
     private val client = ClientInfo("127.0.0.1", "test")
 
@@ -135,10 +146,11 @@ class GoogleLoginTest {
         assertTrue(histories.single().let { it.success && it.loginMethod == LoginMethod.GOOGLE })
     }
 
+    private val profile = UserProfile("민지", "김민지", "+821012345678", "KR", 1996, null)
+
     @Test
-    fun `같은 이메일의 기존 계정이 있으면 새로 만들지 않고 연결한다`() {
-        val profile = UserProfile("민지", "김민지", "+821012345678", "KR", 1996, null)
-        val existing = userRepo.save(User.register("kim@gmail.com", encoder.encode("abcd1234")!!, profile, false))
+    fun `같은 이메일의 이메일 인증된 기존 계정이 있으면 새로 만들지 않고 연결한다`() {
+        val existing = userRepo.save(User.register("kim@gmail.com", encoder.encode("abcd1234")!!, profile, false).apply { verifyEmail() })
 
         val userId = service.loginWithGoogle(google(email = "KIM@gmail.com"), client)
 
@@ -146,6 +158,71 @@ class GoogleLoginTest {
         assertEquals(1, users.size)
         assertTrue(existing.hasPassword, "기존 비밀번호 로그인은 그대로 유지")
         assertEquals(existing.id, socials.single().userId)
+    }
+
+    @Test
+    fun `이메일 인증 전인 기존 계정에 구글로 연결하면 그 비밀번호를 지운다 (남이 먼저 가입했을 수 있다)`() {
+        val existing = userRepo.save(User.register("kim@gmail.com", encoder.encode("abcd1234")!!, profile, false))
+
+        service.loginWithGoogle(google(email = "kim@gmail.com"), client)
+
+        assertFalse(existing.hasPassword, "이메일 주인이 아닌 사람이 만든 비밀번호일 수 있다")
+        assertTrue(existing.isEmailVerified)
+        val e = assertThrows<BusinessException> { service.login(LoginCommand("kim@gmail.com", "abcd1234"), client) }
+        assertEquals(ErrorCode.SOCIAL_ACCOUNT_ONLY, e.errorCode)
+    }
+
+    @Test
+    fun `구글로 새로 가입하면 이메일 인증된 상태다`() {
+        service.loginWithGoogle(google(), client)
+        assertTrue(users.single().isEmailVerified)
+        assertTrue(mails.isEmpty(), "구글 가입자에게는 인증 메일을 보내지 않는다")
+    }
+
+    @Test
+    fun `이메일로 가입하면 인증 메일이 가고, 링크의 토큰으로 인증된다`() {
+        service.signUp(SignUpCommand("lee@test.com", "abcd1234", profile, true, true, false), client)
+        val user = users.single()
+        assertFalse(user.isEmailVerified)
+
+        val mail = mails.single()
+        assertEquals("lee@test.com", mail.to)
+        val token = URLDecoder.decode(Regex("""token=(\S+)""").find(mail.text)!!.groupValues[1], Charsets.UTF_8)
+        assertEquals(user.id, verifyTokens.userIdOf(token))
+
+        val forged = token.dropLast(2) + "xx"
+        assertEquals(ErrorCode.EMAIL_VERIFY_TOKEN_INVALID, assertThrows<BusinessException> { emailVerification.confirm(forged) }.errorCode)
+        emailVerification.confirm(token)
+        assertTrue(user.isEmailVerified)
+    }
+
+    @Test
+    fun `인증 메일 다시 보내기는 60초에 한 번`() {
+        service.signUp(SignUpCommand("lee@test.com", "abcd1234", profile, true, true, false), client)
+        val e = assertThrows<BusinessException> { emailVerification.resend(users.single().id!!) }
+        assertEquals(ErrorCode.RESEND_TOO_SOON, e.errorCode)
+        assertEquals(1, mails.size)
+    }
+
+    @Test
+    fun `비밀번호 바꾸기는 현재 비밀번호를 확인하고 다른 로그인을 끊는다`() {
+        val first = service.signUp(SignUpCommand("lee@test.com", "abcd1234", profile, true, true, false), client)
+        val id = users.single().id!!
+
+        val wrong = assertThrows<BusinessException> { service.changePassword(id, "wrong-pass", "newpass99", client) }
+        assertEquals(ErrorCode.INVALID_PASSWORD, wrong.errorCode)
+
+        val fresh = service.changePassword(id, "abcd1234", "newpass99", client)
+        assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, assertThrows<BusinessException> { service.refresh(first.refreshToken, client) }.errorCode)
+        service.refresh(fresh.refreshToken, client)
+        service.login(LoginCommand("lee@test.com", "newpass99"), client)
+    }
+
+    @Test
+    fun `구글 전용 계정은 현재 비밀번호 없이 비밀번호를 만들 수 있다`() {
+        val id = service.loginWithGoogle(google(), client)
+        service.changePassword(id, null, "newpass99", client)
+        service.login(LoginCommand("new@gmail.com", "newpass99"), client)
     }
 
     @Test

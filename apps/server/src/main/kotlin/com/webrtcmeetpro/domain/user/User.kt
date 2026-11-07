@@ -79,6 +79,10 @@ class User(
     var passwordHash: String? = passwordHash
         protected set
 
+    /** 이메일 주인임을 확인한 시각 (가입 인증 메일 링크, 또는 구글이 확인한 이메일). null = 아직 인증 전 */
+    var emailVerifiedAt: LocalDateTime? = null
+        protected set
+
     @Column(nullable = false)
     var nickname: String = nickname.take(50)
         protected set
@@ -128,6 +132,7 @@ class User(
     /** 활동 중인 시스템 관리자 (정지·탈퇴하면 관리자 권한도 쓸 수 없다) */
     val isSystemAdmin: Boolean get() = isActive && systemRole == SystemRole.ADMIN
     val hasPassword: Boolean get() = passwordHash != null
+    val isEmailVerified: Boolean get() = emailVerifiedAt != null
 
     /** 서비스를 쓰려면 개인정보 + 약관 동의가 모두 있어야 한다 (구글 가입자는 온보딩에서 채움) */
     val isProfileCompleted: Boolean
@@ -165,6 +170,7 @@ class User(
         email = "deleted-$id@deleted.invalid"
         nickname = WITHDRAWN_NICKNAME
         passwordHash = null
+        emailVerifiedAt = null
         realName = null
         phoneNumber = null
         countryCode = null
@@ -174,6 +180,23 @@ class User(
         marketingAgreed = false
         status = UserStatus.DELETED
         markDeleted()
+    }
+
+    fun verifyEmail(at: LocalDateTime = LocalDateTime.now()) {
+        if (emailVerifiedAt == null) emailVerifiedAt = at
+    }
+
+    /**
+     * 구글이 확인한 같은 이메일로 이 계정에 연결할 때 (= 이메일 주인이 왔다).
+     * 아직 이메일 인증 전인 계정이면, 비밀번호는 이메일 주인이 아닌 사람이 만들었을 수 있으므로 지운다.
+     * @return 비밀번호를 지웠으면 true → 호출한 쪽이 그 비밀번호로 로그인한 세션도 끊는다
+     */
+    fun verifyEmailByProvider(): Boolean {
+        if (isEmailVerified) return false
+        val hadPassword = passwordHash != null
+        passwordHash = null
+        verifyEmail()
+        return hadPassword
     }
 
     /** 비밀번호 바꾸기·만들기 (구글로만 가입한 사람도 비밀번호를 만들 수 있다). 해시는 서비스가 만든다 */
@@ -196,6 +219,8 @@ class User(
         fun registerSocial(email: String, displayName: String?, pictureUrl: String?) =
             User(email, null, displayName?.takeIf { it.isNotBlank() } ?: email.substringBefore("@")).apply {
                 profileImageUrl = pictureUrl
+                // 구글이 이메일 소유를 확인한 계정만 가입시킨다 (AuthService.loginWithGoogle)
+                verifyEmail()
             }
     }
 }

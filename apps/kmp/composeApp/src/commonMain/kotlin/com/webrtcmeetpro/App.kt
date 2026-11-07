@@ -1,5 +1,6 @@
 package com.webrtcmeetpro
 
+import com.webrtcmeetpro.feature.auth.EmailVerifiedGate
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -118,7 +119,8 @@ fun App() {
                     when (if (settings == null) null else loggedIn) {
                         null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                         false -> AuthFlow(LocalAppLocale.current)
-                        true -> MainScreen()
+                        // 이메일 가입 후 인증 전이면 메인 화면 대신 인증 안내
+                        true -> EmailVerifiedGate { MainScreen() }
                     }
                     // 서버 500: 에러 코드 + 문의 이메일 안내 (로그인 전후 어느 화면에서든)
                     UnexpectedErrorHost()

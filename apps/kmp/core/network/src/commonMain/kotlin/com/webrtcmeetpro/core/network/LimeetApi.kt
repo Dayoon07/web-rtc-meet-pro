@@ -8,6 +8,7 @@ import io.ktor.client.plugins.timeout
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.AuthTokens
 import com.webrtcmeetpro.core.model.ChatMessage
+import com.webrtcmeetpro.core.model.ChangePasswordRequest
 import com.webrtcmeetpro.core.model.ClientErrorRequest
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.core.model.CountResponse
@@ -68,6 +69,15 @@ class LimeetApi(private val client: HttpClient) {
 
     // user / plan
     suspend fun me(): Me = client.get("api/users/me").body()
+
+    /** 비밀번호 바꾸기·만들기. 다른 기기는 로그아웃되고 이 기기용 새 토큰이 온다 */
+    suspend fun changePassword(currentPassword: String?, newPassword: String): AuthTokens =
+        client.post("api/users/me/password") { setBody(ChangePasswordRequest(currentPassword, newPassword)) }.body()
+
+    /** 가입 인증 메일 다시 보내기 (60초에 한 번) */
+    suspend fun resendVerification() {
+        client.post("api/users/me/email-verification")
+    }
 
     suspend fun withdraw(password: String?) {
         client.post("api/users/me/withdraw") { setBody(WithdrawRequest(password)) }

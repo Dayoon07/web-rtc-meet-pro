@@ -154,7 +154,8 @@ class TeamService(
                 expiresAt = LocalDateTime.now().plusDays(INVITATION_DAYS),
             ),
         )
-        invitee?.let {
+        // 이메일 인증 전인 계정에는 알리지 않는다 (남의 이메일로 가입한 사람일 수 있다)
+        invitee?.takeIf { it.isEmailVerified }?.let {
             notifications.notify(
                 listOf(it.id!!),
                 NotificationType.TEAM_INVITATION,
@@ -180,7 +181,7 @@ class TeamService(
 
     /** 내 이메일로 온 대기 중인 초대 (가입 전에 받은 초대도 포함) */
     fun myInvitations(userId: Long): List<InvitationView> {
-        val user = findUser(userId)
+        val user = requireVerified(findUser(userId))
         val invitations = invitationRepository.findAllByInviteeEmailAndStatus(user.email, InvitationStatus.PENDING).filter { it.isPending() }
         val teams = teamRepository.findAllByIdInAndStatus(invitations.map { it.teamId }, TeamStatus.ACTIVE).associateBy { it.id!! }
         val inviters = userRepository.findAllByIdIn(invitations.map { it.inviterId }).associateBy { it.id!! }
@@ -280,8 +281,12 @@ class TeamService(
     }
 
     private fun findMyInvitation(invitationId: Long, user: User): TeamInvitation =
-        invitationRepository.findInvitationById(invitationId)?.takeIf { it.inviteeEmail == user.email && it.isPending() }
+        invitationRepository.findInvitationById(invitationId)?.takeIf { it.inviteeEmail == requireVerified(user).email && it.isPending() }
             ?: throw BusinessException(ErrorCode.INVITATION_NOT_FOUND)
+
+    /** 이메일로 온 초대는 그 이메일의 주인임을 확인한 사람만 보고 수락할 수 있다 */
+    private fun requireVerified(user: User): User =
+        user.takeIf { it.isEmailVerified } ?: throw BusinessException(ErrorCode.EMAIL_NOT_VERIFIED)
 
     private fun findUser(userId: Long) = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 

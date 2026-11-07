@@ -4,6 +4,8 @@ import com.webrtcmeetpro.resources.error_TOO_MANY_FILES
 import com.webrtcmeetpro.resources.error_FILE_TOO_LARGE
 import com.webrtcmeetpro.resources.error_EMPTY_FILE
 import com.webrtcmeetpro.resources.error_OWNER_CANNOT_LEAVE
+import com.webrtcmeetpro.resources.error_EMAIL_NOT_VERIFIED
+import com.webrtcmeetpro.resources.error_RESEND_TOO_SOON
 import com.webrtcmeetpro.resources.error_CANNOT_REMOVE_MEMBER
 import com.webrtcmeetpro.resources.error_INVALID_PASSWORD
 import com.webrtcmeetpro.resources.error_OWNED_TEAMS_EXIST
@@ -104,6 +106,8 @@ fun errorMessage(code: String): String = stringResource(
         "BLOCKED_FILE_TYPE" -> Res.string.error_BLOCKED_FILE_TYPE
         "EMPTY_FILE" -> Res.string.error_EMPTY_FILE
         "OWNER_CANNOT_LEAVE" -> Res.string.error_OWNER_CANNOT_LEAVE
+        "EMAIL_NOT_VERIFIED" -> Res.string.error_EMAIL_NOT_VERIFIED
+        "RESEND_TOO_SOON" -> Res.string.error_RESEND_TOO_SOON
         "CANNOT_REMOVE_MEMBER" -> Res.string.error_CANNOT_REMOVE_MEMBER
         "INVALID_PASSWORD" -> Res.string.error_INVALID_PASSWORD
         "OWNED_TEAMS_EXIST" -> Res.string.error_OWNED_TEAMS_EXIST

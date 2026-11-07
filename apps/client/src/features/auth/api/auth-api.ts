@@ -16,6 +16,8 @@ export const authApi = {
     http<void>('/auth/password-reset/request', { method: 'POST', json: { email }, auth: false }),
   confirmPasswordReset: (token: string, password: string) =>
     http<void>('/auth/password-reset/confirm', { method: 'POST', json: { token, password }, auth: false }),
+  /** 가입 인증 메일의 링크 (로그인 없이) */
+  confirmEmail: (token: string) => http<void>('/auth/email-verification/confirm', { method: 'POST', json: { token }, auth: false }),
   providers: () => http<{ google: boolean }>('/auth/providers', { auth: false }),
   exchangeOAuthCode: (code: string) =>
     http<AuthTokens>('/auth/oauth/exchange', { method: 'POST', json: { code }, auth: false }),

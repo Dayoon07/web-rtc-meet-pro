@@ -15,44 +15,18 @@ import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.net.URLEncoder
-import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
-import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 /**
- * 비밀번호 재설정 링크의 토큰. DB 에 저장하지 않는다: "사용자ID.만료시각.서명".
- * 서명에 지금 비밀번호 해시의 지문을 섞어서, 비밀번호가 바뀌면(= 한 번 쓰면) 같은 링크는 더 이상 맞지 않는다.
+ * 비밀번호 재설정 링크의 토큰 (30분).
+ * 지금 비밀번호 해시를 서명에 섞어서, 비밀번호가 바뀌면(= 한 번 쓰면) 같은 링크는 더 이상 맞지 않는다.
  */
 @Component
-class PasswordResetTokens(props: JwtProperties) {
-    private val key = SecretKeySpec("password-reset:${props.secret}".toByteArray(), "HmacSHA256")
-
-    fun issue(user: User, now: Instant = Instant.now()): String {
-        val exp = now.plus(TTL).epochSecond
-        return "${user.id}.$exp.${sign(user, exp)}"
-    }
-
-    /** 토큰에서 사용자 ID 만 꺼낸다 (서명 확인은 사용자를 읽은 뒤 [isValid]) */
-    fun userIdOf(token: String): Long? = token.split('.').takeIf { it.size == 3 }?.get(0)?.toLongOrNull()
-
-    fun isValid(token: String, user: User, now: Instant = Instant.now()): Boolean {
-        val parts = token.split('.')
-        if (parts.size != 3 || parts[0] != user.id.toString()) return false
-        val exp = parts[1].toLongOrNull() ?: return false
-        if (now.epochSecond > exp) return false
-        return MessageDigest.isEqual(sign(user, exp).toByteArray(), parts[2].toByteArray())
-    }
-
-    private fun sign(user: User, exp: Long): String {
-        val mac = Mac.getInstance("HmacSHA256").apply { init(key) }
-        // 비밀번호가 없는(구글로만 가입한) 계정도 재설정으로 비밀번호를 만들 수 있다
-        val fingerprint = "${user.email}|${user.passwordHash ?: "-"}"
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal("${user.id}.$exp.$fingerprint".toByteArray()))
-    }
+class PasswordResetTokens(props: JwtProperties) : UserLinkTokens(props.secret, "password-reset", TTL) {
+    // 비밀번호가 없는(구글로만 가입한) 계정도 재설정으로 비밀번호를 만들 수 있다
+    override fun fingerprint(user: User) = "${user.email}|${user.passwordHash ?: "-"}"
 
     companion object {
         val TTL: Duration = Duration.ofMinutes(30)

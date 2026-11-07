@@ -36,6 +36,8 @@ data class MeView(
     /** false 면 프론트가 온보딩(추가 정보 입력)으로 보낸다 */
     val profileCompleted: Boolean,
     val hasPassword: Boolean,
+    /** false 면 프론트가 "이메일을 확인해 주세요" 화면으로 보낸다 */
+    val emailVerified: Boolean,
     val linkedProviders: List<String>,
     val plan: PlanView,
 )
@@ -138,6 +140,7 @@ class UserService(
         marketingAgreed = user.marketingAgreed,
         profileCompleted = user.isProfileCompleted,
         hasPassword = user.hasPassword,
+        emailVerified = user.isEmailVerified,
         linkedProviders = socialAccountRepository.findAllByUserId(user.id!!).map { it.provider.name },
         plan = PlanView.from(planService.currentPlanOf(user.id!!)),
     )

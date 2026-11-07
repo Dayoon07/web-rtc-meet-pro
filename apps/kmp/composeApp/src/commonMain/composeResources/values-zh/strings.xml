@@ -204,4 +204,23 @@
     <string name="error_INVALID_PASSWORD">密码不正确。</string>
     <string name="error_OWNED_TEAMS_EXIST">你还有自己创建的团队，请先删除团队再注销。</string>
     <string name="login_forgot">忘记密码？</string>
+    <string name="verify_title">请查收邮件</string>
+    <string name="verify_body">我们已向 %1$s 发送确认邮件。点击邮件中的按钮完成注册后，再回到这里。</string>
+    <string name="verify_done">我已确认</string>
+    <string name="verify_not_yet">尚未确认，请点击邮件中的按钮。</string>
+    <string name="verify_resend">重新发送确认邮件</string>
+    <string name="verify_resent">已重新发送确认邮件。</string>
+    <string name="verify_logout">退出登录</string>
+    <string name="password_change">修改密码</string>
+    <string name="password_create">设置密码</string>
+    <string name="password_current">当前密码</string>
+    <string name="password_new">新密码</string>
+    <string name="password_confirm">确认新密码</string>
+    <string name="password_hint">修改后其他设备将退出登录。请使用至少 8 个字符。</string>
+    <string name="password_changed">密码已修改。</string>
+    <string name="password_created">密码已设置，现在也可以用邮箱登录。</string>
+    <string name="password_mismatch">两次输入的密码不一致。</string>
+    <string name="password_too_short">请使用至少 8 个字符。</string>
+    <string name="error_EMAIL_NOT_VERIFIED">请先确认邮箱。</string>
+    <string name="error_RESEND_TOO_SOON">请稍后再重新发送。</string>
 </resources>

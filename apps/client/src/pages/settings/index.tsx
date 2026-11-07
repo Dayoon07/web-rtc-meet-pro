@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMeQuery } from '@/entities/user'
 import { LanguageSelector } from '@/features/change-language'
+import { ChangePasswordButton } from '@/features/change-password'
 import { EditProfileForm, ProfileImageSection } from '@/features/edit-profile'
 import { ThemeSelector } from '@/features/toggle-theme'
 import { WithdrawAccount } from '@/features/withdraw-account'
@@ -65,7 +66,12 @@ export function SettingsPage() {
           <Row
             icon={<KeyRound />}
             label={t('settings.password')}
-            value={me.hasPassword ? ok(t('settings.passwordSet')) : <Badge tone="gray">{t('settings.passwordNone')}</Badge>}
+            value={
+              <span className="flex items-center gap-2">
+                {me.hasPassword ? ok(t('settings.passwordSet')) : <Badge tone="gray">{t('settings.passwordNone')}</Badge>}
+                <ChangePasswordButton me={me} />
+              </span>
+            }
           />
           <Row
             icon={<GoogleMark className="size-4.5" />}

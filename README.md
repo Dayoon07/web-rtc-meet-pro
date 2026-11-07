@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v0.6 (23 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v0.7 (23 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -56,6 +56,7 @@ SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql`
 
 ```powershell
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
@@ -157,6 +158,12 @@ COMMIT;
 데이터 관리는 테이블 구조를 DB 에서 읽기 때문에 **새 테이블을 만들면 코드를 고치지 않아도 바로 보이고 고칠 수 있다**.
 화면 이름·묶음·보기 전용·비밀값 같은 예외만 `application/admin/table/AdminTablePolicy.kt` 에 적는다.
 비밀값(비밀번호 해시·토큰·빌링키)은 보여 주지 않고, 행은 지우지 않으며(`deleted_yn`), 고친 내용은 `admin_data_changes` 에 이전 값 → 새 값으로 남는다.
+
+#### 가입 이메일 인증 · 비밀번호
+
+- 이메일로 가입하면 24시간짜리 인증 링크를 메일로 보낸다 (`MAIL_HOST` 가 없으면 서버 로그에 링크). 인증 전에는 로그인은 되지만 "이메일을 확인해 주세요" 화면만 보이고, 받은 팀 초대를 보거나 수락할 수 없다 (남의 이메일로 가입해서 초대를 가로채지 못하게).
+- 구글 가입자는 구글이 확인한 이메일이라 처음부터 인증된 상태. 인증 전인 비밀번호 계정에 같은 이메일의 구글 계정이 연결되면 그 비밀번호와 세션을 지운다.
+- 설정의 "비밀번호 바꾸기"(구글 전용 계정은 "만들기")는 현재 비밀번호를 확인하고, 바꾸면 다른 기기는 로그아웃된다. 잊었을 때는 로그인 화면의 "비밀번호를 잊으셨나요?" (30분짜리 메일 링크).
 
 #### 구글 로그인 설정
 

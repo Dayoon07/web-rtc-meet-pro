@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.di
 
+import com.webrtcmeetpro.feature.auth.VerifyEmailViewModel
 import com.webrtcmeetpro.AppViewModel
 import com.webrtcmeetpro.core.data.AuthRepository
 import com.webrtcmeetpro.core.data.BadgeRepository
@@ -71,6 +72,7 @@ val viewModelModule = module {
     viewModelOf(::TeamDetailViewModel)
     viewModelOf(::NotificationsViewModel)
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::VerifyEmailViewModel)
 }
 
 /** Android Application / Desktop main 에서 한 번 호출. platform 은 서버 주소·저장 경로·알림 같은 플랫폼 객체 */

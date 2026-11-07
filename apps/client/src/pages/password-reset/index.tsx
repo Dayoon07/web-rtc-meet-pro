@@ -87,6 +87,8 @@ export function ResetPasswordPage() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (password.length < 8) return setError(t('auth.validation.passwordLength'))
+    // 가입 화면과 같은 규칙 (영문·숫자 함께)
+    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) return setError(t('auth.validation.passwordMix'))
     if (password !== confirm) return setError(t('auth.validation.passwordMismatch'))
     setError(null)
     reset.mutate()
@@ -128,7 +130,7 @@ export function ResetPasswordPage() {
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('auth.reset.newSubtitle')}</p>
       </div>
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <Field label={t('auth.reset.newPassword')} htmlFor="reset-password">
+        <Field label={t('auth.reset.newPassword')} htmlFor="reset-password" hint={t('auth.fields.passwordHint')}>
           <Input
             id="reset-password"
             type="password"

@@ -204,4 +204,23 @@
     <string name="error_INVALID_PASSWORD">パスワードが正しくありません。</string>
     <string name="error_OWNED_TEAMS_EXIST">作成したチームがあります。先にチームを削除してから退会してください。</string>
     <string name="login_forgot">パスワードをお忘れですか？</string>
+    <string name="verify_title">メールを確認してください</string>
+    <string name="verify_body">%1$s に確認メールを送信しました。メールのボタンを押して登録を完了し、この画面に戻ってください。</string>
+    <string name="verify_done">確認しました</string>
+    <string name="verify_not_yet">まだ確認されていません。メールのボタンを押してください。</string>
+    <string name="verify_resend">確認メールを再送信</string>
+    <string name="verify_resent">確認メールを再送信しました。</string>
+    <string name="verify_logout">ログアウト</string>
+    <string name="password_change">パスワードを変更</string>
+    <string name="password_create">パスワードを作成</string>
+    <string name="password_current">現在のパスワード</string>
+    <string name="password_new">新しいパスワード</string>
+    <string name="password_confirm">新しいパスワード（確認）</string>
+    <string name="password_hint">変更すると他の端末ではログアウトされます。8文字以上にしてください。</string>
+    <string name="password_changed">パスワードを変更しました。</string>
+    <string name="password_created">パスワードを作成しました。メールアドレスでもログインできます。</string>
+    <string name="password_mismatch">パスワードが一致しません。</string>
+    <string name="password_too_short">8文字以上にしてください。</string>
+    <string name="error_EMAIL_NOT_VERIFIED">先にメールアドレスを確認してください。</string>
+    <string name="error_RESEND_TOO_SOON">しばらくしてから再送信してください。</string>
 </resources>

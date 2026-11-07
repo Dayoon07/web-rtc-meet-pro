@@ -204,4 +204,23 @@
     <string name="error_INVALID_PASSWORD">비밀번호가 맞지 않아요.</string>
     <string name="error_OWNED_TEAMS_EXIST">내가 만든 팀이 있어요. 팀을 먼저 삭제한 뒤 탈퇴해 주세요.</string>
     <string name="login_forgot">비밀번호를 잊으셨나요?</string>
+    <string name="verify_title">이메일을 확인해 주세요</string>
+    <string name="verify_body">%1$s 주소로 인증 메일을 보냈어요. 메일의 버튼을 눌러 가입을 마친 뒤 이 화면으로 돌아오세요.</string>
+    <string name="verify_done">인증했어요</string>
+    <string name="verify_not_yet">아직 인증되지 않았어요. 메일의 버튼을 눌러 주세요.</string>
+    <string name="verify_resend">인증 메일 다시 보내기</string>
+    <string name="verify_resent">인증 메일을 다시 보냈어요.</string>
+    <string name="verify_logout">로그아웃</string>
+    <string name="password_change">비밀번호 바꾸기</string>
+    <string name="password_create">비밀번호 만들기</string>
+    <string name="password_current">현재 비밀번호</string>
+    <string name="password_new">새 비밀번호</string>
+    <string name="password_confirm">새 비밀번호 확인</string>
+    <string name="password_hint">바꾸면 다른 기기에서는 로그아웃돼요. 8자 이상으로 정해 주세요.</string>
+    <string name="password_changed">비밀번호를 바꿨어요.</string>
+    <string name="password_created">비밀번호를 만들었어요. 이제 이메일로도 로그인할 수 있어요.</string>
+    <string name="password_mismatch">비밀번호가 일치하지 않아요.</string>
+    <string name="password_too_short">8자 이상으로 정해 주세요.</string>
+    <string name="error_EMAIL_NOT_VERIFIED">이메일 인증을 먼저 해 주세요.</string>
+    <string name="error_RESEND_TOO_SOON">잠시 뒤에 다시 보낼 수 있어요.</string>
 </resources>

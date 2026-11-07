@@ -35,11 +35,20 @@ export function RequireAuth() {
   )
 }
 
-/** 구글로 가입하고 추가 정보를 안 넣은 사용자는 온보딩으로 */
+/** 구글로 가입하고 추가 정보를 안 넣은 사용자는 온보딩으로, 이메일 인증 전인 사용자는 인증 안내로 */
 export function RequireCompletedProfile() {
   const { data: me } = useMeQuery()
   if (!me) return <FullPageSpinner />
   if (!me.profileCompleted) return <Navigate to="/onboarding" replace />
+  if (!me.emailVerified) return <Navigate to="/verify-email" replace />
+  return <Outlet />
+}
+
+/** 이메일 인증 안내는 인증 전에만 */
+export function VerifyEmailOnly() {
+  const { data: me } = useMeQuery()
+  if (!me) return <FullPageSpinner />
+  if (me.emailVerified) return <Navigate to="/app" replace />
   return <Outlet />
 }
 

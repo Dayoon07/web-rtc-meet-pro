@@ -61,9 +61,10 @@ fun PrimaryButton(
 }
 
 @Composable
-fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
+fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, enabled: Boolean = true) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(44.dp),
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),

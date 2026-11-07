@@ -4,6 +4,7 @@ import com.webrtcmeetpro.application.auth.AuthService
 import com.webrtcmeetpro.application.auth.AuthTokens
 import com.webrtcmeetpro.application.auth.LoginCommand
 import com.webrtcmeetpro.application.auth.OAuthLoginCodeStore
+import com.webrtcmeetpro.application.auth.EmailVerificationService
 import com.webrtcmeetpro.application.auth.PasswordResetService
 import com.webrtcmeetpro.application.auth.SignUpCommand
 import com.webrtcmeetpro.config.properties.OAuth2Properties
@@ -49,6 +50,7 @@ data class LoginRequest(
 data class RefreshRequest(@field:NotBlank val refreshToken: String)
 data class OAuthExchangeRequest(@field:NotBlank val code: String)
 data class AuthProvidersResponse(val google: Boolean)
+data class EmailVerificationConfirmRequest(@field:NotBlank @field:Size(max = 500) val token: String)
 data class PasswordResetRequest(@field:NotBlank @field:Email @field:Size(max = 255) val email: String)
 data class PasswordResetConfirmRequest(
     @field:NotBlank @field:Size(max = 500) val token: String,
@@ -62,6 +64,7 @@ class AuthController(
     private val codeStore: OAuthLoginCodeStore,
     private val oauth2Properties: OAuth2Properties,
     private val passwordReset: PasswordResetService,
+    private val emailVerification: EmailVerificationService,
 ) {
 
     @PostMapping("/signup")
@@ -117,6 +120,11 @@ class AuthController(
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun confirmPasswordReset(@Valid @RequestBody request: PasswordResetConfirmRequest) =
         passwordReset.confirm(request.token.trim(), request.password)
+
+    /** 가입 인증 메일의 링크. 로그인하지 않은 기기에서 열어도 된다 */
+    @PostMapping("/email-verification/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun confirmEmail(@Valid @RequestBody request: EmailVerificationConfirmRequest) = emailVerification.confirm(request.token.trim())
 
     /** 구글 로그인 후 리다이렉트로 받은 1회용 코드를 토큰으로 교환 */
     @PostMapping("/oauth/exchange")

@@ -60,6 +60,7 @@ class AuthService(
     private val jwtProperties: JwtProperties,
     private val planService: PlanService,
     private val loginHistoryRecorder: LoginHistoryRecorder,
+    private val emailVerification: EmailVerificationService,
 ) {
     private val random = SecureRandom()
 
@@ -73,8 +74,26 @@ class AuthService(
             User.register(email, passwordEncoder.encode(command.password)!!, command.profile, command.marketingAgreed),
         )
         planService.startFreeSubscription(user.id!!)
+        // 이메일 주인인지 확인하는 메일 (커밋된 뒤 발송). 인증 전에는 받은 팀 초대를 볼 수 없다
+        emailVerification.send(user)
         user.recordLogin()
         loginHistoryRecorder.success(user.id!!, email, LoginMethod.PASSWORD, client)
+        return issueTokens(user, client)
+    }
+
+    /**
+     * 로그인한 상태에서 비밀번호 바꾸기 (구글로만 가입한 계정은 새로 만들기 — 현재 비밀번호 없이).
+     * 다른 기기의 로그인은 모두 끊고, 지금 기기에는 새 토큰을 준다.
+     */
+    @Transactional
+    fun changePassword(userId: Long, currentPassword: String?, newPassword: String, client: ClientInfo): AuthTokens {
+        val user = userRepository.findUserById(userId)?.takeIf { it.isActive } ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val hash = user.passwordHash
+        if (hash != null && (currentPassword == null || !passwordEncoder.matches(currentPassword, hash))) {
+            throw BusinessException(ErrorCode.INVALID_PASSWORD)
+        }
+        user.changePassword(passwordEncoder.encode(newPassword)!!)
+        refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(userId).forEach { it.revoke() }
         return issueTokens(user, client)
     }
 
@@ -116,7 +135,12 @@ class AuthService(
             if (!info.emailVerified) {
                 fail(null, email, LoginFailureReason.EMAIL_NOT_VERIFIED, ErrorCode.OAUTH_EMAIL_NOT_VERIFIED, client, LoginMethod.GOOGLE)
             }
-            val user = userRepository.findByEmail(email)
+            val existing = userRepository.findByEmail(email)
+            // 이메일 인증 전인 기존 계정이면, 그 비밀번호는 이메일 주인이 만든 게 아닐 수 있다 → 지우고 그 세션도 끊는다
+            if (existing != null && existing.verifyEmailByProvider()) {
+                refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(existing.id!!).forEach { it.revoke() }
+            }
+            val user = existing
                 ?: userRepository.save(User.registerSocial(email, info.name, info.pictureUrl))
                     .also { planService.startFreeSubscription(it.id!!) }
             if (user.profileImageUrl == null && info.pictureUrl != null) user.changeProfileImage(info.pictureUrl)

@@ -8,6 +8,40 @@ import org.springframework.web.util.HtmlUtils
  */
 object MailTemplates {
 
+    fun emailVerification(to: String, lang: MailLanguage, link: String, hours: Long): MailMessage {
+        val t = when (lang) {
+            MailLanguage.KO -> Texts(
+                "[Limeet] 이메일 주소를 확인해 주세요",
+                "이메일 주소 확인",
+                "Limeet 에 가입해 주셔서 고마워요. 아래 버튼을 누르면 가입이 끝나요. 링크는 ${hours}시간 동안 쓸 수 있어요.",
+                "이메일 확인하기",
+                "직접 가입하지 않았다면 이 메일은 무시해도 돼요.",
+            )
+            MailLanguage.EN -> Texts(
+                "[Limeet] Confirm your email address",
+                "Confirm your email",
+                "Thanks for signing up for Limeet. Click the button below to finish. The link works for $hours hours.",
+                "Confirm email",
+                "If you didn't sign up, you can ignore this email.",
+            )
+            MailLanguage.JA -> Texts(
+                "[Limeet] メールアドレスを確認してください",
+                "メールアドレスの確認",
+                "Limeet にご登録いただきありがとうございます。下のボタンを押すと登録が完了します。リンクは${hours}時間有効です。",
+                "メールアドレスを確認",
+                "心当たりがない場合は、このメールを無視してください。",
+            )
+            MailLanguage.ZH -> Texts(
+                "[Limeet] 请确认你的邮箱地址",
+                "确认邮箱地址",
+                "感谢注册 Limeet。点击下方按钮即可完成注册。链接 $hours 小时内有效。",
+                "确认邮箱",
+                "如果不是你本人注册，请忽略此邮件。",
+            )
+        }
+        return build(to, t, link)
+    }
+
     fun passwordReset(to: String, lang: MailLanguage, link: String, minutes: Long): MailMessage {
         val t = when (lang) {
             MailLanguage.KO -> Texts(

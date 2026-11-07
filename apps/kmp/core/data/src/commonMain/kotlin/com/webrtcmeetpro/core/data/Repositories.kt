@@ -48,6 +48,15 @@ class AuthRepository(
         clearLocal()
     }
 
+    /** 비밀번호 바꾸기·만들기. 서버가 준 새 토큰으로 이 기기는 로그인 상태를 유지한다 */
+    suspend fun changePassword(currentPassword: String?, newPassword: String) {
+        session.save(api.changePassword(currentPassword, newPassword))
+        api.resetAuth()
+        users.refresh()
+    }
+
+    suspend fun resendVerification() = api.resendVerification()
+
     /** 회원 탈퇴. 서버가 세션을 모두 끊으므로 기기에서도 바로 로그아웃시킨다 */
     suspend fun withdraw(password: String?) {
         api.withdraw(password)

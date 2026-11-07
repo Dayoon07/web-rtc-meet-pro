@@ -37,6 +37,9 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     UNDERAGE(HttpStatus.BAD_REQUEST, "만 14세 이상만 가입할 수 있습니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "비밀번호가 올바르지 않습니다."),
     OWNED_TEAMS_EXIST(HttpStatus.CONFLICT, "내가 만든 팀이 {{count}}개 있습니다. 팀을 먼저 삭제해 주세요."),
+    EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "이메일 인증을 먼저 해 주세요."),
+    EMAIL_VERIFY_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "인증 링크가 만료되었거나 올바르지 않습니다. 인증 메일을 다시 받아 주세요."),
+    RESEND_TOO_SOON(HttpStatus.TOO_MANY_REQUESTS, "{{seconds}}초 뒤에 다시 보낼 수 있습니다."),
     RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "비밀번호 재설정 링크가 만료되었거나 이미 사용되었습니다. 다시 요청해 주세요."),
 
     // plan

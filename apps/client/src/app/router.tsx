@@ -17,7 +17,8 @@ import { SettingsPage } from '@/pages/settings'
 import { SignupPage } from '@/pages/signup'
 import { TeamDetailPage } from '@/pages/team-detail'
 import { TeamsPage } from '@/pages/teams'
-import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile } from './guards'
+import { ConfirmEmailPage, VerifyEmailPage } from '@/pages/verify-email'
+import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile, VerifyEmailOnly } from './guards'
 import { AppLayout, AuthLayout, MarketingLayout } from './layouts'
 
 /** handle.title 은 번역 키 (AppLayout 이 현재 언어로 표시) */
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
           },
           // 메일 링크로 들어온다. 다른 계정으로 로그인한 상태여도 열 수 있게 GuestOnly 밖에 둔다
           { path: '/reset-password', element: <ResetPasswordPage /> },
+          { path: '/verify-email/confirm', element: <ConfirmEmailPage /> },
         ],
       },
       { path: '/oauth/callback', element: <OAuthCallbackPage /> },
@@ -54,7 +56,10 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <AuthLayout />,
-            children: [{ element: <OnboardingOnly />, children: [{ path: '/onboarding', element: <OnboardingPage /> }] }],
+            children: [
+              { element: <OnboardingOnly />, children: [{ path: '/onboarding', element: <OnboardingPage /> }] },
+              { element: <VerifyEmailOnly />, children: [{ path: '/verify-email', element: <VerifyEmailPage /> }] },
+            ],
           },
           {
             element: <RequireCompletedProfile />,

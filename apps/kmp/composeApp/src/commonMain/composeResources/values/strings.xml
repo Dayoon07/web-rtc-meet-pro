@@ -205,4 +205,23 @@
     <string name="error_INVALID_PASSWORD">The password is incorrect.</string>
     <string name="error_OWNED_TEAMS_EXIST">You still own teams. Delete them before deleting your account.</string>
     <string name="login_forgot">Forgot password?</string>
+    <string name="verify_title">Check your email</string>
+    <string name="verify_body">We sent a confirmation email to %1$s. Tap the button in the email to finish signing up, then come back here.</string>
+    <string name="verify_done">I’ve confirmed</string>
+    <string name="verify_not_yet">Not confirmed yet. Please tap the button in the email.</string>
+    <string name="verify_resend">Resend email</string>
+    <string name="verify_resent">Confirmation email sent again.</string>
+    <string name="verify_logout">Log out</string>
+    <string name="password_change">Change password</string>
+    <string name="password_create">Create password</string>
+    <string name="password_current">Current password</string>
+    <string name="password_new">New password</string>
+    <string name="password_confirm">Confirm new password</string>
+    <string name="password_hint">You’ll be logged out on other devices. Use at least 8 characters.</string>
+    <string name="password_changed">Password changed.</string>
+    <string name="password_created">Password created. You can now also log in with your email.</string>
+    <string name="password_mismatch">Passwords don’t match.</string>
+    <string name="password_too_short">Use at least 8 characters.</string>
+    <string name="error_EMAIL_NOT_VERIFIED">Please confirm your email first.</string>
+    <string name="error_RESEND_TOO_SOON">Please wait a moment before resending.</string>
 </resources>

@@ -20,6 +20,19 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.webrtcmeetpro.core.network.errorCode
 import com.webrtcmeetpro.resources.common_cancel
 import com.webrtcmeetpro.resources.settings_withdraw
+import com.webrtcmeetpro.resources.password_change
+import com.webrtcmeetpro.resources.password_changed
+import com.webrtcmeetpro.resources.password_confirm
+import com.webrtcmeetpro.resources.password_create
+import com.webrtcmeetpro.resources.password_created
+import com.webrtcmeetpro.resources.password_current
+import com.webrtcmeetpro.resources.password_hint
+import com.webrtcmeetpro.resources.password_mismatch
+import com.webrtcmeetpro.resources.password_new
+import com.webrtcmeetpro.resources.password_too_short
+import com.webrtcmeetpro.ui.LocalSnackbar
+import androidx.compose.runtime.LaunchedEffect
+import org.jetbrains.compose.resources.getString
 import com.webrtcmeetpro.resources.settings_withdraw_body
 import com.webrtcmeetpro.resources.settings_withdraw_confirm
 import com.webrtcmeetpro.resources.settings_withdraw_password
@@ -113,9 +126,29 @@ class SettingsViewModel(
     }
 
     fun clearWithdrawError() = _withdraw.update { it.copy(errorCode = null) }
+
+    private val _password = MutableStateFlow(PasswordState())
+    val password: StateFlow<PasswordState> = _password.asStateFlow()
+
+    /** 비밀번호 바꾸기·만들기. 다른 기기는 로그아웃되고 이 기기는 새 토큰으로 계속 로그인 */
+    fun changePassword(current: String?, new: String) {
+        if (_password.value.running) return
+        val creating = current == null
+        _password.value = PasswordState(running = true)
+        viewModelScope.launch {
+            runCatching { auth.changePassword(current, new) }
+                .onSuccess { me -> _password.value = PasswordState(done = true, created = creating); loadMe() }
+                .onFailure { e -> _password.update { it.copy(running = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    fun resetPassword() { _password.value = PasswordState() }
 }
 
 data class WithdrawState(val running: Boolean = false, val errorCode: String? = null)
+
+/** 비밀번호 바꾸기 창 상태. done 이면 창을 닫고 스낵바로 알린다 (만들었으면 created) */
+data class PasswordState(val running: Boolean = false, val errorCode: String? = null, val done: Boolean = false, val created: Boolean = false)
 
 
 /** 언어 이름은 번역하지 않고 각 언어로 표기 (웹과 동일) */
@@ -181,6 +214,35 @@ fun SettingsScreen(viewModel: SettingsViewModel = koinViewModel()) {
         me?.let { user ->
             item {
                 var open by remember { mutableStateOf(false) }
+                val passwordState by viewModel.password.collectAsStateWithLifecycle()
+                val snackbar = LocalSnackbar.current
+                LaunchedEffect(passwordState.done) {
+                    if (passwordState.done) {
+                        open = false
+                        val created = passwordState.created
+                        viewModel.resetPassword()
+                        snackbar.showSnackbar(getString(if (created) Res.string.password_created else Res.string.password_changed))
+                    }
+                }
+                SecondaryButton(
+                    stringResource(if (user.hasPassword) Res.string.password_change else Res.string.password_create),
+                    onClick = { open = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (open) {
+                    PasswordDialog(
+                        hasPassword = user.hasPassword,
+                        state = passwordState,
+                        onSubmit = viewModel::changePassword,
+                        onDismiss = { open = false; viewModel.resetPassword() },
+                    )
+                }
+            }
+        }
+
+        me?.let { user ->
+            item {
+                var open by remember { mutableStateOf(false) }
                 TextButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(Res.string.settings_withdraw), color = MaterialTheme.colorScheme.error)
                 }
@@ -197,6 +259,54 @@ fun SettingsScreen(viewModel: SettingsViewModel = koinViewModel()) {
             }
         }
     }
+}
+
+/** 비밀번호 바꾸기(현재 비밀번호 확인) / 만들기(구글 전용 계정). 8자 이상, 확인 칸과 같아야 한다 */
+@Composable
+private fun PasswordDialog(hasPassword: Boolean, state: PasswordState, onSubmit: (String?, String) -> Unit, onDismiss: () -> Unit) {
+    var current by remember { mutableStateOf("") }
+    var new by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf<org.jetbrains.compose.resources.StringResource?>(null) }
+    val field = @Composable { value: String, label: org.jetbrains.compose.resources.StringResource, onChange: (String) -> Unit ->
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onChange(it.take(72)); localError = null },
+            label = { Text(stringResource(label)) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    AlertDialog(
+        onDismissRequest = { if (!state.running) onDismiss() },
+        title = { Text(stringResource(if (hasPassword) Res.string.password_change else Res.string.password_create)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(Res.string.password_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (hasPassword) field(current, Res.string.password_current) { current = it }
+                field(new, Res.string.password_new) { new = it }
+                field(confirm, Res.string.password_confirm) { confirm = it }
+                val message = localError?.let { stringResource(it) } ?: state.errorCode?.let { errorMessage(it) }
+                if (message != null) Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    localError = when {
+                        new.length < 8 -> Res.string.password_too_short
+                        new != confirm -> Res.string.password_mismatch
+                        else -> null
+                    }
+                    if (localError == null) onSubmit(if (hasPassword) current else null, new)
+                },
+                enabled = !state.running && new.isNotEmpty() && confirm.isNotEmpty() && (!hasPassword || current.isNotEmpty()),
+            ) { Text(stringResource(if (hasPassword) Res.string.password_change else Res.string.password_create)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !state.running) { Text(stringResource(Res.string.common_cancel)) } },
+    )
 }
 
 /** 비밀번호가 있는 계정은 비밀번호로, 구글로만 가입한 계정은 확인 문구로 한 번 더 확인한다 (웹과 동일) */
