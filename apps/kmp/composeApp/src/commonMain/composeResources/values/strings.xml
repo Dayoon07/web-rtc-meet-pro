@@ -157,4 +157,25 @@
     <string name="chat_sys_created_with">%1$s created this chat with %2$s</string>
     <string name="chat_sys_invited">%1$s added %2$s</string>
     <string name="chat_sys_left">%1$s left</string>
+    <string name="chat_file_photo">Photo</string>
+    <string name="chat_file_photos">%1$d photos</string>
+    <string name="chat_file_one">File</string>
+    <string name="chat_file_many">%1$d files</string>
+    <string name="chat_file_open">Open</string>
+    <string name="error_dialog_title">We could not complete your request</string>
+    <string name="error_dialog_lead">Sorry for the inconvenience. Please try again in a moment.</string>
+    <string name="error_dialog_cause">Cause</string>
+    <string name="error_reason_DB_SCHEMA">Something went wrong while saving or loading data.</string>
+    <string name="error_reason_DB_CONSTRAINT">Something went wrong while saving data.</string>
+    <string name="error_reason_DB_CONNECTION">The server could not connect to its database.</string>
+    <string name="error_reason_DB_ETC">Something went wrong while processing data.</string>
+    <string name="error_reason_EXTERNAL">A connected external service (payments, sign-in, etc.) did not respond.</string>
+    <string name="error_reason_CODE">An unexpected error occurred on the server.</string>
+    <string name="error_reason_CLIENT">An unexpected error occurred in the app.</string>
+    <string name="error_reason_NETWORK">Could not reach the server. Please check your internet connection.</string>
+    <string name="error_dialog_email">Support email</string>
+    <string name="error_dialog_code">Error code</string>
+    <string name="error_dialog_hint">Including the error code when you contact us helps us look into it quickly. You can select the code to copy it.</string>
+    <string name="error_dialog_mail_subject">[Limeet Pro] Error report %1$s</string>
+    <string name="error_dialog_ok">OK</string>
 </resources>

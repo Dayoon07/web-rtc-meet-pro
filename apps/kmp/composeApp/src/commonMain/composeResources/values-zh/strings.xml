@@ -156,4 +156,25 @@
     <string name="chat_sys_created_with">%1$s 创建了群聊并邀请了 %2$s</string>
     <string name="chat_sys_invited">%1$s 邀请了 %2$s</string>
     <string name="chat_sys_left">%1$s 退出了群聊</string>
+    <string name="chat_file_photo">图片</string>
+    <string name="chat_file_photos">%1$d张图片</string>
+    <string name="chat_file_one">文件</string>
+    <string name="chat_file_many">%1$d个文件</string>
+    <string name="chat_file_open">打开</string>
+    <string name="error_dialog_title">无法处理您的请求</string>
+    <string name="error_dialog_lead">给您带来不便，我们深表歉意。请稍后再试。</string>
+    <string name="error_dialog_cause">原因</string>
+    <string name="error_reason_DB_SCHEMA">保存或读取数据时出现问题。</string>
+    <string name="error_reason_DB_CONSTRAINT">保存数据时出现问题。</string>
+    <string name="error_reason_DB_CONNECTION">服务器无法连接到数据库。</string>
+    <string name="error_reason_DB_ETC">处理数据时出现问题。</string>
+    <string name="error_reason_EXTERNAL">对接的外部服务（支付、登录等）没有响应。</string>
+    <string name="error_reason_CODE">服务器发生了意外错误。</string>
+    <string name="error_reason_CLIENT">应用发生了意外错误。</string>
+    <string name="error_reason_NETWORK">无法连接到服务器。请检查您的网络连接。</string>
+    <string name="error_dialog_email">咨询邮箱</string>
+    <string name="error_dialog_code">错误代码</string>
+    <string name="error_dialog_hint">联系我们时请一并提供错误代码，以便我们快速排查。可以选中代码进行复制。</string>
+    <string name="error_dialog_mail_subject">[Limeet Pro] 错误咨询 %1$s</string>
+    <string name="error_dialog_ok">确定</string>
 </resources>

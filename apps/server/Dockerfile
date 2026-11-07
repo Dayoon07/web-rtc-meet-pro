@@ -10,9 +10,9 @@ RUN ./gradlew --no-daemon -q bootJar -x test
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN useradd --system --uid 1001 app && mkdir -p /data/uploads && chown app /data/uploads
+RUN useradd --system --uid 1001 app && mkdir -p /data/uploads /data/chat-files && chown app /data/uploads /data/chat-files
 COPY --from=build /src/build/libs/*.jar app.jar
 USER app
-ENV UPLOAD_DIR=/data/uploads
+ENV UPLOAD_DIR=/data/uploads CHAT_FILE_DIR=/data/chat-files
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]

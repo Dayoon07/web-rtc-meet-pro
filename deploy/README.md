@@ -67,6 +67,8 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs -f serve
 ```
 
 처음에는 Oracle 이 스키마를 만드는 데 몇 분 걸린다 (server 는 DB 가 healthy 가 된 뒤 뜬다).
+DB 스키마(계정) 이름은 `limeet` 이다. 이 계정과 테이블은 `oracle-data` 볼륨이 비어 있을 때 한 번만 만들어진다
+(예전 이름 `wrmp` 로 이미 만든 볼륨이면 데이터를 옮기거나 볼륨을 지우고 다시 띄운다).
 `https://<DOMAIN>` 접속 → 회원가입 → 회의 만들기 → 다른 기기에서 입장해 영상이 오가면 끝.
 
 업데이트:
@@ -75,7 +77,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs -f serve
 git pull && docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
 
-백업: DB 는 `oracle-data`, 프로필 이미지는 `uploads` 도커 볼륨에 있다.
+백업: DB 는 `oracle-data`, 프로필 이미지는 `uploads`, 채팅 첨부파일은 `chat-files` 도커 볼륨에 있다.
 
 ## 5. 앱(Android · Windows)을 운영 서버로 빌드
 

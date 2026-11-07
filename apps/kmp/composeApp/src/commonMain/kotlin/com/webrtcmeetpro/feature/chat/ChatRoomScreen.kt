@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -360,15 +361,21 @@ private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boole
             if (!mine && showSender && sender != null) {
                 Text(sender.nickname, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(
-                messageText(message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (mine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
-            )
+            // 첨부파일(사진 미리보기·파일) 다음에 함께 보낸 글 말풍선
+            if (message.files.isNotEmpty()) MessageFiles(message.files, mine)
+            val text = message.content
+            if (!text.isNullOrEmpty()) {
+                if (message.files.isNotEmpty()) Spacer(Modifier.height(4.dp))
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (mine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                )
+            }
         }
         if (!mine) TimeLabel(message.createdAt)
     }

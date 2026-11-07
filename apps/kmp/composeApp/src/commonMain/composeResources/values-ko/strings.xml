@@ -156,4 +156,25 @@
     <string name="chat_sys_created_with">%1$s님이 %2$s님과 채팅방을 만들었어요</string>
     <string name="chat_sys_invited">%1$s님이 %2$s님을 초대했어요</string>
     <string name="chat_sys_left">%1$s님이 나갔어요</string>
+    <string name="chat_file_photo">사진</string>
+    <string name="chat_file_photos">사진 %1$d장</string>
+    <string name="chat_file_one">파일</string>
+    <string name="chat_file_many">파일 %1$d개</string>
+    <string name="chat_file_open">열기</string>
+    <string name="error_dialog_title">요청을 처리하지 못했어요</string>
+    <string name="error_dialog_lead">이용에 불편을 드려 죄송해요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="error_dialog_cause">원인</string>
+    <string name="error_reason_DB_SCHEMA">데이터를 저장하거나 불러오는 중에 문제가 생겼어요.</string>
+    <string name="error_reason_DB_CONSTRAINT">데이터를 저장하는 중에 문제가 생겼어요.</string>
+    <string name="error_reason_DB_CONNECTION">서버가 데이터베이스에 연결하지 못했어요.</string>
+    <string name="error_reason_DB_ETC">데이터를 처리하는 중에 문제가 생겼어요.</string>
+    <string name="error_reason_EXTERNAL">연동된 외부 서비스(결제·로그인 등)가 응답하지 않았어요.</string>
+    <string name="error_reason_CODE">서버에서 예상하지 못한 오류가 났어요.</string>
+    <string name="error_reason_CLIENT">앱에서 예상하지 못한 오류가 났어요.</string>
+    <string name="error_reason_NETWORK">서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.</string>
+    <string name="error_dialog_email">문의 이메일</string>
+    <string name="error_dialog_code">에러 코드</string>
+    <string name="error_dialog_hint">문의하실 때 에러 코드를 함께 알려 주시면 빠르게 확인할 수 있어요. 코드는 선택해서 복사할 수 있어요.</string>
+    <string name="error_dialog_mail_subject">[Limeet Pro] 오류 문의 %1$s</string>
+    <string name="error_dialog_ok">확인</string>
 </resources>

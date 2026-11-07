@@ -29,12 +29,14 @@ import com.webrtcmeetpro.core.designsystem.theme.LimeetTheme
 import com.webrtcmeetpro.feature.auth.LoginScreen
 import com.webrtcmeetpro.feature.auth.SignupScreen
 import com.webrtcmeetpro.feature.chat.ChatPresence
+import com.webrtcmeetpro.feature.chat.messagePreviewAsync
 import com.webrtcmeetpro.feature.main.MainScreen
 import com.webrtcmeetpro.feature.notifications.notificationTextAsync
 import com.webrtcmeetpro.platform.LocalAppLocale
 import com.webrtcmeetpro.platform.SystemNotifier
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.app_name
+import com.webrtcmeetpro.ui.UnexpectedErrorHost
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -85,7 +87,7 @@ class AppViewModel(
                             val message = event.message ?: return@collect
                             val mine = message.sender?.id == users.me.value?.id
                             if (!mine && presence.activeRoomId.value != event.roomId && message.sender != null) {
-                                notifier.show(message.sender!!.nickname, message.content ?: message.files.joinToString(", ") { it.name })
+                                notifier.show(message.sender!!.nickname, messagePreviewAsync(message))
                             }
                         }
                     }
@@ -118,6 +120,8 @@ fun App() {
                         false -> AuthFlow(LocalAppLocale.current)
                         true -> MainScreen()
                     }
+                    // 서버 500: 에러 코드 + 문의 이메일 안내 (로그인 전후 어느 화면에서든)
+                    UnexpectedErrorHost()
                 }
             }
         }

@@ -156,4 +156,25 @@
     <string name="chat_sys_created_with">%1$s さんが %2$s さんとチャットを作成しました</string>
     <string name="chat_sys_invited">%1$s さんが %2$s さんを招待しました</string>
     <string name="chat_sys_left">%1$s さんが退出しました</string>
+    <string name="chat_file_photo">写真</string>
+    <string name="chat_file_photos">写真%1$d枚</string>
+    <string name="chat_file_one">ファイル</string>
+    <string name="chat_file_many">ファイル%1$d個</string>
+    <string name="chat_file_open">開く</string>
+    <string name="error_dialog_title">リクエストを処理できませんでした</string>
+    <string name="error_dialog_lead">ご不便をおかけして申し訳ありません。しばらくしてから再度お試しください。</string>
+    <string name="error_dialog_cause">原因</string>
+    <string name="error_reason_DB_SCHEMA">データの保存または読み込み中に問題が発生しました。</string>
+    <string name="error_reason_DB_CONSTRAINT">データの保存中に問題が発生しました。</string>
+    <string name="error_reason_DB_CONNECTION">サーバーがデータベースに接続できませんでした。</string>
+    <string name="error_reason_DB_ETC">データの処理中に問題が発生しました。</string>
+    <string name="error_reason_EXTERNAL">連携している外部サービス（決済・ログインなど）が応答しませんでした。</string>
+    <string name="error_reason_CODE">サーバーで予期しないエラーが発生しました。</string>
+    <string name="error_reason_CLIENT">アプリで予期しないエラーが発生しました。</string>
+    <string name="error_reason_NETWORK">サーバーに接続できませんでした。インターネット接続を確認してください。</string>
+    <string name="error_dialog_email">お問い合わせメール</string>
+    <string name="error_dialog_code">エラーコード</string>
+    <string name="error_dialog_hint">お問い合わせの際にエラーコードをお知らせいただくと、迅速に確認できます。コードは選択してコピーできます。</string>
+    <string name="error_dialog_mail_subject">[Limeet Pro] エラーのお問い合わせ %1$s</string>
+    <string name="error_dialog_ok">OK</string>
 </resources>

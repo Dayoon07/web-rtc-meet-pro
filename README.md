@@ -11,9 +11,10 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v0.4 (20 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v0.5 (22 테이블, 19c 이상)
 │  ├─ seed.sql         플랜 초기값
-│  └─ local-setup.sql  로컬 Oracle XE 에 wrmp 계정 + 테이블 만들기 (한 번만)
+│  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
+│  └─ local-reset.sql  limeet 테이블을 지우고 다시 만들기 (스키마가 바뀌었을 때, SYSTEM 필요 없음)
 └─ deploy/             운영 배포 (Docker Compose · Caddy) — 도커는 배포에만 쓴다
 ```
 
@@ -31,7 +32,8 @@ web-rtc-meet-pro/
 
 로컬 개발은 PC 에 설치된 **Oracle XE 21c** (`localhost:1521/XEPDB1`)를 쓴다. 도커는 운영 배포에만 쓴다.
 
-처음 한 번, 저장소 루트에서 SYSTEM 계정으로 아래를 실행하면 `wrmp`/`wrmp` 계정을 만들고 테이블과 플랜 초기값을 넣는다 (SYSTEM 비밀번호는 XE 설치 때 정한 것).
+처음 한 번, 저장소 루트에서 SYSTEM 계정으로 아래를 실행하면 `limeet`/`limeet` 계정(= 스키마)을 만들고 테이블과 플랜 초기값을 넣는다 (SYSTEM 비밀번호는 XE 설치 때 정한 것).
+서비스와 관리자 사이트(별도 서브도메인)가 이 `limeet` 스키마 하나를 같이 쓴다.
 **`NLS_LANG` 을 먼저 설정해야 한글(플랜 이름)이 깨지지 않는다.** PowerShell 은 `set` 이 아니라 `$env:` 로 설정한다 (cmd 라면 `set NLS_LANG=KOREAN_KOREA.AL32UTF8`).
 
 ```powershell
@@ -43,19 +45,36 @@ sqlplus system@//localhost:1521/XEPDB1 '@db/local-setup.sql'
 ```
 
 SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql` 을 열고 *스크립트 실행*(F5)해도 된다.
-처음부터 다시 만들려면 SYSTEM 으로 `DROP USER wrmp CASCADE;` 후 다시 실행한다. 스키마를 바꿨을 때도 같다.
+
+`db/schema.sql` 이 바뀌었을 때는 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
+
+```powershell
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
+```
+
+예전 `wrmp` 계정은 더 이상 쓰지 않는다. 지우려면 SYSTEM 으로 `DROP USER wrmp CASCADE;`.
+
+#### DB 규칙
+
+- **공통 컬럼 5개** (모든 테이블 맨 뒤): `created_dt` 생성일시 · `created_us` 생성자 · `edited_dt` 수정일시 · `edited_us` 수정자 · `deleted_yn` 사용/미사용.
+  일시·사용자는 서버가 저장할 때 채운다 (`BaseEntity` + `AuditListener`). 사용자는 로그인한 사용자 id, 로그인 전 요청(회원가입·로그인)과 시스템 작업(스케줄러·미디어 서버 콜백)은 비어 있다.
+  삭제는 행을 지우지 않고 `deleted_yn = 'Y'`.
+- **이름**: `pk_테이블`, `fk_테이블_대상`, `uk_`(유니크 제약), `ck_`(체크 제약), `idx_테이블_컬럼`(인덱스), `uidx_`(유니크 인덱스).
+- **관리자 전용 테이블은 `admin_` 으로 시작**한다 (예: `admin_error_logs`). 서비스 화면에서는 읽지 않는다.
+- 사람이 입력하는 글자(이름·제목·내용)는 CHAR 기준 길이 (한글 1자 = 1), 채팅 본문은 CLOB.
 
 ### 2. 서버 (http://localhost:8080)
 
 | 환경변수 | 기본값 |
 |---|---|
 | `DB_URL` | `jdbc:oracle:thin:@//localhost:1521/XEPDB1` (로컬 Oracle XE) |
-| `DB_USERNAME` / `DB_PASSWORD` | `wrmp` / `wrmp` |
+| `DB_USERNAME` / `DB_PASSWORD` | `limeet` / `limeet` |
 | `JWT_SECRET` | 개발용 값 (운영에서 반드시 교체, 32바이트 이상) |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 비어 있음 → 구글 로그인 비활성 (버튼이 회색으로 표시) |
 | `OAUTH_SUCCESS_REDIRECT` / `OAUTH_FAILURE_REDIRECT` | `http://localhost:5173/oauth/callback` / `/login` |
 | `UPLOAD_DIR` | `./uploads` (프로필 이미지, `/uploads/**` 로 서빙) |
+| `CHAT_FILE_DIR` | `./data/chat-files` (채팅 첨부파일. 공개하지 않고 서명된 `/api/chat/files/{id}` 로만 내려받기) |
 | `MEDIA_JWT_SECRET` | 회의 입장 토큰 서명 키. **사이드카와 같은 값** |
 | `MEDIA_INTERNAL_SECRET` | 사이드카 → 서버 콜백 인증. **사이드카와 같은 값** |
 | `MEDIA_PUBLIC_URL` | 비우면 같은 출처의 `/media/socket.io` (dev 는 Vite 프록시) |
@@ -68,6 +87,17 @@ gradlew bootRun
 IntelliJ: **저장소 루트를 열고** 루트 `settings.gradle.kts` 를 Gradle 프로젝트로 가져오면(알림의 *Load Gradle Project*, 또는 파일 우클릭 → *Link Gradle Project*) 서버와 앱이 함께 잡힌다. 그 뒤 `ServerApplication.kt` 의 실행 버튼으로 바로 켤 수 있다. Gradle JVM 은 JDK 21 로 맞춘다 (Settings → Build Tools → Gradle).
 
 JPA 는 `ddl-auto: validate` 라서 테이블을 만들지 않고 엔티티와 스키마가 맞는지만 검사한다. 스키마 변경은 `db/schema.sql` 에서 한다.
+
+#### 에러 처리 (에러 코드)
+
+예상하지 못한 에러(서버 500)가 나면 서버가 **에러 코드** `ERR-YYYYMMDD-(UUID 20자리)` 를 만들어 `admin_error_logs` 에 기록하고,
+응답에는 에러 코드와 대략적인 원인 분류만 담는다 (예외 메시지·테이블 이름·스택은 응답에 넣지 않는다).
+
+- 원인 분류(`category`): `DB_SCHEMA`(테이블·컬럼 구조와 코드 불일치) · `DB_CONSTRAINT`(중복·필수값·참조 규칙) · `DB_CONNECTION` · `DB_ETC` · `EXTERNAL`(외부 연동) · `CODE`(소스 코드 버그) · `CLIENT`(화면 코드) · `NETWORK`(화면이 서버에 연결 못 함)
+- 웹·앱은 안내 창에 원인(쉬운 말), "잠시 후 다시 시도해 주세요.", **문의 이메일**, **에러 코드**를 보여 준다. 사용자가 알려 준 코드로 `admin_error_logs.error_code` 를 찾으면 된다.
+- 웹 화면 오류(렌더링 오류 등)는 화면이 코드를 만들어 `POST /api/client-errors` 로 신고한다 (IP 당 분당 20건).
+- 서버 로그에도 같은 에러 코드가 찍힌다 (DB 가 꺼져서 기록하지 못한 경우를 위해).
+- 문의 이메일은 웹 `VITE_SUPPORT_EMAIL` (기본 `gangd0642@gmail.com`), 앱 `ui/UnexpectedErrorDialog.kt` 의 `SUPPORT_EMAIL`.
 
 #### 구글 로그인 설정
 

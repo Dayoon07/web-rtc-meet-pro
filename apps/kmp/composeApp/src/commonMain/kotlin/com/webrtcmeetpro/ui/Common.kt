@@ -96,6 +96,9 @@ fun errorMessage(code: String): String = stringResource(
     },
 )
 
+/** 서버의 예상하지 못한 에러(500) 코드. UnexpectedErrorHost 가 에러 코드와 함께 안내한다 */
+private const val SERVER_ERROR_CODE = "INTERNAL_ERROR"
+
 /** MainScreen 의 Scaffold 스낵바. 하위 화면이 저장/실패 결과를 잠깐 보여 줄 때 쓴다 */
 val LocalSnackbar = staticCompositionLocalOf { SnackbarHostState() }
 
@@ -109,7 +112,8 @@ fun ErrorSnackbarEffect(code: String?, onShown: () -> Unit) {
     LaunchedEffect(code) {
         if (message != null) {
             onShown()
-            scope.launch { snackbar.showSnackbar(message) }
+            // 서버 500 은 앱 루트의 에러 안내 창(에러 코드·문의 이메일)이 이미 보여 준다
+            if (code != SERVER_ERROR_CODE) scope.launch { snackbar.showSnackbar(message) }
         }
     }
 }

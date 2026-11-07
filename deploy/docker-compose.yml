@@ -8,7 +8,8 @@ services:
     restart: unless-stopped
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:?ORACLE_PASSWORD 를 .env 에 넣어 주세요}
-      APP_USER: wrmp
+      # 서비스와 관리자 사이트(별도 서브도메인)가 함께 쓰는 스키마. 빈 볼륨으로 처음 뜰 때만 만들어진다
+      APP_USER: limeet
       APP_USER_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 를 .env 에 넣어 주세요}
     volumes:
       - oracle-data:/opt/oracle/oradata
@@ -32,7 +33,7 @@ services:
         condition: service_healthy
     environment:
       DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
-      DB_USERNAME: wrmp
+      DB_USERNAME: limeet
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 를 .env 에 넣어 주세요}
       ALLOWED_ORIGINS: https://${DOMAIN}
@@ -45,6 +46,8 @@ services:
       TZ: Asia/Seoul
     volumes:
       - uploads:/data/uploads
+      # 채팅 첨부파일 (공개 경로가 아님. 서명된 /api/chat/files/{id} 로만 내려받기)
+      - chat-files:/data/chat-files
     ports:
       # 사이드카(호스트 네트워크)가 참가 기록을 보내는 내부 콜백용. 외부에는 열리지 않도록 127.0.0.1 에만
       - "127.0.0.1:8080:8080"
@@ -92,5 +95,6 @@ services:
 volumes:
   oracle-data:
   uploads:
+  chat-files:
   caddy-data:
   caddy-config:
