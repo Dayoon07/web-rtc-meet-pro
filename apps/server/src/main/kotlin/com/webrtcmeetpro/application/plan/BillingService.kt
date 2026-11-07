@@ -98,7 +98,7 @@ class BillingService(
                 BillingKey(userId, customerKey, cipher.encrypt(issued.billingKey), issued.cardCompany?.take(30), issued.cardNumber?.take(30)),
             )
             planService.cardView(saved)
-        }!!
+        }!!.also { log.info("카드 등록 (userId={}, {} {})", userId, it.company, it.numberMasked) }
     }
 
     /** 카드 삭제. 자동결제할 카드가 없어지므로 모든 구독의 자동결제도 끈다 (기간 끝까지는 계속 쓸 수 있다) */
@@ -125,11 +125,13 @@ class BillingService(
         val payment = tx.execute { payments.save(newPayment(userId, plan, cycle, card)) }!!
         try {
             chargeAndApply(payment.orderId, card) { now -> planService.applyPurchase(userId, plan, cycle, autoRenew, now) }
+            log.info("결제 성공 (userId={}, {} {}, {}원, orderId={})", userId, plan.code, cycle, payment.amount, payment.orderId)
         } catch (e: TossException) {
             if (e.uncertain) {
                 log.error("결제 결과를 모름 (orderId={}): 토스 상점관리자에서 확인 필요", payment.orderId)
                 throw BusinessException(ErrorCode.PAYMENT_UNCERTAIN)
             }
+            log.info("결제 거절 (userId={}, orderId={}): {} {}", userId, payment.orderId, e.code, e.message)
             throw BusinessException(ErrorCode.PAYMENT_FAILED, mapOf("reason" to e.message), e.message)
         }
         return planService.mySubscription(userId)
