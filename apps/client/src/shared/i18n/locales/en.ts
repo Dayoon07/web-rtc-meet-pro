@@ -507,6 +507,12 @@ const en: Messages = {
     body: 'The page may have moved or no longer exists.',
     home: 'Go home',
   },
+  routeError: {
+    title: 'Something went wrong',
+    body: 'Reloading the page usually fixes it. If it keeps happening, please try again later.',
+    reload: 'Reload',
+    home: 'Go home',
+  },
   errors: {
     UNKNOWN: "Something went wrong. Please try again.",
     NETWORK: "Can't reach the server. Please try again shortly.",

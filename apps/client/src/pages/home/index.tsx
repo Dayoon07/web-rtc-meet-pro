@@ -162,7 +162,7 @@ export function HomePage() {
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 px-6 py-14 text-center text-white">
             <h2 className="text-3xl font-bold tracking-tight">{t('home.ctaBandTitle')}</h2>
             <p className="text-brand-100">{t('home.ctaBandBody')}</p>
-            <LinkButton to="/signup" size="lg" className="bg-white text-brand-700 hover:bg-brand-50 dark:bg-white dark:hover:bg-brand-50">
+            <LinkButton to="/signup" size="lg" variant="inverse">
               {t('home.ctaStart')}
             </LinkButton>
           </div>

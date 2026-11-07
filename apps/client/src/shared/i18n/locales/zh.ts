@@ -508,6 +508,12 @@ const zh: Messages = {
     body: '页面地址已变更或已被删除。',
     home: '返回首页',
   },
+  routeError: {
+    title: '出现了问题',
+    body: '重新加载页面通常即可解决。如果问题持续出现，请稍后再试。',
+    reload: '重新加载',
+    home: '返回首页',
+  },
   errors: {
     UNKNOWN: '请求处理失败。',
     NETWORK: '无法连接服务器，请稍后再试。',

@@ -11,10 +11,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  // 회의실은 lazy route 라서 처음 들어갈 때 Vite 가 의존성을 새로 최적화하며 페이지를 새로고침한다(dev 전용).
-  // 미리 번들해 두면 "지금 시작" 직후 회의실로 바로 넘어간다
+  // 회의실은 lazy route 라서 처음 들어갈 때 Vite 가 의존성을 새로 최적화한다(dev 전용).
+  // 그러면 이전 묶음의 react-dom 과 새 묶음의 react 가 섞여 "Cannot read properties of null (reading 'useContext')"
+  // 같은 에러가 나므로, 회의실에서만 쓰는 패키지는 여기 전부 넣어 서버 시작 때 미리 묶는다
   optimizeDeps: {
-    include: ['mediasoup-client', 'socket.io-client'],
+    include: ['mediasoup-client', 'socket.io-client', '@mediapipe/tasks-vision'],
   },
   server: {
     port: 5173,
