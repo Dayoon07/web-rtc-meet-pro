@@ -29,6 +29,8 @@ export type ChatRoom = {
   type: 'DIRECT' | 'GROUP'
   /** 채널이 들어 있는 카테고리(부서). null = 카테고리 없음 */
   categoryId: number | null
+  /** 채널 음성방에 지금 들어와 있는 사람 (없으면 null) */
+  voice?: { meetingId: number; participants: ChatUser[] } | null
   name: string | null
   createdBy: number
   members: ChatUser[]
@@ -68,6 +70,8 @@ export const chatApi = {
   updateChannel: (roomId: number, body: { name?: string; categoryId?: number | null; moveCategory?: boolean }) =>
     http<ChatRoom>(`/chat/rooms/${roomId}`, { method: 'PATCH', json: body }),
   categories: (teamId: number) => http<ChatCategory[]>(`/teams/${teamId}/chat/categories`),
+  /** 채널 상시 음성방 들어가기 (진행 중인 음성방, 없으면 새로). 돌려준 회의 id 로 /meet/{id} */
+  joinVoice: (roomId: number) => http<{ id: number }>(`/chat/rooms/${roomId}/voice`, { method: 'POST' }),
   createCategory: (teamId: number, name: string) => http<ChatCategory>(`/teams/${teamId}/chat/categories`, { method: 'POST', json: { name } }),
   renameCategory: (categoryId: number, name: string) => http<ChatCategory>(`/chat/categories/${categoryId}`, { method: 'PATCH', json: { name } }),
   /** 카테고리 지우기 (안의 채널은 카테고리 밖으로) */

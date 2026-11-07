@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v1.0 (24 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v1.1 (24 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -64,6 +64,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verific
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
@@ -199,6 +200,7 @@ COMMIT;
 - 코드·DB 이름은 그대로 `team` 이고 화면 이름만 "워크스페이스" 다.
 - 카테고리·채널은 OWNER·ADMIN 이 만들고 이름을 바꾸고 옮긴다. 카테고리를 지우면 안의 채널은 카테고리 밖으로 나온다. (웹과 Android·Windows 앱 모두: 앱은 채팅 목록의 폴더 아이콘·카테고리 옆 연필/휴지통, 채널 화면의 설정 아이콘)
 - 채널 개수 제한 없음.
+- **채널 상시 음성방** (디스코드처럼): 채널 상단 "음성 참여" 를 누르면 그 채널의 진행 중인 음성방(`meetings.chat_room_id`)으로, 없으면 새로 연다. 카메라는 꺼진 채로 시작하고, 사이드바 채널 아래에 지금 들어와 있는 사람이 실시간으로 보인다. 알림은 보내지 않는다. 모두 나가면 끝나고(아무도 없으면 2분 뒤 정리) 다음에 누가 누르면 새로 열린다. 채널 참여자만 들어갈 수 있다. 앱은 채널 화면의 헤드폰 아이콘.
 
 #### 요금제 · 결제 (토스페이먼츠 자동결제)
 
@@ -431,6 +433,6 @@ apps/kmp/
 ## 다음 단계
 
 1. 앱: 화상회의 네이티브(WebRTC), 앱이 꺼져 있을 때 푸시(FCM), 구글 로그인
-2. 워크스페이스: 고정 주소, 채널 안 상시 회의방, 카테고리·채널 순서 끌어 옮기기, Business 관리 기능(이메일 도메인 가입 제한, 관리 이력)
+2. 워크스페이스: 고정 주소, 카테고리·채널 순서 끌어 옮기기, Business 관리 기능(이메일 도메인 가입 제한, 관리 이력)
 3. CloudFront (S3 재생 트래픽이 커지면), 회의당 인원 부하 테스트 후 조정
 4. 팀원 내보내기·역할 변경, 초대 메일 발송(SMTP)

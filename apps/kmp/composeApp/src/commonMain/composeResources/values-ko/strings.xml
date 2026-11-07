@@ -254,4 +254,6 @@
     <string name="chat_category">카테고리 (부서)</string>
     <string name="chat_no_category">카테고리 없음</string>
     <string name="chat_channel_settings">채널 설정</string>
+    <string name="chat_voice_join">음성 참여</string>
+    <string name="chat_voice_now">%1$d명 음성 중</string>
 </resources>

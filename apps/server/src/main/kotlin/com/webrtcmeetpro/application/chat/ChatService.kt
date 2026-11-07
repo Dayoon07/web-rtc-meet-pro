@@ -6,6 +6,9 @@ import com.webrtcmeetpro.domain.chat.ChatMessageFile
 import com.webrtcmeetpro.domain.chat.ChatMessageFileRepository
 import com.webrtcmeetpro.domain.chat.ChatMessageRepository
 import com.webrtcmeetpro.domain.chat.ChatCategory
+import com.webrtcmeetpro.domain.meeting.MeetingParticipantRepository
+import com.webrtcmeetpro.domain.meeting.MeetingRepository
+import com.webrtcmeetpro.domain.meeting.MeetingStatus
 import com.webrtcmeetpro.domain.chat.ChatCategoryRepository
 import com.webrtcmeetpro.domain.chat.ChatRoom
 import com.webrtcmeetpro.domain.chat.ChatRoomMember
@@ -67,6 +70,8 @@ data class ChatRoomView(
     val type: ChatRoomType,
     /** 채널의 카테고리(부서). null = 카테고리 없음 (1:1 방도 null) */
     val categoryId: Long? = null,
+    /** 채널 음성방에 지금 들어와 있는 사람 (없으면 null) */
+    val voice: VoicePresenceView? = null,
     /** GROUP 방 이름. DIRECT 는 null → 클라이언트가 상대방 닉네임을 표시 */
     val name: String?,
     val createdBy: Long,
@@ -81,6 +86,9 @@ data class ChatRoomView(
  * /user/queue/chat 으로 가는 이벤트. ROOM = 방 목록 갱신 필요(새 방, 초대, 퇴장), MESSAGE = 새 메시지,
  * MESSAGE_UPDATED = 고치거나 지운 메시지 (같은 id 의 메시지를 바꿔 끼운다)
  */
+/** 채널 음성방: 진행 중인 회의와 들어와 있는 사람 */
+data class VoicePresenceView(val meetingId: Long, val participants: List<ChatUserView>)
+
 data class ChatCategoryView(val id: Long, val name: String, val sortOrder: Int)
 
 /** type: MESSAGE, MESSAGE_UPDATED, ROOM(방 목록 다시), CATEGORIES(카테고리 다시) */
@@ -105,6 +113,8 @@ class ChatService(
     private val teamAccess: TeamAccess,
     private val planService: PlanService,
     private val categoryRepository: ChatCategoryRepository,
+    private val meetingRepository: MeetingRepository,
+    private val participantRepository: MeetingParticipantRepository,
     private val notifications: NotificationService,
     private val realtime: RealtimePublisher,
     private val json: JsonMapper,
@@ -113,9 +123,10 @@ class ChatService(
     fun rooms(teamId: Long, userId: Long): List<ChatRoomView> {
         teamAccess.requireMember(teamId, userId)
         val mine = memberRepository.findAllByUserIdAndLeftAtIsNull(userId).associateBy { it.roomId }
-        return roomRepository.findAllByIdInAndDeletedFalse(mine.keys)
-            .filter { it.teamId == teamId }
-            .map { view(it, mine.getValue(it.id!!)) }
+        val rooms = roomRepository.findAllByIdInAndDeletedFalse(mine.keys).filter { it.teamId == teamId }
+        val voices = voicePresence(rooms.filter { it.isGroup }.map { it.id!! })
+        return rooms
+            .map { view(it, mine.getValue(it.id!!), voices[it.id!!]) }
             .sortedByDescending { it.lastMessageAt ?: it.createdAt }
     }
 
@@ -459,7 +470,18 @@ class ChatService(
         deleted = m.deleted,
     )
 
-    private fun view(room: ChatRoom, me: ChatRoomMember): ChatRoomView {
+    /** 채널들의 진행 중인 음성방과 들어와 있는 사람 (한 번에 모아서) */
+    private fun voicePresence(roomIds: List<Long>): Map<Long, VoicePresenceView> {
+        if (roomIds.isEmpty()) return emptyMap()
+        val live = meetingRepository.findAllByChatRoomIdInAndStatus(roomIds, MeetingStatus.LIVE)
+        val inRoom = live.associateWith { m -> participantRepository.findAllByMeetingIdAndLeftAtIsNull(m.id!!).map { it.userId }.distinct() }
+        val users = usersById(inRoom.values.flatten())
+        return live.filter { inRoom.getValue(it).isNotEmpty() }.associate { m ->
+            m.chatRoomId!! to VoicePresenceView(m.id!!, inRoom.getValue(m).mapNotNull { users[it] }.map(::userView))
+        }
+    }
+
+    private fun view(room: ChatRoom, me: ChatRoomMember, voice: VoicePresenceView? = if (room.isGroup) voicePresence(listOf(room.id!!))[room.id!!] else null): ChatRoomView {
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!)
         val last = messageRepository.findTopByRoomIdOrderByIdDesc(room.id!!)
         val users = usersById(members.map { it.userId } + listOfNotNull(last?.senderId))
@@ -468,6 +490,7 @@ class ChatService(
             teamId = room.teamId,
             type = room.roomType,
             categoryId = room.categoryId,
+            voice = voice,
             name = room.name,
             createdBy = room.createdBy,
             members = members.mapNotNull { users[it.userId] }.map(::userView),

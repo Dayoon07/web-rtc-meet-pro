@@ -32,6 +32,8 @@ export type Meeting = {
   recordingAvailable?: boolean
   /** 주최자이거나 팀 관리자 */
   canManage?: boolean
+  /** 채널 상시 음성방이면 그 채널 */
+  chatRoomId?: number | null
 }
 
 export type RecordingStatus = 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'DELETED'

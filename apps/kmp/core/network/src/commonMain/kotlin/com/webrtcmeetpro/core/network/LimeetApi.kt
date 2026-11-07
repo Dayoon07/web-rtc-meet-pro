@@ -153,6 +153,9 @@ class LimeetApi(private val client: HttpClient) {
     suspend fun createGroup(teamId: Long, name: String, memberIds: List<Long>, categoryId: Long? = null): ChatRoom =
         client.post("api/teams/$teamId/chat/rooms/group") { setBody(CreateGroupRequest(name, memberIds, categoryId)) }.body()
 
+    /** 채널 상시 음성방 들어가기: 진행 중인 음성방, 없으면 새로 연다 */
+    suspend fun joinVoice(roomId: Long): Meeting = client.post("api/chat/rooms/$roomId/voice").body()
+
     /** 채널 이름 바꾸기 · 카테고리 옮기기 (OWNER·ADMIN) */
     suspend fun updateChannel(roomId: Long, request: UpdateChannelRequest): ChatRoom =
         client.patch("api/chat/rooms/$roomId") { setBody(request) }.body()

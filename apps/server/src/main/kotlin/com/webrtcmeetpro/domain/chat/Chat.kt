@@ -120,6 +120,8 @@ interface ChatCategoryRepository {
 interface ChatRoomRepository {
     fun save(room: ChatRoom): ChatRoom
     fun findRoomById(id: Long): ChatRoom?
+    /** 행 잠금 (채널 음성방을 동시에 두 개 만들지 않게) */
+    fun lockRoomById(id: Long): ChatRoom?
     fun findByTeamIdAndDirectKey(teamId: Long, directKey: String): ChatRoom?
     fun findAllByIdInAndDeletedFalse(ids: Collection<Long>): List<ChatRoom>
     fun countByTeamIdAndRoomTypeAndDeletedFalse(teamId: Long, roomType: ChatRoomType): Long

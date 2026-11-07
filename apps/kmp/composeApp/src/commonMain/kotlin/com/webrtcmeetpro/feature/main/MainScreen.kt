@@ -212,7 +212,9 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
         composable<TeamsRoute> { TeamsScreen(onOpen = { nav.navigate(TeamDetailRoute(it)) }) }
         composable<SettingsRoute> { SettingsScreen() }
 
-        composable<ChatRoomRoute> { ChatRoomScreen(it.toRoute<ChatRoomRoute>().roomId, onBack = back) }
+        composable<ChatRoomRoute> {
+            ChatRoomScreen(it.toRoute<ChatRoomRoute>().roomId, onBack = back, onJoinInApp = { url -> nav.navigate(MeetRoomRoute(url)) })
+        }
         composable<NewChatRoute> {
             NewChatScreen(
                 teamId = it.toRoute<NewChatRoute>().teamId,

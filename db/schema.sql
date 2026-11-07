@@ -1,5 +1,6 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v1.0  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v1.1  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+--   v1.1: 채널 상시 음성방(meetings.chat_room_id). 기존 DB 는 db/migrations/v1.1-voice-rooms.sql
 --   v1.0: 팀 = 워크스페이스. 채널 카테고리(chat_categories, 부서), 워크스페이스마다 요금제(subscriptions.team_id), 영수증 정보(payments 카드·승인번호).
 --         기존 DB 는 db/migrations/v1.0-workspaces.sql
 --   v0.9: 요금제 FREE/PRO/TEAM/BUSINESS(회의당 인원·녹화 용량·보관 일수), 사용자당 여러 구독(가장 높은 플랜 적용)·월/연 결제·자동결제 재시도, 플랜 알림.
@@ -515,6 +516,7 @@ CREATE TABLE meetings (
     started_at          TIMESTAMP(6),
     ended_at            TIMESTAMP(6),
     canceled_at         TIMESTAMP(6),
+    chat_room_id        NUMBER(19),                       -- 채널 음성방이면 그 채널 (NULL = 일반 회의)
     created_dt          TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
     created_us          NUMBER(19),
     edited_dt           TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
@@ -524,11 +526,13 @@ CREATE TABLE meetings (
     CONSTRAINT uk_meetings_room_code UNIQUE (room_code),
     CONSTRAINT fk_meetings_team FOREIGN KEY (team_id) REFERENCES teams (team_id),
     CONSTRAINT fk_meetings_host FOREIGN KEY (host_id) REFERENCES users (user_id),
+    CONSTRAINT fk_meetings_chat_room FOREIGN KEY (chat_room_id) REFERENCES chat_rooms (room_id),
     CONSTRAINT ck_meetings_status CHECK (status IN ('SCHEDULED', 'LIVE', 'ENDED', 'CANCELED')),
     CONSTRAINT ck_meetings_duration CHECK (duration_minutes BETWEEN 5 AND 1440),
     CONSTRAINT ck_meetings_deleted_yn CHECK (deleted_yn IN ('Y', 'N'))
 );
 CREATE INDEX idx_meetings_team ON meetings (team_id, status);
+CREATE INDEX idx_meetings_chat_room ON meetings (chat_room_id, status);
 -- 알림 스케줄러: SCHEDULED 이면서 아직 알림 안 보낸 회의를 시간순으로
 CREATE INDEX idx_meetings_reminder ON meetings (status, scheduled_at, reminder_sent_at);
 

@@ -2,6 +2,15 @@
 
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.core.data.MeetingRepository
+import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
+import com.webrtcmeetpro.platform.inAppMeetingSupported
+import com.webrtcmeetpro.resources.chat_voice_join
 import com.webrtcmeetpro.core.model.ChatCategory
 import androidx.compose.material.icons.outlined.Tune
 import com.webrtcmeetpro.resources.chat_channel_settings
@@ -153,12 +162,16 @@ data class ChatRoomUiState(
     val editing: ChatMessage? = null,
     /** 채널 이름·카테고리를 고칠 수 있는지 (워크스페이스 OWNER·ADMIN) */
     val canManageChannel: Boolean = false,
+    /** 음성방 들어갈 주소 (만들어지면 화면이 연다) */
+    val voiceUrl: String? = null,
+    val joiningVoice: Boolean = false,
     val categories: List<ChatCategory> = emptyList(),
 )
 
 class ChatRoomViewModel(
     private val roomId: Long,
     private val chat: ChatRepository,
+    private val meetings: MeetingRepository,
     private val teams: TeamRepository,
     private val users: UserRepository,
     private val badges: BadgeRepository,
@@ -324,6 +337,19 @@ class ChatRoomViewModel(
 
     fun errorShown() = _state.update { it.copy(errorCode = null) }
 
+    /** 채널 상시 음성방 들어가기 */
+    fun joinVoice() {
+        if (_state.value.joiningVoice) return
+        _state.update { it.copy(joiningVoice = true) }
+        viewModelScope.launch {
+            runCatching { meetings.voiceJoinUrl(roomId) }
+                .onSuccess { url -> _state.update { it.copy(joiningVoice = false, voiceUrl = url) } }
+                .onFailure { e -> _state.update { it.copy(joiningVoice = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    fun voiceOpened() = _state.update { it.copy(voiceUrl = null) }
+
     /** 채널 이름 바꾸기 · 카테고리 옮기기 */
     fun updateChannel(name: String, categoryId: Long?) {
         viewModelScope.launch {
@@ -342,6 +368,8 @@ class ChatRoomViewModel(
 fun ChatRoomScreen(
     roomId: Long,
     onBack: () -> Unit,
+    /** Android: 앱 안 회의 화면으로 (Windows 는 브라우저) */
+    onJoinInApp: (url: String) -> Unit = {},
     viewModel: ChatRoomViewModel = koinViewModel(key = "room-$roomId") { parametersOf(roomId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -355,6 +383,13 @@ fun ChatRoomScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<ChatMessage?>(null) }
     var channelSettings by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    LaunchedEffect(state.voiceUrl) {
+        state.voiceUrl?.let {
+            viewModel.voiceOpened()
+            if (inAppMeetingSupported) onJoinInApp(it) else uriHandler.openUri(it)
+        }
+    }
 
     val room = state.room
     DetailScaffold(
@@ -365,6 +400,16 @@ fun ChatRoomScreen(
         onBack = onBack,
         actions = {
             if (room?.type == ChatRoomType.GROUP) {
+                // 디스코드처럼 채널 음성방. 누가 있으면 초록색 + 인원
+                IconButton(onClick = viewModel::joinVoice, enabled = !state.joiningVoice) {
+                    BadgedBox(badge = { room.voice?.participants?.size?.takeIf { it > 0 }?.let { n -> Badge(containerColor = Color(0xFF16A34A)) { Text("$n") } } }) {
+                        Icon(
+                            Icons.Outlined.Headphones,
+                            contentDescription = stringResource(Res.string.chat_voice_join),
+                            tint = if (room.voice != null) Color(0xFF16A34A) else LocalContentColor.current,
+                        )
+                    }
+                }
                 if (state.canManageChannel) {
                     IconButton(onClick = { channelSettings = true }) {
                         Icon(Icons.Outlined.Tune, contentDescription = stringResource(Res.string.chat_channel_settings))

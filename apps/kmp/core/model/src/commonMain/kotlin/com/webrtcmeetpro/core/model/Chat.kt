@@ -40,6 +40,10 @@ data class ChatMessage(
     val deleted: Boolean = false,
 )
 
+/** 채널 음성방: 진행 중인 회의와 들어와 있는 사람 */
+@Serializable
+data class VoicePresence(val meetingId: Long, val participants: List<ChatUser> = emptyList())
+
 /** 채널을 묶는 카테고리 = 부서 */
 @Serializable
 data class ChatCategory(val id: Long, val name: String, val sortOrder: Int = 0)
@@ -53,6 +57,8 @@ data class ChatRoom(
     val name: String? = null,
     /** 채널의 카테고리(부서). null = 카테고리 없음 */
     val categoryId: Long? = null,
+    /** 채널 음성방에 지금 들어와 있는 사람 (없으면 null) */
+    val voice: VoicePresence? = null,
     val createdBy: Long,
     val members: List<ChatUser> = emptyList(),
     val lastMessage: ChatMessage? = null,

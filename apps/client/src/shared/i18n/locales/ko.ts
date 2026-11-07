@@ -596,6 +596,10 @@ const ko = {
     emptyCategory: '아직 채널이 없어요',
     directs: '1:1 대화',
     noDirects: '아직 1:1 대화가 없어요',
+    voiceJoin: '음성 참여',
+    voiceJoinLive: '음성 참여 ({{count}}명)',
+    voiceNow: '{{count}}명 음성 중',
+    voiceHint: '이 채널의 음성방에 들어가요. 카메라는 꺼진 채로 시작해요.',
   },
   meetings: {
     recordings: {
@@ -718,6 +722,7 @@ const ko = {
         'heart-eyes': '하트 눈',
       },
     },
+    leftVoice: '음성방에서 나왔어요',
   },
   settings: {
     title: '설정',

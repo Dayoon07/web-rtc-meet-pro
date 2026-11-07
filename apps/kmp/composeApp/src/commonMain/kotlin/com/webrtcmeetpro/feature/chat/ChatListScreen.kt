@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.resources.chat_voice_now
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
@@ -335,6 +337,16 @@ private fun RoomRow(room: ChatRoom, myId: Long, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // 채널 음성방에 누가 있으면 (디스코드처럼)
+                room.voice?.participants?.takeIf { it.isNotEmpty() }?.let { people ->
+                    Text(
+                        "🔊 " + stringResource(Res.string.chat_voice_now, people.size) + " · " + people.take(3).joinToString(", ") { it.nickname },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF16A34A),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(

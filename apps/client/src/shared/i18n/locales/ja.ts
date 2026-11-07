@@ -597,6 +597,10 @@ const ja: Messages = {
     emptyCategory: 'まだチャンネルがありません',
     directs: 'ダイレクトメッセージ',
     noDirects: 'まだダイレクトメッセージはありません',
+    voiceJoin: '音声に参加',
+    voiceJoinLive: '音声に参加（{{count}}人）',
+    voiceNow: '{{count}}人が音声中',
+    voiceHint: 'このチャンネルの音声ルームに入ります。カメラはオフで始まります。',
   },
   meetings: {
     recordings: {
@@ -719,6 +723,7 @@ const ja: Messages = {
         'heart-eyes': 'ハートの目',
       },
     },
+    leftVoice: '音声ルームから退出しました',
   },
   settings: {
     title: '設定',

@@ -597,6 +597,10 @@ const en: Messages = {
     emptyCategory: 'No channels yet',
     directs: 'Direct messages',
     noDirects: 'No direct messages yet',
+    voiceJoin: 'Join voice',
+    voiceJoinLive: 'Join voice ({{count}})',
+    voiceNow: '{{count}} in voice',
+    voiceHint: 'Join this channel\'s voice room. Your camera starts off.',
   },
   meetings: {
     recordings: {
@@ -719,6 +723,7 @@ const en: Messages = {
         'heart-eyes': 'Heart eyes',
       },
     },
+    leftVoice: 'You left the voice room',
   },
   settings: {
     title: 'Settings',

@@ -60,6 +60,10 @@ class MeetingController(private val meetings: MeetingService) {
             ScheduleMeetingCommand(req.title, req.description, req.scheduledAt, req.durationMinutes, req.inviteeIds),
         )
 
+    /** 채널 상시 음성방 들어가기: 진행 중인 음성방, 없으면 새로 연다. 돌려준 회의 id 로 /meet/{id} 입장 */
+    @PostMapping("/chat/rooms/{roomId}/voice")
+    fun joinVoice(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long) = meetings.joinVoice(roomId, jwt.userId)
+
     @GetMapping("/meetings")
     fun mine(@AuthenticationPrincipal jwt: Jwt, @RequestParam(defaultValue = "upcoming") scope: String) =
         meetings.myMeetings(jwt.userId, past = scope == "past")

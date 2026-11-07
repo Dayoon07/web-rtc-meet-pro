@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, MessageSquarePlus, MessagesSquare, Pencil, Plus, Settings2, Trash2, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, MessageSquarePlus, MessagesSquare, Pencil, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import {
   chatApi,
   chatKeys,
@@ -75,9 +76,27 @@ function RoomRow({ room, active, myId, onSelect }: { room: ChatRoom; active: boo
               </span>
             )}
           </span>
+          {room.voice && room.voice.participants.length > 0 && <VoicePresence participants={room.voice.participants} />}
         </span>
       </button>
     </li>
+  )
+}
+
+/** 채널 음성방에 들어와 있는 사람 (디스코드처럼 채널 아래에) */
+function VoicePresence({ participants }: { participants: { id: number; nickname: string; profileImageUrl: string | null }[] }) {
+  const { t } = useTranslation()
+  const shown = participants.slice(0, 4)
+  return (
+    <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+      <Volume2 className="size-3.5 shrink-0" />
+      <span className="flex -space-x-1.5">
+        {shown.map((p) => (
+          <Avatar key={p.id} src={p.profileImageUrl} name={p.nickname} size="xs" ring className="ring-white dark:ring-gray-950" />
+        ))}
+      </span>
+      <span className="truncate">{t('chat.voiceNow', { count: participants.length })}</span>
+    </span>
   )
 }
 
@@ -435,6 +454,19 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canMo
 
 function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void; onLeft: () => void }) {
   const { t } = useTranslation()
+  const navigateTo = useNavigate()
+  const [joiningVoice, setJoiningVoice] = useState(false)
+  const joinVoice = async () => {
+    setJoiningVoice(true)
+    try {
+      const meeting = await chatApi.joinVoice(room.id)
+      navigateTo(`/meet/${meeting.id}?voice=1&back=${encodeURIComponent(`/app/chat/${room.teamId}/${room.id}`)}`)
+    } catch (e) {
+      toastError(e)
+    } finally {
+      setJoiningVoice(false)
+    }
+  }
   const queryClient = useQueryClient()
   const { data: me } = useMeQuery()
   const { data: team } = useTeamQuery(room.teamId)
@@ -517,6 +549,16 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
         </div>
         {room.type === 'GROUP' && (
           <>
+            <Button
+              size="sm"
+              variant={room.voice ? 'primary' : 'secondary'}
+              icon={<Headphones className="size-4" />}
+              onClick={joinVoice}
+              loading={joiningVoice}
+              title={t('chat.voiceHint')}
+            >
+              <span className="hidden sm:inline">{room.voice ? t('chat.voiceJoinLive', { count: room.voice.participants.length }) : t('chat.voiceJoin')}</span>
+            </Button>
             {canManageChannel && (
               <IconButton label={t('chat.channelSettings')} onClick={() => setSettings(true)}>
                 <Settings2 className="size-5" />

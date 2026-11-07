@@ -40,6 +40,9 @@ class Meeting(
 
     @Column(nullable = false)
     var durationMinutes: Int = 60,
+
+    /** 채널 상시 음성방이면 그 채널(그룹 채팅방). null = 일반 회의 */
+    val chatRoomId: Long? = null,
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -66,6 +69,9 @@ class Meeting(
 
     val isOpen: Boolean get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
 
+    /** 채널 음성방: 모두 나가면 끝나고 다시 열지 않는다 (다음에 누가 들어오면 새로 연다) */
+    val isVoice: Boolean get() = chatRoomId != null
+
     /** 주최자는 언제든, 다른 사람은 시작 EARLY_JOIN 전부터 입장 가능 */
     fun canJoin(userId: Long, now: LocalDateTime = LocalDateTime.now()) =
         status == MeetingStatus.LIVE || userId == hostId || !now.isBefore(scheduledAt.minus(EARLY_JOIN))
@@ -90,7 +96,7 @@ class Meeting(
      * (마지막 사람이 새로고침하거나 네트워크가 잠깐 끊긴 경우).
      */
     fun canReopen(now: LocalDateTime = LocalDateTime.now()) =
-        status == MeetingStatus.ENDED && now.isBefore(scheduledAt.plusMinutes(durationMinutes.toLong()))
+        !isVoice && status == MeetingStatus.ENDED && now.isBefore(scheduledAt.plusMinutes(durationMinutes.toLong()))
 
     /** @return 다시 열었으면 true */
     fun reopen(now: LocalDateTime = LocalDateTime.now()): Boolean {
@@ -140,6 +146,8 @@ interface MeetingRepository {
     fun findAllByIdInAndStatusIn(ids: Collection<Long>, statuses: Collection<MeetingStatus>): List<Meeting>
     fun findAllByStatus(status: MeetingStatus): List<Meeting>
     fun findAllByTeamIdAndStatus(teamId: Long, status: MeetingStatus): List<Meeting>
+    fun findAllByChatRoomIdAndStatusIn(chatRoomId: Long, statuses: Collection<MeetingStatus>): List<Meeting>
+    fun findAllByChatRoomIdInAndStatus(chatRoomIds: Collection<Long>, status: MeetingStatus): List<Meeting>
     fun findAllByStatusAndReminderSentAtIsNullAndScheduledAtBetween(
         status: MeetingStatus,
         from: LocalDateTime,

@@ -255,4 +255,6 @@
     <string name="chat_category">Category (department)</string>
     <string name="chat_no_category">No category</string>
     <string name="chat_channel_settings">Channel settings</string>
+    <string name="chat_voice_join">Join voice</string>
+    <string name="chat_voice_now">%1$d in voice</string>
 </resources>

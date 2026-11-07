@@ -104,10 +104,23 @@ function useNarrowScreen() {
 }
 
 /** Google Meet / Zoom 같은 회의 화면 */
-export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meetingId: number; selfName: string; selfAvatar: string | null; onExit: () => void }) {
+export function MeetingRoom({
+  meetingId,
+  selfName,
+  selfAvatar,
+  onExit,
+  cameraOff = false,
+}: {
+  meetingId: number
+  selfName: string
+  selfAvatar: string | null
+  onExit: () => void
+  /** 채널 음성방: 카메라를 끈 채로 시작 */
+  cameraOff?: boolean
+}) {
   const { t } = useTranslation()
   const fmt = useFormat()
-  const room = useMeetingRoom(meetingId, selfName)
+  const room = useMeetingRoom(meetingId, selfName, cameraOff)
   const narrow = useNarrowScreen()
   const [panel, setPanel] = useState<'chat' | 'people' | 'effects' | null>(null)
   const [draft, setDraft] = useState('')

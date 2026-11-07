@@ -43,7 +43,8 @@ type Ack<T> = ({ ok: true } & T) | { ok: false; error: string }
  * mediasoup 사이드카에 접속해 내 마이크·카메라·화면을 보내고(produce) 다른 사람 것을 받는다(consume).
  * 1) Spring 에서 입장 토큰 발급 → 2) socket.io 로 사이드카 접속 → 3) Device 로드 → 4) 송수신 Transport
  */
-export function useMeetingRoom(meetingId: number, selfName: string) {
+/** @param cameraOff 카메라를 끈 채로 시작 (채널 음성방) */
+export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = false) {
   const [state, setState] = useState<RoomState>({ phase: 'joining' })
   /** 다시 시도할 때마다 1씩 올려서 참여 과정을 처음부터 다시 돈다 */
   const [attempt, setAttempt] = useState(0)
@@ -273,7 +274,13 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
         if (audio) await produce(audio, 'mic')
         if (video) await produce(video, 'camera')
         rawCamera.current = video ?? null
-        setLocal((l) => ({ ...l, previewTrack: video ?? null, mic: !!audio, camera: !!video }))
+        // 음성방: 카메라는 보내 두되 멈춘 상태로 (버튼으로 바로 켤 수 있게)
+        const camProducer = producers.current.camera
+        if (cameraOff && camProducer) {
+          camProducer.pause()
+          await request('pause-producer', { producerId: camProducer.id, paused: true }).catch(() => undefined)
+        }
+        setLocal((l) => ({ ...l, previewTrack: video ?? null, mic: !!audio, camera: !!video && !cameraOff }))
         setState({ phase: 'joined' })
         // 지난번에 쓰던 효과가 있으면 다시 켠다 (모델은 그동안 원본 화면을 보낸다)
         const saved = loadEffectSettings()
@@ -297,7 +304,7 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
       socketRef.current?.disconnect()
       socketRef.current = null
     }
-  }, [meetingId, request, consume, produce, applyEffects, attempt])
+  }, [meetingId, request, consume, produce, applyEffects, attempt, cameraOff])
 
   // ------------------------------------------------------------------ controls
   const toggle = async (source: 'mic' | 'camera') => {

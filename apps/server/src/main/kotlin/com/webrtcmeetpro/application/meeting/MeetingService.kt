@@ -1,6 +1,10 @@
 package com.webrtcmeetpro.application.meeting
 
 import com.webrtcmeetpro.domain.meeting.MeetingRecordingRepository
+import com.webrtcmeetpro.application.chat.ChatEvent
+import com.webrtcmeetpro.domain.chat.ChatRoomMemberRepository
+import com.webrtcmeetpro.domain.chat.ChatRoomRepository
+import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.application.team.TeamAccess
@@ -59,6 +63,8 @@ data class MeetingView(
     val recordingAvailable: Boolean = false,
     /** 주최자이거나 팀 관리자 (회의 상태와 상관없이) */
     val canManage: Boolean = false,
+    /** 채널 음성방이면 그 채널 */
+    val chatRoomId: Long? = null,
 )
 
 data class ScheduleMeetingCommand(
@@ -101,6 +107,9 @@ class MeetingService(
     private val mediaProperties: MediaProperties,
     private val recordingRepository: MeetingRecordingRepository,
     private val planService: PlanService,
+    private val chatRoomRepository: ChatRoomRepository,
+    private val chatMemberRepository: ChatRoomMemberRepository,
+    private val realtime: RealtimePublisher,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val random = SecureRandom()
@@ -197,11 +206,49 @@ class MeetingService(
         notifyInvitees(meeting, NotificationType.MEETING_CANCELED, except = userId)
     }
 
+    /**
+     * 채널 상시 음성방 (디스코드처럼): 채널 참여자가 누르면 그 채널의 진행 중인 음성 회의로, 없으면 새로 연다.
+     * 알림은 보내지 않는다 (사이드바에 누가 들어와 있는지 보인다). 돌려준 회의로 /meet/{id} 에 들어가면 된다.
+     */
+    @Transactional
+    fun joinVoice(roomId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): MeetingView {
+        val room = chatRoomRepository.lockRoomById(roomId)?.takeIf { !it.deleted && it.isGroup }
+            ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
+        teamAccess.requireMember(room.teamId, userId)
+        chatMemberRepository.findByRoomIdAndUserId(roomId, userId)?.takeIf { it.isActive } ?: throw BusinessException(ErrorCode.NOT_ROOM_MEMBER)
+
+        val open = meetingRepository.findAllByChatRoomIdAndStatusIn(roomId, listOf(MeetingStatus.SCHEDULED, MeetingStatus.LIVE))
+        // 만들기만 하고 아무도 안 들어온 음성방은 정리
+        val (stale, fresh) = open.partition { it.status == MeetingStatus.SCHEDULED && it.createdDt.isBefore(now.minus(VOICE_IDLE)) }
+        stale.forEach { it.cancel(now) }
+        val meeting = fresh.firstOrNull() ?: meetingRepository.save(
+            Meeting(
+                teamId = room.teamId,
+                hostId = userId,
+                roomCode = newRoomCode(),
+                title = room.name.orEmpty(),
+                description = null,
+                scheduledAt = now,
+                durationMinutes = VOICE_MINUTES,
+                chatRoomId = roomId,
+            ).apply { markReminded(now) },
+        ).also { m ->
+            chatMemberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).forEach { inviteeRepository.save(MeetingInvitee(m.id!!, it.userId)) }
+        }
+        ensureInvitee(meeting, userId)
+        return view(meeting, userId)
+    }
+
     /** 입장: 권한/시간 확인 후 사이드카 접속 토큰 발급. 처음 들어오는 사람이 회의를 시작시킨다 */
     @Transactional
     fun join(meetingId: Long, userId: Long): JoinMeetingView {
         val meeting = meetingRepository.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         teamAccess.requireMember(meeting.teamId, userId)
+        // 채널 음성방은 그 채널 참여자만 (채널에 나중에 들어온 사람도 회의 기록에 남게 초대 대상에 넣는다)
+        meeting.chatRoomId?.let { roomId ->
+            chatMemberRepository.findByRoomIdAndUserId(roomId, userId)?.takeIf { it.isActive } ?: throw BusinessException(ErrorCode.NOT_ROOM_MEMBER)
+            ensureInvitee(meeting, userId)
+        }
         if (meeting.reopen()) {
             eventRepository.save(MeetingEvent(meeting.id!!, userId, MeetingEventType.MEETING_STARTED, "reopened"))
         }
@@ -217,7 +264,8 @@ class MeetingService(
         }
         if (meeting.start()) {
             eventRepository.save(MeetingEvent(meeting.id!!, userId, MeetingEventType.MEETING_STARTED))
-            notifyInvitees(meeting, NotificationType.MEETING_STARTED, except = userId)
+            // 음성방은 알림 대신 사이드바에 보인다
+            if (!meeting.isVoice) notifyInvitees(meeting, NotificationType.MEETING_STARTED, except = userId)
         }
         val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
         val token = tokenIssuer.issue(userId, meeting.id!!, meeting.roomCode, user.nickname, user.profileImageUrl, meeting.hostId == userId)
@@ -233,10 +281,13 @@ class MeetingService(
                 val p = participantRepository.save(
                     MeetingParticipant(meeting.id!!, cmd.userId!!, cmd.displayName ?: "", cmd.ipAddress?.take(45), cmd.userAgent?.take(500)),
                 )
+                pushVoicePresence(meeting)
                 return mapOf("participantId" to p.id)
             }
-            "LEFT" -> participantRepository.findParticipantById(cmd.participantId ?: return emptyMap())
-                ?.leave(cmd.reason ?: LeaveReason.LEFT)
+            "LEFT" -> participantRepository.findParticipantById(cmd.participantId ?: return emptyMap())?.let { p ->
+                p.leave(cmd.reason ?: LeaveReason.LEFT)
+                meetingRepository.findMeetingById(p.meetingId)?.let(::pushVoicePresence)
+            }
             "EVENT" -> eventRepository.save(MeetingEvent(cmd.meetingId!!, cmd.userId, cmd.eventType ?: return emptyMap()))
             "ROOM_CLOSED" -> {
                 val meeting = findMeeting(cmd.meetingId!!)
@@ -245,6 +296,7 @@ class MeetingService(
                     meeting.end()
                     eventRepository.save(MeetingEvent(meeting.id!!, null, MeetingEventType.MEETING_ENDED))
                 }
+                pushVoicePresence(meeting)
             }
             else -> log.warn("알 수 없는 미디어 이벤트: {}", cmd.type)
         }
@@ -273,14 +325,29 @@ class MeetingService(
     @Transactional
     fun endAbandoned(now: LocalDateTime = LocalDateTime.now()): Int {
         val stale = meetingRepository.findAllByStatus(MeetingStatus.LIVE).filter {
-            now.isAfter(it.scheduledAt.plusMinutes(it.durationMinutes.toLong())) &&
-                participantRepository.countByMeetingIdAndLeftAtIsNull(it.id!!) == 0L
+            // 음성방은 아무도 없으면 2분 뒤에 끝낸다 (예정 시간이 따로 없다)
+            val due = if (it.isVoice) now.isAfter((it.startedAt ?: it.scheduledAt).plus(VOICE_IDLE)) else now.isAfter(it.scheduledAt.plusMinutes(it.durationMinutes.toLong()))
+            due && participantRepository.countByMeetingIdAndLeftAtIsNull(it.id!!) == 0L
         }
         stale.forEach {
             it.end(now)
             eventRepository.save(MeetingEvent(it.id!!, null, MeetingEventType.MEETING_ENDED, "abandoned"))
+            pushVoicePresence(it)
         }
         return stale.size
+    }
+
+    private fun ensureInvitee(meeting: Meeting, userId: Long) {
+        if (inviteeRepository.findAllByMeetingId(meeting.id!!).none { it.userId == userId }) {
+            inviteeRepository.save(MeetingInvitee(meeting.id!!, userId))
+        }
+    }
+
+    /** 음성방에 누가 들어오고 나가면 채널 참여자들의 사이드바를 다시 그리게 한다 */
+    private fun pushVoicePresence(meeting: Meeting) {
+        val roomId = meeting.chatRoomId ?: return
+        val members = chatMemberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
+        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("ROOM", meeting.teamId, roomId))
     }
 
     // ---------------------------------------------------------------
@@ -344,6 +411,14 @@ class MeetingService(
             canRecord = meeting.isOpen && canManage(meeting, viewerId) && recordingAvailable(meeting),
             recordingAvailable = recordingAvailable(meeting),
             canManage = canManage(meeting, viewerId),
+            chatRoomId = meeting.chatRoomId,
         )
+    }
+
+    companion object {
+        /** 음성방은 길이 제한 없이 (DB 규칙 최대 24시간) */
+        const val VOICE_MINUTES = 1440
+        /** 아무도 없는 음성방을 정리하는 시간 */
+        val VOICE_IDLE: java.time.Duration = java.time.Duration.ofMinutes(2)
     }
 }

@@ -254,4 +254,6 @@
     <string name="chat_category">カテゴリ（部署）</string>
     <string name="chat_no_category">カテゴリなし</string>
     <string name="chat_channel_settings">チャンネル設定</string>
+    <string name="chat_voice_join">音声に参加</string>
+    <string name="chat_voice_now">%1$d人が音声中</string>
 </resources>

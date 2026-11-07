@@ -598,6 +598,10 @@ const zh: Messages = {
     emptyCategory: '还没有频道',
     directs: '私信',
     noDirects: '还没有私信',
+    voiceJoin: '加入语音',
+    voiceJoinLive: '加入语音（{{count}} 人）',
+    voiceNow: '{{count}} 人正在语音',
+    voiceHint: '进入此频道的语音房间，摄像头默认关闭。',
   },
   meetings: {
     recordings: {
@@ -720,6 +724,7 @@ const zh: Messages = {
         'heart-eyes': '爱心眼',
       },
     },
+    leftVoice: '已离开语音房间',
   },
   settings: {
     title: '设置',

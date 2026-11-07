@@ -150,6 +150,16 @@ class MeetingRepository(
         val code = api.webHandoff().code
         return "${config.webUrl.trimEnd('/')}/oauth/callback?code=$code&next=/meet/$meetingId"
     }
+
+    /** 채널 음성방: 진행 중인 음성방(없으면 새로)에 카메라를 끈 채로 들어가는 주소. 나오면 그 채널 화면으로 */
+    suspend fun voiceJoinUrl(roomId: Long): String {
+        val meeting = api.joinVoice(roomId)
+        val code = api.webHandoff().code
+        // next 안의 ? & 는 한 번 인코딩해야 한다 (/meet/12?voice=1&back=...)
+        val next = "/meet/${meeting.id}?voice=1&back=/app/chat/${meeting.teamId}/$roomId"
+            .replace("%", "%25").replace("?", "%3F").replace("&", "%26").replace("=", "%3D").replace("/", "%2F")
+        return "${config.webUrl.trimEnd('/')}/oauth/callback?code=$code&next=$next"
+    }
 }
 
 class NotificationRepository(private val api: LimeetApi) {
