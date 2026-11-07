@@ -9,8 +9,8 @@ export function ChatPage() {
   const roomId = params.roomId ? Number(params.roomId) : undefined
 
   return (
-    // 앱 레이아웃의 상단 바(4rem)와 패딩을 뺀 높이를 꽉 채운다
-    <div className="-mx-4 -my-8 flex h-[calc(100dvh-4rem)] flex-col sm:-mx-6 md:mx-0 md:my-0 md:h-[calc(100dvh-8rem)]">
+    // 앱 레이아웃의 패딩을 지우고 상단 바(4rem) 아래를 꽉 채운다 (여백·카드 없이 화면에 붙임)
+    <div className="-mx-4 -my-8 flex h-[calc(100dvh-4rem)] flex-col sm:-mx-6 lg:-mx-10">
       <ChatWorkspace
         teamId={teamId}
         roomId={roomId}

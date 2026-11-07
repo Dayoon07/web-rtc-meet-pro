@@ -642,7 +642,8 @@ export function ChatWorkspace({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden border-gray-200 bg-white md:rounded-2xl md:border dark:border-gray-800 dark:bg-gray-900">
+    // 슬랙·디스코드처럼 화면에 붙인다: 왼쪽 앱 사이드바 바로 옆에 방 목록, 입력창은 맨 아래
+    <div className="flex min-h-0 flex-1 overflow-hidden border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <aside className={cn('flex w-full flex-col border-gray-200 md:w-80 md:border-r dark:border-gray-800', activeRoom && 'hidden md:flex')}>
         <div className="flex flex-col gap-3 border-b border-gray-200 p-3 dark:border-gray-800">
           {teams.length > 1 && (

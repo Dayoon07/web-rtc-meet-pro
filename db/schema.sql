@@ -210,7 +210,6 @@ CREATE TABLE subscriptions (
     CONSTRAINT pk_subscriptions PRIMARY KEY (subscription_id),
     CONSTRAINT fk_subscriptions_user FOREIGN KEY (user_id) REFERENCES users (user_id),
     CONSTRAINT fk_subscriptions_plan FOREIGN KEY (plan_id) REFERENCES plans (plan_id),
-    CONSTRAINT fk_subscriptions_team FOREIGN KEY (team_id) REFERENCES teams (team_id),
     CONSTRAINT ck_subscriptions_status CHECK (status IN ('ACTIVE', 'CANCELED', 'EXPIRED', 'PAST_DUE')),
     CONSTRAINT ck_subscriptions_auto_renew CHECK (auto_renew IN ('Y', 'N')),
     CONSTRAINT ck_subscriptions_cycle CHECK (billing_cycle IN ('MONTHLY', 'YEARLY')),
@@ -284,7 +283,6 @@ CREATE TABLE payments (
     CONSTRAINT fk_payments_plan FOREIGN KEY (plan_id) REFERENCES plans (plan_id),
     CONSTRAINT fk_payments_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions (subscription_id),
     CONSTRAINT fk_payments_billing_key FOREIGN KEY (billing_key_id) REFERENCES billing_keys (billing_key_id),
-    CONSTRAINT fk_payments_team FOREIGN KEY (team_id) REFERENCES teams (team_id),
     CONSTRAINT ck_payments_amount CHECK (amount >= 0),
     CONSTRAINT ck_payments_status CHECK (status IN ('READY', 'DONE', 'CANCELED', 'FAILED', 'ABORTED')),
     CONSTRAINT ck_payments_cycle CHECK (billing_cycle IN ('MONTHLY', 'YEARLY')),
@@ -314,6 +312,10 @@ CREATE TABLE teams (
 );
 -- 플랜 한도 체크: 소유 팀 수
 CREATE INDEX idx_teams_owner ON teams (owner_id, status);
+
+-- 요금제는 워크스페이스(팀)마다: subscriptions / payments 가 teams 를 가리킨다 (teams 가 위 2번 묶음보다 뒤에 만들어져서 여기서 연결)
+ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_team FOREIGN KEY (team_id) REFERENCES teams (team_id);
+ALTER TABLE payments ADD CONSTRAINT fk_payments_team FOREIGN KEY (team_id) REFERENCES teams (team_id);
 
 -- role: OWNER(팀을 만든 사람) / ADMIN / MEMBER. 역할별로 할 수 있는 일은 서버 TeamRole 한 곳에서 정한다
 CREATE TABLE team_members (
