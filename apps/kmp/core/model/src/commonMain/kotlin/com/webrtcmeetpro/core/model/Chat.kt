@@ -75,7 +75,14 @@ data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val m
 data class OpenDirectRequest(val userId: Long)
 
 @Serializable
-data class CreateGroupRequest(val name: String, val memberIds: List<Long>)
+data class CreateGroupRequest(val name: String, val memberIds: List<Long>, val categoryId: Long? = null)
+
+/** 채널 고치기: name 이 있으면 이름 바꾸기, moveCategory=true 면 categoryId 로 옮기기 (null = 카테고리 밖) */
+@Serializable
+data class UpdateChannelRequest(val name: String? = null, val categoryId: Long? = null, val moveCategory: Boolean = false)
+
+@Serializable
+data class CategoryRequest(val name: String)
 
 @Serializable
 data class InviteMembersRequest(val userIds: List<Long>)

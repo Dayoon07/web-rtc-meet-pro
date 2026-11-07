@@ -71,9 +71,9 @@
     <string name="chat_empty_body">和成员开始一对一聊天吧。</string>
     <string name="chat_no_message">还没有消息</string>
     <string name="chat_direct">一对一</string>
-    <string name="chat_group">群组</string>
-    <string name="chat_group_name">群组名称</string>
-    <string name="chat_group_create">创建群组</string>
+    <string name="chat_group">频道</string>
+    <string name="chat_group_name">频道名称</string>
+    <string name="chat_group_create">创建频道</string>
     <string name="chat_group_owner_only">只有工作区所有者或管理员可以创建频道。</string>
     <string name="chat_no_teammates">该工作区还没有其他成员，请先邀请成员。</string>
     <string name="chat_members">%1$d 人</string>
@@ -246,4 +246,12 @@
     <string name="settings_billing">套餐与付款（网页）</string>
     <string name="chat_channels">频道</string>
     <string name="chat_directs">私信</string>
+    <string name="chat_new_category">创建分类</string>
+    <string name="chat_rename_category">重命名分类</string>
+    <string name="chat_delete_category">删除分类</string>
+    <string name="chat_delete_category_confirm">要删除「%1$s」分类吗？里面的频道不会被删除，会移到分类外。</string>
+    <string name="chat_category_name">分类名称（例如：研发中心）</string>
+    <string name="chat_category">分类（部门）</string>
+    <string name="chat_no_category">无分类</string>
+    <string name="chat_channel_settings">频道设置</string>
 </resources>

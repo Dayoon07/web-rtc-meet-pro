@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.core.data
 
+import com.webrtcmeetpro.core.model.UpdateChannelRequest
 import com.webrtcmeetpro.core.model.Recording
 import com.webrtcmeetpro.core.network.UploadFile
 import com.webrtcmeetpro.core.model.TeamRole
@@ -111,7 +112,13 @@ class ChatRepository(private val api: LimeetApi) {
     suspend fun categories(teamId: Long): List<ChatCategory> = api.chatCategories(teamId)
     suspend fun room(roomId: Long): ChatRoom = api.chatRoom(roomId)
     suspend fun openDirect(teamId: Long, userId: Long): ChatRoom = api.openDirect(teamId, userId)
-    suspend fun createGroup(teamId: Long, name: String, memberIds: List<Long>): ChatRoom = api.createGroup(teamId, name.trim(), memberIds)
+    suspend fun createGroup(teamId: Long, name: String, memberIds: List<Long>, categoryId: Long? = null): ChatRoom =
+        api.createGroup(teamId, name.trim(), memberIds, categoryId)
+    suspend fun updateChannel(roomId: Long, name: String, categoryId: Long?): ChatRoom =
+        api.updateChannel(roomId, UpdateChannelRequest(name.trim(), categoryId, moveCategory = true))
+    suspend fun createCategory(teamId: Long, name: String): ChatCategory = api.createCategory(teamId, name.trim())
+    suspend fun renameCategory(categoryId: Long, name: String): ChatCategory = api.renameCategory(categoryId, name.trim())
+    suspend fun deleteCategory(categoryId: Long) = api.deleteCategory(categoryId)
     suspend fun invite(roomId: Long, userIds: List<Long>) = api.inviteToRoom(roomId, userIds)
     suspend fun leave(roomId: Long) = api.leaveRoom(roomId)
     suspend fun messages(roomId: Long, before: Long? = null): List<ChatMessage> = api.messages(roomId, before)

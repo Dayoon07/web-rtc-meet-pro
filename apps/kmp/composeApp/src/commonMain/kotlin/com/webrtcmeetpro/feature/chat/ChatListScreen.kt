@@ -1,5 +1,21 @@
 package com.webrtcmeetpro.feature.chat
 
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.webrtcmeetpro.ui.ErrorSnackbarEffect
+import com.webrtcmeetpro.resources.chat_new_category
+import com.webrtcmeetpro.resources.chat_rename_category
+import com.webrtcmeetpro.resources.chat_delete_category
+import com.webrtcmeetpro.resources.chat_delete_category_confirm
+import com.webrtcmeetpro.resources.chat_category_name
+import com.webrtcmeetpro.resources.chat_delete
+import com.webrtcmeetpro.resources.common_cancel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -81,7 +97,11 @@ data class ChatListUiState(
     /** 채널을 묶는 카테고리(부서) */
     val categories: List<ChatCategory> = emptyList(),
     val myId: Long = 0,
-)
+    val errorCode: String? = null,
+) {
+    /** 고른 워크스페이스에서 카테고리·채널을 만들고 고칠 수 있는지 (OWNER·ADMIN) */
+    val canManage: Boolean get() = teams.data?.firstOrNull { it.id == selectedTeamId }?.canCreateGroupRoom == true
+}
 
 class ChatListViewModel(
     private val teams: TeamRepository,
@@ -123,6 +143,20 @@ class ChatListViewModel(
         loadRooms()
     }
 
+    fun createCategory(name: String) = categoryAction { teamId -> chat.createCategory(teamId, name) }
+    fun renameCategory(id: Long, name: String) = categoryAction { chat.renameCategory(id, name) }
+    fun deleteCategory(id: Long) = categoryAction { chat.deleteCategory(id) }
+    fun errorShown() = _state.update { it.copy(errorCode = null) }
+
+    private fun categoryAction(block: suspend (teamId: Long) -> Unit) {
+        val teamId = _state.value.selectedTeamId ?: return
+        viewModelScope.launch {
+            runCatching { block(teamId) }
+                .onSuccess { loadRooms(silent = true) }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
     private fun loadRooms(silent: Boolean = false) {
         val teamId = _state.value.selectedTeamId ?: return
         if (!silent) _state.update { it.copy(rooms = it.rooms.copy(loading = true, errorCode = null)) }
@@ -144,10 +178,19 @@ fun ChatListScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val teams = state.teams.data
     val rooms = state.rooms.data
+    ErrorSnackbarEffect(state.errorCode, viewModel::errorShown)
+    var creatingCategory by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<ChatCategory?>(null) }
+    var deleting by remember { mutableStateOf<ChatCategory?>(null) }
 
     ScreenList(refreshing = state.teams.loading && teams != null, onRefresh = viewModel::refresh) {
         item {
             ScreenTitle(stringResource(Res.string.chat_title)) {
+                if (state.canManage) {
+                    IconButton(onClick = { creatingCategory = true }) {
+                        Icon(Icons.Outlined.CreateNewFolder, contentDescription = stringResource(Res.string.chat_new_category))
+                    }
+                }
                 state.selectedTeamId?.let { teamId ->
                     SecondaryButton(stringResource(Res.string.chat_new), onClick = { onNewChat(teamId) }, icon = Icons.Outlined.Edit)
                 }
@@ -189,23 +232,34 @@ fun ChatListScreen(
                         // 디스코드처럼: 카테고리(부서) → 채널, 카테고리 없는 채널, 1:1 대화
                         val channels = rooms.filter { it.type == ChatRoomType.GROUP }
                         val known = state.categories.map { it.id }.toSet()
-                        val sections = state.categories.map { c -> c.name to channels.filter { it.categoryId == c.id } } +
+                        // (제목, 방들, 카테고리). 관리자는 빈 카테고리도 보여서 고치거나 지울 수 있다
+                        val sections = state.categories.map { c -> Triple(c.name, channels.filter { it.categoryId == c.id }, c) } +
                             listOf(
-                                "#" to channels.filter { it.categoryId == null || it.categoryId !in known },
-                                "@" to rooms.filter { it.type == ChatRoomType.DIRECT },
+                                Triple("#", channels.filter { it.categoryId == null || it.categoryId !in known }, null),
+                                Triple("@", rooms.filter { it.type == ChatRoomType.DIRECT }, null),
                             )
-                        sections.filter { it.second.isNotEmpty() }.forEachIndexed { i, (title, list) ->
+                        sections.filter { it.second.isNotEmpty() || (state.canManage && it.third != null) }.forEachIndexed { i, (title, list, category) ->
                             item(key = "h$i") {
-                                Text(
-                                    when (title) {
-                                        "#" -> stringResource(Res.string.chat_channels)
-                                        "@" -> stringResource(Res.string.chat_directs)
-                                        else -> title
-                                    },
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 4.dp, top = 8.dp),
-                                )
+                                Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        when (title) {
+                                            "#" -> stringResource(Res.string.chat_channels)
+                                            "@" -> stringResource(Res.string.chat_directs)
+                                            else -> title
+                                        },
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    if (state.canManage && category != null) {
+                                        IconButton(onClick = { renaming = category }, modifier = Modifier.size(32.dp)) {
+                                            Icon(Icons.Outlined.Edit, contentDescription = stringResource(Res.string.chat_rename_category), modifier = Modifier.size(18.dp))
+                                        }
+                                        IconButton(onClick = { deleting = category }, modifier = Modifier.size(32.dp)) {
+                                            Icon(Icons.Outlined.Delete, contentDescription = stringResource(Res.string.chat_delete_category), modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
                             }
                             items(list, key = { it.id }) { room -> RoomRow(room, state.myId) { onOpenRoom(room.id) } }
                         }
@@ -213,6 +267,35 @@ fun ChatListScreen(
                 }
             }
         }
+    }
+    if (creatingCategory) {
+        NameDialog(
+            title = stringResource(Res.string.chat_new_category),
+            label = stringResource(Res.string.chat_category_name),
+            onConfirm = { viewModel.createCategory(it); creatingCategory = false },
+            onDismiss = { creatingCategory = false },
+        )
+    }
+    renaming?.let { c ->
+        NameDialog(
+            title = stringResource(Res.string.chat_rename_category),
+            label = stringResource(Res.string.chat_category_name),
+            initial = c.name,
+            onConfirm = { viewModel.renameCategory(c.id, it); renaming = null },
+            onDismiss = { renaming = null },
+        )
+    }
+    deleting?.let { c ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            text = { Text(stringResource(Res.string.chat_delete_category_confirm, c.name)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteCategory(c.id); deleting = null }) {
+                    Text(stringResource(Res.string.chat_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
     }
 }
 

@@ -2,6 +2,9 @@
 
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.core.model.ChatCategory
+import androidx.compose.material.icons.outlined.Tune
+import com.webrtcmeetpro.resources.chat_channel_settings
 import com.webrtcmeetpro.resources.common_save
 import com.webrtcmeetpro.resources.chat_delete_others_confirm
 import com.webrtcmeetpro.resources.chat_delete_confirm
@@ -148,6 +151,9 @@ data class ChatRoomUiState(
     val selected: ChatMessage? = null,
     /** 고치는 중인 메시지 */
     val editing: ChatMessage? = null,
+    /** 채널 이름·카테고리를 고칠 수 있는지 (워크스페이스 OWNER·ADMIN) */
+    val canManageChannel: Boolean = false,
+    val categories: List<ChatCategory> = emptyList(),
 )
 
 class ChatRoomViewModel(
@@ -188,7 +194,12 @@ class ChatRoomViewModel(
                     _state.update { it.copy(myId = myId, room = room, messages = messages, hasOlder = messages.size >= PAGE) }
                     markRead()
                     runCatching { teams.detail(room.teamId) }
-                        .onSuccess { t -> _state.update { it.copy(canModerate = "DELETE_ANY_MESSAGE" in t.team.myPermissions) } }
+                        .onSuccess { t ->
+                            _state.update { it.copy(canModerate = "DELETE_ANY_MESSAGE" in t.team.myPermissions, canManageChannel = t.team.canCreateGroupRoom) }
+                        }
+                    if (room.type == ChatRoomType.GROUP) {
+                        runCatching { chat.categories(room.teamId) }.onSuccess { list -> _state.update { it.copy(categories = list) } }
+                    }
                 }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
         }
@@ -313,6 +324,15 @@ class ChatRoomViewModel(
 
     fun errorShown() = _state.update { it.copy(errorCode = null) }
 
+    /** 채널 이름 바꾸기 · 카테고리 옮기기 */
+    fun updateChannel(name: String, categoryId: Long?) {
+        viewModelScope.launch {
+            runCatching { chat.updateChannel(roomId, name, categoryId) }
+                .onSuccess { room -> _state.update { it.copy(room = room) } }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
     private companion object {
         const val PAGE = 50
     }
@@ -334,14 +354,22 @@ fun ChatRoomScreen(
     LaunchedEffect(state.left) { if (state.left) onBack() }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<ChatMessage?>(null) }
+    var channelSettings by remember { mutableStateOf(false) }
 
     val room = state.room
     DetailScaffold(
         title = room?.title(state.myId).orEmpty(),
-        subtitle = room?.takeIf { it.type == ChatRoomType.GROUP }?.let { stringResource(Res.string.chat_members, it.members.size) },
+        subtitle = room?.takeIf { it.type == ChatRoomType.GROUP }?.let { r ->
+            listOfNotNull(state.categories.firstOrNull { it.id == r.categoryId }?.name, stringResource(Res.string.chat_members, r.members.size)).joinToString(" · ")
+        },
         onBack = onBack,
         actions = {
             if (room?.type == ChatRoomType.GROUP) {
+                if (state.canManageChannel) {
+                    IconButton(onClick = { channelSettings = true }) {
+                        Icon(Icons.Outlined.Tune, contentDescription = stringResource(Res.string.chat_channel_settings))
+                    }
+                }
                 IconButton(onClick = viewModel::openInvite) {
                     Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(Res.string.chat_invite))
                 }
@@ -370,6 +398,14 @@ fun ChatRoomScreen(
         }
     }
 
+    if (channelSettings && room != null) {
+        ChannelSettingsDialog(
+            room = room,
+            categories = state.categories,
+            onSave = { name, categoryId -> viewModel.updateChannel(name, categoryId); channelSettings = false },
+            onDismiss = { channelSettings = false },
+        )
+    }
     if (confirmLeave) {
         AlertDialog(
             onDismissRequest = { confirmLeave = false },

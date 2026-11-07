@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.core.network
 
+import com.webrtcmeetpro.core.model.UpdateChannelRequest
+import com.webrtcmeetpro.core.model.CategoryRequest
 import com.webrtcmeetpro.core.model.Recording
 import io.ktor.client.request.put
 import io.ktor.http.HttpHeaders
@@ -148,8 +150,23 @@ class LimeetApi(private val client: HttpClient) {
     suspend fun openDirect(teamId: Long, userId: Long): ChatRoom =
         client.post("api/teams/$teamId/chat/rooms/direct") { setBody(OpenDirectRequest(userId)) }.body()
 
-    suspend fun createGroup(teamId: Long, name: String, memberIds: List<Long>): ChatRoom =
-        client.post("api/teams/$teamId/chat/rooms/group") { setBody(CreateGroupRequest(name, memberIds)) }.body()
+    suspend fun createGroup(teamId: Long, name: String, memberIds: List<Long>, categoryId: Long? = null): ChatRoom =
+        client.post("api/teams/$teamId/chat/rooms/group") { setBody(CreateGroupRequest(name, memberIds, categoryId)) }.body()
+
+    /** 채널 이름 바꾸기 · 카테고리 옮기기 (OWNER·ADMIN) */
+    suspend fun updateChannel(roomId: Long, request: UpdateChannelRequest): ChatRoom =
+        client.patch("api/chat/rooms/$roomId") { setBody(request) }.body()
+
+    suspend fun createCategory(teamId: Long, name: String): ChatCategory =
+        client.post("api/teams/$teamId/chat/categories") { setBody(CategoryRequest(name)) }.body()
+
+    suspend fun renameCategory(categoryId: Long, name: String): ChatCategory =
+        client.patch("api/chat/categories/$categoryId") { setBody(CategoryRequest(name)) }.body()
+
+    /** 카테고리 지우기 (안의 채널은 카테고리 밖으로) */
+    suspend fun deleteCategory(categoryId: Long) {
+        client.delete("api/chat/categories/$categoryId")
+    }
 
     suspend fun inviteToRoom(roomId: Long, userIds: List<Long>) {
         client.post("api/chat/rooms/$roomId/members") { setBody(InviteMembersRequest(userIds)) }

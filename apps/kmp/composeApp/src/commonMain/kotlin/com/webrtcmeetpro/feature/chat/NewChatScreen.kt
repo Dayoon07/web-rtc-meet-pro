@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.core.model.ChatCategory
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,6 +66,9 @@ data class NewChatUiState(
     val groupMode: Boolean = false,
     val groupName: String = "",
     val selected: Set<Long> = emptySet(),
+    /** 채널을 넣을 카테고리(부서) */
+    val categories: List<ChatCategory> = emptyList(),
+    val categoryId: Long? = null,
     val busy: Boolean = false,
     val errorCode: String? = null,
     /** 열렸거나 만들어진 방 → 화면이 그 방으로 이동 */
@@ -92,8 +96,11 @@ class NewChatViewModel(
             runCatching { users.me().id to teams.detail(teamId) }
                 .onSuccess { (myId, team) -> _state.update { it.copy(team = team, myId = myId) } }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
+            runCatching { chat.categories(teamId) }.onSuccess { list -> _state.update { it.copy(categories = list) } }
         }
     }
+
+    fun setCategory(id: Long?) = _state.update { it.copy(categoryId = id) }
 
     fun setGroupMode(group: Boolean) = _state.update { it.copy(groupMode = group) }
     fun setGroupName(name: String) = _state.update { it.copy(groupName = name.take(100)) }
@@ -105,7 +112,7 @@ class NewChatViewModel(
     fun createGroup() {
         val s = _state.value
         if (s.groupName.isBlank()) return
-        run { chat.createGroup(teamId, s.groupName, s.selected.toList()).id }
+        run { chat.createGroup(teamId, s.groupName, s.selected.toList(), s.categoryId).id }
     }
 
     private fun run(block: suspend () -> Long) {
@@ -167,6 +174,7 @@ fun NewChatScreen(
                                 shape = MaterialTheme.shapes.medium,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            CategoryPicker(state.categories, state.categoryId, viewModel::setCategory)
                             LazyColumn(Modifier.weight(1f, fill = false)) {
                                 items(state.teammates, key = { it.userId }) { member ->
                                     MemberRow(member, checked = member.userId in state.selected, onClick = { viewModel.toggle(member.userId) })

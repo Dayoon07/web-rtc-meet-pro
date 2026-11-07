@@ -71,9 +71,9 @@
     <string name="chat_empty_body">멤버와 1:1 대화를 시작해 보세요.</string>
     <string name="chat_no_message">아직 메시지가 없어요</string>
     <string name="chat_direct">1:1</string>
-    <string name="chat_group">그룹</string>
-    <string name="chat_group_name">채팅방 이름</string>
-    <string name="chat_group_create">그룹 만들기</string>
+    <string name="chat_group">채널</string>
+    <string name="chat_group_name">채널 이름</string>
+    <string name="chat_group_create">채널 만들기</string>
     <string name="chat_group_owner_only">채널은 워크스페이스 소유자나 관리자만 만들 수 있어요.</string>
     <string name="chat_no_teammates">아직 이 워크스페이스에 다른 멤버가 없어요. 먼저 멤버를 초대해 주세요.</string>
     <string name="chat_members">%1$d명 참여</string>
@@ -246,4 +246,12 @@
     <string name="settings_billing">요금제·결제 (웹)</string>
     <string name="chat_channels">채널</string>
     <string name="chat_directs">1:1 대화</string>
+    <string name="chat_new_category">카테고리 만들기</string>
+    <string name="chat_rename_category">카테고리 이름 바꾸기</string>
+    <string name="chat_delete_category">카테고리 지우기</string>
+    <string name="chat_delete_category_confirm">「%1$s」 카테고리를 지울까요? 안의 채널은 지워지지 않고 카테고리 밖으로 나와요.</string>
+    <string name="chat_category_name">카테고리 이름 (예: 개발 연구소)</string>
+    <string name="chat_category">카테고리 (부서)</string>
+    <string name="chat_no_category">카테고리 없음</string>
+    <string name="chat_channel_settings">채널 설정</string>
 </resources>

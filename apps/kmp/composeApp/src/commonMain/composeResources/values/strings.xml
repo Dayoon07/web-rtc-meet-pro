@@ -72,9 +72,9 @@
     <string name="chat_empty_body">Start a 1:1 chat with a teammate.</string>
     <string name="chat_no_message">No messages yet</string>
     <string name="chat_direct">1:1</string>
-    <string name="chat_group">Group</string>
-    <string name="chat_group_name">Room name</string>
-    <string name="chat_group_create">Create group</string>
+    <string name="chat_group">Channel</string>
+    <string name="chat_group_name">Channel name</string>
+    <string name="chat_group_create">Create channel</string>
     <string name="chat_group_owner_only">Only the workspace owner or admins can create channels.</string>
     <string name="chat_no_teammates">There are no other members in this workspace yet. Invite members first.</string>
     <string name="chat_members">%1$d members</string>
@@ -247,4 +247,12 @@
     <string name="settings_billing">Plans &amp; billing (web)</string>
     <string name="chat_channels">Channels</string>
     <string name="chat_directs">Direct messages</string>
+    <string name="chat_new_category">Create category</string>
+    <string name="chat_rename_category">Rename category</string>
+    <string name="chat_delete_category">Delete category</string>
+    <string name="chat_delete_category_confirm">Delete the “%1$s” category? Its channels are kept and moved out of the category.</string>
+    <string name="chat_category_name">Category name (e.g. R&amp;D Lab)</string>
+    <string name="chat_category">Category (department)</string>
+    <string name="chat_no_category">No category</string>
+    <string name="chat_channel_settings">Channel settings</string>
 </resources>

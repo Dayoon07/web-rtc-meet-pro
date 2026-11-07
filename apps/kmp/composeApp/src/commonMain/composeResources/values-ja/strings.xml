@@ -71,9 +71,9 @@
     <string name="chat_empty_body">メンバーと1:1チャットを始めましょう。</string>
     <string name="chat_no_message">まだメッセージがありません</string>
     <string name="chat_direct">1:1</string>
-    <string name="chat_group">グループ</string>
-    <string name="chat_group_name">ルーム名</string>
-    <string name="chat_group_create">グループを作成</string>
+    <string name="chat_group">チャンネル</string>
+    <string name="chat_group_name">チャンネル名</string>
+    <string name="chat_group_create">チャンネルを作成</string>
     <string name="chat_group_owner_only">チャンネルはワークスペースのオーナーか管理者だけが作れます。</string>
     <string name="chat_no_teammates">このワークスペースにはまだ他のメンバーがいません。先にメンバーを招待してください。</string>
     <string name="chat_members">%1$d人参加</string>
@@ -246,4 +246,12 @@
     <string name="settings_billing">料金プラン・支払い（Web）</string>
     <string name="chat_channels">チャンネル</string>
     <string name="chat_directs">ダイレクトメッセージ</string>
+    <string name="chat_new_category">カテゴリを作成</string>
+    <string name="chat_rename_category">カテゴリ名を変更</string>
+    <string name="chat_delete_category">カテゴリを削除</string>
+    <string name="chat_delete_category_confirm">「%1$s」カテゴリを削除しますか？中のチャンネルは削除されず、カテゴリの外に出ます。</string>
+    <string name="chat_category_name">カテゴリ名（例: 開発研究所）</string>
+    <string name="chat_category">カテゴリ（部署）</string>
+    <string name="chat_no_category">カテゴリなし</string>
+    <string name="chat_channel_settings">チャンネル設定</string>
 </resources>
