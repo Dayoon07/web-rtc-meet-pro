@@ -209,8 +209,9 @@ adb reverse tcp:5173 tcp:5173
 
 ### 7. 운영 배포
 
-Oracle Cloud VM 한 대에 Docker Compose 로 DB·서버·사이드카·웹(Caddy https)을 올린다. Render 는 WebRTC 미디어(UDP)를 열 수 없어 쓰지 않는다.
-자세한 순서는 [deploy/README.md](deploy/README.md).
+iwinv 서버 한 대(2 vCPU · 8GB, 월 3~4만 원)에 Docker Compose 로 DB(Oracle Free)·서버·사이드카·웹·관리자 사이트(Caddy https)를 모두 올린다.
+DB 서버는 따로 두지 않는다. Render 같은 PaaS 는 WebRTC 미디어(UDP)를 열 수 없어 쓰지 않는다.
+서버 고르기·비용·방화벽·백업까지 자세한 순서는 [deploy/README.md](deploy/README.md).
 
 ## 기능 규칙
 
