@@ -30,6 +30,10 @@ web-rtc-meet-pro/
 
 ## 실행
 
+> **프런트 3개(사이드카 4000, 웹 5173, 관리자 5174)를 한 번에**: 저장소 안 어디서든 `npm run frontend`
+> (`apps` 폴더에서도 된다. 로그 앞에 `[media]` `[client]` `[admin]` 이 붙고, Ctrl+C 한 번이면 셋 다 꺼진다).
+> 인텔리제이는 실행 설정 목록의 **frontend (media + client + admin)** (`.run/frontend.run.xml`) 를 누르면 같다. 서버(8080)는 따로 켠다.
+
 ### 1. DB
 
 로컬 개발은 PC 에 설치된 **Oracle XE 21c** (`localhost:1521/XEPDB1`)를 쓴다. 도커는 운영 배포에만 쓴다.
