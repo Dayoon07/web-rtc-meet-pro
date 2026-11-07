@@ -39,6 +39,11 @@ actual fun toOffsetIso(dateUtcMillis: Long, hour: Int, minute: Int): String {
         .toString()
 }
 
+actual fun pickerParts(iso: String): Triple<Long, Int, Int> = runCatching {
+    val local = parseLocal(iso)
+    Triple(local.toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), local.hour, local.minute)
+}.getOrElse { nextFullHour() }
+
 actual fun nextFullHour(): Triple<Long, Int, Int> {
     val next = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS).plusHours(1)
     val dateMillis = next.toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()

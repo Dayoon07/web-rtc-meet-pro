@@ -51,6 +51,10 @@ data class ChatMessageView(
     val content: String?,
     val files: List<ChatFileView>,
     val createdAt: LocalDateTime,
+    /** 보낸 사람이 고친 글 ("수정됨") */
+    val edited: Boolean = false,
+    /** 지운 메시지: content 는 null, files 는 비어 있다 ("삭제된 메시지예요") */
+    val deleted: Boolean = false,
 )
 
 data class ChatRoomView(
@@ -67,7 +71,10 @@ data class ChatRoomView(
     val createdAt: LocalDateTime,
 )
 
-/** /user/queue/chat 으로 가는 이벤트. ROOM = 방 목록 갱신 필요(새 방, 초대, 퇴장) */
+/**
+ * /user/queue/chat 으로 가는 이벤트. ROOM = 방 목록 갱신 필요(새 방, 초대, 퇴장), MESSAGE = 새 메시지,
+ * MESSAGE_UPDATED = 고치거나 지운 메시지 (같은 id 의 메시지를 바꿔 끼운다)
+ */
 data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessageView? = null)
 
 /** 올린 파일 1개. presentation 의 MultipartFile 에 의존하지 않도록 열기 함수로 받는다 (여러 번 열 수 있어야 함) */
@@ -238,6 +245,31 @@ class ChatService(
         return ChatFileDownload(file.originalName, file.contentType, file.sizeBytes, path, file.isPreviewableImage, exp)
     }
 
+    /** 내가 보낸 글 메시지 고치기 */
+    @Transactional
+    fun edit(messageId: Long, userId: Long, rawContent: String): ChatMessageView {
+        val message = messageRepository.findMessageById(messageId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        val (room, _) = requireRoomMember(message.roomId, userId)
+        if (message.senderId != userId) throw BusinessException(ErrorCode.NOT_MESSAGE_SENDER)
+        if (message.messageType != MessageType.TEXT) throw BusinessException(ErrorCode.MESSAGE_NOT_EDITABLE)
+        val content = rawContent.trim()
+        if (content.isEmpty()) throw BusinessException(ErrorCode.EMPTY_MESSAGE)
+        if (content.length > MAX_LENGTH) throw BusinessException(ErrorCode.INVALID_INPUT)
+        if (content != message.content) message.editContent(content)
+        return publishUpdate(room, message)
+    }
+
+    /** 메시지 지우기: 보낸 사람, 또는 팀 OWNER·ADMIN(DELETE_ANY_MESSAGE). 시스템 메시지는 못 지운다 */
+    @Transactional
+    fun delete(messageId: Long, userId: Long): ChatMessageView {
+        val message = messageRepository.findMessageById(messageId) ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        val (room, _) = requireRoomMember(message.roomId, userId)
+        if (message.messageType == MessageType.SYSTEM) throw BusinessException(ErrorCode.CANNOT_DELETE_MESSAGE)
+        if (message.senderId != userId) teamAccess.requirePermission(room.teamId, userId, TeamPermission.DELETE_ANY_MESSAGE)
+        if (!message.deleted) message.delete()
+        return publishUpdate(room, message)
+    }
+
     @Transactional
     fun markRead(roomId: Long, userId: Long, messageId: Long) {
         requireRoomMember(roomId, userId).second.markRead(messageId)
@@ -273,6 +305,14 @@ class ChatService(
     /** 요청을 보낸 사람이 볼 권한이 있으니 서명된 주소를 붙여 준다 */
     private fun fileView(f: ChatMessageFile) =
         ChatFileView(f.id!!, f.originalName, f.sizeBytes, f.contentType, f.isPreviewableImage, fileUrls.url(f.id!!))
+
+    /** 고치거나 지운 메시지를 방 사람들에게 다시 보낸다 (화면이 같은 id 를 바꿔 끼운다) */
+    private fun publishUpdate(room: ChatRoom, message: ChatMessage): ChatMessageView {
+        val view = messageView(message, usersById(listOfNotNull(message.senderId)), filesByMessage(listOf(message))[message.id!!].orEmpty())
+        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!).map { it.userId }
+        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE_UPDATED", room.teamId, room.id!!, view))
+        return view
+    }
 
     private fun filesByMessage(messages: List<ChatMessage>): Map<Long, List<ChatMessageFile>> {
         val ids = messages.filter { it.messageType == MessageType.FILE }.map { it.id!! }
@@ -331,9 +371,12 @@ class ChatService(
         roomId = m.roomId,
         sender = m.senderId?.let { users[it] }?.let(::userView),
         type = m.messageType,
-        content = m.content,
-        files = files.map(::fileView),
+        // 지운 메시지는 내용·파일을 내려보내지 않는다
+        content = if (m.deleted) null else m.content,
+        files = if (m.deleted) emptyList() else files.map(::fileView),
         createdAt = m.createdDt,
+        edited = m.contentEditedAt != null,
+        deleted = m.deleted,
     )
 
     private fun view(room: ChatRoom, me: ChatRoomMember): ChatRoomView {

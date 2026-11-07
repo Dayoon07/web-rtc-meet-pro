@@ -86,6 +86,7 @@ import kotlin.reflect.KClass
 @Serializable data class NewChatRoute(val teamId: Long)
 @Serializable data class MeetingDetailRoute(val meetingId: Long)
 @Serializable data object ScheduleMeetingRoute
+@Serializable data class EditMeetingRoute(val meetingId: Long)
 @Serializable data class TeamDetailRoute(val teamId: Long)
 @Serializable data object NotificationsRoute
 
@@ -216,7 +217,17 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
                 onOpened = { roomId -> nav.navigate(ChatRoomRoute(roomId)) { popUpTo<NewChatRoute> { inclusive = true } } },
             )
         }
-        composable<MeetingDetailRoute> { MeetingDetailScreen(it.toRoute<MeetingDetailRoute>().meetingId, onBack = back) }
+        composable<MeetingDetailRoute> {
+            MeetingDetailScreen(it.toRoute<MeetingDetailRoute>().meetingId, onBack = back, onEdit = { id -> nav.navigate(EditMeetingRoute(id)) })
+        }
+        composable<EditMeetingRoute> {
+            ScheduleMeetingScreen(
+                onBack = back,
+                editMeetingId = it.toRoute<EditMeetingRoute>().meetingId,
+                // 고친 내용으로 상세를 다시 연다 (예전 상세 화면은 스택에서 뺀다)
+                onCreated = { id -> nav.navigate(MeetingDetailRoute(id)) { popUpTo<MeetingDetailRoute> { inclusive = true } } },
+            )
+        }
         composable<ScheduleMeetingRoute> {
             ScheduleMeetingScreen(
                 onBack = back,

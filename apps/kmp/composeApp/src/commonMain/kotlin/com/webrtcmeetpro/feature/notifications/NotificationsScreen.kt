@@ -45,6 +45,7 @@ import com.webrtcmeetpro.platform.formatDateTime
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.notif_CHAT_ROOM_INVITED
 import com.webrtcmeetpro.resources.notif_MEETING_CANCELED
+import com.webrtcmeetpro.resources.notif_MEETING_UPDATED
 import com.webrtcmeetpro.resources.notif_MEETING_REMINDER
 import com.webrtcmeetpro.resources.notif_MEETING_SCHEDULED
 import com.webrtcmeetpro.resources.notif_MEETING_STARTED
@@ -77,6 +78,7 @@ private fun template(n: AppNotification): Pair<StringResource, Array<Any>>? {
         "MEETING_REMINDER" -> Res.string.notif_MEETING_REMINDER to arrayOf(n.param("title"), time)
         "MEETING_STARTED" -> Res.string.notif_MEETING_STARTED to arrayOf(n.param("title"))
         "MEETING_CANCELED" -> Res.string.notif_MEETING_CANCELED to arrayOf(n.param("title"))
+        "MEETING_UPDATED" -> Res.string.notif_MEETING_UPDATED to arrayOf(n.param("title"))
         else -> null
     }
 }

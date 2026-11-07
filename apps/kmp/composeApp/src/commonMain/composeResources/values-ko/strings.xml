@@ -223,4 +223,15 @@
     <string name="password_too_short">8자 이상으로 정해 주세요.</string>
     <string name="error_EMAIL_NOT_VERIFIED">이메일 인증을 먼저 해 주세요.</string>
     <string name="error_RESEND_TOO_SOON">잠시 뒤에 다시 보낼 수 있어요.</string>
+    <string name="chat_edit">고치기</string>
+    <string name="chat_delete">지우기</string>
+    <string name="chat_edited">(수정됨)</string>
+    <string name="chat_deleted_message">삭제된 메시지예요</string>
+    <string name="chat_delete_confirm">이 메시지를 지울까요? 모든 참여자에게 “삭제된 메시지”로 보여요.</string>
+    <string name="chat_delete_others_confirm">다른 사람이 보낸 메시지를 지울까요? 관리 권한으로 지우는 거예요.</string>
+    <string name="common_save">저장</string>
+    <string name="meeting_edit">고치기</string>
+    <string name="meeting_edit_title">회의 고치기</string>
+    <string name="notif_MEETING_UPDATED">「%1$s」 회의 일정이 바뀌었어요</string>
+    <string name="error_MEETING_NOT_EDITABLE">시작했거나 끝난 회의는 고칠 수 없어요.</string>
 </resources>

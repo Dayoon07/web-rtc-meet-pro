@@ -162,9 +162,23 @@ class ChatMessage(
     var id: Long? = null
         protected set
 
+    /** 보낸 사람이 글을 고친 시각 (화면에 "수정됨"). 공통 컬럼 edited_dt 는 삭제 표시에도 바뀌어서 따로 둔다 */
+    var contentEditedAt: LocalDateTime? = null
+        protected set
+
     init {
         require(messageType == MessageType.FILE || content != null) { "$messageType 메시지는 content 가 필요합니다." }
     }
+
+    /** 글 고치기 (TEXT 만. 파일 메시지의 글·시스템 메시지는 고치지 않는다) */
+    fun editContent(newContent: String, at: LocalDateTime = LocalDateTime.now()) {
+        check(messageType == MessageType.TEXT && !deleted) { "글 메시지만 고칠 수 있습니다." }
+        content = newContent
+        contentEditedAt = at
+    }
+
+    /** 지우기: 행은 남기고(답장·읽음 위치가 가리킨다) 화면에는 "삭제된 메시지"로 보인다 */
+    fun delete() = markDeleted()
 }
 
 interface ChatMessageRepository {
@@ -173,6 +187,7 @@ interface ChatMessageRepository {
     fun findTop50ByRoomIdAndIdLessThanOrderByIdDesc(roomId: Long, beforeId: Long): List<ChatMessage>
     fun findTop50ByRoomIdOrderByIdDesc(roomId: Long): List<ChatMessage>
     fun findTopByRoomIdOrderByIdDesc(roomId: Long): ChatMessage?
+    fun findMessageById(id: Long): ChatMessage?
     fun countByRoomIdAndIdGreaterThan(roomId: Long, afterId: Long): Long
 }
 

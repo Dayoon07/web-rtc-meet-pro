@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v0.7 (23 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v0.8 (23 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -57,6 +57,7 @@ SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql`
 ```powershell
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).

@@ -10,6 +10,7 @@ export type NotificationType =
   | 'MEETING_REMINDER'
   | 'MEETING_STARTED'
   | 'MEETING_CANCELED'
+  | 'MEETING_UPDATED'
 
 export type AppNotification = {
   id: number

@@ -1,5 +1,8 @@
 package com.webrtcmeetpro.feature.meetings
 
+import com.webrtcmeetpro.resources.common_save
+import com.webrtcmeetpro.resources.meeting_edit_title
+import com.webrtcmeetpro.platform.pickerParts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,6 +102,8 @@ data class ScheduleUiState(
     val submitting: Boolean = false,
     val errorCode: String? = null,
     val createdId: Long? = null,
+    /** 고치기 중이면 그 회의 id (팀은 바꿀 수 없고, "바로 시작" 은 없다) */
+    val editingId: Long? = null,
 ) {
     val canSubmit get() = teamId != null && title.isNotBlank() && !submitting
     val scheduledIso get() = toOffsetIso(dateMillis, hour, minute)
@@ -116,6 +121,7 @@ class ScheduleMeetingViewModel(
     init { load() }
 
     fun load() {
+        _state.value.editingId?.let { id -> _state.update { it.copy(editingId = null) }; return edit(id) }
         _state.update { it.copy(loadError = null) }
         viewModelScope.launch {
             runCatching { users.me().id to teams.teams() }
@@ -124,6 +130,31 @@ class ScheduleMeetingViewModel(
                     list.firstOrNull()?.let { selectTeam(it.id) }
                 }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
+        }
+    }
+
+    /** 예약 회의 고치기: 지금 값으로 채운다. 팀원 전체가 초대돼 있으면 "전체"(빈 선택)로 */
+    fun edit(meetingId: Long) {
+        if (_state.value.editingId == meetingId) return
+        _state.update { it.copy(editingId = meetingId, loadError = null) }
+        viewModelScope.launch {
+            runCatching {
+                val m = meetings.detail(meetingId)
+                Triple(m, teams.detail(m.teamId), users.me().id)
+            }.onSuccess { (m, team, myId) ->
+                val (date, hour, minute) = pickerParts(m.scheduledAt)
+                val invited = m.invitees.map { it.id }.toSet()
+                val everyone = team.members.all { it.userId in invited }
+                teamJob?.cancel()
+                _state.update {
+                    it.copy(
+                        teams = listOf(team.team), teamId = m.teamId, team = team, myId = myId,
+                        title = m.title, description = m.description.orEmpty(), startNow = false,
+                        dateMillis = date, hour = hour, minute = minute, duration = m.durationMinutes,
+                        invitees = if (everyone) emptySet() else invited - myId,
+                    )
+                }
+            }.onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
         }
     }
 
@@ -157,7 +188,8 @@ class ScheduleMeetingViewModel(
                 durationMinutes = s.duration,
                 inviteeIds = s.invitees.toList(),
             )
-            runCatching { meetings.schedule(teamId, request) }
+            val editingId = s.editingId
+            runCatching { if (editingId != null) meetings.update(editingId, request.copy(scheduledAt = s.scheduledIso)) else meetings.schedule(teamId, request) }
                 .onSuccess { m -> _state.update { it.copy(submitting = false, createdId = m.id) } }
                 .onFailure { e -> _state.update { it.copy(submitting = false, errorCode = e.errorCode) } }
         }
@@ -171,15 +203,19 @@ private val DURATIONS = listOf(30, 60, 90, 120)
 fun ScheduleMeetingScreen(
     onBack: () -> Unit,
     onCreated: (meetingId: Long) -> Unit,
+    /** 있으면 그 예약 회의를 고친다 */
+    editMeetingId: Long? = null,
     viewModel: ScheduleMeetingViewModel = koinViewModel(),
 ) {
+    LaunchedEffect(editMeetingId) { editMeetingId?.let(viewModel::edit) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val editing = editMeetingId != null
     ErrorSnackbarEffect(state.errorCode, viewModel::errorShown)
     LaunchedEffect(state.createdId) { state.createdId?.let(onCreated) }
     var pickDate by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
 
-    DetailScaffold(title = stringResource(Res.string.meeting_schedule), onBack = onBack) {
+    DetailScaffold(title = stringResource(if (editing) Res.string.meeting_edit_title else Res.string.meeting_schedule), onBack = onBack) {
         val teams = state.teams
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) {
             when {
@@ -193,7 +229,8 @@ fun ScheduleMeetingScreen(
                     Label(stringResource(Res.string.meeting_team))
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         teams.forEach { t ->
-                            FilterChip(selected = t.id == state.teamId, onClick = { viewModel.selectTeam(t.id) }, label = { Text(t.name) })
+                            // 고칠 때는 팀을 바꿀 수 없다
+                            FilterChip(selected = t.id == state.teamId, enabled = !editing, onClick = { viewModel.selectTeam(t.id) }, label = { Text(t.name) })
                         }
                     }
                     OutlinedTextField(
@@ -214,9 +251,11 @@ fun ScheduleMeetingScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(Res.string.meeting_start_now), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                        Switch(checked = state.startNow, onCheckedChange = viewModel::setStartNow)
+                    if (!editing) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(Res.string.meeting_start_now), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            Switch(checked = state.startNow, onCheckedChange = viewModel::setStartNow)
+                        }
                     }
                     if (!state.startNow) {
                         Label(stringResource(Res.string.meeting_when))
@@ -242,7 +281,7 @@ fun ScheduleMeetingScreen(
                     }
 
                     PrimaryButton(
-                        stringResource(Res.string.meeting_submit),
+                        stringResource(if (editing) Res.string.common_save else Res.string.meeting_submit),
                         onClick = viewModel::submit,
                         enabled = state.canSubmit,
                         loading = state.submitting,

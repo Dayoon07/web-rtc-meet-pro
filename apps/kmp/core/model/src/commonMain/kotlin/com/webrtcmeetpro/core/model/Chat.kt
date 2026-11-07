@@ -34,6 +34,10 @@ data class ChatMessage(
     val content: String? = null,
     val files: List<ChatFile> = emptyList(),
     val createdAt: String,
+    /** 보낸 사람이 고친 글 ("수정됨") */
+    val edited: Boolean = false,
+    /** 지운 메시지: content 는 null, files 는 비어 있다 */
+    val deleted: Boolean = false,
 )
 
 @Serializable
@@ -57,7 +61,7 @@ data class ChatRoom(
     fun partner(myId: Long): ChatUser? = if (type == ChatRoomType.DIRECT) members.firstOrNull { it.id != myId } else null
 }
 
-/** STOMP /user/queue/chat. type: MESSAGE(새 메시지) | ROOM(방 목록 갱신: 새 방·초대·퇴장) */
+/** STOMP /user/queue/chat. type: MESSAGE(새 메시지) | MESSAGE_UPDATED(고치거나 지운 메시지) | ROOM(방 목록 갱신: 새 방·초대·퇴장) */
 @Serializable
 data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessage? = null)
 

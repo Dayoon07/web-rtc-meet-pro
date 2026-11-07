@@ -16,6 +16,7 @@ const ICONS: Record<NotificationType, typeof Bell> = {
   MEETING_REMINDER: BellRing,
   MEETING_STARTED: Video,
   MEETING_CANCELED: X,
+  MEETING_UPDATED: CalendarClock,
 }
 
 /** 상단 바 종 아이콘: 안 읽은 개수 + 최근 알림 드롭다운 + 브라우저 알림 권한 */

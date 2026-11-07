@@ -47,6 +47,8 @@ data class MeetingView(
     val liveParticipants: Long,
     /** 이 화면을 보는 사람이 취소할 수 있는지: 예약 상태이고 (주최자이거나 팀에서 CANCEL_ANY_MEETING 권한) */
     val canCancel: Boolean,
+    /** 고칠 수 있는지 (취소와 같은 사람, 같은 조건) */
+    val canEdit: Boolean = canCancel,
 )
 
 data class ScheduleMeetingCommand(
@@ -134,6 +136,41 @@ class MeetingService(
     fun detail(meetingId: Long, userId: Long): MeetingView {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
+        return view(meeting, userId)
+    }
+
+    /**
+     * 예약 회의 고치기: 취소와 같은 사람(주최자, 팀 OWNER·ADMIN), 시작 전인 회의만.
+     * 새로 초대된 사람에게는 초대 알림, 원래 있던 사람에게는 (제목·시간·길이가 바뀌었으면) 변경 알림.
+     */
+    @Transactional
+    fun update(meetingId: Long, userId: Long, cmd: ScheduleMeetingCommand): MeetingView {
+        val meeting = findMeeting(meetingId)
+        if (meeting.hostId == userId) teamAccess.requireMember(meeting.teamId, userId)
+        else teamAccess.requirePermission(meeting.teamId, userId, TeamPermission.CANCEL_ANY_MEETING)
+        if (meeting.status != MeetingStatus.SCHEDULED) throw BusinessException(ErrorCode.MEETING_NOT_EDITABLE)
+        val scheduledAt = cmd.scheduledAt ?: throw BusinessException(ErrorCode.INVALID_INPUT)
+        if (scheduledAt != meeting.scheduledAt && scheduledAt.isBefore(LocalDateTime.now().minusMinutes(1))) {
+            throw BusinessException(ErrorCode.MEETING_TIME_IN_PAST)
+        }
+        val teamMembers = teamAccess.activeMemberIds(meeting.teamId)
+        val requested = cmd.inviteeIds.toSet().ifEmpty { teamMembers }
+        if (!teamMembers.containsAll(requested)) throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+
+        val notable = meeting.update(cmd.title.trim(), cmd.description?.trim()?.ifBlank { null }, scheduledAt, cmd.durationMinutes)
+        // 주최자는 늘 초대 대상
+        val wanted = requested + meeting.hostId
+        val current = inviteeRepository.findAllByMeetingId(meetingId)
+        current.filter { it.userId !in wanted }.forEach(inviteeRepository::delete)
+        val currentIds = current.map { it.userId }.toSet()
+        val added = wanted - currentIds
+        added.forEach { inviteeRepository.save(MeetingInvitee(meetingId, it)) }
+
+        val teamName = teamRepository.findTeamById(meeting.teamId)?.name ?: ""
+        val params = mapOf("title" to meeting.title, "teamName" to teamName, "scheduledAt" to JacksonConfig.toOffsetString(meeting.scheduledAt))
+        val link = "/app/meetings/${meeting.id}"
+        notifications.notify(added.filter { it != userId }, NotificationType.MEETING_SCHEDULED, params, link)
+        if (notable) notifications.notify((currentIds intersect wanted).filter { it != userId }, NotificationType.MEETING_UPDATED, params, link)
         return view(meeting, userId)
     }
 

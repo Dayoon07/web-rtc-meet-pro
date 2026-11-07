@@ -1,5 +1,18 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.resources.common_save
+import com.webrtcmeetpro.resources.chat_delete_others_confirm
+import com.webrtcmeetpro.resources.chat_delete_confirm
+import com.webrtcmeetpro.resources.chat_delete
+import com.webrtcmeetpro.resources.chat_edit
+import com.webrtcmeetpro.resources.chat_edited
+import com.webrtcmeetpro.resources.chat_deleted_message
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import com.webrtcmeetpro.resources.chat_remove_file
 import com.webrtcmeetpro.resources.chat_attach
 import com.webrtcmeetpro.platform.rememberFilePicker
@@ -129,6 +142,12 @@ data class ChatRoomUiState(
     val errorCode: String? = null,
     val inviteCandidates: List<TeamMember>? = null,
     val left: Boolean = false,
+    /** 팀 OWNER·ADMIN: 다른 사람 메시지도 지울 수 있다 */
+    val canModerate: Boolean = false,
+    /** 길게 눌러서 고르고 있는 메시지 (고치기·지우기 메뉴) */
+    val selected: ChatMessage? = null,
+    /** 고치는 중인 메시지 */
+    val editing: ChatMessage? = null,
 )
 
 class ChatRoomViewModel(
@@ -151,6 +170,8 @@ class ChatRoomViewModel(
                 if (event.type == "MESSAGE" && message != null) {
                     append(message)
                     markRead()
+                } else if (event.type == "MESSAGE_UPDATED" && message != null) {
+                    replace(message)
                 } else {
                     // ROOM: 초대·퇴장 → 참여자 목록 갱신
                     runCatching { chat.room(roomId) }.onSuccess { room -> _state.update { it.copy(room = room) } }
@@ -166,6 +187,8 @@ class ChatRoomViewModel(
                 .onSuccess { (myId, room, messages) ->
                     _state.update { it.copy(myId = myId, room = room, messages = messages, hasOlder = messages.size >= PAGE) }
                     markRead()
+                    runCatching { teams.detail(room.teamId) }
+                        .onSuccess { t -> _state.update { it.copy(canModerate = "DELETE_ANY_MESSAGE" in t.team.myPermissions) } }
                 }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
         }
@@ -219,6 +242,32 @@ class ChatRoomViewModel(
     }
 
     /** 내가 보낸 메시지는 응답과 실시간 이벤트 양쪽으로 올 수 있어 id 로 한 번만 넣는다 */
+    /** 고치거나 지운 메시지를 같은 자리에 바꿔 끼운다 */
+    private fun replace(message: ChatMessage) = _state.update { s -> s.copy(messages = s.messages.map { if (it.id == message.id) message else it }) }
+
+    fun select(message: ChatMessage?) = _state.update { it.copy(selected = message) }
+    fun startEdit(message: ChatMessage) = _state.update { it.copy(selected = null, editing = message) }
+    fun cancelEdit() = _state.update { it.copy(editing = null) }
+
+    fun saveEdit(content: String) {
+        val target = _state.value.editing ?: return
+        if (content.isBlank() || content.trim() == target.content) return cancelEdit()
+        viewModelScope.launch {
+            runCatching { chat.edit(target.id, content) }
+                .onSuccess { m -> replace(m); _state.update { it.copy(editing = null) } }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
+    fun delete(message: ChatMessage) {
+        _state.update { it.copy(selected = null) }
+        viewModelScope.launch {
+            runCatching { chat.delete(message.id) }
+                .onSuccess(::replace)
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
     private fun append(message: ChatMessage) = _state.update { s ->
         if (s.messages.any { it.id == message.id }) s else s.copy(messages = s.messages + message)
     }
@@ -284,6 +333,7 @@ fun ChatRoomScreen(
     ErrorSnackbarEffect(state.errorCode, viewModel::errorShown)
     LaunchedEffect(state.left) { if (state.left) onBack() }
     var confirmLeave by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf<ChatMessage?>(null) }
 
     val room = state.room
     DetailScaffold(
@@ -305,7 +355,7 @@ fun ChatRoomScreen(
             room == null && state.loadError != null -> ErrorState(state.loadError!!, onRetry = viewModel::load)
             room == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else -> Column(Modifier.fillMaxSize().imePadding()) {
-                MessageList(state, onReachTop = viewModel::loadOlder, modifier = Modifier.weight(1f))
+                MessageList(state, onReachTop = viewModel::loadOlder, onLongPress = viewModel::select, modifier = Modifier.weight(1f))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 InputBar(
                     value = state.input,
@@ -332,13 +382,61 @@ fun ChatRoomScreen(
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
+    state.selected?.let { m ->
+        val mine = m.sender?.id == state.myId
+        AlertDialog(
+            onDismissRequest = { viewModel.select(null) },
+            text = { Text(m.content?.take(200) ?: "", maxLines = 4, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = m; viewModel.select(null) }) {
+                    Text(stringResource(Res.string.chat_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                if (mine && m.type == MessageType.TEXT) {
+                    TextButton(onClick = { viewModel.startEdit(m) }) { Text(stringResource(Res.string.chat_edit)) }
+                }
+            },
+        )
+    }
+    confirmDelete?.let { m ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            text = { Text(stringResource(if (m.sender?.id == state.myId) Res.string.chat_delete_confirm else Res.string.chat_delete_others_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.delete(m); confirmDelete = null }) {
+                    Text(stringResource(Res.string.chat_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+    state.editing?.let { m ->
+        var text by remember(m.id) { mutableStateOf(m.content ?: "") }
+        AlertDialog(
+            onDismissRequest = viewModel::cancelEdit,
+            title = { Text(stringResource(Res.string.chat_edit)) },
+            text = {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(4000) },
+                    minLines = 2,
+                    maxLines = 6,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = { TextButton(onClick = { viewModel.saveEdit(text) }, enabled = text.isNotBlank()) { Text(stringResource(Res.string.common_save)) } },
+            dismissButton = { TextButton(onClick = viewModel::cancelEdit) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
     state.inviteCandidates?.let { candidates ->
         InviteDialog(candidates, onDismiss = viewModel::closeInvite, onInvite = viewModel::invite)
     }
 }
 
 @Composable
-private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, modifier: Modifier) {
+private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPress: (ChatMessage) -> Unit, modifier: Modifier) {
     val listState = rememberLazyListState()
     val newestFirst = state.messages.asReversed()
 
@@ -363,7 +461,15 @@ private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, modifier
             verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
         ) {
             items(newestFirst, key = { it.id }) { message ->
-                MessageBubble(message, mine = message.sender?.id == state.myId, showSender = state.room?.type == ChatRoomType.GROUP)
+                val mine = message.sender?.id == state.myId
+                // 길게 누르면 고치기·지우기 (내 메시지, 또는 관리 권한이 있으면 남의 메시지 지우기)
+                val actionable = !message.deleted && message.type != MessageType.SYSTEM && (mine || state.canModerate)
+                MessageBubble(
+                    message,
+                    mine = mine,
+                    showSender = state.room?.type == ChatRoomType.GROUP,
+                    onLongPress = if (actionable) ({ onLongPress(message) }) else null,
+                )
             }
             if (state.loadingOlder) {
                 item { Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(20.dp)) } }
@@ -373,7 +479,7 @@ private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, modifier
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boolean) {
+private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boolean, onLongPress: (() -> Unit)? = null) {
     if (message.type == MessageType.SYSTEM) {
         Text(
             messageText(message),
@@ -394,10 +500,26 @@ private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boole
             Avatar(sender.nickname, resolveImageUrl(sender.profileImageUrl), size = 32.dp)
             Spacer(Modifier.width(8.dp))
         }
-        if (mine) TimeLabel(message.createdAt)
-        Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start, modifier = Modifier.widthIn(max = 520.dp).weight(1f, fill = false)) {
+        if (mine) TimeLabel(message.createdAt, message.edited && !message.deleted)
+        Column(
+            horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
+            modifier = Modifier.widthIn(max = 520.dp).weight(1f, fill = false)
+                .then(if (onLongPress != null) Modifier.combinedClickable(onClick = {}, onLongClick = onLongPress) else Modifier),
+        ) {
             if (!mine && showSender && sender != null) {
                 Text(sender.nickname, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (message.deleted) {
+                Text(
+                    stringResource(Res.string.chat_deleted_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                )
             }
             // 첨부파일(사진 미리보기·파일) 다음에 함께 보낸 글 말풍선
             if (message.files.isNotEmpty()) MessageFiles(message.files, mine)
@@ -415,14 +537,14 @@ private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boole
                 )
             }
         }
-        if (!mine) TimeLabel(message.createdAt)
+        if (!mine) TimeLabel(message.createdAt, message.edited && !message.deleted)
     }
 }
 
 @Composable
-private fun TimeLabel(iso: String) {
+private fun TimeLabel(iso: String, edited: Boolean = false) {
     Text(
-        formatChatTime(iso),
+        (if (edited) stringResource(Res.string.chat_edited) + " " else "") + formatChatTime(iso),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 6.dp),

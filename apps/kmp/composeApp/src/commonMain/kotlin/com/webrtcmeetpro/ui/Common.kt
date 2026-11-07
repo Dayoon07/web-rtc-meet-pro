@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.ui
 
+import com.webrtcmeetpro.resources.error_MEETING_NOT_EDITABLE
 import com.webrtcmeetpro.resources.error_TOO_MANY_FILES
 import com.webrtcmeetpro.resources.error_FILE_TOO_LARGE
 import com.webrtcmeetpro.resources.error_EMPTY_FILE
@@ -107,6 +108,8 @@ fun errorMessage(code: String): String = stringResource(
         "EMPTY_FILE" -> Res.string.error_EMPTY_FILE
         "OWNER_CANNOT_LEAVE" -> Res.string.error_OWNER_CANNOT_LEAVE
         "EMAIL_NOT_VERIFIED" -> Res.string.error_EMAIL_NOT_VERIFIED
+        "NOT_MESSAGE_SENDER", "CANNOT_DELETE_MESSAGE" -> Res.string.error_FORBIDDEN
+        "MEETING_NOT_EDITABLE" -> Res.string.error_MEETING_NOT_EDITABLE
         "RESEND_TOO_SOON" -> Res.string.error_RESEND_TOO_SOON
         "CANNOT_REMOVE_MEMBER" -> Res.string.error_CANNOT_REMOVE_MEMBER
         "INVALID_PASSWORD" -> Res.string.error_INVALID_PASSWORD

@@ -19,6 +19,8 @@ enum class NotificationType {
     MEETING_REMINDER,
     MEETING_STARTED,
     MEETING_CANCELED,
+    /** 예약 회의의 시간·제목 등이 바뀜 */
+    MEETING_UPDATED,
 }
 
 /** 문구는 저장하지 않는다. type + params(JSON) 를 클라이언트가 사용자 언어로 번역해 보여준다 */

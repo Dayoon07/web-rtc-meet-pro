@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.feature.meetings
 
+import com.webrtcmeetpro.resources.meeting_edit
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -141,6 +143,8 @@ class MeetingDetailViewModel(
 fun MeetingDetailScreen(
     meetingId: Long,
     onBack: () -> Unit,
+    /** 예약 회의 고치기 화면 열기 */
+    onEdit: (meetingId: Long) -> Unit = {},
     viewModel: MeetingDetailViewModel = koinViewModel(key = "meeting-$meetingId") { parametersOf(meetingId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -216,7 +220,10 @@ fun MeetingDetailScreen(
                         }
                     }
 
-                    // 주최자이거나 팀 관리 권한이 있으면 (서버가 계산한 canCancel)
+                    // 주최자이거나 팀 관리 권한이 있으면 (서버가 계산한 canEdit / canCancel)
+                    if (meeting.canEdit) {
+                        SecondaryButton(stringResource(Res.string.meeting_edit), onClick = { onEdit(meeting.id) }, icon = Icons.Outlined.Edit)
+                    }
                     if (meeting.canCancel) {
                         SecondaryButton(stringResource(Res.string.meeting_cancel), onClick = { confirmCancel = true }, icon = Icons.Outlined.EventBusy)
                     }

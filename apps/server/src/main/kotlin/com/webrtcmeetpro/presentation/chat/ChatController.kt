@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.presentation.chat
 
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.DeleteMapping
 import com.webrtcmeetpro.application.chat.ChatService
 import com.webrtcmeetpro.application.chat.FileUpload
 import com.webrtcmeetpro.common.web.userId
@@ -79,6 +81,15 @@ class ChatController(private val chat: ChatService) {
     @ResponseStatus(HttpStatus.CREATED)
     fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageRequest) =
         chat.send(roomId, jwt.userId, req.content)
+
+    /** 내가 보낸 글 메시지 고치기 */
+    @PatchMapping("/chat/messages/{messageId}")
+    fun edit(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: SendMessageRequest) =
+        chat.edit(messageId, jwt.userId, req.content)
+
+    /** 메시지 지우기 (보낸 사람, 또는 팀 OWNER·ADMIN). 방 사람들에게 "삭제된 메시지"로 바뀐다 */
+    @DeleteMapping("/chat/messages/{messageId}")
+    fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long) = chat.delete(messageId, jwt.userId)
 
     /** 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) */
     @PostMapping("/chat/rooms/{roomId}/files", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])

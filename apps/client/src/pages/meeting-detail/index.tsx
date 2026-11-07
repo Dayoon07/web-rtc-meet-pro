@@ -1,12 +1,13 @@
-import { ArrowLeft, CalendarClock, StickyNote, Users } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ArrowLeft, CalendarClock, Pencil, StickyNote, Users } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { MeetingStatusBadge, useMeetingQuery } from '@/entities/meeting'
 import { useMeQuery } from '@/entities/user'
 import { CancelMeetingButton, JoinMeetingButton } from '@/features/meeting-actions'
+import { ScheduleMeetingModal } from '@/features/schedule-meeting'
 import { useFormat } from '@/shared/lib/format'
-import { Avatar, Card, EmptyState, Spinner } from '@/shared/ui'
+import { Avatar, Button, Card, EmptyState, Spinner } from '@/shared/ui'
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
@@ -26,6 +27,7 @@ export function MeetingDetailPage() {
   const id = Number(useParams().meetingId)
   const { data: me } = useMeQuery()
   const { data: meeting, isPending, isError } = useMeetingQuery(id)
+  const [editing, setEditing] = useState(false)
 
   if (isPending) return <Spinner className="mx-auto size-6 text-brand-600" />
   if (isError || !meeting) return <EmptyState icon={<CalendarClock />} title={t('errors.MEETING_NOT_FOUND')} />
@@ -44,6 +46,14 @@ export function MeetingDetailPage() {
             {meeting.host && <p className="mt-1 text-sm text-gray-500">{t('meetings.host', { name: meeting.host.nickname })}</p>}
           </div>
           <div className="flex items-center gap-2">
+            {meeting.canEdit && (
+              <>
+                <Button variant="outline" icon={<Pencil className="size-4" />} onClick={() => setEditing(true)}>
+                  {t('meetings.edit')}
+                </Button>
+                <ScheduleMeetingModal mode="edit" meeting={meeting} open={editing} onClose={() => setEditing(false)} />
+              </>
+            )}
             {meeting.canCancel && <CancelMeetingButton meeting={meeting} />}
             <JoinMeetingButton meeting={meeting} myId={me?.id} size="md" />
           </div>

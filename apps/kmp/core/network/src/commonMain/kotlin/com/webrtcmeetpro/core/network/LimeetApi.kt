@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.core.network
 
+import io.ktor.client.request.put
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Headers
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -148,6 +149,13 @@ class LimeetApi(private val client: HttpClient) {
         client.post("api/chat/rooms/$roomId/leave")
     }
 
+    /** 내가 보낸 글 메시지 고치기 */
+    suspend fun editMessage(messageId: Long, content: String): ChatMessage =
+        client.patch("api/chat/messages/$messageId") { setBody(SendMessageRequest(content)) }.body()
+
+    /** 메시지 지우기 (보낸 사람, 또는 팀 OWNER·ADMIN) */
+    suspend fun deleteMessage(messageId: Long): ChatMessage = client.delete("api/chat/messages/$messageId").body()
+
     /** 최신 50개, before 를 주면 그 이전 50개. 오래된 것 → 최신 순 */
     suspend fun messages(roomId: Long, before: Long? = null): List<ChatMessage> =
         client.get("api/chat/rooms/$roomId/messages") { before?.let { parameter("before", it) } }.body()
@@ -194,6 +202,10 @@ class LimeetApi(private val client: HttpClient) {
 
     suspend fun scheduleMeeting(teamId: Long, request: ScheduleMeetingRequest): Meeting =
         client.post("api/teams/$teamId/meetings") { setBody(request) }.body()
+
+    /** 예약 회의 고치기 (scheduledAt 필수) */
+    suspend fun updateMeeting(meetingId: Long, request: ScheduleMeetingRequest): Meeting =
+        client.put("api/meetings/$meetingId") { setBody(request) }.body()
 
     suspend fun cancelMeeting(meetingId: Long) {
         client.post("api/meetings/$meetingId/cancel")

@@ -1,5 +1,6 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v0.7  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v0.8  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+--   v0.8: 회의 고치기 알림(MEETING_UPDATED), 채팅 메시지 고친 시각(chat_messages.content_edited_at). 기존 DB 는 db/migrations/v0.8-edit-meetings-messages.sql
 --   v0.7: 가입 이메일 인증(users.email_verified_at). 기존 DB 는 db/migrations/v0.7-email-verification.sql
 --   v0.6: 관리자 사이트 데이터 관리의 변경 기록(admin_data_changes). 기존 DB 는 db/migrations/v0.6-admin-data-changes.sql
 --   v0.5: 모든 테이블에 공통 컬럼 5개, 인덱스 이름 idx_ / uidx_, 채팅 첨부파일(chat_message_files),
@@ -401,6 +402,7 @@ CREATE TABLE chat_messages (
     meeting_id          NUMBER(19),
     message_type        VARCHAR2(20)    DEFAULT 'TEXT' NOT NULL,
     content             CLOB,
+    content_edited_at   TIMESTAMP(6),
     created_dt          TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
     created_us          NUMBER(19),
     edited_dt           TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
@@ -593,7 +595,7 @@ CREATE TABLE notifications (
     CONSTRAINT ck_notifications_type CHECK (type IN (
         'TEAM_INVITATION', 'TEAM_INVITATION_ACCEPTED',
         'CHAT_ROOM_INVITED',
-        'MEETING_SCHEDULED', 'MEETING_REMINDER', 'MEETING_STARTED', 'MEETING_CANCELED'
+        'MEETING_SCHEDULED', 'MEETING_REMINDER', 'MEETING_STARTED', 'MEETING_CANCELED', 'MEETING_UPDATED'
     )),
     CONSTRAINT ck_notifications_deleted_yn CHECK (deleted_yn IN ('Y', 'N'))
 );

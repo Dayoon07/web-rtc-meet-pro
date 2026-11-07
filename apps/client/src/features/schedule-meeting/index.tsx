@@ -4,7 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { meetingApi, meetingKeys } from '@/entities/meeting'
+import { type Meeting, meetingApi, meetingKeys } from '@/entities/meeting'
 import { useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { errorMessage } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
@@ -20,21 +20,31 @@ function nextSlot() {
   return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }
 }
 
+/** 회의 시각(ISO) → 날짜·시간 칸 값 (이 브라우저 시간대) */
+function slotOf(iso: string) {
+  const d = new Date(iso)
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+}
+
 /**
  * mode=now: 지금 회의 시작 → 만들고 바로 회의실로
  * mode=schedule: 날짜·시간·참석자 지정 → 시작 10분 전 알림
+ * mode=edit: 예약 회의 고치기 (meeting 필수, 팀은 바꿀 수 없다)
  */
 export function ScheduleMeetingModal({
   mode,
   open,
   onClose,
   defaultTeamId,
+  meeting,
 }: {
-  mode: 'now' | 'schedule'
+  mode: 'now' | 'schedule' | 'edit'
   open: boolean
   onClose: () => void
   defaultTeamId?: number
+  meeting?: Meeting
 }) {
+  const editing = mode === 'edit' ? meeting : undefined
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -53,26 +63,49 @@ export function ScheduleMeetingModal({
   }, [teams, teamId, defaultTeamId])
 
   useEffect(() => {
-    if (open) setSlot(nextSlot())
-  }, [open])
+    if (open && !editing) setSlot(nextSlot())
+  }, [open, editing])
+
+  // 고치기: 열 때마다 지금 회의 값으로 채운다
+  useEffect(() => {
+    if (!open || !editing) return
+    setTeamId(editing.teamId)
+    setTitle(editing.title)
+    setDescription(editing.description ?? '')
+    setDuration(editing.durationMinutes)
+    setSlot(slotOf(editing.scheduledAt))
+    setInvitees(new Set(editing.invitees.map((u) => u.id)))
+  }, [open, editing])
+  // 팀원 전체가 초대돼 있으면 "팀원 전체" 로 보여 준다
+  useEffect(() => {
+    if (!open || !editing || !team) return
+    const ids = new Set(editing.invitees.map((u) => u.id))
+    setEveryone(team.members.every((m) => ids.has(m.userId)))
+  }, [open, editing, team])
 
   const schedule = useMutation({
-    mutationFn: () =>
-      meetingApi.schedule(teamId, {
+    mutationFn: () => {
+      const body = {
         title: title.trim(),
         description: description.trim() || undefined,
-        // 사용자 시간대 → 오프셋 포함 ISO (서버가 자기 시간대로 변환)
-        scheduledAt: mode === 'schedule' ? new Date(`${slot.date}T${slot.time}:00`).toISOString() : undefined,
         durationMinutes: duration,
         inviteeIds: everyone ? [] : [...invitees],
-      }),
-    onSuccess: (meeting) => {
+      }
+      // 사용자 시간대 → 오프셋 포함 ISO (서버가 자기 시간대로 변환)
+      const at = new Date(`${slot.date}T${slot.time}:00`).toISOString()
+      if (editing) return meetingApi.update(editing.id, { ...body, scheduledAt: at })
+      return meetingApi.schedule(teamId, { ...body, scheduledAt: mode === 'schedule' ? at : undefined })
+    },
+    onSuccess: (saved) => {
       void queryClient.invalidateQueries({ queryKey: meetingKeys.upcoming })
+      queryClient.setQueryData(meetingKeys.detail(saved.id), saved)
       onClose()
-      setTitle('')
-      setDescription('')
-      if (mode === 'now') navigate(`/meet/${meeting.id}`)
-      else toast.success(t('meetings.form.scheduled', { title: meeting.title }))
+      if (!editing) {
+        setTitle('')
+        setDescription('')
+      }
+      if (mode === 'now') navigate(`/meet/${saved.id}`)
+      else toast.success(t(editing ? 'meetings.form.updated' : 'meetings.form.scheduled', { title: saved.title }))
     },
   })
 
@@ -87,14 +120,14 @@ export function ScheduleMeetingModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={t(mode === 'now' ? 'meetings.form.titleNew' : 'meetings.form.titleSchedule')}
+      title={t(mode === 'now' ? 'meetings.form.titleNew' : mode === 'edit' ? 'meetings.form.titleEdit' : 'meetings.form.titleSchedule')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             {t('common.cancel')}
           </Button>
           <Button type="submit" form="meeting-form" loading={schedule.isPending} disabled={!teamId || !title.trim()}>
-            {t(mode === 'now' ? 'meetings.form.submitNow' : 'meetings.form.submitSchedule')}
+            {t(mode === 'now' ? 'meetings.form.submitNow' : mode === 'edit' ? 'common.save' : 'meetings.form.submitSchedule')}
           </Button>
         </>
       }
@@ -105,7 +138,7 @@ export function ScheduleMeetingModal({
         <form id="meeting-form" onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('meetings.form.team')} htmlFor="m-team" required>
-              <Select id="m-team" value={teamId} onChange={(e) => setTeamId(Number(e.target.value))}>
+              <Select id="m-team" value={teamId} disabled={!!editing} onChange={(e) => setTeamId(Number(e.target.value))}>
                 {teams?.map((tm) => (
                   <option key={tm.id} value={tm.id}>
                     {tm.name}
@@ -114,11 +147,11 @@ export function ScheduleMeetingModal({
               </Select>
             </Field>
             <Field label={t('meetings.form.name')} htmlFor="m-title" required>
-              <Input id="m-title" autoFocus maxLength={100} placeholder={t('meetings.form.namePlaceholder')} value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Input id="m-title" autoFocus={!editing} maxLength={100} placeholder={t('meetings.form.namePlaceholder')} value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
           </div>
 
-          {mode === 'schedule' && (
+          {mode !== 'now' && (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label={t('meetings.form.date')} htmlFor="m-date" required>
                 <Input id="m-date" type="date" value={slot.date} onChange={(e) => setSlot({ ...slot, date: e.target.value })} />
@@ -177,7 +210,7 @@ export function ScheduleMeetingModal({
             <Input id="m-desc" maxLength={1000} placeholder={t('meetings.form.descriptionPlaceholder')} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
 
-          {mode === 'schedule' && (
+          {mode !== 'now' && (
             <p className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2.5 text-sm text-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
               <Bell className="size-4 shrink-0" />
               {t('meetings.form.reminderNote')}

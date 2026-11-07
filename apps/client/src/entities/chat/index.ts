@@ -16,6 +16,10 @@ export type ChatMessage = {
   content: string | null
   files: ChatFile[]
   createdAt: string
+  /** 보낸 사람이 고친 글 ("수정됨") */
+  edited?: boolean
+  /** 지운 메시지: content 는 null, files 는 비어 있다 */
+  deleted?: boolean
 }
 
 export type ChatRoom = {
@@ -31,8 +35,8 @@ export type ChatRoom = {
   createdAt: string
 }
 
-/** 서버 /user/queue/chat 이벤트 */
-export type ChatEvent = { type: 'MESSAGE' | 'ROOM'; teamId: number; roomId: number; message: ChatMessage | null }
+/** 서버 /user/queue/chat 이벤트. MESSAGE_UPDATED = 고치거나 지운 메시지 (같은 id 를 바꿔 끼운다) */
+export type ChatEvent = { type: 'MESSAGE' | 'MESSAGE_UPDATED' | 'ROOM'; teamId: number; roomId: number; message: ChatMessage | null }
 
 export const chatKeys = {
   unread: ['chat', 'unread'] as const,
@@ -61,6 +65,10 @@ export const chatApi = {
     if (content?.trim()) form.append('content', content.trim())
     return http<ChatMessage>(`/chat/rooms/${roomId}/files`, { method: 'POST', form })
   },
+  /** 내가 보낸 글 메시지 고치기 */
+  edit: (messageId: number, content: string) => http<ChatMessage>(`/chat/messages/${messageId}`, { method: 'PATCH', json: { content } }),
+  /** 지우기 (보낸 사람, 또는 팀 OWNER·ADMIN) */
+  remove: (messageId: number) => http<ChatMessage>(`/chat/messages/${messageId}`, { method: 'DELETE' }),
   read: (roomId: number, messageId: number) => http<void>(`/chat/rooms/${roomId}/read`, { method: 'POST', json: { messageId } }),
 }
 
@@ -131,6 +139,7 @@ export function systemText(message: ChatMessage, t: TFunction, list: (items: str
 /** 방 목록 미리보기 문장 */
 export function previewText(message: ChatMessage | null, t: TFunction, list: (items: string[]) => string) {
   if (!message) return ''
+  if (message.deleted) return t('chat.deletedMessage')
   if (message.type === 'SYSTEM') return systemText(message, t, list)
   if (message.type === 'FILE') return message.content || filesSummary(message.files, t)
   return message.content ?? ''

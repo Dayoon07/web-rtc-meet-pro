@@ -106,6 +106,21 @@ class Meeting(
         canceledAt = at
     }
 
+    /**
+     * 예약 회의 고치기. 시간이 바뀌면 10분 전 알림을 다시 보내도록 표시를 지운다.
+     * @return 사람들에게 알릴 만한 변경(제목·시간·길이)이 있었는지
+     */
+    fun update(title: String, description: String?, scheduledAt: LocalDateTime, durationMinutes: Int): Boolean {
+        check(status == MeetingStatus.SCHEDULED) { "예약 상태에서만 고칠 수 있습니다." }
+        val notable = title != this.title || scheduledAt != this.scheduledAt || durationMinutes != this.durationMinutes
+        if (scheduledAt != this.scheduledAt) reminderSentAt = null
+        this.title = title
+        this.description = description
+        this.scheduledAt = scheduledAt
+        this.durationMinutes = durationMinutes
+        return notable
+    }
+
     fun markReminded(at: LocalDateTime = LocalDateTime.now()) {
         reminderSentAt = at
     }
@@ -154,6 +169,7 @@ interface MeetingInviteeRepository {
     fun findAllByMeetingId(meetingId: Long): List<MeetingInvitee>
     fun findAllByMeetingIdIn(meetingIds: Collection<Long>): List<MeetingInvitee>
     fun findAllByUserId(userId: Long): List<MeetingInvitee>
+    fun delete(invitee: MeetingInvitee)
 }
 
 enum class LeaveReason { LEFT, DISCONNECTED, KICKED, MEETING_ENDED }

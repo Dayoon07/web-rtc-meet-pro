@@ -65,6 +65,10 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "자기 역할은 바꿀 수 없습니다."),
 
     // chat
+    MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "메시지를 찾을 수 없습니다."),
+    NOT_MESSAGE_SENDER(HttpStatus.FORBIDDEN, "내가 보낸 메시지만 고칠 수 있습니다."),
+    MESSAGE_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "글 메시지만 고칠 수 있습니다."),
+    CANNOT_DELETE_MESSAGE(HttpStatus.FORBIDDEN, "이 메시지를 지울 권한이 없습니다."),
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅방을 찾을 수 없습니다."),
     NOT_ROOM_MEMBER(HttpStatus.FORBIDDEN, "이 채팅방의 참여자가 아닙니다."),
     CANNOT_DIRECT_SELF(HttpStatus.BAD_REQUEST, "자기 자신과는 1:1 채팅을 할 수 없습니다."),
@@ -77,6 +81,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없거나 링크가 만료되었습니다. 채팅방을 새로고침해 주세요."),
 
     // meeting
+    MEETING_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "시작했거나 끝난 회의는 고칠 수 없습니다."),
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
     NOT_MEETING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 할 수 있습니다."),
     MEETING_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "종료되었거나 취소된 회의입니다."),

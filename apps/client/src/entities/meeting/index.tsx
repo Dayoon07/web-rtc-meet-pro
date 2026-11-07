@@ -22,6 +22,8 @@ export type Meeting = {
   liveParticipants: number
   /** 내가 취소할 수 있는지 (예약 상태 + 주최자이거나 팀 관리 권한). 서버가 계산 */
   canCancel: boolean
+  /** 내가 고칠 수 있는지 (취소와 같은 조건) */
+  canEdit?: boolean
 }
 
 export type JoinInfo = { meeting: Meeting; mediaUrl: string; token: string }
@@ -45,6 +47,8 @@ export const meetingApi = {
   list: (scope: 'upcoming' | 'past') => http<Meeting[]>(`/meetings?scope=${scope}`),
   detail: (id: number) => http<Meeting>(`/meetings/${id}`),
   schedule: (teamId: number, body: ScheduleBody) => http<Meeting>(`/teams/${teamId}/meetings`, { method: 'POST', json: body }),
+  /** 예약 회의 고치기 (시작 전만). inviteeIds 를 비우면 팀원 전체 */
+  update: (id: number, body: ScheduleBody & { scheduledAt: string }) => http<Meeting>(`/meetings/${id}`, { method: 'PUT', json: body }),
   cancel: (id: number) => http<void>(`/meetings/${id}/cancel`, { method: 'POST' }),
   join: (id: number) => http<JoinInfo>(`/meetings/${id}/join`, { method: 'POST' }),
 }

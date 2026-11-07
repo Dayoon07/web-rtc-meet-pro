@@ -223,4 +223,15 @@
     <string name="password_too_short">8文字以上にしてください。</string>
     <string name="error_EMAIL_NOT_VERIFIED">先にメールアドレスを確認してください。</string>
     <string name="error_RESEND_TOO_SOON">しばらくしてから再送信してください。</string>
+    <string name="chat_edit">編集</string>
+    <string name="chat_delete">削除</string>
+    <string name="chat_edited">（編集済み）</string>
+    <string name="chat_deleted_message">このメッセージは削除されました</string>
+    <string name="chat_delete_confirm">このメッセージを削除しますか？全員に「削除されたメッセージ」と表示されます。</string>
+    <string name="chat_delete_others_confirm">他の人のメッセージを削除しますか？管理者権限で削除します。</string>
+    <string name="common_save">保存</string>
+    <string name="meeting_edit">編集</string>
+    <string name="meeting_edit_title">会議を編集</string>
+    <string name="notif_MEETING_UPDATED">「%1$s」の予定が変更されました</string>
+    <string name="error_MEETING_NOT_EDITABLE">開始済み・終了済みの会議は編集できません。</string>
 </resources>

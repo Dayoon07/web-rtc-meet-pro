@@ -224,4 +224,15 @@
     <string name="password_too_short">Use at least 8 characters.</string>
     <string name="error_EMAIL_NOT_VERIFIED">Please confirm your email first.</string>
     <string name="error_RESEND_TOO_SOON">Please wait a moment before resending.</string>
+    <string name="chat_edit">Edit</string>
+    <string name="chat_delete">Delete</string>
+    <string name="chat_edited">(edited)</string>
+    <string name="chat_deleted_message">This message was deleted</string>
+    <string name="chat_delete_confirm">Delete this message? Everyone will see “This message was deleted”.</string>
+    <string name="chat_delete_others_confirm">Delete someone else’s message? You’re deleting it as a team admin.</string>
+    <string name="common_save">Save</string>
+    <string name="meeting_edit">Edit</string>
+    <string name="meeting_edit_title">Edit meeting</string>
+    <string name="notif_MEETING_UPDATED">“%1$s” was updated</string>
+    <string name="error_MEETING_NOT_EDITABLE">Meetings that have started or ended can’t be edited.</string>
 </resources>

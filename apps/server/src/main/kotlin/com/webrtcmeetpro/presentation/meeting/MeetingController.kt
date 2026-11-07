@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.presentation.meeting
 
+import jakarta.validation.constraints.NotNull
+import org.springframework.web.bind.annotation.PutMapping
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.common.web.userId
@@ -36,6 +38,15 @@ data class ScheduleMeetingRequest(
     @field:Size(max = 200) val inviteeIds: List<Long> = emptyList(),
 )
 
+/** 예약 회의 고치기. inviteeIds 를 비우면 팀원 전체 */
+data class UpdateMeetingRequest(
+    @field:NotBlank @field:Size(max = 100) val title: String,
+    @field:Size(max = 1000) val description: String? = null,
+    @field:NotNull val scheduledAt: LocalDateTime?,
+    @field:Min(5) @field:Max(1440) val durationMinutes: Int = 60,
+    @field:Size(max = 200) val inviteeIds: List<Long> = emptyList(),
+)
+
 @RestController
 @RequestMapping("/api")
 class MeetingController(private val meetings: MeetingService) {
@@ -55,6 +66,15 @@ class MeetingController(private val meetings: MeetingService) {
 
     @GetMapping("/meetings/{meetingId}")
     fun detail(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long) = meetings.detail(meetingId, jwt.userId)
+
+    /** 예약 회의 고치기 (주최자, 또는 팀 OWNER·ADMIN). 시작 전인 회의만 */
+    @PutMapping("/meetings/{meetingId}")
+    fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @Valid @RequestBody req: UpdateMeetingRequest) =
+        meetings.update(
+            meetingId,
+            jwt.userId,
+            ScheduleMeetingCommand(req.title, req.description, req.scheduledAt, req.durationMinutes, req.inviteeIds),
+        )
 
     @PostMapping("/meetings/{meetingId}/cancel")
     @ResponseStatus(HttpStatus.NO_CONTENT)

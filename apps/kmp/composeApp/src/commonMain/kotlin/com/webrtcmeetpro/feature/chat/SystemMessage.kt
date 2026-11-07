@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.resources.chat_deleted_message
 import androidx.compose.runtime.Composable
 import com.webrtcmeetpro.core.model.ChatFile
 import com.webrtcmeetpro.core.model.ChatMessage
@@ -25,6 +26,7 @@ private data class SystemPayload(val key: String, val actor: String = "", val ta
 /** SYSTEM 메시지는 현재 언어 문장으로, 일반 메시지는 그대로 (웹 chat.system.* 과 같은 규칙) */
 @Composable
 fun messageText(message: ChatMessage): String {
+    if (message.deleted) return stringResource(Res.string.chat_deleted_message)
     // 글 없이 파일만 보낸 FILE 메시지는 "사진 3장" 같은 요약
     if (message.type != MessageType.SYSTEM) return message.content ?: filesSummary(message.files)
     val raw = message.content.orEmpty()

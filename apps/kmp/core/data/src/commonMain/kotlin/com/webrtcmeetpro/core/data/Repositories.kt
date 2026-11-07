@@ -116,6 +116,8 @@ class ChatRepository(private val api: LimeetApi) {
     suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?): ChatMessage =
         api.sendFiles(roomId, files, content?.trim()?.ifEmpty { null })
     suspend fun markRead(roomId: Long, messageId: Long) = api.markRead(roomId, messageId)
+    suspend fun edit(messageId: Long, content: String): ChatMessage = api.editMessage(messageId, content.trim())
+    suspend fun delete(messageId: Long): ChatMessage = api.deleteMessage(messageId)
 }
 
 class MeetingRepository(
@@ -127,6 +129,7 @@ class MeetingRepository(
     suspend fun detail(meetingId: Long): Meeting = api.meeting(meetingId)
     suspend fun schedule(teamId: Long, request: ScheduleMeetingRequest): Meeting = api.scheduleMeeting(teamId, request)
     suspend fun cancel(meetingId: Long) = api.cancelMeeting(meetingId)
+    suspend fun update(meetingId: Long, request: ScheduleMeetingRequest): Meeting = api.updateMeeting(meetingId, request)
 
     /**
      * 화상회의는 아직 웹(mediasoup-client)에서만 된다. 로그인 상태를 1회용 코드로 넘겨

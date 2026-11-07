@@ -30,8 +30,11 @@ enum class TeamPermission(val deniedError: ErrorCode) {
     /** 그룹(1:N) 채팅방 만들기 */
     CREATE_GROUP_ROOM(ErrorCode.NOT_TEAM_OWNER),
 
-    /** 다른 사람이 연 예약 회의 취소 */
+    /** 다른 사람이 연 예약 회의 고치기·취소 */
     CANCEL_ANY_MEETING(ErrorCode.NOT_MEETING_HOST),
+
+    /** 팀 채팅방에서 다른 사람이 보낸 메시지 지우기 (부적절한 메시지 정리) */
+    DELETE_ANY_MESSAGE(ErrorCode.CANNOT_DELETE_MESSAGE),
 
     /** 팀원의 역할 바꾸기 (ADMIN 지정·해제) */
     MANAGE_ROLES(ErrorCode.NOT_TEAM_OWNER),
@@ -49,7 +52,7 @@ enum class TeamRole(val permissions: Set<TeamPermission>) {
     OWNER(TeamPermission.entries.toSet()),
 
     /** 운영을 돕는 팀원: 초대, 회의 정리 */
-    ADMIN(setOf(TeamPermission.INVITE_MEMBER, TeamPermission.CANCEL_ANY_MEETING, TeamPermission.REMOVE_MEMBER)),
+    ADMIN(setOf(TeamPermission.INVITE_MEMBER, TeamPermission.CANCEL_ANY_MEETING, TeamPermission.REMOVE_MEMBER, TeamPermission.DELETE_ANY_MESSAGE)),
 
     /** 일반 팀원 */
     MEMBER(emptySet()),

@@ -223,4 +223,15 @@
     <string name="password_too_short">请使用至少 8 个字符。</string>
     <string name="error_EMAIL_NOT_VERIFIED">请先确认邮箱。</string>
     <string name="error_RESEND_TOO_SOON">请稍后再重新发送。</string>
+    <string name="chat_edit">编辑</string>
+    <string name="chat_delete">删除</string>
+    <string name="chat_edited">（已编辑）</string>
+    <string name="chat_deleted_message">此消息已删除</string>
+    <string name="chat_delete_confirm">要删除这条消息吗？所有人都会看到“此消息已删除”。</string>
+    <string name="chat_delete_others_confirm">要删除别人发送的消息吗？你将以管理员身份删除。</string>
+    <string name="common_save">保存</string>
+    <string name="meeting_edit">编辑</string>
+    <string name="meeting_edit_title">编辑会议</string>
+    <string name="notif_MEETING_UPDATED">「%1$s」的安排已更改</string>
+    <string name="error_MEETING_NOT_EDITABLE">已开始或已结束的会议不能编辑。</string>
 </resources>

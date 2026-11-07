@@ -11,6 +11,7 @@ export type TeamPermission =
   | 'MANAGE_ROLES'
   | 'REMOVE_MEMBER'
   | 'DELETE_TEAM'
+  | 'DELETE_ANY_MESSAGE'
 
 export type TeamSummary = {
   id: number

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Download, FileText, MessageSquarePlus, MessagesSquare, Plus, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, Download, FileText, MessageSquarePlus, MessagesSquare, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -18,7 +18,7 @@ import {
 import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { CreateGroupRoomModal, InviteToRoomModal, LeaveRoomButton, MessageComposer, StartDirectChatModal } from '@/features/chat-room-actions'
-import { realtime } from '@/shared/api'
+import { realtime, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
 import { Avatar, Button, EmptyState, IconButton, LinkButton, Select, Spinner } from '@/shared/ui'
@@ -152,13 +152,62 @@ function MessageFiles({ files, mine, onMediaLoad }: { files: ChatFile[]; mine: b
   )
 }
 
-function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
+/** 내 글 메시지를 그 자리에서 고치는 칸 (Enter 저장, Shift+Enter 줄바꿈, Esc 취소) */
+function EditBubble({ message, onSave, onCancel }: { message: ChatMessage; onSave: (content: string) => Promise<void>; onCancel: () => void }) {
+  const { t } = useTranslation()
+  const [value, setValue] = useState(message.content ?? '')
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
+    const content = value.trim()
+    if (!content || content === message.content) return onCancel()
+    setSaving(true)
+    try {
+      await onSave(content)
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <div className="flex w-full max-w-md flex-col gap-1.5">
+      <textarea
+        autoFocus
+        value={value}
+        maxLength={4000}
+        rows={Math.min(6, Math.max(2, value.split('\n').length))}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onCancel()
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault()
+            void save()
+          }
+        }}
+        className="w-full resize-none rounded-2xl border border-brand-300 bg-white px-3.5 py-2 text-[15px] leading-relaxed text-gray-900 outline-none focus:ring-3 focus:ring-brand-500/15 dark:border-brand-700 dark:bg-gray-900 dark:text-gray-100"
+      />
+      <div className="flex justify-end gap-1.5">
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          {t('common.cancel')}
+        </Button>
+        <Button size="sm" loading={saving} onClick={() => void save()}>
+          {t('common.save')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canModerate, onEdit, onDelete }: {
   messages: ChatMessage[]
   myId?: number
   hasMore: boolean
   onLoadOlder: () => void
   loadingOlder: boolean
+  /** 팀 OWNER·ADMIN: 다른 사람 메시지도 지울 수 있다 */
+  canModerate: boolean
+  onEdit: (message: ChatMessage, content: string) => Promise<void>
+  onDelete: (message: ChatMessage) => void
 }) {
+  const [editingId, setEditingId] = useState<number | null>(null)
   const { t } = useTranslation()
   const fmt = useFormat()
   const scroller = useRef<HTMLDivElement>(null)
@@ -206,7 +255,19 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
                 <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
               </div>
             )}
-            {m.type === 'SYSTEM' ? (
+            {editingId === m.id ? (
+              // 고치는 중: 말풍선 대신 방 너비에 맞춘 입력칸 (좁은 화면에서도 잘리지 않게)
+              <div className={cn('flex justify-end', grouped ? 'mt-1' : 'mt-4')}>
+                <EditBubble
+                  message={m}
+                  onCancel={() => setEditingId(null)}
+                  onSave={async (content) => {
+                    await onEdit(m, content)
+                    setEditingId(null)
+                  }}
+                />
+              </div>
+            ) : m.type === 'SYSTEM' ? (
               <p className="my-3 text-center text-xs text-gray-500 dark:text-gray-400">
                 <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-gray-800">{systemText(m, t, fmt.list)}</span>
               </p>
@@ -215,12 +276,36 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
                 {!mine && (grouped ? <span className="w-8 shrink-0" /> : <Avatar src={m.sender?.profileImageUrl} name={m.sender?.nickname ?? '?'} size="sm" />)}
                 <div className={cn('flex max-w-[75%] flex-col', mine ? 'items-end' : 'items-start')}>
                   {!mine && !grouped && <span className="mb-1 ml-1 text-xs font-medium text-gray-600 dark:text-gray-400">{m.sender?.nickname ?? t('chat.unknown')}</span>}
-                  <div className={cn('flex items-end gap-1.5', mine && 'flex-row-reverse')}>
+                  <div className={cn('group flex items-end gap-1.5', mine && 'flex-row-reverse')}>
                     <div className={cn('flex min-w-0 flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
-                      {m.files.length > 0 && <MessageFiles files={m.files} mine={mine} onMediaLoad={followBottom} />}
-                      {m.content && <p className={bubbleClass(mine)}>{m.content}</p>}
+                      {m.deleted ? (
+                        <p className="rounded-2xl border border-dashed border-gray-300 px-3.5 py-2 text-sm text-gray-400 italic dark:border-gray-700">
+                          {t('chat.deletedMessage')}
+                        </p>
+                      ) : (
+                        <>
+                          {m.files.length > 0 && <MessageFiles files={m.files} mine={mine} onMediaLoad={followBottom} />}
+                          {m.content && <p className={bubbleClass(mine)}>{m.content}</p>}
+                        </>
+                      )}
                     </div>
-                    <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">{fmt.time(m.createdAt)}</span>
+                    <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
+                      {m.edited && !m.deleted && <span className="mr-1">{t('chat.edited')}</span>}
+                      {fmt.time(m.createdAt)}
+                    </span>
+                    {/* 마우스를 올리면 고치기·지우기 (터치 화면은 늘 보인다) */}
+                    {!m.deleted && editingId !== m.id && (mine || canModerate) && (
+                      <span className="flex shrink-0 gap-0.5 pb-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+                        {mine && m.type === 'TEXT' && (
+                          <button type="button" title={t('chat.edit')} aria-label={t('chat.edit')} onClick={() => setEditingId(m.id)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                            <Pencil className="size-3.5" />
+                          </button>
+                        )}
+                        <button type="button" title={t('chat.delete')} aria-label={t('chat.delete')} onClick={() => onDelete(m)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -277,6 +362,23 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
 
   const appendMine = (m: ChatMessage) =>
     queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(room.id), (cur = []) => (cur.some((x) => x.id === m.id) ? cur : [...cur, m]))
+  const replace = (m: ChatMessage) => {
+    queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(room.id), (cur = []) => cur.map((x) => (x.id === m.id ? m : x)))
+    void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(room.teamId) })
+  }
+  const canModerate = hasTeamPermission(team?.team, 'DELETE_ANY_MESSAGE')
+  const editMessage = async (m: ChatMessage, content: string) => {
+    try {
+      replace(await chatApi.edit(m.id, content))
+    } catch (e) {
+      toastError(e)
+      throw e
+    }
+  }
+  const deleteMessage = (m: ChatMessage) => {
+    if (!window.confirm(t(m.sender?.id === me?.id ? 'chat.deleteConfirm' : 'chat.deleteOthersConfirm'))) return
+    chatApi.remove(m.id).then(replace, toastError)
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -306,7 +408,16 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
           <Spinner className="size-6 text-gray-400" />
         </div>
       ) : (
-        <MessageList messages={messages} myId={me?.id} hasMore={hasMore} onLoadOlder={loadOlder} loadingOlder={loadingOlder} />
+        <MessageList
+          messages={messages}
+          myId={me?.id}
+          hasMore={hasMore}
+          onLoadOlder={loadOlder}
+          loadingOlder={loadingOlder}
+          canModerate={canModerate}
+          onEdit={editMessage}
+          onDelete={deleteMessage}
+        />
       )}
 
       <div className="shrink-0 border-t border-gray-200 p-3 sm:p-4 dark:border-gray-800">
@@ -348,10 +459,12 @@ export function ChatWorkspace({
     (payload: unknown) => {
       const ev = payload as ChatEvent
       void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(ev.teamId) })
-      if (ev.message) {
-        queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(ev.roomId), (cur) =>
-          cur && !cur.some((m) => m.id === ev.message!.id) ? [...cur, ev.message!] : cur,
-        )
+      const msg = ev.message
+      if (msg && ev.type === 'MESSAGE_UPDATED') {
+        // 누가 고치거나 지운 메시지: 같은 id 를 바꿔 끼운다
+        queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(ev.roomId), (cur) => cur?.map((m) => (m.id === msg.id ? msg : m)))
+      } else if (msg) {
+        queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(ev.roomId), (cur) => (cur && !cur.some((m) => m.id === msg.id) ? [...cur, msg] : cur))
       }
     },
     [queryClient],

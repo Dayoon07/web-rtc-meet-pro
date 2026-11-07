@@ -31,6 +31,9 @@ expect fun minutesUntil(iso: String): Long
  */
 expect fun toOffsetIso(dateUtcMillis: Long, hour: Int, minute: Int): String
 
+/** 서버 시각(ISO) → DatePicker·TimePicker 값 (날짜 UTC 자정 millis, 시, 분 — 기기 시간대) */
+expect fun pickerParts(iso: String): Triple<Long, Int, Int>
+
 /** 회의 예약 기본값: 다음 정각 (날짜 UTC 자정 millis, 시, 분) */
 expect fun nextFullHour(): Triple<Long, Int, Int>
 
