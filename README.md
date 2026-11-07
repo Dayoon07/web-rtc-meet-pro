@@ -99,6 +99,39 @@ JPA 는 `ddl-auto: validate` 라서 테이블을 만들지 않고 엔티티와 �
 - 서버 로그에도 같은 에러 코드가 찍힌다 (DB 가 꺼져서 기록하지 못한 경우를 위해).
 - 문의 이메일은 웹 `VITE_SUPPORT_EMAIL` (기본 `gangd0642@gmail.com`), 앱 `ui/UnexpectedErrorDialog.kt` 의 `SUPPORT_EMAIL`.
 
+#### 접근 통제
+
+| 범위 | 방식 | 어디서 정하나 |
+|---|---|---|
+| 서비스 전체 | 로그인(JWT) + 시스템 역할 `users.system_role` (`USER` / `ADMIN`) | `/api/admin/**` 는 `ADMIN` 만. `SecurityConfig` 와 관리자 서비스가 매 요청 DB 에서 확인 (권한을 회수하면 바로 막힘) |
+| 팀 | 역할 기반(RBAC): 역할 → 권한 표 한 곳 | `TeamRole` (`domain/team/TeamMember.kt`). 서비스는 `TeamAccess.requirePermission(팀, 사용자, 권한)` 한 줄 |
+| 채팅방 · 회의 | 관계 기반: 방 참여자인가, 회의 주최자인가 | 각 서비스 (`ChatService`, `MeetingService`) |
+
+| 팀 권한 | OWNER | ADMIN | MEMBER |
+|---|:-:|:-:|:-:|
+| `INVITE_MEMBER` 팀원 초대 · 보낸 초대 취소 | O | O | |
+| `CREATE_GROUP_ROOM` 그룹 채팅방 만들기 | O | | |
+| `CANCEL_ANY_MEETING` 다른 사람이 연 회의 취소 | O | O | |
+
+- 팀원이면 누구나 하는 일(팀 채팅, 1:1 채팅, 회의 예약 · 참여)과 관계로 정해지는 일(방 참여자의 방 초대, 주최자의 자기 회의 취소)은 권한 표에 넣지 않는다.
+- 웹 · 앱은 역할 이름을 해석하지 않고 서버가 준 `myPermissions`(팀), `canCancel`(회의)로 버튼을 보여 준다. 권한 표를 바꿔도 화면 코드는 그대로다.
+- 팀 ADMIN 을 지정하는 화면은 아직 없다 (지금은 팀을 만든 사람이 OWNER, 초대받은 사람은 MEMBER).
+
+시스템 관리자 지정은 화면이 아니라 DB 에서 한다.
+
+```sql
+UPDATE users SET system_role = 'ADMIN' WHERE email = '관리자 이메일';
+COMMIT;
+```
+
+관리자 API (관리자 사이트가 쓸 것):
+
+| | |
+|---|---|
+| `GET /api/admin/error-logs?unresolved=true` | 최근 에러 100건 (해결 표시 안 된 것만) |
+| `GET /api/admin/error-logs/{에러 코드}` | 사용자가 알려 준 에러 코드로 원인·스택 보기 |
+| `POST /api/admin/error-logs/{에러 코드}/resolve` | 해결 표시 (수정자 = 관리자) |
+
 #### 구글 로그인 설정
 
 1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → 사용자 인증 정보 → **OAuth 클라이언트 ID** (웹 애플리케이션) 생성

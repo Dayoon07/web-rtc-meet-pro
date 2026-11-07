@@ -20,6 +20,8 @@ export type Meeting = {
   host: MeetingUser | null
   invitees: MeetingUser[]
   liveParticipants: number
+  /** 내가 취소할 수 있는지 (예약 상태 + 주최자이거나 팀 관리 권한). 서버가 계산 */
+  canCancel: boolean
 }
 
 export type JoinInfo = { meeting: Meeting; mediaUrl: string; token: string }

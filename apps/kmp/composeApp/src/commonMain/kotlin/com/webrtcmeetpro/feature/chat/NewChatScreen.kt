@@ -36,7 +36,6 @@ import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.model.TeamDetail
 import com.webrtcmeetpro.core.model.TeamMember
-import com.webrtcmeetpro.core.model.TeamRole
 import com.webrtcmeetpro.core.network.errorCode
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.chat_direct
@@ -72,7 +71,8 @@ data class NewChatUiState(
     val openedRoomId: Long? = null,
 ) {
     val teammates: List<TeamMember> get() = team?.members.orEmpty().filter { it.userId != myId }
-    val isOwner: Boolean get() = team?.team?.myRole == TeamRole.OWNER
+    /** 그룹 채팅방 만들기 권한 (지금은 팀 OWNER). 서버가 준 권한 목록으로 판단 */
+    val canCreateGroup: Boolean get() = team?.team?.canCreateGroupRoom == true
 }
 
 class NewChatViewModel(
@@ -153,7 +153,7 @@ fun NewChatScreen(
                                 MemberRow(member, enabled = !state.busy, onClick = { viewModel.openDirect(member.userId) })
                             }
                         }
-                        !state.isOwner -> Text(
+                        !state.canCreateGroup -> Text(
                             stringResource(Res.string.chat_group_owner_only),
                             modifier = Modifier.padding(24.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

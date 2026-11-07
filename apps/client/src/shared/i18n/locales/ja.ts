@@ -598,7 +598,7 @@ const ja: Messages = {
     DIRECT_ROOM_INVITE_NOT_ALLOWED: '1対1チャットにはメンバーを追加できません。',
     EMPTY_MESSAGE: 'メッセージを入力してください。',
     MEETING_NOT_FOUND: '会議が見つかりません。',
-    NOT_MEETING_HOST: '主催者のみ操作できます。',
+    NOT_MEETING_HOST: '主催者またはチーム管理者のみ操作できます。',
     MEETING_NOT_JOINABLE: '終了したか、キャンセルされた会議です。',
     MEETING_NOT_STARTED_YET: '会議開始の10分前から入室できます。',
     MEETING_TIME_IN_PAST: '過去の時間には予約できません。',

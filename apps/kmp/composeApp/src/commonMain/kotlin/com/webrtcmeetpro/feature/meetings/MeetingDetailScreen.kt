@@ -216,7 +216,8 @@ fun MeetingDetailScreen(
                         }
                     }
 
-                    if (state.isHost && meeting.status == MeetingStatus.SCHEDULED) {
+                    // 주최자이거나 팀 관리 권한이 있으면 (서버가 계산한 canCancel)
+                    if (meeting.canCancel) {
                         SecondaryButton(stringResource(Res.string.meeting_cancel), onClick = { confirmCancel = true }, icon = Icons.Outlined.EventBusy)
                     }
                 }

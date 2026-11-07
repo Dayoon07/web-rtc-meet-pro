@@ -44,7 +44,7 @@ export function MeetingDetailPage() {
             {meeting.host && <p className="mt-1 text-sm text-gray-500">{t('meetings.host', { name: meeting.host.nickname })}</p>}
           </div>
           <div className="flex items-center gap-2">
-            {meeting.host?.id === me?.id && <CancelMeetingButton meeting={meeting} />}
+            {meeting.canCancel && <CancelMeetingButton meeting={meeting} />}
             <JoinMeetingButton meeting={meeting} myId={me?.id} size="md" />
           </div>
         </div>

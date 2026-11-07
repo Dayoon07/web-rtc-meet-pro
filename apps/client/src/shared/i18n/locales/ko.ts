@@ -597,7 +597,7 @@ const ko = {
     DIRECT_ROOM_INVITE_NOT_ALLOWED: '1:1 채팅방에는 초대할 수 없어요.',
     EMPTY_MESSAGE: '메시지를 입력해 주세요.',
     MEETING_NOT_FOUND: '회의를 찾을 수 없어요.',
-    NOT_MEETING_HOST: '회의 주최자만 할 수 있어요.',
+    NOT_MEETING_HOST: '회의 주최자나 팀 관리자만 할 수 있어요.',
     MEETING_NOT_JOINABLE: '종료됐거나 취소된 회의예요.',
     MEETING_NOT_STARTED_YET: '회의 시작 10분 전부터 입장할 수 있어요.',
     MEETING_TIME_IN_PAST: '지난 시간으로는 예약할 수 없어요.',

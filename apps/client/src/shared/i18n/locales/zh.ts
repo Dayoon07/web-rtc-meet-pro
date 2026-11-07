@@ -599,7 +599,7 @@ const zh: Messages = {
     DIRECT_ROOM_INVITE_NOT_ALLOWED: '单聊中不能添加成员。',
     EMPTY_MESSAGE: '请输入消息。',
     MEETING_NOT_FOUND: '找不到该会议。',
-    NOT_MEETING_HOST: '只有主持人可以执行此操作。',
+    NOT_MEETING_HOST: '只有主持人或团队管理员可以执行此操作。',
     MEETING_NOT_JOINABLE: '会议已结束或已取消。',
     MEETING_NOT_STARTED_YET: '会议开始前 10 分钟起可以入会。',
     MEETING_TIME_IN_PAST: '不能预约过去的时间。',

@@ -13,6 +13,7 @@ import com.webrtcmeetpro.domain.team.TeamMember
 import com.webrtcmeetpro.domain.team.TeamMemberRepository
 import com.webrtcmeetpro.domain.team.TeamMemberStatus
 import com.webrtcmeetpro.domain.team.TeamRepository
+import com.webrtcmeetpro.domain.team.TeamPermission
 import com.webrtcmeetpro.domain.team.TeamRole
 import com.webrtcmeetpro.domain.team.TeamStatus
 import com.webrtcmeetpro.domain.user.User
@@ -29,6 +30,8 @@ data class TeamSummaryView(
     val description: String?,
     val ownerId: Long,
     val myRole: TeamRole,
+    /** 내 역할로 이 팀에서 할 수 있는 일. 웹·앱은 역할을 해석하지 않고 이 목록으로 버튼을 보여 준다 */
+    val myPermissions: List<TeamPermission>,
     val memberCount: Int,
     val createdAt: LocalDateTime,
 )
@@ -106,8 +109,7 @@ class TeamService(
 
     @Transactional
     fun invite(teamId: Long, inviterId: Long, rawEmail: String): InvitationView {
-        val inviter = access.requireMember(teamId, inviterId)
-        if (!inviter.canInvite) throw BusinessException(ErrorCode.CANNOT_INVITE)
+        access.requirePermission(teamId, inviterId, TeamPermission.INVITE_MEMBER)
         val team = access.requireTeam(teamId)
         val inviterUser = findUser(inviterId)
         val email = rawEmail.trim().lowercase()
@@ -197,8 +199,7 @@ class TeamService(
 
     @Transactional
     fun cancel(teamId: Long, invitationId: Long, userId: Long) {
-        val me = access.requireMember(teamId, userId)
-        if (!me.canInvite) throw BusinessException(ErrorCode.CANNOT_INVITE)
+        access.requirePermission(teamId, userId, TeamPermission.INVITE_MEMBER)
         val invitation = invitationRepository.findInvitationById(invitationId)?.takeIf { it.teamId == teamId && it.isPending() }
             ?: throw BusinessException(ErrorCode.INVITATION_NOT_FOUND)
         invitation.cancel()
@@ -213,7 +214,7 @@ class TeamService(
     private fun newToken() = ByteArray(24).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     private fun summary(team: Team, role: TeamRole, memberCount: Int) =
-        TeamSummaryView(team.id!!, team.name, team.description, team.ownerId, role, memberCount, team.createdDt)
+        TeamSummaryView(team.id!!, team.name, team.description, team.ownerId, role, role.permissions.sorted(), memberCount, team.createdDt)
 
     private fun memberView(m: TeamMember, u: User) =
         TeamMemberView(u.id!!, u.nickname, u.email, u.profileImageUrl, m.role, m.joinedAt)

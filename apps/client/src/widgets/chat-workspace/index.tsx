@@ -15,7 +15,7 @@ import {
   systemText,
   useChatRoomsQuery,
 } from '@/entities/chat'
-import { useTeamQuery, useTeamsQuery } from '@/entities/team'
+import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { CreateGroupRoomModal, InviteToRoomModal, LeaveRoomButton, MessageComposer, StartDirectChatModal } from '@/features/chat-room-actions'
 import { realtime } from '@/shared/api'
@@ -341,7 +341,7 @@ export function ChatWorkspace({
   const [modal, setModal] = useState<'direct' | 'group' | null>(null)
 
   const activeRoom = rooms.find((r) => r.id === roomId)
-  const isOwner = team?.team.ownerId === me?.id
+  const canCreateGroup = hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM')
   const groupCount = rooms.filter((r) => r.type === 'GROUP').length
 
   const onEvent = useCallback(
@@ -401,8 +401,8 @@ export function ChatWorkspace({
               variant="outline"
               className="flex-1"
               icon={<Plus className="size-4" />}
-              disabled={!isOwner}
-              title={isOwner ? undefined : t('chat.ownerOnlyGroup')}
+              disabled={!canCreateGroup}
+              title={canCreateGroup ? undefined : t('chat.ownerOnlyGroup')}
               onClick={() => setModal('group')}
             >
               {t('chat.group')}

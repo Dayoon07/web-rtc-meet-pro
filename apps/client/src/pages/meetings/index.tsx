@@ -46,7 +46,7 @@ function MeetingRow({ meeting, myId }: { meeting: Meeting; myId?: number }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {meeting.host?.id === myId && <CancelMeetingButton meeting={meeting} />}
+        {meeting.canCancel && <CancelMeetingButton meeting={meeting} />}
         <JoinMeetingButton meeting={meeting} myId={myId} size="md" />
       </div>
     </li>

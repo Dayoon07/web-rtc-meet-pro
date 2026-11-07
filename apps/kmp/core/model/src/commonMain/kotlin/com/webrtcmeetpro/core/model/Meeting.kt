@@ -24,6 +24,8 @@ data class Meeting(
     val host: MeetingUser? = null,
     val invitees: List<MeetingUser> = emptyList(),
     val liveParticipants: Long = 0,
+    /** 내가 취소할 수 있는지 (예약 상태 + 주최자이거나 팀 관리 권한). 서버가 계산 */
+    val canCancel: Boolean = false,
 ) {
     val isOpen get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
 }

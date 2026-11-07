@@ -18,6 +18,12 @@ import java.time.Year
 import java.util.Locale
 
 enum class UserStatus { ACTIVE, SUSPENDED, DELETED }
+
+/**
+ * 서비스 전체(시스템) 역할. 팀 안 역할(TeamRole)과 별개다.
+ * ADMIN 은 관리자 사이트와 관리자 API(/api/admin 아래)를 쓸 수 있다. 화면에서 바꾸지 않고 DB 에서 직접 지정한다.
+ */
+enum class SystemRole { USER, ADMIN }
 enum class Gender { MALE, FEMALE, OTHER }
 
 /** 회원가입 / 온보딩 / 프로필 수정에서 함께 바뀌는 개인정보 묶음 (값 객체) */
@@ -112,7 +118,15 @@ class User(
     var lastLoginAt: LocalDateTime? = null
         protected set
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var systemRole: SystemRole = SystemRole.USER
+        protected set
+
     val isActive: Boolean get() = status == UserStatus.ACTIVE
+
+    /** 활동 중인 시스템 관리자 (정지·탈퇴하면 관리자 권한도 쓸 수 없다) */
+    val isSystemAdmin: Boolean get() = isActive && systemRole == SystemRole.ADMIN
     val hasPassword: Boolean get() = passwordHash != null
 
     /** 서비스를 쓰려면 개인정보 + 약관 동의가 모두 있어야 한다 (구글 가입자는 온보딩에서 채움) */

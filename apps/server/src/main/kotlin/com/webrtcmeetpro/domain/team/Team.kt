@@ -35,8 +35,6 @@ class Team(
     var status: TeamStatus = TeamStatus.ACTIVE
         protected set
 
-    fun isOwnedBy(userId: Long) = ownerId == userId
-
     /** 삭제: 행은 남기고 status = DELETED + deleted_yn = 'Y' (삭제 시각은 edited_dt) */
     fun delete() {
         status = TeamStatus.DELETED

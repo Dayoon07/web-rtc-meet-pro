@@ -1,0 +1,66 @@
+package com.webrtcmeetpro.domain
+
+import com.webrtcmeetpro.application.admin.ErrorClassifier
+import com.webrtcmeetpro.application.chat.ChatService
+import com.webrtcmeetpro.domain.admin.AdminErrorLog
+import com.webrtcmeetpro.domain.admin.ErrorCategory
+import com.webrtcmeetpro.domain.team.TeamMember
+import com.webrtcmeetpro.domain.team.TeamPermission
+import com.webrtcmeetpro.domain.team.TeamRole
+import org.junit.jupiter.api.Test
+import java.sql.SQLException
+import java.sql.SQLRecoverableException
+import java.time.LocalDate
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class AccessAndErrorRulesTest {
+
+    @Test
+    fun `팀 권한은 역할별 권한 표 한 곳에서 정한다`() {
+        // OWNER 는 모든 권한 (권한이 새로 생기면 자동 포함)
+        assertEquals(TeamPermission.entries.toSet(), TeamRole.OWNER.permissions)
+        assertTrue(TeamRole.ADMIN.can(TeamPermission.INVITE_MEMBER))
+        assertTrue(TeamRole.ADMIN.can(TeamPermission.CANCEL_ANY_MEETING))
+        assertFalse(TeamRole.ADMIN.can(TeamPermission.CREATE_GROUP_ROOM))
+        assertTrue(TeamRole.MEMBER.permissions.isEmpty())
+    }
+
+    @Test
+    fun `팀을 나간 사람은 역할이 남아 있어도 권한이 없다`() {
+        val owner = TeamMember(teamId = 1, userId = 2, role = TeamRole.OWNER)
+        assertTrue(owner.can(TeamPermission.INVITE_MEMBER))
+        owner.leave()
+        assertFalse(owner.can(TeamPermission.INVITE_MEMBER))
+    }
+
+    @Test
+    fun `에러 코드는 ERR-날짜8자리-UUID 20자리`() {
+        val code = AdminErrorLog.newErrorCode(LocalDate.of(2026, 11, 7))
+        assertTrue(code.startsWith("ERR-20261107-"))
+        assertTrue(AdminErrorLog.ERROR_CODE.matches(code))
+        assertEquals(33, code.length)
+    }
+
+    @Test
+    fun `에러 원인은 ORA 번호로 구조·규칙·연결 문제를 나눈다`() {
+        assertEquals(ErrorCategory.DB_SCHEMA, ErrorClassifier.classify(RuntimeException(SQLException("ORA-00942", "42000", 942))))
+        assertEquals(ErrorCategory.DB_SCHEMA, ErrorClassifier.classify(RuntimeException(SQLException("ORA-12899", "72000", 12899))))
+        assertEquals(ErrorCategory.DB_CONSTRAINT, ErrorClassifier.classify(RuntimeException(SQLException("ORA-00001", "23000", 1))))
+        assertEquals(ErrorCategory.DB_CONNECTION, ErrorClassifier.classify(SQLRecoverableException("IO Error", "08006", 17002)))
+        assertEquals(ErrorCategory.CODE, ErrorClassifier.classify(IllegalStateException("bug")))
+    }
+
+    @Test
+    fun `첨부파일 이름은 경로·위험 문자를 지우고, 이미지 여부는 매직 바이트로 판별`() {
+        assertEquals("a.png", ChatService.cleanFileName("C:\\fakepath\\a.png"))
+        assertEquals("file", ChatService.cleanFileName("  "))
+        assertEquals("a_b.txt", ChatService.cleanFileName("a:b.txt"))
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        assertEquals("image/png", ChatService.sniffImageType(png))
+        // SVG 는 이미지라고 해도 미리보기하지 않는다 (스크립트를 품을 수 있음)
+        assertNull(ChatService.sniffImageType("<svg xmlns=\"http://www.w3.org/2000/svg\">".toByteArray()))
+    }
+}

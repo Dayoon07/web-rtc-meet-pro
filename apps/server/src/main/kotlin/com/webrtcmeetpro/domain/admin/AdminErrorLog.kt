@@ -110,4 +110,8 @@ class AdminErrorLog(
 
 interface AdminErrorLogRepository {
     fun save(log: AdminErrorLog): AdminErrorLog
+    fun flush()
+    fun findByErrorCode(errorCode: String): AdminErrorLog?
+    fun findTop100ByOrderByIdDesc(): List<AdminErrorLog>
+    fun findTop100ByResolvedOrderByIdDesc(resolved: Boolean): List<AdminErrorLog>
 }

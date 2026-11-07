@@ -3,7 +3,7 @@ import { Mail, Send, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { canInvite, teamApi, teamKeys, type TeamDetail, useTeamInvitationsQuery } from '@/entities/team'
+import { hasTeamPermission, teamApi, teamKeys, type TeamDetail, useTeamInvitationsQuery } from '@/entities/team'
 import { errorMessage, toastError } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Button, FieldError, Input, Progress } from '@/shared/ui'
@@ -14,7 +14,7 @@ export function InviteMemberPanel({ detail }: { detail: TeamDetail }) {
   const fmt = useFormat()
   const queryClient = useQueryClient()
   const teamId = detail.team.id
-  const allowed = canInvite(detail.team.myRole)
+  const allowed = hasTeamPermission(detail.team, 'INVITE_MEMBER')
   const { data: pending } = useTeamInvitationsQuery(teamId, allowed)
   const [email, setEmail] = useState('')
 

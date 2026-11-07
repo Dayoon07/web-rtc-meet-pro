@@ -61,7 +61,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
 
     // meeting
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
-    NOT_MEETING_HOST(HttpStatus.FORBIDDEN, "회의 주최자만 할 수 있습니다."),
+    NOT_MEETING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 할 수 있습니다."),
     MEETING_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "종료되었거나 취소된 회의입니다."),
     MEETING_NOT_STARTED_YET(HttpStatus.BAD_REQUEST, "회의 시작 10분 전부터 입장할 수 있습니다."),
     MEETING_TIME_IN_PAST(HttpStatus.BAD_REQUEST, "지난 시간으로는 예약할 수 없습니다."),

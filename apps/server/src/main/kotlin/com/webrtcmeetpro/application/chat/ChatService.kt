@@ -16,6 +16,7 @@ import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.domain.notification.NotificationType
+import com.webrtcmeetpro.domain.team.TeamPermission
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.team.TeamAccess
 import com.webrtcmeetpro.domain.user.User
@@ -127,12 +128,11 @@ class ChatService(
         return view(room, memberRepository.findByRoomIdAndUserId(room.id!!, userId)!!)
     }
 
-    /** 1:N 방 만들기 — 팀을 만든 사람(OWNER)만 */
+    /** 1:N 방 만들기 — CREATE_GROUP_ROOM 권한 (지금은 OWNER) */
     @Transactional
     fun createGroup(teamId: Long, userId: Long, name: String, memberIds: Collection<Long>): ChatRoomView {
         val team = teamAccess.requireTeam(teamId)
-        teamAccess.requireMember(teamId, userId)
-        if (!team.isOwnedBy(userId)) throw BusinessException(ErrorCode.NOT_TEAM_OWNER)
+        teamAccess.requirePermission(teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
         if (name.isBlank()) throw BusinessException(ErrorCode.INVALID_INPUT)
 
         val plan = planService.currentPlanOf(team.ownerId)

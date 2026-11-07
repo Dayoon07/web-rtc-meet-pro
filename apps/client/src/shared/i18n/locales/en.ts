@@ -598,7 +598,7 @@ const en: Messages = {
     DIRECT_ROOM_INVITE_NOT_ALLOWED: "You can't add people to a direct message.",
     EMPTY_MESSAGE: 'Write a message.',
     MEETING_NOT_FOUND: 'Meeting not found.',
-    NOT_MEETING_HOST: 'Only the host can do this.',
+    NOT_MEETING_HOST: 'Only the host or a team admin can do this.',
     MEETING_NOT_JOINABLE: 'This meeting has ended or was canceled.',
     MEETING_NOT_STARTED_YET: 'You can join from 10 minutes before the start time.',
     MEETING_TIME_IN_PAST: "You can't schedule a meeting in the past.",

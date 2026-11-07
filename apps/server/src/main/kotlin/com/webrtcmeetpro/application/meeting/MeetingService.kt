@@ -18,6 +18,7 @@ import com.webrtcmeetpro.domain.meeting.MeetingParticipantRepository
 import com.webrtcmeetpro.domain.meeting.MeetingRepository
 import com.webrtcmeetpro.domain.meeting.MeetingStatus
 import com.webrtcmeetpro.domain.notification.NotificationType
+import com.webrtcmeetpro.domain.team.TeamPermission
 import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.user.User
 import com.webrtcmeetpro.domain.user.UserRepository
@@ -44,6 +45,8 @@ data class MeetingView(
     val host: MeetingUserView?,
     val invitees: List<MeetingUserView>,
     val liveParticipants: Long,
+    /** 이 화면을 보는 사람이 취소할 수 있는지: 예약 상태이고 (주최자이거나 팀에서 CANCEL_ANY_MEETING 권한) */
+    val canCancel: Boolean,
 )
 
 data class ScheduleMeetingCommand(
@@ -115,7 +118,7 @@ class MeetingService(
 
         // 바로 시작 회의는 주최자가 입장할 때 MEETING_STARTED 알림이 간다
         if (!instant) notifyInvitees(meeting, NotificationType.MEETING_SCHEDULED, except = hostId)
-        return view(meeting)
+        return view(meeting, hostId)
     }
 
     /** upcoming: 예약/진행 중, past: 종료/취소 (최근 30건) */
@@ -125,19 +128,21 @@ class MeetingService(
         val meetings = meetingRepository.findAllByIdInAndStatusIn(ids, statuses)
             .filter { teamAccess.activeMemberIds(it.teamId).contains(userId) }
         val sorted = if (past) meetings.sortedByDescending { it.scheduledAt }.take(30) else meetings.sortedBy { it.scheduledAt }
-        return sorted.map(::view)
+        return sorted.map { view(it, userId) }
     }
 
     fun detail(meetingId: Long, userId: Long): MeetingView {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
-        return view(meeting)
+        return view(meeting, userId)
     }
 
+    /** 취소: 주최자는 자기 회의를(자원 관계), 팀 OWNER·ADMIN 은 팀의 다른 회의도(역할 권한). 둘 다 팀원이어야 한다 */
     @Transactional
     fun cancel(meetingId: Long, userId: Long) {
         val meeting = findMeeting(meetingId)
-        if (meeting.hostId != userId) throw BusinessException(ErrorCode.NOT_MEETING_HOST)
+        if (meeting.hostId == userId) teamAccess.requireMember(meeting.teamId, userId)
+        else teamAccess.requirePermission(meeting.teamId, userId, TeamPermission.CANCEL_ANY_MEETING)
         if (meeting.status != MeetingStatus.SCHEDULED) throw BusinessException(ErrorCode.MEETING_NOT_JOINABLE)
         meeting.cancel()
         notifyInvitees(meeting, NotificationType.MEETING_CANCELED, except = userId)
@@ -161,7 +166,7 @@ class MeetingService(
         }
         val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
         val token = tokenIssuer.issue(userId, meeting.id!!, meeting.roomCode, user.nickname, user.profileImageUrl, meeting.hostId == userId)
-        return JoinMeetingView(view(meeting), mediaProperties.publicUrl, token)
+        return JoinMeetingView(view(meeting, userId), mediaProperties.publicUrl, token)
     }
 
     /** 사이드카 이벤트 기록. JOINED 는 participantId 를 돌려줘서 LEFT 때 다시 받는다 */
@@ -245,7 +250,12 @@ class MeetingService(
 
     private fun userView(u: User) = MeetingUserView(u.id!!, u.nickname, u.profileImageUrl)
 
-    private fun view(meeting: Meeting): MeetingView {
+    private fun canCancel(meeting: Meeting, viewerId: Long): Boolean =
+        meeting.status == MeetingStatus.SCHEDULED &&
+            if (meeting.hostId == viewerId) teamAccess.isMember(meeting.teamId, viewerId)
+            else teamAccess.can(meeting.teamId, viewerId, TeamPermission.CANCEL_ANY_MEETING)
+
+    private fun view(meeting: Meeting, viewerId: Long): MeetingView {
         val inviteeIds = inviteeRepository.findAllByMeetingId(meeting.id!!).map { it.userId }
         val users = userRepository.findAllByIdIn(inviteeIds + meeting.hostId).associateBy { it.id!! }
         return MeetingView(
@@ -262,6 +272,7 @@ class MeetingService(
             host = users[meeting.hostId]?.let(::userView),
             invitees = inviteeIds.mapNotNull { users[it] }.map(::userView),
             liveParticipants = if (meeting.status == MeetingStatus.LIVE) participantRepository.countByMeetingIdAndLeftAtIsNull(meeting.id!!) else 0,
+            canCancel = canCancel(meeting, viewerId),
         )
     }
 }

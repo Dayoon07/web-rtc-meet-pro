@@ -3,12 +3,17 @@ import { http } from '@/shared/api'
 
 export type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
+/** 팀 안에서 역할에 따라 할 수 있는 일. 어느 역할이 무엇을 할 수 있는지는 서버(TeamRole)만 안다 */
+export type TeamPermission = 'INVITE_MEMBER' | 'CREATE_GROUP_ROOM' | 'CANCEL_ANY_MEETING'
+
 export type TeamSummary = {
   id: number
   name: string
   description: string | null
   ownerId: number
   myRole: TeamRole
+  /** 내 역할로 이 팀에서 할 수 있는 일 (서버가 계산) */
+  myPermissions: TeamPermission[]
   memberCount: number
   createdAt: string
 }
@@ -65,4 +70,6 @@ export const useTeamInvitationsQuery = (id: number, enabled: boolean) =>
   useQuery({ queryKey: teamKeys.invitations(id), queryFn: () => teamApi.teamInvitations(id), enabled })
 export const useMyInvitationsQuery = () => useQuery({ queryKey: teamKeys.myInvitations, queryFn: teamApi.myInvitations })
 
-export const canInvite = (role: TeamRole) => role === 'OWNER' || role === 'ADMIN'
+/** 버튼을 보여 줄지 판단. 역할 이름으로 직접 비교하지 않는다 (권한 표가 바뀌어도 화면은 그대로) */
+export const hasTeamPermission = (team: TeamSummary | undefined, permission: TeamPermission) =>
+  team?.myPermissions.includes(permission) ?? false

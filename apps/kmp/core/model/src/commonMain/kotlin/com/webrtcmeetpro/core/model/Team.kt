@@ -13,9 +13,15 @@ data class TeamSummary(
     val description: String? = null,
     val ownerId: Long,
     val myRole: TeamRole,
+    /**
+     * 내 역할로 이 팀에서 할 수 있는 일 (서버 TeamPermission 이름). 어느 역할이 무엇을 할 수 있는지는 서버만 안다.
+     * 서버가 권한을 새로 추가해도 앱이 깨지지 않게 enum 이 아니라 문자열로 받는다
+     */
+    val myPermissions: List<String> = emptyList(),
     val memberCount: Int,
 ) {
-    val canInvite get() = myRole == TeamRole.OWNER || myRole == TeamRole.ADMIN
+    val canInvite get() = "INVITE_MEMBER" in myPermissions
+    val canCreateGroupRoom get() = "CREATE_GROUP_ROOM" in myPermissions
 }
 
 @Serializable
