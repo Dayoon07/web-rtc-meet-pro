@@ -4,7 +4,7 @@ import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { canInvite, teamApi, teamKeys, type TeamDetail, useTeamInvitationsQuery } from '@/entities/team'
-import { errorMessage } from '@/shared/api'
+import { errorMessage, toastError } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Button, FieldError, Input, Progress } from '@/shared/ui'
 
@@ -37,7 +37,7 @@ export function InviteMemberPanel({ detail }: { detail: TeamDetail }) {
       toast(t('teams.members.pending.canceled'))
       refresh()
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
 
   const used = detail.members.length + detail.limits.pendingInvitations

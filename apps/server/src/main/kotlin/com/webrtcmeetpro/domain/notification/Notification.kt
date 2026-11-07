@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.notification
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -35,7 +36,7 @@ class Notification(
     val params: String?,
 
     val link: String?,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "notification_id")
@@ -44,9 +45,6 @@ class Notification(
 
     var readAt: LocalDateTime? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 
     fun markRead(at: LocalDateTime = LocalDateTime.now()) {
         if (readAt == null) readAt = at

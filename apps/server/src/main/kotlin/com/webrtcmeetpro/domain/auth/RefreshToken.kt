@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.auth
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
@@ -23,7 +24,7 @@ class RefreshToken(
 
     val ipAddress: String? = null,
     val userAgent: String? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "refresh_token_id")
@@ -32,9 +33,6 @@ class RefreshToken(
 
     var revokedAt: LocalDateTime? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 
     fun isUsable(now: LocalDateTime = LocalDateTime.now()): Boolean =
         revokedAt == null && now.isBefore(expiresAt)

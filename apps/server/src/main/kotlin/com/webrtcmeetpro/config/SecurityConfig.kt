@@ -39,7 +39,10 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 // /ws: STOMP CONNECT 프레임에서 JWT 검증, /internal: 사이드카 공유 비밀 헤더로 검증
                 it.requestMatchers("/api/auth/**", "/api/health", "/oauth2/**", "/login/oauth2/**", "/ws/**", "/internal/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/plans", "/uploads/**").permitAll()
+                    // 채팅 첨부파일: 토큰 대신 주소의 서명(exp, sig)으로 확인 (<img src> 는 헤더를 못 보낸다)
+                    .requestMatchers(HttpMethod.GET, "/api/plans", "/uploads/**", "/api/chat/files/*").permitAll()
+                    // 화면 오류 신고: 로그인 전 화면에서도 보낸다 (토큰이 있으면 사용자 id 도 남김)
+                    .requestMatchers(HttpMethod.POST, "/api/client-errors").permitAll()
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { it.jwt { } }

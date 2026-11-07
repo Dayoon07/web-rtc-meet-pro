@@ -14,6 +14,8 @@ dist/
 
 # 프로필 이미지 업로드 (app.storage.upload-dir)
 uploads/
+# 채팅 첨부파일 (app.storage.chat-file-dir 기본값 ./data/chat-files)
+chat-files/
 
 # Env
 .env

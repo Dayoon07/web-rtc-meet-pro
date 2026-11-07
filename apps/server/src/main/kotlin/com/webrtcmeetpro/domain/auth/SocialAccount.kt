@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.auth
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -27,7 +28,7 @@ class SocialAccount(
     val providerUserId: String,
 
     val email: String?,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "social_account_id")

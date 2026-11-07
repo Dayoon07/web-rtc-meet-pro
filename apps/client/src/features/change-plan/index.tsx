@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { type Plan, planApi, planKeys, planName } from '@/entities/plan'
 import { useIsAuthenticated } from '@/entities/session'
 import { userKeys } from '@/entities/user'
-import { errorMessage } from '@/shared/api'
+import { toastError } from '@/shared/api'
 import { Button } from '@/shared/ui'
 
 /**
@@ -25,7 +25,7 @@ export function ChangePlanButton({ plan, current, highlighted }: { plan: Plan; c
       queryClient.invalidateQueries({ queryKey: userKeys.me })
       toast.success(t('plan.changed', { name: planName(plan) }))
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
 
   if (current) {

@@ -61,6 +61,6 @@ class NotificationService(
         params = n.params?.let { json.readValue(it, Map::class.java) as Map<String, Any?> } ?: emptyMap(),
         link = n.link,
         read = n.readAt != null,
-        createdAt = n.createdAt,
+        createdAt = n.createdDt,
     )
 }

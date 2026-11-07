@@ -1,6 +1,9 @@
 package com.webrtcmeetpro.application.chat
 
+import com.webrtcmeetpro.domain.chat.ChatFileStorage
 import com.webrtcmeetpro.domain.chat.ChatMessage
+import com.webrtcmeetpro.domain.chat.ChatMessageFile
+import com.webrtcmeetpro.domain.chat.ChatMessageFileRepository
 import com.webrtcmeetpro.domain.chat.ChatMessageRepository
 import com.webrtcmeetpro.domain.chat.ChatRoom
 import com.webrtcmeetpro.domain.chat.ChatRoomMember
@@ -19,17 +22,33 @@ import com.webrtcmeetpro.domain.user.User
 import com.webrtcmeetpro.domain.user.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import tools.jackson.databind.json.JsonMapper
+import java.io.InputStream
+import java.nio.file.Path
 import java.time.LocalDateTime
 
 data class ChatUserView(val id: Long, val nickname: String, val profileImageUrl: String?)
+
+/** url 은 서명된 내려받기 주소 (12~24시간 유효). image = 화면에 바로 미리보기 가능한 이미지 */
+data class ChatFileView(
+    val id: Long,
+    val name: String,
+    val size: Long,
+    val contentType: String,
+    val image: Boolean,
+    val url: String,
+)
 
 data class ChatMessageView(
     val id: Long,
     val roomId: Long,
     val sender: ChatUserView?,
     val type: MessageType,
-    val content: String,
+    /** FILE 메시지는 글 없이 파일만 보내면 null */
+    val content: String?,
+    val files: List<ChatFileView>,
     val createdAt: LocalDateTime,
 )
 
@@ -50,12 +69,21 @@ data class ChatRoomView(
 /** /user/queue/chat 으로 가는 이벤트. ROOM = 방 목록 갱신 필요(새 방, 초대, 퇴장) */
 data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessageView? = null)
 
+/** 올린 파일 1개. presentation 의 MultipartFile 에 의존하지 않도록 열기 함수로 받는다 (여러 번 열 수 있어야 함) */
+data class FileUpload(val name: String?, val contentType: String?, val size: Long, val open: () -> InputStream)
+
+/** 내려받을 파일. inline = 브라우저에서 바로 보여 줘도 되는 이미지 */
+data class ChatFileDownload(val name: String, val contentType: String, val size: Long, val path: Path, val inline: Boolean, val expiresAt: Long)
+
 @Service
 @Transactional(readOnly = true)
 class ChatService(
     private val roomRepository: ChatRoomRepository,
     private val memberRepository: ChatRoomMemberRepository,
     private val messageRepository: ChatMessageRepository,
+    private val fileRepository: ChatMessageFileRepository,
+    private val fileStorage: ChatFileStorage,
+    private val fileUrls: ChatFileUrlSigner,
     private val userRepository: UserRepository,
     private val teamAccess: TeamAccess,
     private val planService: PlanService,
@@ -67,7 +95,7 @@ class ChatService(
     fun rooms(teamId: Long, userId: Long): List<ChatRoomView> {
         teamAccess.requireMember(teamId, userId)
         val mine = memberRepository.findAllByUserIdAndLeftAtIsNull(userId).associateBy { it.roomId }
-        return roomRepository.findAllByIdInAndDeletedAtIsNull(mine.keys)
+        return roomRepository.findAllByIdInAndDeletedFalse(mine.keys)
             .filter { it.teamId == teamId }
             .map { view(it, mine.getValue(it.id!!)) }
             .sortedByDescending { it.lastMessageAt ?: it.createdAt }
@@ -75,7 +103,7 @@ class ChatService(
 
     fun totalUnread(userId: Long): Long {
         val mine = memberRepository.findAllByUserIdAndLeftAtIsNull(userId)
-        val live = roomRepository.findAllByIdInAndDeletedAtIsNull(mine.map { it.roomId }).map { it.id!! }.toSet()
+        val live = roomRepository.findAllByIdInAndDeletedFalse(mine.map { it.roomId }).map { it.id!! }.toSet()
         return mine.filter { it.roomId in live }
             .sumOf { messageRepository.countByRoomIdAndIdGreaterThan(it.roomId, it.lastReadMessageId ?: 0) }
     }
@@ -108,7 +136,7 @@ class ChatService(
         if (name.isBlank()) throw BusinessException(ErrorCode.INVALID_INPUT)
 
         val plan = planService.currentPlanOf(team.ownerId)
-        val groups = roomRepository.countByTeamIdAndRoomTypeAndDeletedAtIsNull(teamId, ChatRoomType.GROUP)
+        val groups = roomRepository.countByTeamIdAndRoomTypeAndDeletedFalse(teamId, ChatRoomType.GROUP)
         if (!plan.canAddGroupRoom(groups)) throw BusinessException(ErrorCode.PLAN_GROUP_ROOM_LIMIT, mapOf("max" to plan.maxGroupRoomsPerTeam))
 
         val invitees = validTeamMembers(teamId, memberIds) - userId
@@ -158,7 +186,8 @@ class ChatService(
         val page = if (beforeId == null) messageRepository.findTop50ByRoomIdOrderByIdDesc(roomId)
         else messageRepository.findTop50ByRoomIdAndIdLessThanOrderByIdDesc(roomId, beforeId)
         val users = usersById(page.mapNotNull { it.senderId })
-        return page.reversed().map { messageView(it, users) }
+        val files = filesByMessage(page)
+        return page.reversed().map { messageView(it, users, files[it.id!!].orEmpty()) }
     }
 
     @Transactional
@@ -169,12 +198,44 @@ class ChatService(
         if (content.length > MAX_LENGTH) throw BusinessException(ErrorCode.INVALID_INPUT)
 
         val saved = messageRepository.save(ChatMessage(roomId, userId, content))
-        room.touch(saved.createdAt)
-        me.markRead(saved.id!!)
-        val view = messageView(saved, usersById(listOf(userId)))
-        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
-        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, roomId, view))
-        return view
+        return publish(room, me, saved, emptyList())
+    }
+
+    /**
+     * 파일 보내기: 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개.
+     * 디스크에 먼저 쓰고 DB 에 기록한다. 트랜잭션이 롤백되면 디스크에 쓴 파일도 지운다.
+     */
+    @Transactional
+    fun sendFiles(roomId: Long, userId: Long, rawContent: String?, uploads: List<FileUpload>): ChatMessageView {
+        val (room, me) = requireRoomMember(roomId, userId)
+        if (uploads.isEmpty()) throw BusinessException(ErrorCode.EMPTY_MESSAGE)
+        if (uploads.size > MAX_FILES) throw BusinessException(ErrorCode.TOO_MANY_FILES, mapOf("max" to MAX_FILES))
+        if (uploads.sumOf { it.size } > MAX_TOTAL_MB * 1024L * 1024L) throw tooLarge()
+        val content = rawContent?.trim()?.takeIf { it.isNotEmpty() }
+        if (content != null && content.length > MAX_LENGTH) throw BusinessException(ErrorCode.INVALID_INPUT)
+
+        val checked = uploads.map(::inspect)
+        val stored = mutableListOf<String>()
+        TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+            override fun afterCompletion(status: Int) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) stored.forEach(fileStorage::delete)
+            }
+        })
+        checked.forEach { (upload, _, _) -> upload.open().use { stored += fileStorage.store(it) } }
+
+        val saved = messageRepository.save(ChatMessage(roomId, userId, content, MessageType.FILE))
+        val files = checked.mapIndexed { i, (upload, name, type) ->
+            fileRepository.save(ChatMessageFile(saved.id!!, roomId, name, stored[i], type, upload.size))
+        }
+        return publish(room, me, saved, files)
+    }
+
+    /** 서명이 맞고 지워지지 않은 파일만 내려준다. 서명이 틀리거나 만료되면 없는 파일처럼 보이게 한다 */
+    fun openFile(fileId: Long, exp: Long, sig: String): ChatFileDownload {
+        if (!fileUrls.isValid(fileId, exp, sig)) throw BusinessException(ErrorCode.FILE_NOT_FOUND)
+        val file = fileRepository.findFileById(fileId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.FILE_NOT_FOUND)
+        val path = fileStorage.open(file.storedName) ?: throw BusinessException(ErrorCode.FILE_NOT_FOUND)
+        return ChatFileDownload(file.originalName, file.contentType, file.sizeBytes, path, file.isPreviewableImage, exp)
     }
 
     @Transactional
@@ -184,9 +245,44 @@ class ChatService(
 
     // ---------------------------------------------------------------
 
+    private fun publish(room: ChatRoom, me: ChatRoomMember, saved: ChatMessage, files: List<ChatMessageFile>): ChatMessageView {
+        room.touch(saved.createdDt)
+        me.markRead(saved.id!!)
+        val view = messageView(saved, usersById(listOfNotNull(saved.senderId)), files)
+        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!).map { it.userId }
+        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, room.id!!, view))
+        return view
+    }
+
+    /** 크기·확장자 확인, 파일 이름 정리, 형식 판별. 이미지라고 해도 실제 내용(매직 바이트)이 이미지일 때만 이미지로 저장 */
+    private fun inspect(upload: FileUpload): Triple<FileUpload, String, String> {
+        if (upload.size <= 0) throw BusinessException(ErrorCode.EMPTY_FILE)
+        if (upload.size > MAX_FILE_BYTES) throw tooLarge()
+        val name = cleanFileName(upload.name)
+        val extension = name.substringAfterLast('.', "").lowercase()
+        if (extension in BLOCKED_EXTENSIONS) throw BusinessException(ErrorCode.BLOCKED_FILE_TYPE, mapOf("ext" to extension))
+        val head = upload.open().use { it.readNBytes(16) }
+        val type = sniffImageType(head) ?: upload.contentType?.lowercase()?.takeIf {
+            CONTENT_TYPE.matches(it) && it !in ChatMessageFile.PREVIEWABLE_IMAGES
+        } ?: "application/octet-stream"
+        return Triple(upload, name, type)
+    }
+
+    private fun tooLarge() = BusinessException(ErrorCode.FILE_TOO_LARGE, mapOf("max" to MAX_FILE_MB, "total" to MAX_TOTAL_MB))
+
+    /** 요청을 보낸 사람이 볼 권한이 있으니 서명된 주소를 붙여 준다 */
+    private fun fileView(f: ChatMessageFile) =
+        ChatFileView(f.id!!, f.originalName, f.sizeBytes, f.contentType, f.isPreviewableImage, fileUrls.url(f.id!!))
+
+    private fun filesByMessage(messages: List<ChatMessage>): Map<Long, List<ChatMessageFile>> {
+        val ids = messages.filter { it.messageType == MessageType.FILE }.map { it.id!! }
+        if (ids.isEmpty()) return emptyMap()
+        return fileRepository.findAllByMessageIdIn(ids).filter { !it.deleted }.sortedBy { it.id }.groupBy { it.messageId }
+    }
+
     /** 방 참여자 + 아직 그 팀의 팀원인지 함께 확인 (팀에서 나간 사람은 방도 못 본다) */
     private fun requireRoomMember(roomId: Long, userId: Long): Pair<ChatRoom, ChatRoomMember> {
-        val room = roomRepository.findRoomById(roomId)?.takeIf { it.deletedAt == null }
+        val room = roomRepository.findRoomById(roomId)?.takeIf { !it.deleted }
             ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
         teamAccess.requireMember(room.teamId, userId)
         val me = memberRepository.findByRoomIdAndUserId(roomId, userId)?.takeIf { it.isActive }
@@ -212,8 +308,8 @@ class ChatService(
     private fun systemMessage(room: ChatRoom, key: String, actor: String, targets: List<String>): ChatMessageView {
         val content = json.writeValueAsString(mapOf("key" to key, "actor" to actor, "targets" to targets))
         val saved = messageRepository.save(ChatMessage(room.id!!, null, content, MessageType.SYSTEM))
-        room.touch(saved.createdAt)
-        return messageView(saved, emptyMap())
+        room.touch(saved.createdDt)
+        return messageView(saved, emptyMap(), emptyList())
     }
 
     private fun notifyInvited(room: ChatRoom, inviter: User, invitees: Collection<Long>) {
@@ -230,13 +326,14 @@ class ChatService(
 
     private fun userView(u: User) = ChatUserView(u.id!!, u.nickname, u.profileImageUrl)
 
-    private fun messageView(m: ChatMessage, users: Map<Long, User>) = ChatMessageView(
+    private fun messageView(m: ChatMessage, users: Map<Long, User>, files: List<ChatMessageFile>) = ChatMessageView(
         id = m.id!!,
         roomId = m.roomId,
         sender = m.senderId?.let { users[it] }?.let(::userView),
         type = m.messageType,
         content = m.content,
-        createdAt = m.createdAt,
+        files = files.map(::fileView),
+        createdAt = m.createdDt,
     )
 
     private fun view(room: ChatRoom, me: ChatRoomMember): ChatRoomView {
@@ -250,14 +347,47 @@ class ChatService(
             name = room.name,
             createdBy = room.createdBy,
             members = members.mapNotNull { users[it.userId] }.map(::userView),
-            lastMessage = last?.let { messageView(it, users) },
+            lastMessage = last?.let { messageView(it, users, filesByMessage(listOf(it))[it.id!!].orEmpty()) },
             unreadCount = messageRepository.countByRoomIdAndIdGreaterThan(room.id!!, me.lastReadMessageId ?: 0),
             lastMessageAt = room.lastMessageAt,
-            createdAt = room.createdAt,
+            createdAt = room.createdDt,
         )
     }
 
     companion object {
         const val MAX_LENGTH = 4000
+        const val MAX_FILES = 10
+        const val MAX_FILE_MB = 20
+        const val MAX_FILE_BYTES = MAX_FILE_MB * 1024L * 1024L
+        /** application.yml 의 multipart max-request-size(51MB) 와 맞춘다 */
+        const val MAX_TOTAL_MB = 50
+
+        /** 받는 사람 PC 에서 바로 실행될 수 있는 형식은 막는다 */
+        val BLOCKED_EXTENSIONS = setOf(
+            "exe", "msi", "bat", "cmd", "com", "scr", "pif", "cpl", "vbs", "vbe", "wsf", "wsh", "ps1", "hta", "lnk", "reg",
+        )
+        private val CONTENT_TYPE = Regex("^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$")
+        private val UNSAFE_NAME_CHARS = Regex("[\\p{Cntrl}\\\\/:*?\"<>|]")
+
+        /** 경로(C:\fakepath\a.png 등)와 제어 문자를 지우고 255자 안으로 (확장자는 남긴다) */
+        fun cleanFileName(raw: String?): String {
+            val base = raw.orEmpty().substringAfterLast('/').substringAfterLast('\\')
+            val cleaned = base.replace(UNSAFE_NAME_CHARS, "_").trim().trim('.').ifBlank { "file" }
+            if (cleaned.length <= 255) return cleaned
+            val ext = cleaned.substringAfterLast('.', "").take(20)
+            return if (ext.isEmpty()) cleaned.take(255) else cleaned.take(255 - ext.length - 1) + "." + ext
+        }
+
+        /** 파일 시그니처(매직 바이트)로 미리보기 가능한 이미지인지 판별 */
+        fun sniffImageType(b: ByteArray): String? {
+            fun startsWith(vararg sig: Int) = b.size >= sig.size && sig.indices.all { (b[it].toInt() and 0xFF) == sig[it] }
+            return when {
+                startsWith(0xFF, 0xD8, 0xFF) -> "image/jpeg"
+                startsWith(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) -> "image/png"
+                startsWith(0x47, 0x49, 0x46, 0x38) -> "image/gif"
+                b.size >= 12 && String(b, 0, 4, Charsets.US_ASCII) == "RIFF" && String(b, 8, 4, Charsets.US_ASCII) == "WEBP" -> "image/webp"
+                else -> null
+            }
+        }
     }
 }

@@ -45,4 +45,8 @@ data class ErrorResponse(
     val message: String,
     val params: Map<String, JsonElement> = emptyMap(),
     val field: String? = null,
+    /** 예상하지 못한 에러(500)일 때만: 이 에러 1건의 번호 (ERR-YYYYMMDD-...). 사용자가 문의할 때 알려 준다 */
+    val errorCode: String? = null,
+    /** 예상하지 못한 에러일 때만: 대략적인 원인 (DB_CONNECTION 등) */
+    val reason: String? = null,
 )

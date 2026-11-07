@@ -3,13 +3,14 @@ spring:
     name: web-rtc-meet-pro-server
   datasource:
     url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
-    username: ${DB_USERNAME:wrmp}
-    password: ${DB_PASSWORD:wrmp}
+    username: ${DB_USERNAME:limeet}
+    password: ${DB_PASSWORD:limeet}
     driver-class-name: oracle.jdbc.OracleDriver
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      # 채팅 첨부파일 기준 (파일당 20MB, 한 번에 10개까지 합계 50MB). 프로필 이미지 5MB 제한은 UserService 가 따로 확인한다
+      max-file-size: 20MB
+      max-request-size: 51MB
   jpa:
     open-in-view: false
     hibernate:
@@ -46,6 +47,8 @@ app:
   storage:
     # 프로필 이미지 저장 위치. /uploads/** 로 서빙된다
     upload-dir: ${UPLOAD_DIR:./uploads}
+    # 채팅 첨부파일 저장 위치. 공개 경로가 아니다 (서명된 /api/chat/files/{id} 로만 내려받기)
+    chat-file-dir: ${CHAT_FILE_DIR:./data/chat-files}
   media:
     # mediasoup 사이드카(apps/media)와 같은 값이어야 한다. 운영에서는 반드시 환경변수로 교체
     jwt-secret: ${MEDIA_JWT_SECRET:local-media-secret-change-me-0123456789abcdef}

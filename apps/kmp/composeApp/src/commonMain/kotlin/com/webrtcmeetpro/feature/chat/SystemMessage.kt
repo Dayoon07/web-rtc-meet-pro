@@ -19,14 +19,16 @@ private data class SystemPayload(val key: String, val actor: String = "", val ta
 /** SYSTEM 메시지는 현재 언어 문장으로, 일반 메시지는 그대로 (웹 chat.system.* 과 같은 규칙) */
 @Composable
 fun messageText(message: ChatMessage): String {
-    if (message.type != MessageType.SYSTEM) return message.content
-    val payload = runCatching { ApiJson.decodeFromString<SystemPayload>(message.content) }.getOrNull() ?: return message.content
+    // FILE 메시지를 글 없이 보냈으면 파일 이름 (앱에서 미리보기·내려받기는 다음 단계)
+    if (message.type != MessageType.SYSTEM) return message.content ?: message.files.joinToString(", ") { "📎 " + it.name }
+    val raw = message.content.orEmpty()
+    val payload = runCatching { ApiJson.decodeFromString<SystemPayload>(raw) }.getOrNull() ?: return raw
     val targets = payload.targets.joinToString(", ")
     return when (payload.key) {
         "created" -> if (payload.targets.isEmpty()) stringResource(Res.string.chat_sys_created, payload.actor)
         else stringResource(Res.string.chat_sys_created_with, payload.actor, targets)
         "invited" -> stringResource(Res.string.chat_sys_invited, payload.actor, targets)
         "left" -> stringResource(Res.string.chat_sys_left, payload.actor)
-        else -> message.content
+        else -> raw
     }
 }

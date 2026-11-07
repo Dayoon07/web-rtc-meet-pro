@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { type Invitation, teamApi, teamKeys } from '@/entities/team'
-import { errorMessage } from '@/shared/api'
+import { toastError } from '@/shared/api'
 import { Button } from '@/shared/ui'
 
 export function InvitationActions({ invitation }: { invitation: Invitation }) {
@@ -22,7 +22,7 @@ export function InvitationActions({ invitation }: { invitation: Invitation }) {
       toast.success(t('invitations.accepted', { teamName: team.name }))
       navigate(`/app/teams/${team.id}`)
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
   const decline = useMutation({
     mutationFn: () => teamApi.decline(invitation.id),
@@ -30,7 +30,7 @@ export function InvitationActions({ invitation }: { invitation: Invitation }) {
       refresh()
       toast(t('invitations.declined'))
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
 
   return (

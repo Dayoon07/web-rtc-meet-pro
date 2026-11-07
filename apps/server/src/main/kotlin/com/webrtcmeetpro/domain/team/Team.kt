@@ -1,6 +1,6 @@
 package com.webrtcmeetpro.domain.team
 
-import com.webrtcmeetpro.domain.common.BaseTimeEntity
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
-import java.time.LocalDateTime
 
 enum class TeamStatus { ACTIVE, DELETED }
 
@@ -23,7 +22,7 @@ class Team(
     var name: String,
 
     var description: String? = null,
-) : BaseTimeEntity() {
+) : BaseEntity() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,14 +35,12 @@ class Team(
     var status: TeamStatus = TeamStatus.ACTIVE
         protected set
 
-    var deletedAt: LocalDateTime? = null
-        protected set
-
     fun isOwnedBy(userId: Long) = ownerId == userId
 
-    fun delete(at: LocalDateTime = LocalDateTime.now()) {
+    /** 삭제: 행은 남기고 status = DELETED + deleted_yn = 'Y' (삭제 시각은 edited_dt) */
+    fun delete() {
         status = TeamStatus.DELETED
-        deletedAt = at
+        markDeleted()
     }
 }
 

@@ -3,7 +3,6 @@ import { CalendarPlus, MessageSquare, Video } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
-import { toast } from 'sonner'
 import { chatApi } from '@/entities/chat'
 import { MeetingStatusBadge, useMeetingsQuery } from '@/entities/meeting'
 import { useTeamQuery } from '@/entities/team'
@@ -11,7 +10,7 @@ import { useMeQuery } from '@/entities/user'
 import { InviteMemberPanel } from '@/features/invite-member'
 import { JoinMeetingButton } from '@/features/meeting-actions'
 import { ScheduleMeetingModal } from '@/features/schedule-meeting'
-import { errorMessage } from '@/shared/api'
+import { toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
 import { Avatar, Badge, Button, Card, EmptyState, Spinner } from '@/shared/ui'
@@ -30,7 +29,7 @@ export function TeamDetailPage() {
   const openDirect = useMutation({
     mutationFn: (userId: number) => chatApi.openDirect(teamId, userId),
     onSuccess: (room) => navigate(`/app/chat/${teamId}/${room.id}`),
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
 
   if (isPending) return <Spinner className="mx-auto size-6 text-brand-600" />

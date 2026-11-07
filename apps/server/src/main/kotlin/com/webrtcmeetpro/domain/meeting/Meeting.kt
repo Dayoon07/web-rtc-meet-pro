@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.meeting
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -39,7 +40,7 @@ class Meeting(
 
     @Column(nullable = false)
     var durationMinutes: Int = 60,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "meeting_id")
@@ -62,9 +63,6 @@ class Meeting(
 
     var canceledAt: LocalDateTime? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 
     val isOpen: Boolean get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
 
@@ -142,15 +140,12 @@ class MeetingInvitee(
 
     @Column(nullable = false)
     val userId: Long,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "invitee_id")
     var id: Long? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 }
 
 interface MeetingInviteeRepository {
@@ -177,7 +172,7 @@ class MeetingParticipant(
 
     val ipAddress: String? = null,
     val userAgent: String? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "participant_id")
@@ -230,20 +225,17 @@ class MeetingEvent(
     val eventType: MeetingEventType,
 
     val payload: String? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "event_id")
     var id: Long? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 }
 
 interface MeetingEventRepository {
     fun save(event: MeetingEvent): MeetingEvent
-    fun findAllByMeetingIdOrderByCreatedAtAsc(meetingId: Long): List<MeetingEvent>
+    fun findAllByMeetingIdOrderByCreatedDtAsc(meetingId: Long): List<MeetingEvent>
 }
 
 enum class RecordingStatus { RECORDING, PROCESSING, READY, FAILED, DELETED }
@@ -256,7 +248,7 @@ class MeetingRecording(
 
     @Column(nullable = false)
     val startedBy: Long,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "recording_id")

@@ -1,12 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, LogOut, SendHorizonal } from 'lucide-react'
-import { type FormEvent, type KeyboardEvent, useState } from 'react'
+import { Check, FileText, LogOut, Paperclip, SendHorizonal, X } from 'lucide-react'
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { chatApi, chatKeys, type ChatMessage, type ChatRoom } from '@/entities/chat'
+import { CHAT_FILE_LIMITS, chatApi, chatKeys, checkChatFiles, type ChatMessage, type ChatRoom } from '@/entities/chat'
 import type { TeamMember } from '@/entities/team'
-import { errorMessage } from '@/shared/api'
+import { errorMessage, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
+import { useFormat } from '@/shared/lib/format'
 import { Avatar, Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 
 /** 팀원 목록 (단일 선택: onPick / 다중 선택: selected+onToggle) */
@@ -96,7 +97,7 @@ export function StartDirectChatModal({
       onClose()
       onOpened(room)
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
 
   return (
@@ -246,7 +247,7 @@ export function LeaveRoomButton({ room, onLeft }: { room: ChatRoom; onLeft: () =
       void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(room.teamId) })
       onLeft()
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
   return (
     <Button
@@ -261,24 +262,86 @@ export function LeaveRoomButton({ room, onLeft }: { room: ChatRoom; onLeft: () =
   )
 }
 
-/** 메시지 입력창. Enter 보내기, Shift+Enter 줄바꿈, 한글 조합 중 Enter 무시 */
+/** 보내기 전 첨부파일 한 개: 이미지는 작은 미리보기, 나머지는 아이콘 */
+function PendingFile({ file, disabled, onRemove }: { file: File; disabled: boolean; onRemove: () => void }) {
+  const { t } = useTranslation()
+  const fmt = useFormat()
+  const [preview, setPreview] = useState<string | null>(null)
+  useEffect(() => {
+    if (!file.type.startsWith('image/')) return
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  return (
+    <li className="flex max-w-56 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 py-1.5 pr-1.5 pl-2 dark:border-gray-700 dark:bg-gray-800">
+      {preview ? (
+        <img src={preview} alt="" className="size-8 shrink-0 rounded-md object-cover" />
+      ) : (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+          <FileText className="size-4" />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-gray-800 dark:text-gray-100">{file.name}</span>
+        <span className="block text-[11px] text-gray-500 dark:text-gray-400">{fmt.bytes(file.size)}</span>
+      </span>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onRemove}
+        aria-label={t('chat.removeFile', { name: file.name })}
+        title={t('chat.removeFile', { name: file.name })}
+        className="rounded-md p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-40 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+      >
+        <X className="size-3.5" />
+      </button>
+    </li>
+  )
+}
+
+/**
+ * 메시지 입력창. Enter 보내기, Shift+Enter 줄바꿈, 한글 조합 중 Enter 무시.
+ * 파일은 클립 버튼 · 붙여넣기(스크린샷) · 끌어다 놓기로 첨부하고, 함께 쓴 글과 한 메시지로 보낸다.
+ */
 export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m: ChatMessage) => void }) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [dragging, setDragging] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
+
   const send = useMutation({
-    mutationFn: (content: string) => chatApi.send(roomId, content),
-    onSuccess: (m) => onSent(m),
-    onError: (e, content) => {
-      setText(content)
-      toast.error(errorMessage(e) ?? t('chat.sendFailed'))
+    mutationFn: (v: { content: string; files: File[] }) =>
+      v.files.length ? chatApi.sendFiles(roomId, v.files, v.content) : chatApi.send(roomId, v.content),
+    onSuccess: (m, v) => {
+      // 파일은 올리는 동안 목록에 남겨 두고(무엇을 보내는 중인지 보이게) 성공하면 비운다
+      if (v.files.length) {
+        setFiles([])
+        setText('')
+      }
+      onSent(m)
+    },
+    onError: (e, v) => {
+      setText(v.content)
+      toastError(e, t('chat.sendFailed'))
     },
   })
 
+  const addFiles = (incoming: File[]) => {
+    if (!incoming.length || send.isPending) return
+    const next = [...files, ...incoming]
+    const problem = checkChatFiles(next, t)
+    if (problem) return void toast.error(problem)
+    setFiles(next)
+  }
+
   const submit = () => {
     const content = text.trim()
-    if (!content || send.isPending) return
-    setText('')
-    send.mutate(content)
+    if ((!content && !files.length) || send.isPending) return
+    if (!files.length) setText('')
+    send.mutate({ content, files })
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -288,28 +351,99 @@ export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m
     }
   }
 
+  const { maxFiles, maxFileMb } = CHAT_FILE_LIMITS
+  const attachTitle = t('chat.attach') + ' · ' + t('chat.attachHint', { max: maxFiles, size: maxFileMb })
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
         submit()
       }}
-      className="flex items-end gap-2 rounded-2xl border border-gray-300 bg-white p-2 shadow-xs focus-within:border-brand-500 focus-within:ring-3 focus-within:ring-brand-500/15 dark:border-gray-700 dark:bg-gray-900"
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        setDragging(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false)
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return
+        e.preventDefault()
+        setDragging(false)
+        addFiles(Array.from(e.dataTransfer.files))
+      }}
+      className={cn(
+        'relative flex flex-col gap-2 rounded-2xl border bg-white p-2 shadow-xs focus-within:border-brand-500 focus-within:ring-3 focus-within:ring-brand-500/15 dark:bg-gray-900',
+        dragging ? 'border-brand-500 ring-3 ring-brand-500/15' : 'border-gray-300 dark:border-gray-700',
+      )}
     >
-      <textarea
-        rows={1}
-        value={text}
-        maxLength={4000}
-        placeholder={t('chat.placeholder')}
-        aria-label={t('chat.placeholder')}
-        title={t('chat.sendHint')}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKeyDown}
-        className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-gray-900 outline-none field-sizing-content placeholder:text-gray-400 dark:text-gray-100"
-      />
-      <Button type="submit" size="sm" className="h-9 w-9 shrink-0 rounded-xl p-0" aria-label={t('common.send')} disabled={!text.trim()}>
-        <SendHorizonal className="size-4.5" />
-      </Button>
+      {dragging && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-brand-50/90 text-sm font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-200">
+          {t('chat.dropHere')}
+        </div>
+      )}
+      {files.length > 0 && (
+        <ul className="flex flex-wrap gap-2 px-1 pt-1">
+          {files.map((f, i) => (
+            <PendingFile
+              key={f.name + ':' + f.size + ':' + f.lastModified + ':' + i}
+              file={f}
+              disabled={send.isPending}
+              onRemove={() => setFiles(files.filter((_, j) => j !== i))}
+            />
+          ))}
+        </ul>
+      )}
+      <div className="flex items-end gap-2">
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []))
+            e.target.value = ''
+          }}
+        />
+        <button
+          type="button"
+          disabled={send.isPending}
+          onClick={() => picker.current?.click()}
+          aria-label={t('chat.attach')}
+          title={attachTitle}
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+        >
+          <Paperclip className="size-4.5" />
+        </button>
+        <textarea
+          rows={1}
+          value={text}
+          maxLength={4000}
+          placeholder={t('chat.placeholder')}
+          aria-label={t('chat.placeholder')}
+          title={t('chat.sendHint')}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={onKeyDown}
+          onPaste={(e) => {
+            const pasted = Array.from(e.clipboardData.files)
+            if (!pasted.length) return
+            e.preventDefault()
+            addFiles(pasted)
+          }}
+          className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-1 py-1.5 text-[15px] text-gray-900 outline-none field-sizing-content placeholder:text-gray-400 dark:text-gray-100"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          className="h-9 w-9 shrink-0 rounded-xl p-0"
+          aria-label={t('common.send')}
+          loading={send.isPending}
+          disabled={!text.trim() && !files.length}
+        >
+          {!send.isPending && <SendHorizonal className="size-4.5" />}
+        </Button>
+      </div>
     </form>
   )
 }

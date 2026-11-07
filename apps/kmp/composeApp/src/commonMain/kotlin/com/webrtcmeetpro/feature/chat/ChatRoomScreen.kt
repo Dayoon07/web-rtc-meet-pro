@@ -361,7 +361,7 @@ private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boole
                 Text(sender.nickname, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
-                message.content,
+                messageText(message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier

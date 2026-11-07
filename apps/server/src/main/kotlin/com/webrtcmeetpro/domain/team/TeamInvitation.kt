@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.team
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -32,7 +33,7 @@ class TeamInvitation(
 
     @Column(nullable = false)
     val expiresAt: LocalDateTime,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "invitation_id")
@@ -46,9 +47,6 @@ class TeamInvitation(
 
     var respondedAt: LocalDateTime? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 
     fun isPending(now: LocalDateTime = LocalDateTime.now()) =
         status == InvitationStatus.PENDING && now.isBefore(expiresAt)

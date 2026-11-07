@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.team
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -25,7 +26,7 @@ class TeamMember(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var role: TeamRole,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "team_member_id")

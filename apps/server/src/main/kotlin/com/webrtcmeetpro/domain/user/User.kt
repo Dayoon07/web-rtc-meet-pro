@@ -1,6 +1,6 @@
 package com.webrtcmeetpro.domain.user
 
-import com.webrtcmeetpro.domain.common.BaseTimeEntity
+import com.webrtcmeetpro.domain.common.BaseEntity
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import jakarta.persistence.Column
@@ -57,7 +57,7 @@ class User(
     email: String,
     passwordHash: String?,
     nickname: String,
-) : BaseTimeEntity() {
+) : BaseEntity() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -112,9 +112,6 @@ class User(
     var lastLoginAt: LocalDateTime? = null
         protected set
 
-    var deletedAt: LocalDateTime? = null
-        protected set
-
     val isActive: Boolean get() = status == UserStatus.ACTIVE
     val hasPassword: Boolean get() = passwordHash != null
 
@@ -145,9 +142,10 @@ class User(
         lastLoginAt = at
     }
 
-    fun withdraw(at: LocalDateTime = LocalDateTime.now()) {
+    /** 탈퇴: 행은 남기고 status = DELETED + deleted_yn = 'Y' (탈퇴 시각은 edited_dt) */
+    fun withdraw() {
         status = UserStatus.DELETED
-        deletedAt = at
+        markDeleted()
     }
 
     companion object {

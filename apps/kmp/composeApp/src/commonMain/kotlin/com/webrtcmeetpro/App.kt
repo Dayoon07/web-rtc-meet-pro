@@ -85,7 +85,7 @@ class AppViewModel(
                             val message = event.message ?: return@collect
                             val mine = message.sender?.id == users.me.value?.id
                             if (!mine && presence.activeRoomId.value != event.roomId && message.sender != null) {
-                                notifier.show(message.sender!!.nickname, message.content)
+                                notifier.show(message.sender!!.nickname, message.content ?: message.files.joinToString(", ") { it.name })
                             }
                         }
                     }

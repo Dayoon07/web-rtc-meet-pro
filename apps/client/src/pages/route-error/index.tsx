@@ -1,8 +1,10 @@
 import { RotateCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isRouteErrorResponse, useRouteError } from 'react-router'
-import { Button, FullPageSpinner, LinkButton } from '@/shared/ui'
+import { reportClientError } from '@/shared/api'
+import { newErrorCode } from '@/shared/lib/unexpected-error'
+import { Button, ErrorDetails, FullPageSpinner, LinkButton } from '@/shared/ui'
 
 /**
  * 화면 파일(lazy route)을 못 불러온 에러. 새로 배포한 뒤 예전 탭에서 옛날 파일 이름을 찾을 때,
@@ -31,16 +33,34 @@ function reloadOnceForChunkError(error: unknown): boolean {
   return true
 }
 
-/** 라우트에서 처리하지 못한 에러: React Router 기본 개발자 화면 대신 보여 준다 */
+/**
+ * 라우트에서 처리하지 못한 에러: React Router 기본 개발자 화면 대신 보여 준다.
+ * 에러 코드를 만들어 서버에 신고하고, 화면에는 원인 + 문의 이메일 + 에러 코드를 보여 준다.
+ */
 export function RouteErrorPage() {
   const { t } = useTranslation()
   const error = useRouteError()
   const [reloading, setReloading] = useState(false)
+  const [errorCode] = useState(newErrorCode)
+  // 개발 모드(StrictMode)에서 effect 가 두 번 돌아도 한 번만 신고
+  const reported = useRef(false)
 
   useEffect(() => {
-    if (reloadOnceForChunkError(error)) setReloading(true)
-    else console.error(error)
-  }, [error])
+    if (reloadOnceForChunkError(error)) {
+      setReloading(true)
+      return
+    }
+    if (reported.current) return
+    reported.current = true
+    console.error(error)
+    void reportClientError({
+      errorCode,
+      category: 'CLIENT',
+      name: error instanceof Error ? error.name : isRouteErrorResponse(error) ? `Route ${error.status}` : 'RouteError',
+      message: errorText(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+  }, [error, errorCode])
 
   if (reloading) return <FullPageSpinner />
 
@@ -57,9 +77,12 @@ export function RouteErrorPage() {
           {t('routeError.home')}
         </LinkButton>
       </div>
+      <div className="mt-6 w-full max-w-md rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+        <ErrorDetails errorCode={errorCode} reason="CLIENT" />
+      </div>
       {/* 개발 중에는 원인을 바로 볼 수 있게 에러 문구도 보여 준다 */}
       {import.meta.env.DEV && (
-        <pre className="mt-6 max-w-2xl overflow-x-auto rounded-lg bg-gray-100 p-4 text-left text-xs whitespace-pre-wrap text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+        <pre className="mt-2 max-w-2xl overflow-x-auto rounded-lg bg-gray-100 p-4 text-left text-xs whitespace-pre-wrap text-gray-700 dark:bg-gray-900 dark:text-gray-300">
           {errorText(error)}
         </pre>
       )}

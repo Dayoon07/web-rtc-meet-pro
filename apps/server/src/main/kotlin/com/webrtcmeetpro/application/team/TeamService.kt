@@ -84,7 +84,7 @@ class TeamService(
     fun myTeams(userId: Long): List<TeamSummaryView> {
         val memberships = memberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).associateBy { it.teamId }
         return teamRepository.findAllByIdInAndStatus(memberships.keys, TeamStatus.ACTIVE)
-            .sortedBy { it.createdAt }
+            .sortedBy { it.createdDt }
             .map { summary(it, memberships.getValue(it.id!!).role, memberRepository.countByTeamIdAndStatus(it.id!!, TeamMemberStatus.ACTIVE).toInt()) }
     }
 
@@ -213,7 +213,7 @@ class TeamService(
     private fun newToken() = ByteArray(24).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     private fun summary(team: Team, role: TeamRole, memberCount: Int) =
-        TeamSummaryView(team.id!!, team.name, team.description, team.ownerId, role, memberCount, team.createdAt)
+        TeamSummaryView(team.id!!, team.name, team.description, team.ownerId, role, memberCount, team.createdDt)
 
     private fun memberView(m: TeamMember, u: User) =
         TeamMemberView(u.id!!, u.nickname, u.email, u.profileImageUrl, m.role, m.joinedAt)
@@ -226,7 +226,7 @@ class TeamService(
         inviteeEmail = inv.inviteeEmail,
         status = inv.status,
         expiresAt = inv.expiresAt,
-        createdAt = inv.createdAt,
+        createdAt = inv.createdDt,
     )
 
     companion object {

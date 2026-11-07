@@ -13,7 +13,7 @@ import {
   userKeys,
   validateProfile,
 } from '@/entities/user'
-import { errorMessage } from '@/shared/api'
+import { errorMessage, toastError } from '@/shared/api'
 import { AvatarPicker, Button, Checkbox, FieldError } from '@/shared/ui'
 
 export function ProfileImageSection({ me }: { me: Me }) {
@@ -27,7 +27,7 @@ export function ProfileImageSection({ me }: { me: Me }) {
       onSuccess(m)
       toast.success(t('settings.photoChanged'))
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
   const remove = useMutation({ mutationFn: userApi.removeProfileImage, onSuccess })
 

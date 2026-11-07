@@ -98,7 +98,7 @@ class GoogleLoginTest {
         object : PaymentRepository {
             override fun save(payment: Payment) = assignId(payment)
             override fun findByOrderId(orderId: String): Payment? = null
-            override fun findAllByUserIdOrderByCreatedAtDesc(userId: Long) = emptyList<Payment>()
+            override fun findAllByUserIdOrderByCreatedDtDesc(userId: Long) = emptyList<Payment>()
         },
         object : TeamRepository {
             override fun save(team: Team) = team

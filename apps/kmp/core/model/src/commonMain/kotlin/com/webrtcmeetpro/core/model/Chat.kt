@@ -5,8 +5,20 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class ChatRoomType { DIRECT, GROUP }
 
+/** TEXT 글 / FILE 첨부파일(+선택 글) / SYSTEM 입장·퇴장 안내 */
 @Serializable
-enum class MessageType { TEXT, SYSTEM }
+enum class MessageType { TEXT, FILE, SYSTEM }
+
+/** url: 서버가 서명해 준 내려받기 주소 (상대 경로, 12~24시간 유효). image: 바로 미리보기 가능한 이미지 */
+@Serializable
+data class ChatFile(
+    val id: Long,
+    val name: String,
+    val size: Long,
+    val contentType: String,
+    val image: Boolean = false,
+    val url: String,
+)
 
 @Serializable
 data class ChatUser(val id: Long, val nickname: String, val profileImageUrl: String? = null)
@@ -18,7 +30,9 @@ data class ChatMessage(
     /** SYSTEM 메시지(입장·퇴장 등)는 null */
     val sender: ChatUser? = null,
     val type: MessageType = MessageType.TEXT,
-    val content: String,
+    /** FILE 메시지는 글 없이 파일만 보내면 null */
+    val content: String? = null,
+    val files: List<ChatFile> = emptyList(),
     val createdAt: String,
 )
 

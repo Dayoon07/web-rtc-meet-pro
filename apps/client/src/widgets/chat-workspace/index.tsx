@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, MessageSquarePlus, MessagesSquare, Plus, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, Download, FileText, MessageSquarePlus, MessagesSquare, Plus, UserPlus, Users } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   chatApi,
   chatKeys,
   type ChatEvent,
+  type ChatFile,
   type ChatMessage,
   type ChatRoom,
   previewText,
@@ -87,6 +88,70 @@ function RoomList({
   )
 }
 
+const bubbleClass = (mine: boolean) =>
+  cn(
+    'rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed break-words whitespace-pre-wrap',
+    mine
+      ? 'rounded-br-md bg-brand-600 text-white dark:bg-brand-500'
+      : 'rounded-bl-md bg-white text-gray-900 shadow-xs ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700',
+  )
+
+/**
+ * 첨부파일: 이미지는 미리보기(누르면 새 탭에서 원본), 나머지는 이름·크기 + 내려받기.
+ * 주소는 서버가 서명해 준 것이라 <img src> 로 바로 쓴다.
+ */
+function MessageFiles({ files, mine, onMediaLoad }: { files: ChatFile[]; mine: boolean; onMediaLoad: () => void }) {
+  const { t } = useTranslation()
+  const fmt = useFormat()
+  const images = files.filter((f) => f.image)
+  const others = files.filter((f) => !f.image)
+  return (
+    <div className={cn('flex flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
+      {images.length > 0 && (
+        <div className={cn(images.length === 1 ? 'flex' : 'grid gap-1.5', images.length === 2 || images.length === 4 ? 'grid-cols-2' : 'grid-cols-3')}>
+          {images.map((f) => (
+            <a
+              key={f.id}
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t('chat.openImage') + ' · ' + f.name}
+              className="block overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700"
+            >
+              <img
+                src={f.url}
+                alt={f.name}
+                loading="lazy"
+                onLoad={onMediaLoad}
+                // 한 장은 원래 비율 그대로 (말풍선 영역은 너비가 내용에 맞춰지므로 % 대신 화면 기준 최대 너비)
+                className={images.length === 1 ? 'block h-auto max-h-72 w-auto max-w-[min(24rem,60vw)] object-contain' : 'size-28 object-cover sm:size-32'}
+              />
+            </a>
+          ))}
+        </div>
+      )}
+      {others.map((f) => (
+        <a
+          key={f.id}
+          href={f.url + '&download=true'}
+          download={f.name}
+          title={t('chat.download') + ' · ' + f.name}
+          className="flex max-w-72 items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-left shadow-xs ring-1 ring-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:ring-gray-700 dark:hover:bg-gray-700/70"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+            <FileText className="size-4.5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-gray-900 dark:text-gray-100">{f.name}</span>
+            <span className="block text-xs text-gray-500 dark:text-gray-400">{fmt.bytes(f.size)}</span>
+          </span>
+          <Download className="size-4 shrink-0 text-gray-400" />
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
   messages: ChatMessage[]
   myId?: number
@@ -101,10 +166,11 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
   const stickToBottom = useRef(true)
 
   // 새 메시지가 오면 맨 아래에 있을 때만 따라 내려간다 (위로 올려 읽는 중이면 그대로)
-  useLayoutEffect(() => {
+  const followBottom = useCallback(() => {
     const el = scroller.current
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight
-  }, [lastId])
+  }, [])
+  useLayoutEffect(followBottom, [lastId, followBottom])
 
   return (
     <div
@@ -128,7 +194,7 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
         const at = new Date(m.createdAt)
         const newDay = !prev || !isSameDay(new Date(prev.createdAt), at)
         const grouped =
-          !newDay && prev?.type === 'TEXT' && m.type === 'TEXT' && prev.sender?.id === m.sender?.id && at.getTime() - new Date(prev.createdAt).getTime() < 5 * 60_000
+          !newDay && prev?.type !== 'SYSTEM' && m.type !== 'SYSTEM' && prev.sender?.id === m.sender?.id && at.getTime() - new Date(prev.createdAt).getTime() < 5 * 60_000
         const mine = m.sender?.id === myId
 
         return (
@@ -150,16 +216,10 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder }: {
                 <div className={cn('flex max-w-[75%] flex-col', mine ? 'items-end' : 'items-start')}>
                   {!mine && !grouped && <span className="mb-1 ml-1 text-xs font-medium text-gray-600 dark:text-gray-400">{m.sender?.nickname ?? t('chat.unknown')}</span>}
                   <div className={cn('flex items-end gap-1.5', mine && 'flex-row-reverse')}>
-                    <p
-                      className={cn(
-                        'rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed break-words whitespace-pre-wrap',
-                        mine
-                          ? 'rounded-br-md bg-brand-600 text-white dark:bg-brand-500'
-                          : 'rounded-bl-md bg-white text-gray-900 shadow-xs ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700',
-                      )}
-                    >
-                      {m.content}
-                    </p>
+                    <div className={cn('flex min-w-0 flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
+                      {m.files.length > 0 && <MessageFiles files={m.files} mine={mine} onMediaLoad={followBottom} />}
+                      {m.content && <p className={bubbleClass(mine)}>{m.content}</p>}
+                    </div>
                     <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">{fmt.time(m.createdAt)}</span>
                   </div>
                 </div>

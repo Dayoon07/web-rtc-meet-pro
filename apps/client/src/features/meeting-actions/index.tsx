@@ -3,7 +3,7 @@ import { Video, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { canJoinNow, joinOpensAt, type Meeting, meetingApi, meetingKeys } from '@/entities/meeting'
-import { errorMessage } from '@/shared/api'
+import { toastError } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Button, LinkButton } from '@/shared/ui'
 
@@ -34,7 +34,7 @@ export function CancelMeetingButton({ meeting, onCanceled }: { meeting: Meeting;
       toast(t('meetings.canceled'))
       onCanceled?.()
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => toastError(e),
   })
   if (meeting.status !== 'SCHEDULED') return null
   return (

@@ -4,13 +4,17 @@ import { http } from '@/shared/api'
 
 export type ChatUser = { id: number; nickname: string; profileImageUrl: string | null }
 
+/** url: 서명된 내려받기 주소 (12~24시간 유효, 방 메시지를 다시 불러오면 새 주소). image: 바로 미리보기 가능한 이미지 */
+export type ChatFile = { id: number; name: string; size: number; contentType: string; image: boolean; url: string }
+
 export type ChatMessage = {
   id: number
   roomId: number
   sender: ChatUser | null
-  type: 'TEXT' | 'SYSTEM'
-  /** SYSTEM 이면 {"key","actor","targets"} JSON */
-  content: string
+  type: 'TEXT' | 'FILE' | 'SYSTEM'
+  /** SYSTEM 이면 {"key","actor","targets"} JSON. FILE 은 글 없이 파일만 보내면 null */
+  content: string | null
+  files: ChatFile[]
   createdAt: string
 }
 
@@ -50,6 +54,13 @@ export const chatApi = {
   messages: (roomId: number, before?: number) =>
     http<ChatMessage[]>(`/chat/rooms/${roomId}/messages${before ? `?before=${before}` : ''}`),
   send: (roomId: number, content: string) => http<ChatMessage>(`/chat/rooms/${roomId}/messages`, { method: 'POST', json: { content } }),
+  /** 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개 */
+  sendFiles: (roomId: number, files: File[], content?: string) => {
+    const form = new FormData()
+    files.forEach((f) => form.append('files', f, f.name))
+    if (content?.trim()) form.append('content', content.trim())
+    return http<ChatMessage>(`/chat/rooms/${roomId}/files`, { method: 'POST', form })
+  },
   read: (roomId: number, messageId: number) => http<void>(`/chat/rooms/${roomId}/read`, { method: 'POST', json: { messageId } }),
 }
 
@@ -68,10 +79,39 @@ export function roomTitle(room: ChatRoom, myId: number | undefined) {
 export const roomPeer = (room: ChatRoom, myId: number | undefined) =>
   room.type === 'DIRECT' ? room.members.find((m) => m.id !== myId) ?? null : null
 
+/** 서버 ChatService 와 같은 제한. 보내기 전에 화면에서 먼저 확인한다 */
+export const CHAT_FILE_LIMITS = {
+  maxFiles: 10,
+  maxFileMb: 20,
+  maxTotalMb: 50,
+  blockedExtensions: ['exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'cpl', 'vbs', 'vbe', 'wsf', 'wsh', 'ps1', 'hta', 'lnk', 'reg'],
+} as const
+
+/** 첨부할 파일 목록 확인. 문제가 있으면 안내 문장, 없으면 null */
+export function checkChatFiles(files: File[], t: TFunction): string | null {
+  const { maxFiles, maxFileMb, maxTotalMb, blockedExtensions } = CHAT_FILE_LIMITS
+  if (files.length > maxFiles) return t('chat.fileErrors.tooMany', { max: maxFiles })
+  for (const f of files) {
+    const ext = f.name.includes('.') ? f.name.split('.').pop()!.toLowerCase() : ''
+    if ((blockedExtensions as readonly string[]).includes(ext)) return t('chat.fileErrors.blocked', { name: f.name, ext })
+    if (f.size === 0) return t('chat.fileErrors.empty', { name: f.name })
+    if (f.size > maxFileMb * 1024 * 1024) return t('chat.fileErrors.tooLarge', { name: f.name, max: maxFileMb })
+  }
+  if (files.reduce((sum, f) => sum + f.size, 0) > maxTotalMb * 1024 * 1024) return t('chat.fileErrors.totalTooLarge', { max: maxTotalMb })
+  return null
+}
+
+/** 파일만 보낸 메시지의 미리보기: 사진 / 사진 3장 / 파일 / 파일 2개 */
+export function filesSummary(files: ChatFile[], t: TFunction): string {
+  const n = files.length
+  if (files.every((f) => f.image)) return n === 1 ? t('chat.file.photo') : t('chat.file.photos', { count: n })
+  return n === 1 ? t('chat.file.one') : t('chat.file.many', { count: n })
+}
+
 /** SYSTEM 메시지 JSON → 현재 언어 문장 */
 export function systemText(message: ChatMessage, t: TFunction, list: (items: string[]) => string): string {
   try {
-    const { key, actor, targets } = JSON.parse(message.content) as { key: string; actor: string; targets: string[] }
+    const { key, actor, targets } = JSON.parse(message.content ?? '') as { key: string; actor: string; targets: string[] }
     const joined = list(targets ?? [])
     switch (key) {
       case 'created':
@@ -84,12 +124,14 @@ export function systemText(message: ChatMessage, t: TFunction, list: (items: str
         return ''
     }
   } catch {
-    return message.content
+    return message.content ?? ''
   }
 }
 
 /** 방 목록 미리보기 문장 */
 export function previewText(message: ChatMessage | null, t: TFunction, list: (items: string[]) => string) {
   if (!message) return ''
-  return message.type === 'SYSTEM' ? systemText(message, t, list) : message.content
+  if (message.type === 'SYSTEM') return systemText(message, t, list)
+  if (message.type === 'FILE') return message.content || filesSummary(message.files, t)
+  return message.content ?? ''
 }

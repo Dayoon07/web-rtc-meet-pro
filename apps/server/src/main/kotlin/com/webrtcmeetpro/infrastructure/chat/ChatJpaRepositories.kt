@@ -1,6 +1,8 @@
 package com.webrtcmeetpro.infrastructure.chat
 
 import com.webrtcmeetpro.domain.chat.ChatMessage
+import com.webrtcmeetpro.domain.chat.ChatMessageFile
+import com.webrtcmeetpro.domain.chat.ChatMessageFileRepository
 import com.webrtcmeetpro.domain.chat.ChatMessageRepository
 import com.webrtcmeetpro.domain.chat.ChatRoom
 import com.webrtcmeetpro.domain.chat.ChatRoomMember
@@ -13,3 +15,5 @@ interface ChatRoomJpaRepository : JpaRepository<ChatRoom, Long>, ChatRoomReposit
 interface ChatRoomMemberJpaRepository : JpaRepository<ChatRoomMember, Long>, ChatRoomMemberRepository
 
 interface ChatMessageJpaRepository : JpaRepository<ChatMessage, Long>, ChatMessageRepository
+
+interface ChatMessageFileJpaRepository : JpaRepository<ChatMessageFile, Long>, ChatMessageFileRepository

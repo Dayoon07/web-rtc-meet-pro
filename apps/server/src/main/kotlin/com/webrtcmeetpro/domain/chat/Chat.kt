@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.chat
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -7,7 +8,10 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Lob
 import jakarta.persistence.Table
+import java.io.InputStream
+import java.nio.file.Path
 import java.time.LocalDateTime
 
 enum class ChatRoomType { DIRECT, GROUP }
@@ -33,7 +37,7 @@ class ChatRoom protected constructor(
 
     @Column(nullable = false)
     val createdBy: Long,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "room_id")
@@ -41,12 +45,6 @@ class ChatRoom protected constructor(
         protected set
 
     var lastMessageAt: LocalDateTime? = null
-        protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-
-    var deletedAt: LocalDateTime? = null
         protected set
 
     val isGroup: Boolean get() = roomType == ChatRoomType.GROUP
@@ -70,8 +68,8 @@ interface ChatRoomRepository {
     fun save(room: ChatRoom): ChatRoom
     fun findRoomById(id: Long): ChatRoom?
     fun findByTeamIdAndDirectKey(teamId: Long, directKey: String): ChatRoom?
-    fun findAllByIdInAndDeletedAtIsNull(ids: Collection<Long>): List<ChatRoom>
-    fun countByTeamIdAndRoomTypeAndDeletedAtIsNull(teamId: Long, roomType: ChatRoomType): Long
+    fun findAllByIdInAndDeletedFalse(ids: Collection<Long>): List<ChatRoom>
+    fun countByTeamIdAndRoomTypeAndDeletedFalse(teamId: Long, roomType: ChatRoomType): Long
 }
 
 @Entity
@@ -84,7 +82,7 @@ class ChatRoomMember(
     val userId: Long,
 
     val invitedBy: Long? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "room_member_id")
@@ -124,7 +122,12 @@ interface ChatRoomMemberRepository {
     fun findAllByUserIdAndLeftAtIsNull(userId: Long): List<ChatRoomMember>
 }
 
-enum class MessageType { TEXT, SYSTEM }
+/**
+ * TEXT  : 글만
+ * FILE  : 첨부파일([ChatMessageFile]) + 함께 보낸 글(없으면 null)
+ * SYSTEM: 초대/퇴장 안내. 보낸 사람이 없고 content 는 번역 키 + 파라미터 JSON
+ */
+enum class MessageType { TEXT, FILE, SYSTEM }
 
 @Entity
 @Table(name = "chat_messages")
@@ -135,30 +138,29 @@ class ChatMessage(
     /** SYSTEM 메시지는 null */
     val senderId: Long?,
 
-    /** SYSTEM 메시지는 번역 키 + 파라미터 JSON (예: {"key":"invited","by":"민지","names":["서준"]}) */
-    @Column(nullable = false, length = 4000)
-    var content: String,
+    /**
+     * FILE 메시지는 null 일 수 있다. SYSTEM 메시지는 번역 키 + 파라미터 JSON (예: {"key":"invited","actor":"민지","targets":["서준"]}).
+     * CLOB: 한글 4000자는 VARCHAR2(4000바이트)에 들어가지 않는다
+     */
+    @Lob
+    @Column(name = "content")
+    var content: String?,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     val messageType: MessageType = MessageType.TEXT,
 
     val meetingId: Long? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "message_id")
     var id: Long? = null
         protected set
 
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-
-    var editedAt: LocalDateTime? = null
-        protected set
-
-    var deletedAt: LocalDateTime? = null
-        protected set
+    init {
+        require(messageType == MessageType.FILE || content != null) { "$messageType 메시지는 content 가 필요합니다." }
+    }
 }
 
 interface ChatMessageRepository {
@@ -168,4 +170,60 @@ interface ChatMessageRepository {
     fun findTop50ByRoomIdOrderByIdDesc(roomId: Long): List<ChatMessage>
     fun findTopByRoomIdOrderByIdDesc(roomId: Long): ChatMessage?
     fun countByRoomIdAndIdGreaterThan(roomId: Long, afterId: Long): Long
+}
+
+/**
+ * 채팅 첨부파일. 실제 파일은 [ChatFileStorage] 에 storedName 으로 저장한다 (공개 경로가 아님).
+ * roomId 를 함께 저장해 내려받을 때 방 참여자인지 바로 확인할 수 있게 한다.
+ */
+@Entity
+@Table(name = "chat_message_files")
+class ChatMessageFile(
+    @Column(nullable = false)
+    val messageId: Long,
+
+    @Column(nullable = false)
+    val roomId: Long,
+
+    @Column(nullable = false)
+    val originalName: String,
+
+    @Column(nullable = false, unique = true)
+    val storedName: String,
+
+    @Column(nullable = false)
+    val contentType: String,
+
+    @Column(nullable = false)
+    val sizeBytes: Long,
+) : BaseEntity() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "file_id")
+    var id: Long? = null
+        protected set
+
+    /** 브라우저에서 바로 보여 줘도 안전한 이미지 (SVG 는 스크립트를 품을 수 있어 제외) */
+    val isPreviewableImage: Boolean get() = contentType in PREVIEWABLE_IMAGES
+
+    companion object {
+        val PREVIEWABLE_IMAGES = setOf("image/png", "image/jpeg", "image/gif", "image/webp")
+    }
+}
+
+interface ChatMessageFileRepository {
+    fun save(file: ChatMessageFile): ChatMessageFile
+    fun findFileById(id: Long): ChatMessageFile?
+    fun findAllByMessageIdIn(messageIds: Collection<Long>): List<ChatMessageFile>
+}
+
+/** 채팅 첨부파일 저장소 포트. 지금은 서버 디스크, 이후 오브젝트 스토리지로 바꿀 수 있다 */
+interface ChatFileStorage {
+    /** @return 저장한 이름 (chat_message_files.stored_name) */
+    fun store(content: InputStream): String
+
+    /** 없으면 null */
+    fun open(storedName: String): Path?
+
+    fun delete(storedName: String)
 }

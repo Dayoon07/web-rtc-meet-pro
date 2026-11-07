@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.auth
 
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
@@ -10,11 +11,11 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.type.YesNoConverter
-import java.time.LocalDateTime
 
 enum class LoginFailureReason { USER_NOT_FOUND, WRONG_PASSWORD, USER_NOT_ACTIVE, SOCIAL_ACCOUNT_ONLY, EMAIL_NOT_VERIFIED }
 enum class LoginMethod { PASSWORD, GOOGLE }
 
+/** 로그인 시도 1회 = 1행. 시도 시각은 created_dt */
 @Entity
 @Table(name = "login_histories")
 class LoginHistory(
@@ -36,15 +37,12 @@ class LoginHistory(
     val userAgent: String? = null,
     val country: String? = null,
     val city: String? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "login_history_id")
     var id: Long? = null
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 }
 
 interface LoginHistoryRepository {

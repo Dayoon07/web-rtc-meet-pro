@@ -1,6 +1,6 @@
 package com.webrtcmeetpro.domain.plan
 
-import com.webrtcmeetpro.domain.common.BaseTimeEntity
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
@@ -33,7 +33,7 @@ class Subscription(
     @Convert(converter = YesNoConverter::class)
     @Column(nullable = false)
     var autoRenew: Boolean = false,
-) : BaseTimeEntity() {
+) : BaseEntity() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,6 +1,6 @@
 package com.webrtcmeetpro.domain.plan
 
-import com.webrtcmeetpro.domain.common.BaseTimeEntity
+import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
@@ -38,7 +38,7 @@ class Payment(
     val amount: Long,
 
     var billingKeyId: Long? = null,
-) : BaseTimeEntity() {
+) : BaseEntity() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -103,7 +103,7 @@ class Payment(
 interface PaymentRepository {
     fun save(payment: Payment): Payment
     fun findByOrderId(orderId: String): Payment?
-    fun findAllByUserIdOrderByCreatedAtDesc(userId: Long): List<Payment>
+    fun findAllByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
 }
 
 /** 토스 자동결제 빌링키. billingKey 는 애플리케이션에서 암호화한 값 */
@@ -121,7 +121,7 @@ class BillingKey(
 
     val cardCompany: String? = null,
     val cardNumberMasked: String? = null,
-) {
+) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "billing_key_id")
@@ -132,9 +132,6 @@ class BillingKey(
     @Column(nullable = false)
     var active: Boolean = true
         protected set
-
-    @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
 
     var revokedAt: LocalDateTime? = null
         protected set

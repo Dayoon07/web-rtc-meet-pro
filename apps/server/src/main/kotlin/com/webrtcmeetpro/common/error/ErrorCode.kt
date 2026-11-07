@@ -53,6 +53,11 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     CANNOT_DIRECT_SELF(HttpStatus.BAD_REQUEST, "자기 자신과는 1:1 채팅을 할 수 없습니다."),
     DIRECT_ROOM_INVITE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "1:1 채팅방에는 초대할 수 없습니다."),
     EMPTY_MESSAGE(HttpStatus.BAD_REQUEST, "메시지를 입력해 주세요."),
+    TOO_MANY_FILES(HttpStatus.BAD_REQUEST, "파일은 한 번에 {{max}}개까지 보낼 수 있습니다."),
+    FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "파일은 하나에 {{max}}MB, 한 번에 합계 {{total}}MB까지 보낼 수 있습니다."),
+    EMPTY_FILE(HttpStatus.BAD_REQUEST, "빈 파일은 보낼 수 없습니다."),
+    BLOCKED_FILE_TYPE(HttpStatus.BAD_REQUEST, "보안을 위해 .{{ext}} 파일은 보낼 수 없습니다."),
+    FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없거나 링크가 만료되었습니다. 채팅방을 새로고침해 주세요."),
 
     // meeting
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),

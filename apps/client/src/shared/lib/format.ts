@@ -22,6 +22,11 @@ function createFormat(locale: string) {
     },
     list: (items: string[]) => new Intl.ListFormat(locale, { style: 'short', type: 'conjunction' }).format(items),
     region: (code: string) => new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code,
+    /** 파일 크기: 1.2 MB, 340 KB, 12 byte */
+    bytes: (n: number) => {
+      const [value, unit] = n >= 1024 * 1024 ? [n / 1024 / 1024, 'megabyte'] : n >= 1024 ? [n / 1024, 'kilobyte'] : [n, 'byte']
+      return new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: value < 10 ? 1 : 0 }).format(value)
+    },
   }
 }
 

@@ -92,11 +92,16 @@ fun createHttpClient(config: ApiConfig, tokens: TokenStorage): HttpClient = Http
         handleResponseExceptionWithRequest { cause, _ ->
             val response = (cause as? ResponseException)?.response ?: return@handleResponseExceptionWithRequest
             val error = runCatching { response.body<ErrorResponse>() }.getOrNull()
+            val supportCode = error?.errorCode
+            // 서버가 에러 코드를 만들어 기록한 500: 화면마다 처리하지 않아도 앱 루트가 안내 창을 띄운다
+            if (supportCode != null) UnexpectedErrors.report(UnexpectedError(supportCode, error.reason ?: "CODE"))
             throw ApiException(
                 status = response.status.value,
                 code = error?.code ?: "UNKNOWN",
                 message = error?.message ?: response.status.description,
                 params = error?.params.orEmpty().mapValues { (_, v) -> (v as? JsonPrimitive)?.content ?: v.toString() },
+                supportCode = supportCode,
+                reason = error?.reason,
             )
         }
     }
