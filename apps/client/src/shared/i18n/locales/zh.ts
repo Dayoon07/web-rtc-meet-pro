@@ -474,6 +474,7 @@ const zh: Messages = {
     joining: '正在进入会议室…',
     failed: '无法加入会议。',
     back: '返回',
+    retry: '重试',
     leave: '离开',
     micOn: '打开麦克风',
     micOff: '关闭麦克风',
@@ -598,6 +599,7 @@ const zh: Messages = {
     ok: '确定',
   },
   errors: {
+    MEDIA_UNAVAILABLE: '无法连接到视频会议服务器，请稍后再试。',
     UNKNOWN: '请求处理失败。',
     NETWORK: '无法连接服务器，请稍后再试。',
     INVALID_INPUT: '请检查输入内容。',

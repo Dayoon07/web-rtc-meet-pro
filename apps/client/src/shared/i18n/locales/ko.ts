@@ -472,6 +472,7 @@ const ko = {
     joining: '회의실에 들어가는 중…',
     failed: '회의에 참여하지 못했어요.',
     back: '돌아가기',
+    retry: '다시 시도',
     leave: '나가기',
     micOn: '마이크 켜기',
     micOff: '마이크 끄기',
@@ -596,6 +597,7 @@ const ko = {
     ok: '확인',
   },
   errors: {
+    MEDIA_UNAVAILABLE: '화상회의 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.',
     UNKNOWN: '요청을 처리하지 못했어요.',
     NETWORK: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.',
     INVALID_INPUT: '입력값을 확인해 주세요.',

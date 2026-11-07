@@ -473,6 +473,7 @@ const ja: Messages = {
     joining: '会議室に入室しています…',
     failed: '会議に参加できませんでした。',
     back: '戻る',
+    retry: '再試行',
     leave: '退出',
     micOn: 'マイクをオン',
     micOff: 'マイクをオフ',
@@ -597,6 +598,7 @@ const ja: Messages = {
     ok: 'OK',
   },
   errors: {
+    MEDIA_UNAVAILABLE: 'ビデオ会議サーバーに接続できませんでした。しばらくしてからもう一度お試しください。',
     UNKNOWN: 'リクエストを処理できませんでした。',
     NETWORK: 'サーバーに接続できません。しばらくしてからもう一度お試しください。',
     INVALID_INPUT: '入力内容を確認してください。',

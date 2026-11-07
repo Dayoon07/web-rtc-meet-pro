@@ -3,6 +3,7 @@ import type { Consumer, Producer, Transport } from 'mediasoup-client/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { type Meeting, meetingApi } from '@/entities/meeting'
+import { ApiError } from '@/shared/api'
 import {
   type EffectSettings,
   type EffectsStatus,
@@ -44,6 +45,8 @@ type Ack<T> = ({ ok: true } & T) | { ok: false; error: string }
  */
 export function useMeetingRoom(meetingId: number, selfName: string) {
   const [state, setState] = useState<RoomState>({ phase: 'joining' })
+  /** 다시 시도할 때마다 1씩 올려서 참여 과정을 처음부터 다시 돈다 */
+  const [attempt, setAttempt] = useState(0)
   const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [peers, setPeers] = useState<Record<string, RemotePeer>>({})
   const [local, setLocal] = useState<{
@@ -198,7 +201,11 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
         socketRef.current = socket
         await new Promise<void>((resolve, reject) => {
           socket.once('connect', () => resolve())
-          socket.once('connect_error', (e) => reject(e))
+          // 화상회의 중계 서버(mediasoup 사이드카)가 꺼져 있거나 주소가 틀렸을 때. "알 수 없는 오류" 대신 원인을 알려 준다
+          socket.once('connect_error', (e) => {
+            console.warn('[meeting] 미디어 서버 연결 실패 (사이드카가 켜져 있는지 확인: npm run dev:media)', e)
+            reject(new ApiError(0, 'MEDIA_UNAVAILABLE', e.message))
+          })
         })
         if (cancelled) return
 
@@ -290,7 +297,7 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
       socketRef.current?.disconnect()
       socketRef.current = null
     }
-  }, [meetingId, request, consume, produce, applyEffects])
+  }, [meetingId, request, consume, produce, applyEffects, attempt])
 
   // ------------------------------------------------------------------ controls
   const toggle = async (source: 'mic' | 'camera') => {
@@ -337,8 +344,14 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
     setState({ phase: 'left' })
   }
 
+  const retry = () => {
+    setState({ phase: 'joining' })
+    setAttempt((n) => n + 1)
+  }
+
   return {
     state,
+    retry,
     meeting,
     peers: Object.values(peers),
     local,

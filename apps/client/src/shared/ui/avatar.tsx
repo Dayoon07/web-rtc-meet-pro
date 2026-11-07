@@ -24,8 +24,9 @@ const initials = (name: string) => {
   if (!t) return '?'
   // 한글 이름은 앞 글자 하나, 영문은 이니셜 두 글자
   if (/[가-힣]/.test(t[0])) return t[0]
-  return t
-    .split(/\s+/)
+  // 글자로 시작하는 단어만 쓴다 (회의실의 "이름 (나)" 처럼 괄호·기호로 시작하는 단어는 빼고)
+  const words = t.split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w))
+  return (words.length ? words : [t])
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase())
     .join('')

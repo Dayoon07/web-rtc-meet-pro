@@ -158,10 +158,13 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-gray-950 px-6 text-center text-gray-300">
         <p className="text-lg font-semibold text-white">{t('room.failed')}</p>
-        <p className="text-sm text-gray-400">{errorMessage(room.state.error)}</p>
-        <Button variant="secondary" onClick={onExit}>
-          {t('room.back')}
-        </Button>
+        <p className="max-w-md text-sm text-gray-400">{errorMessage(room.state.error)}</p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={onExit}>
+            {t('room.back')}
+          </Button>
+          <Button onClick={room.retry}>{t('room.retry')}</Button>
+        </div>
       </div>
     )
   }

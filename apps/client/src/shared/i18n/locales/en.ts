@@ -473,6 +473,7 @@ const en: Messages = {
     joining: 'Joining the meeting…',
     failed: "Couldn't join the meeting.",
     back: 'Go back',
+    retry: 'Try again',
     leave: 'Leave',
     micOn: 'Turn on microphone',
     micOff: 'Turn off microphone',
@@ -597,6 +598,7 @@ const en: Messages = {
     ok: 'OK',
   },
   errors: {
+    MEDIA_UNAVAILABLE: "Couldn't connect to the video server. Please try again in a moment.",
     UNKNOWN: "Something went wrong. Please try again.",
     NETWORK: "Can't reach the server. Please try again shortly.",
     INVALID_INPUT: 'Please check what you entered.',
