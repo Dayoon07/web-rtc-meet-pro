@@ -28,7 +28,6 @@ export function PlanCard({ plan, cycle = 'MONTHLY', current, highlighted, action
   const { t } = useTranslation()
   const yearly = cycle === 'YEARLY' && plan.monthlyPrice > 0
   const features = [
-    { on: true, text: t('plan.features.teams', { count: plan.maxOwnedTeams }) },
     { on: true, text: t('plan.features.members', { count: plan.maxMembersPerTeam }) },
     { on: true, text: t('plan.features.participants', { count: plan.maxMeetingParticipants }) },
     {

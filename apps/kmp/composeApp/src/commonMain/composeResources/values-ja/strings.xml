@@ -5,7 +5,7 @@
     <string name="common_see_all">すべて表示</string>
 
     <string name="nav_home">ホーム</string>
-    <string name="nav_teams">チーム</string>
+    <string name="nav_teams">ワークスペース</string>
     <string name="nav_meetings">会議</string>
     <string name="nav_settings">設定</string>
 
@@ -25,15 +25,15 @@
     <string name="error_UNKNOWN">問題が発生しました。しばらくしてからもう一度お試しください。</string>
 
     <string name="home_greeting">こんにちは、%1$sさん</string>
-    <string name="home_subtitle">チームの今後の予定を確認しましょう。</string>
+    <string name="home_subtitle">ワークスペースの今後の予定を確認しましょう。</string>
     <string name="home_upcoming">今後の会議</string>
-    <string name="home_my_teams">マイチーム</string>
+    <string name="home_my_teams">マイワークスペース</string>
     <string name="home_no_meetings">予定された会議はありません</string>
     <string name="home_no_meetings_body">会議を予約するとここに表示されます。</string>
-    <string name="home_no_teams">まだチームに参加していません</string>
-    <string name="home_no_teams_body">Webでチームを作成するか、招待を承認してください。</string>
+    <string name="home_no_teams">まだワークスペースに参加していません</string>
+    <string name="home_no_teams_body">Webでワークスペースを作成するか、招待を承認してください。</string>
 
-    <string name="teams_title">チーム</string>
+    <string name="teams_title">ワークスペース</string>
     <string name="teams_members">メンバー %1$d人</string>
     <string name="role_OWNER">オーナー</string>
     <string name="role_ADMIN">管理者</string>
@@ -68,14 +68,14 @@
     <string name="chat_title">チャット</string>
     <string name="chat_new">新しいチャット</string>
     <string name="chat_empty">まだ会話がありません</string>
-    <string name="chat_empty_body">チームメンバーと1:1チャットを始めましょう。</string>
+    <string name="chat_empty_body">メンバーと1:1チャットを始めましょう。</string>
     <string name="chat_no_message">まだメッセージがありません</string>
     <string name="chat_direct">1:1</string>
     <string name="chat_group">グループ</string>
     <string name="chat_group_name">ルーム名</string>
     <string name="chat_group_create">グループを作成</string>
-    <string name="chat_group_owner_only">グループチャットはチームの作成者のみ作成できます。</string>
-    <string name="chat_no_teammates">このチームにはまだ他のメンバーがいません。先にメンバーを招待してください。</string>
+    <string name="chat_group_owner_only">チャンネルはワークスペースのオーナーか管理者だけが作れます。</string>
+    <string name="chat_no_teammates">このワークスペースにはまだ他のメンバーがいません。先にメンバーを招待してください。</string>
     <string name="chat_members">%1$d人参加</string>
     <string name="chat_invite">招待</string>
     <string name="chat_invite_none">すべてのメンバーがすでにこのルームにいます。</string>
@@ -88,11 +88,11 @@
     <string name="error_INVALID_PHONE">電話番号の形式が正しくありません。</string>
     <string name="error_INVALID_INPUT">入力内容を確認してください。</string>
     <string name="error_FORBIDDEN">権限がありません。</string>
-    <string name="error_PLAN_TEAM_LIMIT">現在のプランで作成できるチーム数を超えました。</string>
+    <string name="error_PLAN_TEAM_LIMIT">現在のプランで作成できるワークスペース数を超えました。</string>
     <string name="error_PLAN_MEMBER_LIMIT">現在のプランで招待できるメンバー数を超えました。</string>
     <string name="error_PLAN_GROUP_ROOM_LIMIT">現在のプランで作成できるグループチャット数を超えました。</string>
     <string name="error_CANNOT_INVITE_SELF">自分自身は招待できません。</string>
-    <string name="error_ALREADY_TEAM_MEMBER">すでにチームメンバーです。</string>
+    <string name="error_ALREADY_TEAM_MEMBER">すでにメンバーです。</string>
     <string name="error_INVITATION_ALREADY_PENDING">このメールアドレスにはすでに招待を送っています。</string>
     <string name="error_MEETING_TIME_IN_PAST">過去の時間には予約できません。</string>
     <string name="error_MEETING_NOT_JOINABLE">現在この会議には参加できません。</string>
@@ -101,8 +101,8 @@
     <string name="invitation_accept">承認</string>
     <string name="invitation_decline">辞退</string>
     <string name="invitation_expires">%1$s に期限切れ</string>
-    <string name="team_create">チームを作成</string>
-    <string name="team_name">チーム名</string>
+    <string name="team_create">ワークスペースを作成</string>
+    <string name="team_name">ワークスペース名</string>
     <string name="team_description">説明（任意）</string>
     <string name="team_invite">招待</string>
     <string name="team_invite_email">招待するメールアドレス</string>
@@ -110,13 +110,13 @@
     <string name="team_members_limit">メンバー %1$d / %2$d人</string>
     <string name="team_pending">保留中の招待</string>
     <string name="meeting_schedule">新しい会議</string>
-    <string name="meeting_team">チーム</string>
+    <string name="meeting_team">ワークスペース</string>
     <string name="meeting_title_label">会議タイトル</string>
     <string name="meeting_description">議題（任意）</string>
     <string name="meeting_start_now">今すぐ開始</string>
     <string name="meeting_when">日付</string>
     <string name="meeting_invitees">参加者</string>
-    <string name="meeting_invitees_hint">誰も選ばない場合はチーム全員を招待します。</string>
+    <string name="meeting_invitees_hint">誰も選ばない場合はワークスペース全員を招待します。</string>
     <string name="meeting_submit">予約する</string>
     <string name="meeting_join">会議に参加</string>
     <string name="meeting_join_soon">開始10分前から参加できます</string>
@@ -127,8 +127,8 @@
     <string name="notif_title">通知</string>
     <string name="notif_empty">新しい通知はありません</string>
     <string name="notif_mark_all">すべて既読</string>
-    <string name="notif_TEAM_INVITATION">%1$sさんが%2$sチームに招待しました</string>
-    <string name="notif_TEAM_INVITATION_ACCEPTED">%1$sさんが%2$sチームに参加しました</string>
+    <string name="notif_TEAM_INVITATION">%1$sさんが%2$sワークスペースに招待しました</string>
+    <string name="notif_TEAM_INVITATION_ACCEPTED">%1$sさんが%2$sワークスペースに参加しました</string>
     <string name="notif_CHAT_ROOM_INVITED">%1$sさんが「%2$s」チャットルームに招待しました</string>
     <string name="notif_MEETING_SCHEDULED">%1$s ・「%2$s」が%3$sに予約されました</string>
     <string name="notif_MEETING_REMINDER">「%1$s」がまもなく始まります（%2$s）</string>
@@ -185,24 +185,24 @@
     <string name="error_FILE_TOO_LARGE">ファイルは1つ20MBまで、1回の合計50MBまで送信できます。</string>
     <string name="error_BLOCKED_FILE_TYPE">セキュリティのため、実行ファイル（.exeなど）は送信できません。</string>
     <string name="error_EMPTY_FILE">空のファイルは送信できません。</string>
-    <string name="team_leave">チームを退出</string>
-    <string name="team_leave_confirm">「%1$s」から退出しますか？チームのチャットルームからも退出します。</string>
-    <string name="team_delete">チームを削除</string>
-    <string name="team_delete_body">チームを削除すると、予定された会議はキャンセルされ、チャットルームと未承認の招待もすべて削除されます。元に戻せません。</string>
-    <string name="team_delete_confirm_label">確認のためチーム名を入力してください</string>
+    <string name="team_leave">ワークスペースを退出</string>
+    <string name="team_leave_confirm">「%1$s」から退出しますか？ワークスペースのチャットルームからも退出します。</string>
+    <string name="team_delete">ワークスペースを削除</string>
+    <string name="team_delete_body">ワークスペースを削除すると、予定された会議はキャンセルされ、チャットルームと未承認の招待もすべて削除されます。元に戻せません。</string>
+    <string name="team_delete_confirm_label">確認のためワークスペース名を入力してください</string>
     <string name="team_remove">退出させる</string>
-    <string name="team_remove_confirm">%1$s さんをチームから退出させますか？</string>
-    <string name="team_removed">%1$s さんをチームから退出させました</string>
+    <string name="team_remove_confirm">%1$s さんをワークスペースから退出させますか？</string>
+    <string name="team_removed">%1$s さんをワークスペースから退出させました</string>
     <string name="settings_withdraw">退会</string>
     <string name="settings_withdraw_title">本当に退会しますか？</string>
-    <string name="settings_withdraw_body">退会するとプロフィール情報が削除され、すべてのチームとチャットルームから退出します。送信したチャットは「退会したユーザー」として残ります。作成したチームがある場合は先に削除してください。</string>
+    <string name="settings_withdraw_body">退会するとプロフィール情報が削除され、すべてのワークスペースとチャットルームから退出します。送信したチャットは「退会したユーザー」として残ります。作成したワークスペースがある場合は先に削除してください。</string>
     <string name="settings_withdraw_password">パスワード</string>
     <string name="settings_withdraw_confirm">確認のため「%1$s」と入力してください</string>
     <string name="settings_withdraw_word">退会</string>
-    <string name="error_OWNER_CANNOT_LEAVE">チームの作成者は退出できません。チームを削除してください。</string>
+    <string name="error_OWNER_CANNOT_LEAVE">ワークスペースの作成者は退出できません。ワークスペースを削除してください。</string>
     <string name="error_CANNOT_REMOVE_MEMBER">このメンバーを退出させる権限がありません。</string>
     <string name="error_INVALID_PASSWORD">パスワードが正しくありません。</string>
-    <string name="error_OWNED_TEAMS_EXIST">作成したチームがあります。先にチームを削除してから退会してください。</string>
+    <string name="error_OWNED_TEAMS_EXIST">作成したワークスペースがあります。先にワークスペースを削除してから退会してください。</string>
     <string name="login_forgot">パスワードをお忘れですか？</string>
     <string name="verify_title">メールを確認してください</string>
     <string name="verify_body">%1$s に確認メールを送信しました。メールのボタンを押して登録を完了し、この画面に戻ってください。</string>
@@ -244,4 +244,6 @@
     <string name="plan_expired_later">あとで</string>
     <string name="plan_expired_renew">Webで支払う</string>
     <string name="settings_billing">料金プラン・支払い（Web）</string>
+    <string name="chat_channels">チャンネル</string>
+    <string name="chat_directs">ダイレクトメッセージ</string>
 </resources>

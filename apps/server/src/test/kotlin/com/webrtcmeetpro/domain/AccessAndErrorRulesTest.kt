@@ -26,7 +26,8 @@ class AccessAndErrorRulesTest {
         assertEquals(TeamPermission.entries.toSet(), TeamRole.OWNER.permissions)
         assertTrue(TeamRole.ADMIN.can(TeamPermission.INVITE_MEMBER))
         assertTrue(TeamRole.ADMIN.can(TeamPermission.CANCEL_ANY_MEETING))
-        assertFalse(TeamRole.ADMIN.can(TeamPermission.CREATE_GROUP_ROOM))
+        assertTrue(TeamRole.ADMIN.can(TeamPermission.CREATE_GROUP_ROOM)) // 관리자도 채널·카테고리를 관리
+        assertFalse(TeamRole.ADMIN.can(TeamPermission.DELETE_TEAM))
         assertTrue(TeamRole.MEMBER.permissions.isEmpty())
     }
 

@@ -27,8 +27,8 @@ enum class TeamPermission(val deniedError: ErrorCode) {
     /** 팀원 초대, 보낸 초대 취소 */
     INVITE_MEMBER(ErrorCode.CANNOT_INVITE),
 
-    /** 그룹(1:N) 채팅방 만들기 */
-    CREATE_GROUP_ROOM(ErrorCode.NOT_TEAM_OWNER),
+    /** 채널(그룹 채팅방)·카테고리 만들기·고치기 */
+    CREATE_GROUP_ROOM(ErrorCode.CANNOT_MANAGE_CHANNELS),
 
     /** 다른 사람이 연 예약 회의 고치기·취소 */
     CANCEL_ANY_MEETING(ErrorCode.NOT_MEETING_HOST),
@@ -51,8 +51,8 @@ enum class TeamRole(val permissions: Set<TeamPermission>) {
     /** 팀을 만든 사람: 모든 권한 (권한이 새로 생기면 자동으로 포함) */
     OWNER(TeamPermission.entries.toSet()),
 
-    /** 운영을 돕는 팀원: 초대, 회의 정리 */
-    ADMIN(setOf(TeamPermission.INVITE_MEMBER, TeamPermission.CANCEL_ANY_MEETING, TeamPermission.REMOVE_MEMBER, TeamPermission.DELETE_ANY_MESSAGE)),
+    /** 운영을 돕는 멤버: 초대, 채널·카테고리 관리, 회의 정리 */
+    ADMIN(setOf(TeamPermission.INVITE_MEMBER, TeamPermission.CREATE_GROUP_ROOM, TeamPermission.CANCEL_ANY_MEETING, TeamPermission.REMOVE_MEMBER, TeamPermission.DELETE_ANY_MESSAGE)),
 
     /** 일반 팀원 */
     MEMBER(emptySet()),

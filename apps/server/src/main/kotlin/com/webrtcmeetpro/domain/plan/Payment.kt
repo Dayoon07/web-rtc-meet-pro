@@ -41,6 +41,9 @@ class Payment(
 
     @Enumerated(EnumType.STRING)
     val billingCycle: BillingCycle? = null,
+
+    /** 요금제를 적용한 워크스페이스 */
+    val teamId: Long? = null,
 ) : BaseEntity() {
 
     @Id
@@ -82,8 +85,29 @@ class Payment(
     var periodEnd: LocalDateTime? = null
         protected set
 
-    fun approve(paymentKey: String?, method: String?, receiptUrl: String?, at: LocalDateTime = LocalDateTime.now()) {
+    /** 영수증: 카드사, 가린 카드번호, 승인번호 (토스 결제 응답) */
+    var cardCompany: String? = null
+        protected set
+
+    var cardNumberMasked: String? = null
+        protected set
+
+    var approveNo: String? = null
+        protected set
+
+    fun approve(
+        paymentKey: String?,
+        method: String?,
+        receiptUrl: String?,
+        at: LocalDateTime = LocalDateTime.now(),
+        cardCompany: String? = null,
+        cardNumberMasked: String? = null,
+        approveNo: String? = null,
+    ) {
         check(status == PaymentStatus.READY) { "READY 상태에서만 승인할 수 있습니다." }
+        this.cardCompany = cardCompany?.take(30)
+        this.cardNumberMasked = cardNumberMasked?.take(30)
+        this.approveNo = approveNo?.take(30)
         this.paymentKey = paymentKey
         this.method = method
         this.receiptUrl = receiptUrl

@@ -23,7 +23,7 @@ import { toastError } from '@/shared/api'
 import { Button, Checkbox, Modal } from '@/shared/ui'
 
 /** 카드 등록 뒤 이어서 결제할 내용 (토스 등록창에서 돌아오는 주소에 실어 보낸다) */
-export type PurchaseIntent = { plan: string; cycle: BillingCycle; autoRenew: boolean }
+export type PurchaseIntent = { teamId: number; plan: string; cycle: BillingCycle; autoRenew: boolean }
 
 export const CARD_RETURN_PATH = '/app/billing/card'
 
@@ -35,6 +35,7 @@ export async function openCardRegistration(intent?: PurchaseIntent) {
   const prepared = await planApi.prepareCard()
   const params = new URLSearchParams()
   if (intent) {
+    params.set('team', String(intent.teamId))
     params.set('plan', intent.plan)
     params.set('cycle', intent.cycle)
     params.set('autoRenew', intent.autoRenew ? '1' : '0')
@@ -57,15 +58,18 @@ const isUserCancel = (e: unknown) => typeof e === 'object' && e !== null && 'cod
 function useInvalidateBilling() {
   const queryClient = useQueryClient()
   return (subscription?: Subscription) => {
-    if (subscription) queryClient.setQueryData(planKeys.mySubscription, subscription)
-    void queryClient.invalidateQueries({ queryKey: planKeys.mySubscription })
+    if (subscription) queryClient.setQueryData(planKeys.workspace(subscription.team.id), subscription)
+    void queryClient.invalidateQueries({ queryKey: planKeys.subscriptions })
     void queryClient.invalidateQueries({ queryKey: planKeys.payments })
     void queryClient.invalidateQueries({ queryKey: userKeys.me })
     void queryClient.invalidateQueries({ queryKey: ['teams'] })
   }
 }
 
-/** 요금제 카드의 버튼: 로그인 전이면 가입, 무료면 표시만, 유료면 결제 창 */
+/**
+ * 요금제 카드의 버튼: 로그인 전이면 가입, 무료면 표시만, 유료면 결제 창.
+ * subscription = 고른 워크스페이스의 요금제 (요금제 화면 밖에서는 없음 → 요금제 화면으로)
+ */
 export function PlanActionButton({
   plan,
   cycle,
@@ -89,13 +93,26 @@ export function PlanActionButton({
       </Button>
     )
   }
-  if (!subscription) return <Button className="w-full" variant="outline" disabled loading />
+  if (!subscription) {
+    return (
+      <Button className="w-full" variant={highlighted ? 'primary' : 'secondary'} onClick={() => navigate('/app/billing')}>
+        {plan.monthlyPrice === 0 ? t('plan.actions.start') : t('plan.actions.choose')}
+      </Button>
+    )
+  }
 
   const inUse = subscription.plan.code === plan.code
   if (plan.monthlyPrice === 0) {
     return (
       <Button variant="outline" className="w-full" disabled>
         {inUse ? t('plan.actions.current') : t('plan.actions.basic')}
+      </Button>
+    )
+  }
+  if (!subscription.canManage) {
+    return (
+      <Button variant="outline" className="w-full" disabled title={t('billing.ownerOnly')}>
+        {inUse ? t('plan.actions.current') : t('billing.ownerOnlyShort')}
       </Button>
     )
   }
@@ -135,7 +152,7 @@ export function PurchasePlanModal({
   const higher = subscription.subscriptions.find((s) => s.plan.rank > plan.rank)
 
   const purchase = useMutation({
-    mutationFn: () => planApi.purchase(plan.code, cycle, autoRenew),
+    mutationFn: () => planApi.purchase(subscription.team.id, plan.code, cycle, autoRenew),
     onSuccess: (s) => {
       invalidate(s)
       toast.success(t('billing.purchased', { name: planName(plan) }))
@@ -147,7 +164,7 @@ export function PurchasePlanModal({
   const registerAndPay = async () => {
     setOpening(true)
     try {
-      await openCardRegistration({ plan: plan.code, cycle, autoRenew })
+      await openCardRegistration({ teamId: subscription.team.id, plan: plan.code, cycle, autoRenew })
     } catch (e) {
       if (!isUserCancel(e)) toastError(e)
     } finally {
@@ -159,7 +176,7 @@ export function PurchasePlanModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={t('billing.purchase.title', { name: planName(plan) })}
+      title={t('billing.purchase.title', { name: planName(plan), workspace: subscription.team.name })}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -321,7 +338,8 @@ export function AutoRenewSwitch({ item }: { item: SubscriptionItem }) {
   return (
     <Checkbox
       checked={item.autoRenew}
-      disabled={mutation.isPending}
+      disabled={mutation.isPending || !item.mine}
+      title={item.mine ? undefined : t('billing.notMine')}
       onChange={(e) => mutation.mutate(e.target.checked)}
       label={t('billing.purchase.autoRenew')}
     />

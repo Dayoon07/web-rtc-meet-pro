@@ -3,14 +3,15 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { MeetingStatusBadge, useMeetingsQuery } from '@/entities/meeting'
-import { planName, useMySubscriptionQuery } from '@/entities/plan'
+import { planName } from '@/entities/plan'
+import { useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { CreateTeamModal } from '@/features/create-team'
 import { JoinMeetingButton } from '@/features/meeting-actions'
 import { ScheduleMeetingModal } from '@/features/schedule-meeting'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
-import { Card, EmptyState, Progress } from '@/shared/ui'
+import { Card, EmptyState } from '@/shared/ui'
 
 /** Zoom 홈 화면처럼 큰 아이콘 타일로 주요 동작을 바로 보이게 */
 function ActionTile({ icon, label, hint, tone, onClick }: { icon: ReactNode; label: string; hint: string; tone: 'brand' | 'blue' | 'gray'; onClick: () => void }) {
@@ -63,7 +64,8 @@ export function AppHomePage() {
   const fmt = useFormat()
   const navigate = useNavigate()
   const { data: me } = useMeQuery()
-  const { data: sub } = useMySubscriptionQuery()
+  const { data: teams } = useTeamsQuery()
+  const plan = me?.plan
   const { data: upcoming = [] } = useMeetingsQuery('upcoming')
   const [modal, setModal] = useState<'now' | 'schedule' | 'team' | null>(null)
   const today = upcoming.filter((m) => isSameDay(new Date(m.scheduledAt), new Date())).length
@@ -82,7 +84,7 @@ export function AppHomePage() {
           <ActionTile
             icon={<Users />}
             label={t('dashboard.actions.createTeam')}
-            hint={sub ? t('dashboard.actions.createTeamHint', { used: sub.ownedTeams, max: sub.plan.maxOwnedTeams }) : ' '}
+            hint={t('dashboard.actions.createTeamHint', { count: teams?.length ?? 0 })}
             tone="blue"
             onClick={() => setModal('team')}
           />
@@ -121,34 +123,26 @@ export function AppHomePage() {
           )}
         </section>
 
-        {sub && (
+        {plan && (
           <Card className="flex flex-col gap-5 p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.currentPlan')}</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{planName(sub.plan)}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{planName(plan)}</p>
               </div>
               <Link to="/app/billing" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
                 {t('dashboard.change')}
               </Link>
             </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">{t('dashboard.ownedTeams')}</span>
-                <span className="font-medium text-gray-900 tabular-nums dark:text-white">
-                  {sub.ownedTeams} / {sub.plan.maxOwnedTeams}
-                </span>
-              </div>
-              <Progress value={sub.ownedTeams} max={sub.plan.maxOwnedTeams} />
-            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.planPerWorkspace')}</p>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.membersPerTeam')}</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{t('common.people', { count: sub.plan.maxMembersPerTeam })}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{t('common.people', { count: plan.maxMembersPerTeam })}</p>
               </div>
               <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
-                <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.groupRoomsPerTeam')}</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{sub.plan.maxGroupRoomsPerTeam ?? t('plan.unlimited')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.participantsPerMeeting')}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{t('common.people', { count: plan.maxMeetingParticipants })}</p>
               </div>
             </div>
           </Card>

@@ -1,20 +1,21 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { type BillingCycle, PlanCard, useMySubscriptionQuery, usePlansQuery } from '@/entities/plan'
-import { useIsAuthenticated } from '@/entities/session'
+import { type BillingCycle, PlanCard, type Subscription, usePlansQuery } from '@/entities/plan'
 import { PlanActionButton } from '@/features/purchase-plan'
 import { cn } from '@/shared/lib/cn'
 import { Spinner } from '@/shared/ui'
 
-/** 작은 회사·팀용 플랜을 "가장 인기"로 강조 (녹화가 들어가는 첫 플랜) */
+/** 작은 회사용 플랜을 "가장 인기"로 강조 (녹화가 들어가는 첫 플랜) */
 const HIGHLIGHT = 'TEAM'
 
-export function PricingTable() {
+/**
+ * 요금제 카드 4개 + 월/연 선택.
+ * subscription 을 주면 그 워크스페이스 기준으로 "사용 중"·결제 버튼을 보여 준다 (요금제 화면). 없으면 소개용 (요금제 소개 페이지).
+ */
+export function PricingTable({ subscription }: { subscription?: Subscription }) {
   const { t } = useTranslation()
-  const isAuthenticated = useIsAuthenticated()
   const [cycle, setCycle] = useState<BillingCycle>('MONTHLY')
   const { data: plans, isPending, isError } = usePlansQuery()
-  const { data: subscription } = useMySubscriptionQuery(isAuthenticated)
 
   if (isPending)
     return (

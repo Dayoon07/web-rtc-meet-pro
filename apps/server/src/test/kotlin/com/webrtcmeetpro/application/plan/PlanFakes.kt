@@ -11,6 +11,10 @@ import com.webrtcmeetpro.domain.plan.Subscription
 import com.webrtcmeetpro.domain.plan.SubscriptionRepository
 import com.webrtcmeetpro.domain.plan.SubscriptionStatus
 import com.webrtcmeetpro.domain.team.Team
+import com.webrtcmeetpro.domain.team.TeamMember
+import com.webrtcmeetpro.domain.team.TeamMemberRepository
+import com.webrtcmeetpro.domain.team.TeamMemberStatus
+import com.webrtcmeetpro.domain.team.TeamRole
 import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.team.TeamStatus
 import java.time.LocalDateTime
@@ -35,7 +39,7 @@ object TestIds {
 fun testPlan(code: String, price: Long, rank: Int, recording: Boolean = false, storageGb: Int = 0, participants: Int = 6) = TestIds.assign(
     Plan(
         code = code, name = code, description = null, monthlyPrice = price,
-        maxOwnedTeams = 1 + rank, maxMembersPerTeam = 10 * (rank + 1), maxGroupRoomsPerTeam = if (rank >= 2) null else 3,
+        maxOwnedTeams = 1, maxMembersPerTeam = 10 * (rank + 1), maxGroupRoomsPerTeam = if (rank >= 2) null else 3,
         maxMeetingParticipants = participants, recordingEnabled = recording, recordingStorageGb = storageGb, sortOrder = rank,
     ),
 )
@@ -45,6 +49,18 @@ class PlanFakes(val plans: List<Plan>) {
     val subscriptions = mutableListOf<Subscription>()
     val billingKeys = mutableListOf<BillingKey>()
     val payments = mutableListOf<Payment>()
+    val teams = mutableListOf<Team>()
+    val members = mutableListOf<TeamMember>()
+
+    /** 워크스페이스 하나 만들기 (owner 가 OWNER 멤버) */
+    fun team(ownerId: Long, name: String = "ws"): Team = TestIds.assign(Team(ownerId, name)).also {
+        teams += it
+        members += TestIds.assign(TeamMember(it.id!!, ownerId, TeamRole.OWNER))
+    }
+
+    fun join(teamId: Long, userId: Long) {
+        members += TestIds.assign(TeamMember(teamId, userId, TeamRole.MEMBER))
+    }
 
     val planRepo = object : PlanRepository {
         override fun findPlanById(id: Long) = plans.find { it.id == id }
@@ -57,6 +73,10 @@ class PlanFakes(val plans: List<Plan>) {
         override fun findSubscriptionById(id: Long) = subscriptions.find { it.id == id }
         override fun findAllByUserIdAndStatusIn(userId: Long, statuses: Collection<SubscriptionStatus>) =
             subscriptions.filter { it.userId == userId && it.status in statuses }
+        override fun findAllByTeamIdAndStatusIn(teamId: Long, statuses: Collection<SubscriptionStatus>) =
+            subscriptions.filter { it.teamId == teamId && it.status in statuses }
+        override fun findAllByTeamIdInAndStatusIn(teamIds: Collection<Long>, statuses: Collection<SubscriptionStatus>) =
+            subscriptions.filter { it.teamId in teamIds && it.status in statuses }
         override fun findAllByUserIdOrderByStartedAtDesc(userId: Long) = subscriptions.filter { it.userId == userId }.sortedByDescending { it.startedAt }
         override fun findAllByStatusInAndCurrentPeriodEndBefore(statuses: Collection<SubscriptionStatus>, before: LocalDateTime) =
             subscriptions.filter { it.status in statuses && it.currentPeriodEnd?.isBefore(before) == true }
@@ -75,10 +95,17 @@ class PlanFakes(val plans: List<Plan>) {
     }
     val teamRepo = object : TeamRepository {
         override fun save(team: Team) = team
-        override fun findTeamById(id: Long): Team? = null
-        override fun countByOwnerIdAndStatus(ownerId: Long, status: TeamStatus) = 0L
-        override fun findAllByIdInAndStatus(ids: Collection<Long>, status: TeamStatus) = emptyList<Team>()
+        override fun findTeamById(id: Long): Team? = teams.find { it.id == id }
+        override fun countByOwnerIdAndStatus(ownerId: Long, status: TeamStatus) = teams.count { it.ownerId == ownerId && it.status == status }.toLong()
+        override fun findAllByIdInAndStatus(ids: Collection<Long>, status: TeamStatus) = teams.filter { it.id in ids && it.status == status }
+    }
+    val memberRepo = object : TeamMemberRepository {
+        override fun save(member: TeamMember) = TestIds.assign(member).also { if (it !in members) members += it }
+        override fun findByTeamIdAndUserId(teamId: Long, userId: Long) = members.find { it.teamId == teamId && it.userId == userId }
+        override fun findAllByTeamIdAndStatus(teamId: Long, status: TeamMemberStatus) = members.filter { it.teamId == teamId && it.status == status }
+        override fun findAllByUserIdAndStatus(userId: Long, status: TeamMemberStatus) = members.filter { it.userId == userId && it.status == status }
+        override fun countByTeamIdAndStatus(teamId: Long, status: TeamMemberStatus) = members.count { it.teamId == teamId && it.status == status }.toLong()
     }
 
-    fun planService(toss: TossProperties = TossProperties()) = PlanService(planRepo, subscriptionRepo, teamRepo, billingKeyRepo, toss)
+    fun planService(toss: TossProperties = TossProperties()) = PlanService(planRepo, subscriptionRepo, teamRepo, memberRepo, billingKeyRepo, toss)
 }

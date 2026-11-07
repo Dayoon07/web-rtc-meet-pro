@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Receipt } from 'lucide-react'
+import { Building2, Receipt } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router'
@@ -11,34 +11,70 @@ import {
   planApi,
   planKeys,
   planName,
+  ReceiptModal,
   type SubscriptionItem,
-  useMySubscriptionQuery,
   usePaymentsQuery,
+  useWorkspaceSubscriptionQuery,
 } from '@/entities/plan'
+import { useTeamsQuery } from '@/entities/team'
 import { userKeys } from '@/entities/user'
 import { AutoRenewSwitch, ManageCard } from '@/features/purchase-plan'
 import { errorMessage } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
-import { Badge, Card, FullPageSpinner, Spinner } from '@/shared/ui'
+import { Badge, Card, EmptyState, FullPageSpinner, LinkButton, Select, Spinner } from '@/shared/ui'
 import { PricingTable } from '@/widgets/pricing-table'
 
+/**
+ * 요금제 화면. 요금제는 워크스페이스마다 → 위에서 워크스페이스를 고르고 그 워크스페이스의 플랜을 결제한다.
+ * ?team={id} 로 바로 고를 수 있다 (만료 알림·메일의 링크).
+ */
 export function BillingPage() {
   const { t } = useTranslation()
   const fmt = useFormat()
-  const { data: sub } = useMySubscriptionQuery()
+  const [params, setParams] = useSearchParams()
+  const { data: teams, isPending: teamsPending } = useTeamsQuery()
+  const fromUrl = Number(params.get('team')) || undefined
+  const owned = teams?.filter((tm) => tm.myRole === 'OWNER') ?? []
+  const teamId = teams?.some((tm) => tm.id === fromUrl) ? fromUrl : (owned[0] ?? teams?.[0])?.id
+  const { data: sub } = useWorkspaceSubscriptionQuery(teamId)
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('billing.title')}</h2>
-        <p className="mt-1 text-gray-500 dark:text-gray-400">{t('billing.subtitle')}</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0 basis-64 grow">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('billing.title')}</h2>
+          <p className="mt-1 text-gray-500 dark:text-gray-400">{t('billing.subtitle')}</p>
+        </div>
+        {teams && teams.length > 0 && (
+          <label className="flex w-full items-center gap-2 sm:w-72">
+            <Building2 className="size-5 shrink-0 text-gray-400" />
+            <span className="sr-only">{t('billing.workspace')}</span>
+            <Select value={teamId ?? ''} onChange={(e) => setParams({ team: e.target.value }, { replace: true })}>
+              {teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                  {tm.myRole === 'OWNER' ? '' : ` (${t('billing.memberView')})`}
+                </option>
+              ))}
+            </Select>
+          </label>
+        )}
       </div>
+
+      {!teamsPending && !teams?.length && (
+        <EmptyState
+          icon={<Building2 />}
+          title={t('billing.noWorkspace')}
+          description={t('billing.noWorkspaceHint')}
+          action={<LinkButton to="/app/teams">{t('billing.createWorkspace')}</LinkButton>}
+        />
+      )}
 
       {sub && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <Card className="flex flex-col gap-4 p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{t('billing.current.title')}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">{t('billing.current.title', { workspace: sub.team.name })}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {sub.currentPeriodEnd
                   ? t('billing.current.until', { name: planName(sub.plan), date: fmt.date(sub.currentPeriodEnd) })
@@ -55,6 +91,7 @@ export function BillingPage() {
               </ul>
             )}
             <p className="text-xs text-gray-500 dark:text-gray-400">{t('billing.current.stackRule')}</p>
+            {!sub.canManage && <p className="text-xs font-medium text-gray-600 dark:text-gray-300">{t('billing.ownerOnly')}</p>}
           </Card>
 
           <Card className="flex flex-col gap-4 p-6">
@@ -65,7 +102,7 @@ export function BillingPage() {
         </div>
       )}
 
-      <PricingTable />
+      {sub && <PricingTable subscription={sub} />}
 
       <PaymentHistory />
     </div>
@@ -107,6 +144,7 @@ function PaymentHistory() {
   const { t } = useTranslation()
   const fmt = useFormat()
   const { data, isPending } = usePaymentsQuery()
+  const [receipt, setReceipt] = useState<Payment | null>(null)
   return (
     <Card className="p-6">
       <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">{t('billing.history.title')}</h3>
@@ -125,6 +163,9 @@ function PaymentHistory() {
                 <th className="pb-2 font-medium">{t('billing.history.item')}</th>
                 <th className="pb-2 text-right font-medium">{t('billing.history.amount')}</th>
                 <th className="pb-2 pl-4 font-medium">{t('billing.history.status')}</th>
+                <th className="pb-2 pl-4 font-medium">
+                  <span className="sr-only">{t('billing.receipt.title')}</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -132,13 +173,27 @@ function PaymentHistory() {
                 <tr key={p.orderId} className="align-top">
                   <td className="py-2.5 whitespace-nowrap text-gray-600 dark:text-gray-400">{fmt.dateTime(p.approvedAt ?? p.createdAt)}</td>
                   <td className="py-2.5 text-gray-900 dark:text-white">
-                    {planName({ code: p.planCode, name: p.planCode })}
+                    {planName({ code: p.planCode, name: p.planName })}
                     {p.billingCycle && <span className="text-gray-500 dark:text-gray-400"> · {t(`billing.cycle.${p.billingCycle}`)}</span>}
-                    {p.periodEnd && <span className="block text-xs text-gray-500 dark:text-gray-400">{t('billing.history.until', { date: fmt.date(p.periodEnd) })}</span>}
+                    {(p.teamName || p.periodEnd) && (
+                      <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        {[p.teamName, p.periodEnd && t('billing.history.until', { date: fmt.date(p.periodEnd) })].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 text-right whitespace-nowrap text-gray-900 tabular-nums dark:text-white">{formatPrice(p.amount)}</td>
                   <td className="py-2.5 pl-4">
                     <PaymentStatusCell payment={p} />
+                  </td>
+                  <td className="py-2.5 pl-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setReceipt(p)}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold whitespace-nowrap text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/15"
+                    >
+                      <Receipt className="size-3.5" />
+                      {t('billing.receipt.open')}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -146,6 +201,7 @@ function PaymentHistory() {
           </table>
         </div>
       )}
+      <ReceiptModal payment={receipt} open={!!receipt} onClose={() => setReceipt(null)} />
     </Card>
   )
 }
@@ -156,12 +212,6 @@ function PaymentStatusCell({ payment }: { payment: Payment }) {
     <div className="flex flex-col gap-0.5">
       <span className="flex items-center gap-2">
         <Badge tone={payment.status === 'DONE' ? 'green' : 'gray'}>{t(`billing.history.statuses.${payment.status}`)}</Badge>
-        {payment.receiptUrl && (
-          <a href={payment.receiptUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300">
-            <Receipt className="size-3.5" />
-            {t('billing.history.receipt')}
-          </a>
-        )}
       </span>
       {payment.failureMessage && <span className="text-xs text-red-600 dark:text-red-400">{payment.failureMessage}</span>}
     </div>
@@ -188,17 +238,18 @@ export function CardReturnPage() {
       if (!customerKey || !authKey) throw new Error(t('billing.card.returnInvalid'))
       await planApi.registerCard(customerKey, authKey)
       const plan = params.get('plan')
-      if (!plan) return null
+      const team = Number(params.get('team'))
+      if (!plan || !team) return null
       const cycle = (params.get('cycle') === 'YEARLY' ? 'YEARLY' : 'MONTHLY') as BillingCycle
-      return planApi.purchase(plan, cycle, params.get('autoRenew') !== '0')
+      return planApi.purchase(team, plan, cycle, params.get('autoRenew') !== '0')
     },
     onSuccess: (subscription) => {
-      if (subscription) queryClient.setQueryData(planKeys.mySubscription, subscription)
-      void queryClient.invalidateQueries({ queryKey: planKeys.mySubscription })
+      if (subscription) queryClient.setQueryData(planKeys.workspace(subscription.team.id), subscription)
+      void queryClient.invalidateQueries({ queryKey: planKeys.subscriptions })
       void queryClient.invalidateQueries({ queryKey: planKeys.payments })
       void queryClient.invalidateQueries({ queryKey: userKeys.me })
       toast.success(subscription ? t('billing.purchased', { name: planName(subscription.plan) }) : t('billing.card.registered'))
-      navigate('/app/billing', { replace: true })
+      navigate(subscription ? `/app/billing?team=${subscription.team.id}` : '/app/billing', { replace: true })
     },
     // 카드는 등록됐는데 결제가 실패했을 수도 있다 → 요금제 화면에서 다시 결제할 수 있게 안내
     onError: (e) => setError(errorMessage(e)),

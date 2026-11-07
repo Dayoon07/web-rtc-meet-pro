@@ -8,7 +8,8 @@ data class Plan(
     val name: String,
     val description: String? = null,
     val monthlyPrice: Long = 0,
-    val maxOwnedTeams: Int,
+    /** 더 이상 쓰지 않음 (워크스페이스는 몇 개든 만들 수 있다) */
+    val maxOwnedTeams: Int = 0,
     val maxMembersPerTeam: Int,
     /** null = 제한 없음 */
     val maxGroupRoomsPerTeam: Int? = null,
@@ -46,17 +47,16 @@ data class ChangePasswordRequest(val currentPassword: String? = null, val newPas
 @Serializable
 data class WithdrawRequest(val password: String? = null)
 
-/** 아직 확인하지 않은 플랜 만료 → "플랜이 만료됐어요" 창 */
+/** 아직 확인하지 않은 워크스페이스 플랜 만료 → "플랜이 만료됐어요" 창 (GET /api/subscriptions/notices) */
 @Serializable
-data class ExpiryNotice(val subscriptionId: Long, val plan: Plan, val expiredAt: String? = null)
-
-/** GET /api/subscriptions/me (결제·구독 관리는 웹에서) */
-@Serializable
-data class Subscription(
-    /** 지금 적용 중인 플랜 (유료 구독이 여러 개면 가장 높은 것, 없으면 FREE) */
+data class ExpiryNotice(
+    val subscriptionId: Long,
     val plan: Plan,
-    val status: String,
-    val ownedTeams: Long,
-    val currentPeriodEnd: String? = null,
-    val expiryNotice: ExpiryNotice? = null,
+    val expiredAt: String? = null,
+    val teamId: Long? = null,
+    val teamName: String? = null,
+    /** 그 워크스페이스에 지금 적용 중인 플랜 */
+    val currentPlan: Plan? = null,
 )
+
+

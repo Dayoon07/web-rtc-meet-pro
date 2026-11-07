@@ -25,7 +25,10 @@ export type ChatMessage = {
 export type ChatRoom = {
   id: number
   teamId: number
+  /** GROUP = 채널 */
   type: 'DIRECT' | 'GROUP'
+  /** 채널이 들어 있는 카테고리(부서). null = 카테고리 없음 */
+  categoryId: number | null
   name: string | null
   createdBy: number
   members: ChatUser[]
@@ -35,12 +38,19 @@ export type ChatRoom = {
   createdAt: string
 }
 
-/** 서버 /user/queue/chat 이벤트. MESSAGE_UPDATED = 고치거나 지운 메시지 (같은 id 를 바꿔 끼운다) */
-export type ChatEvent = { type: 'MESSAGE' | 'MESSAGE_UPDATED' | 'ROOM'; teamId: number; roomId: number; message: ChatMessage | null }
+/** 채널을 묶는 카테고리 = 부서 (예: 개발 연구소 → #백오피스, #프론트오피스) */
+export type ChatCategory = { id: number; name: string; sortOrder: number }
+
+/**
+ * 서버 /user/queue/chat 이벤트. MESSAGE_UPDATED = 고치거나 지운 메시지 (같은 id 를 바꿔 끼운다),
+ * ROOM = 방 목록 다시, CATEGORIES = 카테고리 다시
+ */
+export type ChatEvent = { type: 'MESSAGE' | 'MESSAGE_UPDATED' | 'ROOM' | 'CATEGORIES'; teamId: number; roomId: number; message: ChatMessage | null }
 
 export const chatKeys = {
   unread: ['chat', 'unread'] as const,
   rooms: (teamId: number) => ['chat', 'rooms', teamId] as const,
+  categories: (teamId: number) => ['chat', 'categories', teamId] as const,
   room: (roomId: number) => ['chat', 'room', roomId] as const,
   messages: (roomId: number) => ['chat', 'messages', roomId] as const,
 }
@@ -51,8 +61,17 @@ export const chatApi = {
   room: (roomId: number) => http<ChatRoom>(`/chat/rooms/${roomId}`),
   openDirect: (teamId: number, userId: number) =>
     http<ChatRoom>(`/teams/${teamId}/chat/rooms/direct`, { method: 'POST', json: { userId } }),
-  createGroup: (teamId: number, name: string, memberIds: number[]) =>
-    http<ChatRoom>(`/teams/${teamId}/chat/rooms/group`, { method: 'POST', json: { name, memberIds } }),
+  /** 채널 만들기 (OWNER·ADMIN). categoryId 가 있으면 그 카테고리 안에 */
+  createGroup: (teamId: number, name: string, memberIds: number[], categoryId?: number | null) =>
+    http<ChatRoom>(`/teams/${teamId}/chat/rooms/group`, { method: 'POST', json: { name, memberIds, categoryId: categoryId ?? null } }),
+  /** 채널 이름 바꾸기 · 카테고리 옮기기 (categoryId null = 카테고리 밖) */
+  updateChannel: (roomId: number, body: { name?: string; categoryId?: number | null; moveCategory?: boolean }) =>
+    http<ChatRoom>(`/chat/rooms/${roomId}`, { method: 'PATCH', json: body }),
+  categories: (teamId: number) => http<ChatCategory[]>(`/teams/${teamId}/chat/categories`),
+  createCategory: (teamId: number, name: string) => http<ChatCategory>(`/teams/${teamId}/chat/categories`, { method: 'POST', json: { name } }),
+  renameCategory: (categoryId: number, name: string) => http<ChatCategory>(`/chat/categories/${categoryId}`, { method: 'PATCH', json: { name } }),
+  /** 카테고리 지우기 (안의 채널은 카테고리 밖으로) */
+  deleteCategory: (categoryId: number) => http<void>(`/chat/categories/${categoryId}`, { method: 'DELETE' }),
   invite: (roomId: number, userIds: number[]) => http<ChatRoom>(`/chat/rooms/${roomId}/members`, { method: 'POST', json: { userIds } }),
   leave: (roomId: number) => http<void>(`/chat/rooms/${roomId}/leave`, { method: 'POST' }),
   messages: (roomId: number, before?: number) =>
@@ -77,6 +96,9 @@ export const useChatUnreadQuery = () =>
 
 export const useChatRoomsQuery = (teamId: number) =>
   useQuery({ queryKey: chatKeys.rooms(teamId), queryFn: () => chatApi.rooms(teamId), enabled: teamId > 0 })
+
+export const useChatCategoriesQuery = (teamId: number) =>
+  useQuery({ queryKey: chatKeys.categories(teamId), queryFn: () => chatApi.categories(teamId), enabled: teamId > 0 })
 
 /** 1:1 방은 상대방 닉네임, 그룹 방은 방 이름 */
 export function roomTitle(room: ChatRoom, myId: number | undefined) {

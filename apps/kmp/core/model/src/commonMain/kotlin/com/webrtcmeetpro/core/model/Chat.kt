@@ -40,13 +40,19 @@ data class ChatMessage(
     val deleted: Boolean = false,
 )
 
+/** 채널을 묶는 카테고리 = 부서 */
+@Serializable
+data class ChatCategory(val id: Long, val name: String, val sortOrder: Int = 0)
+
 @Serializable
 data class ChatRoom(
     val id: Long,
     val teamId: Long,
     val type: ChatRoomType,
-    /** GROUP 방 이름. DIRECT 는 null → 상대방 닉네임을 보여 준다 */
+    /** GROUP(채널) 이름. DIRECT 는 null → 상대방 닉네임을 보여 준다 */
     val name: String? = null,
+    /** 채널의 카테고리(부서). null = 카테고리 없음 */
+    val categoryId: Long? = null,
     val createdBy: Long,
     val members: List<ChatUser> = emptyList(),
     val lastMessage: ChatMessage? = null,

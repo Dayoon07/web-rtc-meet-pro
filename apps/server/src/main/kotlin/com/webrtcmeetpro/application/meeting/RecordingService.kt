@@ -85,7 +85,7 @@ class RecordingUrlSigner(props: JwtProperties) {
  * 회의 녹화 (주최자 브라우저 녹화 방식).
  * 주최자(또는 팀 OWNER·ADMIN) 브라우저가 회의 탭을 MediaRecorder 로 녹화해서 10초마다 조각을 올리고, 서버는 순서대로 이어 붙인다.
  * 주최자가 창을 닫아 멈춤 신호가 오지 않아도, 조각이 2분 동안 안 오면 서버가 그때까지 받은 것으로 마무리한다.
- * 플랜: 팀 소유자의 플랜에 녹화가 포함돼야 한다 (plans.recording_enabled). 소유자의 모든 팀 녹화를 합쳐
+ * 플랜: 워크스페이스(팀) 플랜에 녹화가 포함돼야 한다 (plans.recording_enabled). 워크스페이스의 녹화를 합쳐
  * plans.recording_storage_gb 까지 저장할 수 있고, plans.recording_retention_days 가 지나면 자동으로 지운다.
  * S3 를 쓰면 녹화가 끝난 뒤 올리는 동안 PROCESSING 이고, 다 올리면 READY.
  */
@@ -236,7 +236,7 @@ class RecordingService(
     }
 
     /**
-     * 보관 기간이 지난 녹화 지우기 (스케줄러). 기간은 팀 소유자의 "지금" 플랜 기준 —
+     * 보관 기간이 지난 녹화 지우기 (스케줄러). 기간은 워크스페이스의 "지금" 플랜 기준 —
      * 플랜이 끝나 녹화가 없는 플랜이 되면 그 플랜의 보관 일수(기본 30일)가 지난 것부터 지운다.
      */
     @Transactional
@@ -245,11 +245,11 @@ class RecordingService(
         val candidates = recordings.findAllByStatusInAndEndedAtBefore(
             listOf(RecordingStatus.READY, RecordingStatus.FAILED), now.minusDays(minDays.toLong()),
         )
-        val retentionByOwner = mutableMapOf<Long, Int>()
+        val retentionByTeam = mutableMapOf<Long, Int>()
         var purged = 0
         candidates.forEach { r ->
-            val ownerId = meetings.findMeetingById(r.meetingId)?.let { teams.findTeamById(it.teamId) }?.ownerId ?: return@forEach
-            val days = retentionByOwner.getOrPut(ownerId) { planService.currentPlanOf(ownerId, now).recordingRetentionDays }
+            val teamId = meetings.findMeetingById(r.meetingId)?.teamId ?: return@forEach
+            val days = retentionByTeam.getOrPut(teamId) { planService.planOfTeam(teamId, now).recordingRetentionDays }
             if (r.endedAt!!.isBefore(now.minusDays(days.toLong()))) {
                 r.delete()
                 r.storageUrl?.let { name ->
@@ -263,11 +263,10 @@ class RecordingService(
         return purged
     }
 
-    /** 팀 소유자 플랜의 녹화 저장 공간이 남았는지 */
+    /** 워크스페이스 플랜의 녹화 저장 공간이 남았는지 */
     private fun requireStorage(teamId: Long, adding: Long) {
-        val ownerId = teams.findTeamById(teamId)?.ownerId ?: return
-        val plan = planService.currentPlanOf(ownerId)
-        val used = recordings.sumBytesByTeamOwner(ownerId)
+        val plan = planService.planOfTeam(teamId)
+        val used = recordings.sumBytesByTeam(teamId)
         // 시작할 때(adding = 0)는 이미 꽉 찼으면, 조각을 붙일 때는 넘치면 막는다
         if (used + adding > plan.recordingStorageBytes || used >= plan.recordingStorageBytes) {
             throw BusinessException(ErrorCode.RECORDING_STORAGE_FULL, mapOf("gb" to plan.recordingStorageGb))

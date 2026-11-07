@@ -3,6 +3,7 @@ package com.webrtcmeetpro.presentation.plan
 import com.webrtcmeetpro.application.plan.BillingService
 import com.webrtcmeetpro.application.plan.CardRegistrationView
 import com.webrtcmeetpro.application.plan.CardView
+import com.webrtcmeetpro.application.plan.ExpiryNoticeView
 import com.webrtcmeetpro.application.plan.PaymentView
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.plan.PlanView
@@ -41,13 +42,19 @@ class PlanController(private val planService: PlanService, private val billingSe
     @GetMapping("/plans")
     fun plans(): List<PlanView> = planService.listPlans()
 
-    @GetMapping("/subscriptions/me")
-    fun mySubscription(@AuthenticationPrincipal jwt: Jwt): SubscriptionView = planService.mySubscription(jwt.userId)
+    /** 워크스페이스(팀)의 요금제 상태. 멤버면 볼 수 있다 */
+    @GetMapping("/teams/{teamId}/subscription")
+    fun workspaceSubscription(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long): SubscriptionView =
+        planService.workspaceSubscription(teamId, jwt.userId)
 
-    /** 등록한 카드로 결제 (월 / 연). 성공하면 바뀐 구독 상태 */
-    @PostMapping("/subscriptions/purchase")
-    fun purchase(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: PurchaseRequest): SubscriptionView =
-        billingService.purchase(jwt.userId, request.planCode, request.cycle, request.autoRenew)
+    /** 워크스페이스 플랜 결제 (소유자만, 등록한 카드로 월 / 연). 성공하면 바뀐 구독 상태 */
+    @PostMapping("/teams/{teamId}/subscription/purchase")
+    fun purchase(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody request: PurchaseRequest): SubscriptionView =
+        billingService.purchase(jwt.userId, teamId, request.planCode, request.cycle, request.autoRenew)
+
+    /** 내가 결제한 구독 중 아직 확인하지 않은 만료 ("플랜이 만료됐어요" 창) */
+    @GetMapping("/subscriptions/notices")
+    fun expiryNotices(@AuthenticationPrincipal jwt: Jwt): List<ExpiryNoticeView> = planService.expiryNotices(jwt.userId)
 
     @PatchMapping("/subscriptions/{id}")
     fun setAutoRenew(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: Long, @RequestBody request: AutoRenewRequest): SubscriptionView =

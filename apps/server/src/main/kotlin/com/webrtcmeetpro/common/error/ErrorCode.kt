@@ -51,6 +51,8 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     PLAN_GROUP_ROOM_LIMIT(HttpStatus.FORBIDDEN, "현재 플랜에서 만들 수 있는 그룹 채팅방 수를 넘었습니다."),
     PLAN_NOT_PURCHASABLE(HttpStatus.BAD_REQUEST, "무료 플랜은 결제할 필요가 없습니다."),
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "구독을 찾을 수 없습니다."),
+    CANNOT_MANAGE_CHANNELS(HttpStatus.FORBIDDEN, "채널과 카테고리는 워크스페이스 소유자나 관리자만 만들고 고칠 수 있습니다."),
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
 
     // billing (토스페이먼츠 자동결제)
     PAYMENT_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "결제 기능이 아직 준비되지 않았습니다."),

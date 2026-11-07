@@ -146,7 +146,8 @@ class UserService(
         hasPassword = user.hasPassword,
         emailVerified = user.isEmailVerified,
         linkedProviders = socialAccountRepository.findAllByUserId(user.id!!).map { it.provider.name },
-        plan = PlanView.from(planService.currentPlanOf(user.id!!)),
+        // 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다)
+        plan = PlanView.from(planService.bestOwnedPlan(user.id!!)),
     )
 
     companion object {

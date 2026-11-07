@@ -5,6 +5,8 @@ import com.webrtcmeetpro.domain.chat.ChatMessage
 import com.webrtcmeetpro.domain.chat.ChatMessageFile
 import com.webrtcmeetpro.domain.chat.ChatMessageFileRepository
 import com.webrtcmeetpro.domain.chat.ChatMessageRepository
+import com.webrtcmeetpro.domain.chat.ChatCategory
+import com.webrtcmeetpro.domain.chat.ChatCategoryRepository
 import com.webrtcmeetpro.domain.chat.ChatRoom
 import com.webrtcmeetpro.domain.chat.ChatRoomMember
 import com.webrtcmeetpro.domain.chat.ChatRoomMemberRepository
@@ -63,6 +65,8 @@ data class ChatRoomView(
     val id: Long,
     val teamId: Long,
     val type: ChatRoomType,
+    /** 채널의 카테고리(부서). null = 카테고리 없음 (1:1 방도 null) */
+    val categoryId: Long? = null,
     /** GROUP 방 이름. DIRECT 는 null → 클라이언트가 상대방 닉네임을 표시 */
     val name: String?,
     val createdBy: Long,
@@ -77,6 +81,9 @@ data class ChatRoomView(
  * /user/queue/chat 으로 가는 이벤트. ROOM = 방 목록 갱신 필요(새 방, 초대, 퇴장), MESSAGE = 새 메시지,
  * MESSAGE_UPDATED = 고치거나 지운 메시지 (같은 id 의 메시지를 바꿔 끼운다)
  */
+data class ChatCategoryView(val id: Long, val name: String, val sortOrder: Int)
+
+/** type: MESSAGE, MESSAGE_UPDATED, ROOM(방 목록 다시), CATEGORIES(카테고리 다시) */
 data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessageView? = null)
 
 /** 올린 파일 1개. presentation 의 MultipartFile 에 의존하지 않도록 열기 함수로 받는다 (여러 번 열 수 있어야 함) */
@@ -97,6 +104,7 @@ class ChatService(
     private val userRepository: UserRepository,
     private val teamAccess: TeamAccess,
     private val planService: PlanService,
+    private val categoryRepository: ChatCategoryRepository,
     private val notifications: NotificationService,
     private val realtime: RealtimePublisher,
     private val json: JsonMapper,
@@ -137,19 +145,21 @@ class ChatService(
         return view(room, memberRepository.findByRoomIdAndUserId(room.id!!, userId)!!)
     }
 
-    /** 1:N 방 만들기 — CREATE_GROUP_ROOM 권한 (지금은 OWNER) */
+    /** 채널(1:N 방) 만들기 — CREATE_GROUP_ROOM 권한 (OWNER·ADMIN). categoryId 가 있으면 그 카테고리(부서) 안에 */
     @Transactional
-    fun createGroup(teamId: Long, userId: Long, name: String, memberIds: Collection<Long>): ChatRoomView {
+    fun createGroup(teamId: Long, userId: Long, name: String, memberIds: Collection<Long>, categoryId: Long? = null): ChatRoomView {
         val team = teamAccess.requireTeam(teamId)
         teamAccess.requirePermission(teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
         if (name.isBlank()) throw BusinessException(ErrorCode.INVALID_INPUT)
 
-        val plan = planService.currentPlanOf(team.ownerId)
+        val plan = planService.planOfTeam(team.id!!)
         val groups = roomRepository.countByTeamIdAndRoomTypeAndDeletedFalse(teamId, ChatRoomType.GROUP)
         if (!plan.canAddGroupRoom(groups)) throw BusinessException(ErrorCode.PLAN_GROUP_ROOM_LIMIT, mapOf("max" to (plan.maxGroupRoomsPerTeam ?: 0)))
 
+        categoryId?.let { requireCategory(teamId, it) }
+
         val invitees = validTeamMembers(teamId, memberIds) - userId
-        val room = roomRepository.save(ChatRoom.group(teamId, userId, name))
+        val room = roomRepository.save(ChatRoom.group(teamId, userId, name).apply { moveTo(categoryId) })
         ensureMember(room.id!!, userId, invitedBy = null)
         invitees.forEach { ensureMember(room.id!!, it, invitedBy = userId) }
 
@@ -178,6 +188,72 @@ class ChatService(
         notifyInvited(room, users.getValue(userId), invitees)
         realtime.push(current + invitees, RealtimePublisher.CHAT, ChatEvent("ROOM", room.teamId, roomId, msg))
         return view(room, me)
+    }
+
+    /** 채널 이름 바꾸기 · 다른 카테고리로 옮기기 (OWNER·ADMIN). categoryId = null 이면 카테고리 밖으로 */
+    @Transactional
+    fun updateChannel(roomId: Long, userId: Long, name: String?, categoryId: Long?, moveCategory: Boolean): ChatRoomView {
+        val (room, me) = requireRoomMember(roomId, userId)
+        if (!room.isGroup) throw BusinessException(ErrorCode.INVALID_INPUT)
+        teamAccess.requirePermission(room.teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
+        name?.let {
+            if (it.isBlank()) throw BusinessException(ErrorCode.INVALID_INPUT)
+            room.rename(it)
+        }
+        if (moveCategory) {
+            categoryId?.let { requireCategory(room.teamId, it) }
+            room.moveTo(categoryId)
+        }
+        pushTeam(room.teamId, ChatEvent("ROOM", room.teamId, roomId))
+        return view(room, me)
+    }
+
+    // ----------------------------------------------------------------- 카테고리 (부서)
+
+    fun categories(teamId: Long, userId: Long): List<ChatCategoryView> {
+        teamAccess.requireMember(teamId, userId)
+        return categoryRepository.findAllByTeamIdAndDeletedFalseOrderBySortOrderAscIdAsc(teamId).map(::categoryView)
+    }
+
+    @Transactional
+    fun createCategory(teamId: Long, userId: Long, name: String): ChatCategoryView {
+        teamAccess.requirePermission(teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
+        if (name.isBlank()) throw BusinessException(ErrorCode.INVALID_INPUT)
+        val next = (categoryRepository.findAllByTeamIdAndDeletedFalseOrderBySortOrderAscIdAsc(teamId).maxOfOrNull { it.sortOrder } ?: -1) + 1
+        val saved = categoryRepository.save(ChatCategory(teamId, name.trim().take(50), next))
+        pushTeam(teamId, ChatEvent("CATEGORIES", teamId, 0))
+        return categoryView(saved)
+    }
+
+    @Transactional
+    fun renameCategory(categoryId: Long, userId: Long, name: String): ChatCategoryView {
+        val category = categoryRepository.findCategoryById(categoryId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.CATEGORY_NOT_FOUND)
+        teamAccess.requirePermission(category.teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
+        if (name.isBlank()) throw BusinessException(ErrorCode.INVALID_INPUT)
+        category.rename(name)
+        pushTeam(category.teamId, ChatEvent("CATEGORIES", category.teamId, 0))
+        return categoryView(category)
+    }
+
+    /** 카테고리 지우기. 안에 있던 채널은 지우지 않고 카테고리 밖으로 꺼낸다 */
+    @Transactional
+    fun deleteCategory(categoryId: Long, userId: Long) {
+        val category = categoryRepository.findCategoryById(categoryId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.CATEGORY_NOT_FOUND)
+        teamAccess.requirePermission(category.teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
+        roomRepository.findAllByTeamIdAndDeletedFalse(category.teamId).filter { it.categoryId == categoryId }.forEach { it.moveTo(null) }
+        category.delete()
+        pushTeam(category.teamId, ChatEvent("CATEGORIES", category.teamId, 0))
+    }
+
+    private fun requireCategory(teamId: Long, categoryId: Long): ChatCategory =
+        categoryRepository.findCategoryById(categoryId)?.takeIf { it.teamId == teamId && !it.deleted }
+            ?: throw BusinessException(ErrorCode.CATEGORY_NOT_FOUND)
+
+    private fun categoryView(c: ChatCategory) = ChatCategoryView(c.id!!, c.name, c.sortOrder)
+
+    /** 워크스페이스 멤버 모두에게 (카테고리·채널 이름이 바뀌면 사이드바를 다시 그리게) */
+    private fun pushTeam(teamId: Long, event: ChatEvent) {
+        realtime.push(teamAccess.activeMemberIds(teamId), RealtimePublisher.CHAT, event)
     }
 
     @Transactional
@@ -391,6 +467,7 @@ class ChatService(
             id = room.id!!,
             teamId = room.teamId,
             type = room.roomType,
+            categoryId = room.categoryId,
             name = room.name,
             createdBy = room.createdBy,
             members = members.mapNotNull { users[it.userId] }.map(::userView),

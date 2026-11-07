@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Download, FileText, MessageSquarePlus, MessagesSquare, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, MessageSquarePlus, MessagesSquare, Pencil, Plus, Settings2, Trash2, UserPlus, Users } from 'lucide-react'
+import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   chatApi,
   chatKeys,
+  type ChatCategory,
   type ChatEvent,
   type ChatFile,
   type ChatMessage,
@@ -13,11 +14,20 @@ import {
   roomPeer,
   roomTitle,
   systemText,
+  useChatCategoriesQuery,
   useChatRoomsQuery,
 } from '@/entities/chat'
 import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
-import { CreateGroupRoomModal, InviteToRoomModal, LeaveRoomButton, MessageComposer, StartDirectChatModal } from '@/features/chat-room-actions'
+import {
+  CategoryModal,
+  ChannelSettingsModal,
+  CreateGroupRoomModal,
+  InviteToRoomModal,
+  LeaveRoomButton,
+  MessageComposer,
+  StartDirectChatModal,
+} from '@/features/chat-room-actions'
 import { realtime, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
@@ -29,62 +39,168 @@ function RoomAvatar({ room, myId }: { room: ChatRoom; myId?: number }) {
   const peer = roomPeer(room, myId)
   if (peer) return <Avatar src={peer.profileImageUrl} name={peer.nickname} size="md" />
   return (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-white">
-      <Users className="size-5" />
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white">
+      {room.type === 'GROUP' ? <Hash className="size-5" /> : <Users className="size-5" />}
     </span>
   )
 }
 
-function RoomList({
-  rooms,
-  activeId,
-  myId,
-  onSelect,
-}: {
-  rooms: ChatRoom[]
-  activeId?: number
-  myId?: number
-  onSelect: (room: ChatRoom) => void
-}) {
+function RoomRow({ room, active, myId, onSelect }: { room: ChatRoom; active: boolean; myId?: number; onSelect: (room: ChatRoom) => void }) {
   const { t } = useTranslation()
   const fmt = useFormat()
-  if (!rooms.length) return <p className="px-4 py-10 text-center text-sm text-gray-400">{t('chat.noRooms')}</p>
+  const when = room.lastMessage?.createdAt
+  const today = when && isSameDay(new Date(when), new Date())
   return (
-    <ul className="flex flex-col gap-0.5 p-2">
-      {rooms.map((room) => {
-        const when = room.lastMessage?.createdAt
-        const today = when && isSameDay(new Date(when), new Date())
-        return (
-          <li key={room.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(room)}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
-                room.id === activeId ? 'bg-brand-50 dark:bg-brand-500/15' : 'hover:bg-gray-100 dark:hover:bg-gray-800/70',
-              )}
-            >
-              <RoomAvatar room={room} myId={myId} />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold text-gray-900 dark:text-white">{roomTitle(room, myId)}</span>
-                  {room.type === 'GROUP' && <span className="text-xs text-gray-400">{room.members.length}</span>}
-                  {when && <span className="ml-auto shrink-0 text-[11px] text-gray-400">{today ? fmt.time(when) : fmt.date(when)}</span>}
-                </span>
-                <span className="mt-0.5 flex items-center gap-2">
-                  <span className="truncate text-xs text-gray-500 dark:text-gray-400">{previewText(room.lastMessage, t, fmt.list)}</span>
-                  {room.unreadCount > 0 && (
-                    <span className="ml-auto min-w-5 shrink-0 rounded-full bg-brand-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white">
-                      {room.unreadCount > 99 ? '99+' : room.unreadCount}
-                    </span>
-                  )}
-                </span>
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(room)}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
+          active ? 'bg-brand-50 dark:bg-brand-500/15' : 'hover:bg-gray-100 dark:hover:bg-gray-800/70',
+        )}
+      >
+        <RoomAvatar room={room} myId={myId} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold text-gray-900 dark:text-white">{roomTitle(room, myId)}</span>
+            {room.type === 'GROUP' && <span className="text-xs text-gray-400">{room.members.length}</span>}
+            {when && <span className="ml-auto shrink-0 text-[11px] text-gray-400">{today ? fmt.time(when) : fmt.date(when)}</span>}
+          </span>
+          <span className="mt-0.5 flex items-center gap-2">
+            <span className="truncate text-xs text-gray-500 dark:text-gray-400">{previewText(room.lastMessage, t, fmt.list)}</span>
+            {room.unreadCount > 0 && (
+              <span className="ml-auto min-w-5 shrink-0 rounded-full bg-brand-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white">
+                {room.unreadCount > 99 ? '99+' : room.unreadCount}
               </span>
-            </button>
-          </li>
-        )
-      })}
-    </ul>
+            )}
+          </span>
+        </span>
+      </button>
+    </li>
+  )
+}
+
+/** 사이드바 묶음 제목 (카테고리 / 채널 / 1:1). 접기, 관리자는 + · 고치기 · 지우기 */
+function SectionHeader({
+  title,
+  collapsed,
+  onToggle,
+  unread,
+  actions,
+}: {
+  title: string
+  collapsed: boolean
+  onToggle: () => void
+  unread: number
+  actions?: ReactNode
+}) {
+  return (
+    <div className="group flex items-center gap-1 px-2 pt-3 pb-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-0.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+      >
+        <ChevronDown className={cn('size-3.5 shrink-0 transition-transform', collapsed && '-rotate-90')} />
+        <span className="truncate">{title}</span>
+        {collapsed && unread > 0 && <span className="ml-1 size-2 shrink-0 rounded-full bg-brand-600" />}
+      </button>
+      {actions && <span className="flex shrink-0 gap-0.5 opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">{actions}</span>}
+    </div>
+  )
+}
+
+const sectionIcon = 'rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200'
+
+/**
+ * 워크스페이스 사이드바 (디스코드처럼): 카테고리(부서) → 채널, 카테고리 없는 채널, 1:1 대화.
+ * 카테고리·채널은 워크스페이스 OWNER·ADMIN 이 만들고 고친다.
+ */
+function RoomSidebar({
+  rooms,
+  categories,
+  activeId,
+  myId,
+  canManage,
+  onSelect,
+  onAddChannel,
+  onEditCategory,
+  onDeleteCategory,
+}: {
+  rooms: ChatRoom[]
+  categories: ChatCategory[]
+  activeId?: number
+  myId?: number
+  canManage: boolean
+  onSelect: (room: ChatRoom) => void
+  onAddChannel: (categoryId: number | null) => void
+  onEditCategory: (category: ChatCategory) => void
+  onDeleteCategory: (category: ChatCategory) => void
+}) {
+  const { t } = useTranslation()
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const toggle = (key: string) => setCollapsed((cur) => {
+    const next = new Set(cur)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  })
+  if (!rooms.length && !categories.length) return <p className="px-4 py-10 text-center text-sm text-gray-400">{t('chat.noRooms')}</p>
+
+  const channels = rooms.filter((r) => r.type === 'GROUP')
+  const known = new Set(categories.map((c) => c.id))
+  const loose = channels.filter((r) => r.categoryId == null || !known.has(r.categoryId))
+  const directs = rooms.filter((r) => r.type === 'DIRECT')
+  const unreadOf = (list: ChatRoom[]) => list.reduce((n, r) => n + r.unreadCount, 0)
+
+  const section = (key: string, title: string, list: ChatRoom[], actions?: ReactNode, emptyHint?: string) => (
+    <div key={key}>
+      <SectionHeader title={title} collapsed={collapsed.has(key)} onToggle={() => toggle(key)} unread={unreadOf(list)} actions={actions} />
+      {!collapsed.has(key) &&
+        (list.length ? (
+          <ul className="flex flex-col gap-0.5 px-2">
+            {list.map((room) => (
+              <RoomRow key={room.id} room={room} active={room.id === activeId} myId={myId} onSelect={onSelect} />
+            ))}
+          </ul>
+        ) : (
+          emptyHint && <p className="px-5 py-1.5 text-xs text-gray-400">{emptyHint}</p>
+        ))}
+    </div>
+  )
+  const addButton = (categoryId: number | null) =>
+    canManage && (
+      <button type="button" className={sectionIcon} aria-label={t('chat.addChannel')} title={t('chat.addChannel')} onClick={() => onAddChannel(categoryId)}>
+        <Plus className="size-3.5" />
+      </button>
+    )
+
+  return (
+    <div className="pb-3">
+      {categories.map((c) =>
+        section(
+          `c${c.id}`,
+          c.name,
+          channels.filter((r) => r.categoryId === c.id),
+          canManage && (
+            <>
+              {addButton(c.id)}
+              <button type="button" className={sectionIcon} aria-label={t('chat.renameCategory')} title={t('chat.renameCategory')} onClick={() => onEditCategory(c)}>
+                <Pencil className="size-3.5" />
+              </button>
+              <button type="button" className={sectionIcon} aria-label={t('chat.deleteCategory')} title={t('chat.deleteCategory')} onClick={() => onDeleteCategory(c)}>
+                <Trash2 className="size-3.5" />
+              </button>
+            </>
+          ),
+          t('chat.emptyCategory'),
+        ),
+      )}
+      {(loose.length > 0 || canManage) && section('loose', t('chat.channels'), loose, addButton(null), canManage ? t('chat.noChannels') : undefined)}
+      {section('direct', t('chat.directs'), directs, undefined, t('chat.noDirects'))}
+    </div>
   )
 }
 
@@ -323,6 +439,10 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
   const { data: me } = useMeQuery()
   const { data: team } = useTeamQuery(room.teamId)
   const [inviting, setInviting] = useState(false)
+  const [settings, setSettings] = useState(false)
+  const { data: categories = [] } = useChatCategoriesQuery(room.teamId)
+  const canManageChannel = room.type === 'GROUP' && hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM')
+  const category = categories.find((c) => c.id === room.categoryId)
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
 
@@ -390,11 +510,18 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-gray-900 dark:text-white">{roomTitle(room, me?.id)}</p>
           <p className="truncate text-xs text-gray-500">
-            {room.type === 'GROUP' ? t('chat.participants', { count: room.members.length }) : t('chat.direct')}
+            {room.type === 'GROUP'
+              ? [category?.name, t('chat.participants', { count: room.members.length })].filter(Boolean).join(' · ')
+              : t('chat.direct')}
           </p>
         </div>
         {room.type === 'GROUP' && (
           <>
+            {canManageChannel && (
+              <IconButton label={t('chat.channelSettings')} onClick={() => setSettings(true)}>
+                <Settings2 className="size-5" />
+              </IconButton>
+            )}
             <Button variant="outline" size="sm" icon={<UserPlus className="size-4" />} onClick={() => setInviting(true)}>
               <span className="hidden lg:inline">{t('chat.inviteMembers')}</span>
             </Button>
@@ -425,6 +552,7 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
       </div>
 
       {team && <InviteToRoomModal room={room} teamMembers={team.members} open={inviting} onClose={() => setInviting(false)} />}
+      {canManageChannel && <ChannelSettingsModal room={room} categories={categories} open={settings} onClose={() => setSettings(false)} />}
     </div>
   )
 }
@@ -449,15 +577,36 @@ export function ChatWorkspace({
   const activeTeamId = teamId ?? teams?.[0]?.id ?? 0
   const { data: team } = useTeamQuery(activeTeamId)
   const { data: rooms = [], isPending: roomsPending } = useChatRoomsQuery(activeTeamId)
-  const [modal, setModal] = useState<'direct' | 'group' | null>(null)
+  const { data: categories = [] } = useChatCategoriesQuery(activeTeamId)
+  const [modal, setModal] = useState<'direct' | 'group' | 'category' | null>(null)
+  const [channelCategory, setChannelCategory] = useState<number | null>(null)
+  const [editingCategory, setEditingCategory] = useState<ChatCategory | null>(null)
 
   const activeRoom = rooms.find((r) => r.id === roomId)
   const canCreateGroup = hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM')
-  const groupCount = rooms.filter((r) => r.type === 'GROUP').length
+  const openChannel = (categoryId: number | null) => {
+    setChannelCategory(categoryId)
+    setModal('group')
+  }
+  const openCategory = (category: ChatCategory | null) => {
+    setEditingCategory(category)
+    setModal('category')
+  }
+  const deleteCategory = (category: ChatCategory) => {
+    if (!window.confirm(t('chat.deleteCategoryConfirm', { name: category.name }))) return
+    chatApi.deleteCategory(category.id).then(() => {
+      void queryClient.invalidateQueries({ queryKey: chatKeys.categories(activeTeamId) })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(activeTeamId) })
+    }, toastError)
+  }
 
   const onEvent = useCallback(
     (payload: unknown) => {
       const ev = payload as ChatEvent
+      if (ev.type === 'CATEGORIES') {
+        void queryClient.invalidateQueries({ queryKey: chatKeys.categories(ev.teamId) })
+        return
+      }
       void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(ev.teamId) })
       const msg = ev.message
       if (msg && ev.type === 'MESSAGE_UPDATED') {
@@ -516,10 +665,15 @@ export function ChatWorkspace({
               icon={<Plus className="size-4" />}
               disabled={!canCreateGroup}
               title={canCreateGroup ? undefined : t('chat.ownerOnlyGroup')}
-              onClick={() => setModal('group')}
+              onClick={() => openChannel(null)}
             >
               {t('chat.group')}
             </Button>
+            {canCreateGroup && (
+              <IconButton label={t('chat.newCategory')} title={t('chat.newCategory')} onClick={() => openCategory(null)}>
+                <FolderPlus className="size-5" />
+              </IconButton>
+            )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -528,7 +682,17 @@ export function ChatWorkspace({
               <Spinner className="size-5 text-gray-400" />
             </div>
           ) : (
-            <RoomList rooms={rooms} activeId={roomId} myId={me?.id} onSelect={(r) => onNavigate(r.teamId, r.id)} />
+            <RoomSidebar
+              rooms={rooms}
+              categories={categories}
+              activeId={roomId}
+              myId={me?.id}
+              canManage={canCreateGroup}
+              onSelect={(r) => onNavigate(r.teamId, r.id)}
+              onAddChannel={openChannel}
+              onEditCategory={openCategory}
+              onDeleteCategory={deleteCategory}
+            />
           )}
         </div>
       </aside>
@@ -561,11 +725,13 @@ export function ChatWorkspace({
             teamId={activeTeamId}
             members={team.members}
             myId={me.id}
-            usage={{ used: groupCount, max: team.limits.maxGroupRooms }}
+            categories={categories}
+            defaultCategoryId={channelCategory}
             open={modal === 'group'}
             onClose={() => setModal(null)}
             onCreated={(room) => onNavigate(room.teamId, room.id)}
           />
+          <CategoryModal teamId={activeTeamId} category={editingCategory} open={modal === 'category'} onClose={() => setModal(null)} />
         </>
       )}
     </div>

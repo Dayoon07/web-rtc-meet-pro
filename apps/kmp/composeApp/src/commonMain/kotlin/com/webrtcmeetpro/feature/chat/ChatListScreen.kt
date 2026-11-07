@@ -43,6 +43,9 @@ import com.webrtcmeetpro.core.designsystem.component.EmptyState
 import com.webrtcmeetpro.core.designsystem.component.LimeetCard
 import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.core.model.ChatRoom
+import com.webrtcmeetpro.resources.chat_directs
+import com.webrtcmeetpro.resources.chat_channels
+import com.webrtcmeetpro.core.model.ChatCategory
 import com.webrtcmeetpro.core.model.ChatRoomType
 import com.webrtcmeetpro.core.model.MessageType
 import com.webrtcmeetpro.core.model.TeamSummary
@@ -75,6 +78,8 @@ data class ChatListUiState(
     val teams: Loadable<List<TeamSummary>> = Loadable(),
     val selectedTeamId: Long? = null,
     val rooms: Loadable<List<ChatRoom>> = Loadable(loading = false),
+    /** 채널을 묶는 카테고리(부서) */
+    val categories: List<ChatCategory> = emptyList(),
     val myId: Long = 0,
 )
 
@@ -123,8 +128,8 @@ class ChatListViewModel(
         if (!silent) _state.update { it.copy(rooms = it.rooms.copy(loading = true, errorCode = null)) }
         roomsJob?.cancel()
         roomsJob = viewModelScope.launch {
-            runCatching { chat.rooms(teamId) }
-                .onSuccess { list -> _state.update { it.copy(rooms = Loadable(list, loading = false)) } }
+            runCatching { chat.rooms(teamId) to runCatching { chat.categories(teamId) }.getOrDefault(emptyList()) }
+                .onSuccess { (list, cats) -> _state.update { it.copy(rooms = Loadable(list, loading = false), categories = cats) } }
                 .onFailure { e -> _state.update { it.copy(rooms = it.rooms.copy(loading = false, errorCode = e.errorCode)) } }
         }
     }
@@ -180,7 +185,31 @@ fun ChatListScreen(
                             )
                         }
                     }
-                    else -> items(rooms, key = { it.id }) { room -> RoomRow(room, state.myId) { onOpenRoom(room.id) } }
+                    else -> {
+                        // 디스코드처럼: 카테고리(부서) → 채널, 카테고리 없는 채널, 1:1 대화
+                        val channels = rooms.filter { it.type == ChatRoomType.GROUP }
+                        val known = state.categories.map { it.id }.toSet()
+                        val sections = state.categories.map { c -> c.name to channels.filter { it.categoryId == c.id } } +
+                            listOf(
+                                "#" to channels.filter { it.categoryId == null || it.categoryId !in known },
+                                "@" to rooms.filter { it.type == ChatRoomType.DIRECT },
+                            )
+                        sections.filter { it.second.isNotEmpty() }.forEachIndexed { i, (title, list) ->
+                            item(key = "h$i") {
+                                Text(
+                                    when (title) {
+                                        "#" -> stringResource(Res.string.chat_channels)
+                                        "@" -> stringResource(Res.string.chat_directs)
+                                        else -> title
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+                                )
+                            }
+                            items(list, key = { it.id }) { room -> RoomRow(room, state.myId) { onOpenRoom(room.id) } }
+                        }
+                    }
                 }
             }
         }

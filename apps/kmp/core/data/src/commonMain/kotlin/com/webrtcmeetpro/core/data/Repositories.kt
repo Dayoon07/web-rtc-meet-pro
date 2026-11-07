@@ -6,6 +6,7 @@ import com.webrtcmeetpro.core.model.TeamRole
 import com.webrtcmeetpro.core.model.TeamMember
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.ChatMessage
+import com.webrtcmeetpro.core.model.ChatCategory
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.core.model.Invitation
 import com.webrtcmeetpro.core.model.Me
@@ -107,6 +108,7 @@ class TeamRepository(private val api: LimeetApi) {
 
 class ChatRepository(private val api: LimeetApi) {
     suspend fun rooms(teamId: Long): List<ChatRoom> = api.chatRooms(teamId)
+    suspend fun categories(teamId: Long): List<ChatCategory> = api.chatCategories(teamId)
     suspend fun room(roomId: Long): ChatRoom = api.chatRoom(roomId)
     suspend fun openDirect(teamId: Long, userId: Long): ChatRoom = api.openDirect(teamId, userId)
     suspend fun createGroup(teamId: Long, name: String, memberIds: List<Long>): ChatRoom = api.createGroup(teamId, name.trim(), memberIds)

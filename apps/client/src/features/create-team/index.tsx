@@ -3,7 +3,6 @@ import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { planKeys, useMySubscriptionQuery } from '@/entities/plan'
 import { teamApi, teamKeys } from '@/entities/team'
 import { errorMessage } from '@/shared/api'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
@@ -12,7 +11,6 @@ export function CreateTeamModal({ open, onClose }: { open: boolean; onClose: () 
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { data: sub } = useMySubscriptionQuery(open)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
@@ -20,7 +18,6 @@ export function CreateTeamModal({ open, onClose }: { open: boolean; onClose: () 
     mutationFn: () => teamApi.create({ name: name.trim(), description: description.trim() || undefined }),
     onSuccess: (team) => {
       void queryClient.invalidateQueries({ queryKey: teamKeys.all })
-      void queryClient.invalidateQueries({ queryKey: planKeys.mySubscription })
       toast.success(t('teams.create.created', { name: team.name }))
       setName('')
       setDescription('')
@@ -58,11 +55,7 @@ export function CreateTeamModal({ open, onClose }: { open: boolean; onClose: () 
         <Field label={t('teams.create.description')} htmlFor="team-desc" hint={t('common.optional')}>
           <Input id="team-desc" maxLength={500} placeholder={t('teams.create.descriptionPlaceholder')} value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
-        {sub && (
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {t('teams.create.usage', { used: sub.ownedTeams, max: sub.plan.maxOwnedTeams })}
-          </p>
-        )}
+        <p className="text-xs text-gray-500 dark:text-gray-400">{t('teams.create.freeHint')}</p>
         <FieldError>{errorMessage(create.error)}</FieldError>
       </form>
     </Modal>

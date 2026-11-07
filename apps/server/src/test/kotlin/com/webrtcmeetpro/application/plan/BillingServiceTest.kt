@@ -58,6 +58,8 @@ class BillingServiceTest {
         override fun findAllByIdIn(ids: Collection<Long>) = listOf(user).filter { it.id in ids }
     }
     private val uid get() = user.id!!
+    /** 결제하는 사람이 만든 워크스페이스 */
+    private val ws by lazy { fakes.team(uid, "우리 회사").id!! }
 
     private val sent = mutableListOf<Notification>()
     private val notifications = NotificationService(
@@ -91,7 +93,7 @@ class BillingServiceTest {
     }
     private val billing = BillingService(
         tossClient, toss, cipher, planService, fakes.billingKeyRepo, fakes.paymentRepo, fakes.subscriptionRepo, users,
-        notifications, MailService(object : MailSender { override fun send(message: MailMessage) { mails += message } }),
+        fakes.teamRepo, notifications, MailService(object : MailSender { override fun send(message: MailMessage) { mails += message } }),
         WebProperties("http://web.test"), noTx,
     )
 
@@ -109,7 +111,7 @@ class BillingServiceTest {
 
     @Test
     fun `카드 없이 결제하면 카드 등록부터 하라고 한다`() {
-        val e = assertThrows<BusinessException> { billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = true) }
+        val e = assertThrows<BusinessException> { billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true) }
         assertEquals(ErrorCode.BILLING_CARD_REQUIRED, e.errorCode)
     }
 
@@ -128,8 +130,8 @@ class BillingServiceTest {
     @Test
     fun `여러 플랜을 사면 가장 높은 플랜을 쓰고 끝나면 남은 낮은 플랜으로 돌아간다`() {
         registerCard()
-        billing.purchase(uid, "PRO", BillingCycle.YEARLY, autoRenew = false)
-        val view = billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        billing.purchase(uid, ws, "PRO", BillingCycle.YEARLY, autoRenew = false)
+        val view = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
         assertEquals("TEAM", view.plan.code)
         assertEquals(listOf(52_920L, 19_900L), charged)
         assertEquals(2, view.subscriptions.size)
@@ -137,27 +139,30 @@ class BillingServiceTest {
 
         // 한 달 조금 넘게 지나면 Team 은 끝났고 Pro(1년)가 남는다
         val later = LocalDateTime.now().plusMonths(1).plusDays(1)
-        assertEquals("PRO", planService.currentPlanOf(uid, later).code)
+        assertEquals("PRO", planService.planOfTeam(ws, later).code)
         billing.processRenewals(later)
         assertEquals(SubscriptionStatus.EXPIRED, fakes.subscriptions.single { it.planId == team.id }.status)
-        val after = planService.mySubscription(uid, later)
+        val after = planService.workspaceSubscription(ws, uid, later)
         assertEquals("PRO", after.plan.code)
-        assertEquals("TEAM", after.expiryNotice?.plan?.code)
+        val notice = planService.expiryNotices(uid, later).single()
+        assertEquals("TEAM", notice.plan.code)
+        assertEquals("우리 회사", notice.teamName)
+        assertEquals("PRO", notice.currentPlan.code)
         assertTrue(sent.any { it.type == NotificationType.PLAN_EXPIRED })
 
         // 창을 닫으면 다시 안 보인다
-        planService.acknowledgeExpiry(uid, after.expiryNotice!!.subscriptionId)
-        assertNull(planService.mySubscription(uid, later).expiryNotice)
+        planService.acknowledgeExpiry(uid, notice.subscriptionId)
+        assertTrue(planService.expiryNotices(uid, later).isEmpty())
 
         // 1년 넘게 지나면 무료
-        assertEquals("FREE", planService.currentPlanOf(uid, LocalDateTime.now().plusYears(1).plusDays(1)).code)
+        assertEquals("FREE", planService.planOfTeam(ws, LocalDateTime.now().plusYears(1).plusDays(1)).code)
     }
 
     @Test
     fun `같은 플랜을 다시 사면 남은 기간 뒤로 이어 붙는다`() {
         registerCard()
-        val first = billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = false).currentPeriodEnd!!
-        val second = billing.purchase(uid, "TEAM", BillingCycle.YEARLY, autoRenew = true)
+        val first = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false).currentPeriodEnd!!
+        val second = billing.purchase(uid, ws, "TEAM", BillingCycle.YEARLY, autoRenew = true)
         assertEquals(1, second.subscriptions.size)
         assertEquals(first.plusYears(1).withNano(0), second.currentPeriodEnd!!.withNano(0))
         assertTrue(second.subscriptions.single().autoRenew)
@@ -167,7 +172,7 @@ class BillingServiceTest {
     @Test
     fun `자동결제가 켜져 있으면 기간이 끝날 때 다시 결제한다`() {
         registerCard()
-        val end = billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = true).currentPeriodEnd!!
+        val end = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true).currentPeriodEnd!!
         billing.processRenewals(end.plusMinutes(1))
         val sub = fakes.subscriptions.single { it.planId == team.id }
         assertEquals(SubscriptionStatus.ACTIVE, sub.status)
@@ -179,7 +184,7 @@ class BillingServiceTest {
     @Test
     fun `자동결제가 3번 실패하면 만료되고 그동안은 플랜을 계속 쓴다`() {
         registerCard()
-        val end = billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = true).currentPeriodEnd!!
+        val end = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true).currentPeriodEnd!!
         var now = end.plusMinutes(1)
         repeat(3) { i ->
             failNext = TossException("REJECT_CARD_COMPANY", "카드 한도 초과")
@@ -187,7 +192,7 @@ class BillingServiceTest {
             val sub = fakes.subscriptions.single { it.planId == team.id }
             if (i < 2) {
                 assertEquals(SubscriptionStatus.PAST_DUE, sub.status)
-                assertEquals("TEAM", planService.currentPlanOf(uid, now).code)
+                assertEquals("TEAM", planService.planOfTeam(ws, now).code)
                 // 다시 시도할 시각 전에는 결제하지 않는다
                 billing.processRenewals(now.plusHours(1))
             } else {
@@ -195,7 +200,7 @@ class BillingServiceTest {
             }
             now = now.plusDays(1).plusMinutes(1)
         }
-        assertEquals("FREE", planService.currentPlanOf(uid, now).code)
+        assertEquals("FREE", planService.planOfTeam(ws, now).code)
         assertEquals(2, sent.count { it.type == NotificationType.PAYMENT_FAILED })
         assertEquals(1, sent.count { it.type == NotificationType.PLAN_EXPIRED })
         assertEquals(3, fakes.payments.count { it.status == PaymentStatus.FAILED })
@@ -205,7 +210,7 @@ class BillingServiceTest {
     @Test
     fun `자동결제가 꺼져 있으면 3일 전에 한 번 알리고 끝나면 만료`() {
         registerCard()
-        val end = billing.purchase(uid, "PRO", BillingCycle.MONTHLY, autoRenew = false).currentPeriodEnd!!
+        val end = billing.purchase(uid, ws, "PRO", BillingCycle.MONTHLY, autoRenew = false).currentPeriodEnd!!
         billing.processRenewals(end.minusDays(2))
         billing.processRenewals(end.minusDays(1))
         assertEquals(1, sent.count { it.type == NotificationType.PLAN_EXPIRING })
@@ -217,9 +222,9 @@ class BillingServiceTest {
     @Test
     fun `카드를 지우면 자동결제가 꺼지고 다시 켜려면 카드가 필요하다`() {
         registerCard()
-        val view = billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = true)
+        val view = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true)
         billing.removeCard(uid)
-        val sub = planService.mySubscription(uid)
+        val sub = planService.workspaceSubscription(ws, uid)
         assertNull(sub.card)
         assertFalse(sub.subscriptions.single().autoRenew)
         val e = assertThrows<BusinessException> { planService.setAutoRenew(uid, view.subscriptions.single().id, true) }
@@ -230,28 +235,62 @@ class BillingServiceTest {
     fun `결제가 거절되면 실패 기록이 남고 구독은 생기지 않는다`() {
         registerCard()
         failNext = TossException("REJECT_CARD_COMPANY", "카드 한도 초과")
-        val e = assertThrows<BusinessException> { billing.purchase(uid, "TEAM", BillingCycle.MONTHLY, autoRenew = true) }
+        val e = assertThrows<BusinessException> { billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true) }
         assertEquals(ErrorCode.PAYMENT_FAILED, e.errorCode)
         assertEquals("카드 한도 초과", e.params["reason"])
         assertEquals(PaymentStatus.FAILED, fakes.payments.single().status)
-        assertEquals("FREE", planService.currentPlanOf(uid).code)
+        assertEquals("FREE", planService.planOfTeam(ws).code)
         assertNotNull(billing.history(uid).single().failureMessage)
+    }
+
+    @Test
+    fun `요금제는 워크스페이스마다 - 다른 워크스페이스는 무료 그대로`() {
+        registerCard()
+        val other = fakes.team(uid, "취미 모임").id!!
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        assertEquals("TEAM", planService.planOfTeam(ws).code)
+        assertEquals("FREE", planService.planOfTeam(other).code)
+        assertEquals("TEAM", planService.bestOwnedPlan(uid).code)
+    }
+
+    @Test
+    fun `워크스페이스 소유자만 결제할 수 있고 멤버는 요금제를 볼 수만 있다`() {
+        registerCard()
+        val memberId = uid + 500
+        fakes.join(ws, memberId)
+        assertEquals(ErrorCode.NOT_TEAM_OWNER, assertThrows<BusinessException> { billing.purchase(memberId, ws, "TEAM", BillingCycle.MONTHLY, false) }.errorCode)
+        val view = planService.workspaceSubscription(ws, memberId)
+        assertFalse(view.canManage)
+        assertTrue(planService.workspaceSubscription(ws, uid).canManage)
+    }
+
+    @Test
+    fun `영수증에는 공급가액과 부가세, 카드 정보, 워크스페이스 이름`() {
+        registerCard()
+        billing.purchase(uid, ws, "PRO", BillingCycle.MONTHLY, autoRenew = false)
+        val p = billing.history(uid).single()
+        assertEquals(4_900, p.amount)
+        assertEquals(4_455, p.supplyAmount)
+        assertEquals(445, p.vat)
+        assertEquals("신한", p.cardCompany)
+        assertEquals("우리 회사", p.teamName)
+        assertTrue(p.orderName.contains("우리 회사"))
     }
 
     @Test
     fun `무료 플랜은 결제할 수 없다`() {
         registerCard()
-        assertEquals(ErrorCode.PLAN_NOT_PURCHASABLE, assertThrows<BusinessException> { billing.purchase(uid, "FREE", BillingCycle.MONTHLY, false) }.errorCode)
+        assertEquals(ErrorCode.PLAN_NOT_PURCHASABLE, assertThrows<BusinessException> { billing.purchase(uid, ws, "FREE", BillingCycle.MONTHLY, false) }.errorCode)
     }
 
     @Test
     fun `토스 키가 없으면 결제 기능이 꺼져 있다`() {
         val off = BillingService(
             tossClient, TossProperties(), cipher, planService, fakes.billingKeyRepo, fakes.paymentRepo, fakes.subscriptionRepo, users,
-            notifications, MailService(object : MailSender { override fun send(message: MailMessage) {} }), WebProperties("http://web.test"), noTx,
+            fakes.teamRepo, notifications, MailService(object : MailSender { override fun send(message: MailMessage) {} }), WebProperties("http://web.test"), noTx,
         )
         assertEquals(ErrorCode.PAYMENT_NOT_CONFIGURED, assertThrows<BusinessException> { off.prepareCard(uid) }.errorCode)
-        assertFalse(fakes.planService().mySubscription(uid).paymentsEnabled)
+        assertFalse(fakes.planService().workspaceSubscription(ws, uid).paymentsEnabled)
     }
 
     @Suppress("unused")

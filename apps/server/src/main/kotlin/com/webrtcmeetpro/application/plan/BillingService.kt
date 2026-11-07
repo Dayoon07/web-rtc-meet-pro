@@ -22,6 +22,8 @@ import com.webrtcmeetpro.domain.plan.Subscription
 import com.webrtcmeetpro.domain.plan.SubscriptionRepository
 import com.webrtcmeetpro.domain.plan.SubscriptionStatus
 import com.webrtcmeetpro.domain.user.UserRepository
+import com.webrtcmeetpro.domain.team.TeamRepository
+import com.webrtcmeetpro.domain.team.TeamStatus
 import com.webrtcmeetpro.external.toss.TossException
 import com.webrtcmeetpro.external.toss.TossPaymentsClient
 import org.slf4j.LoggerFactory
@@ -34,19 +36,29 @@ import java.util.UUID
 /** 카드 등록창을 열 때 필요한 값 (웹이 토스 SDK 에 넘긴다) */
 data class CardRegistrationView(val clientKey: String, val customerKey: String, val customerEmail: String, val customerName: String)
 
+/** 결제 내역 한 줄 + 영수증 창에 보여 줄 값 */
 data class PaymentView(
     val orderId: String,
     val orderName: String,
     val planCode: String,
+    val planName: String,
     val amount: Long,
+    /** 공급가액 = 금액 × 10/11 (원 단위 반올림), 부가세 = 금액 - 공급가액 */
+    val supplyAmount: Long,
+    val vat: Long,
     val status: PaymentStatus,
     val billingCycle: BillingCycle?,
     val method: String?,
+    val cardCompany: String?,
+    val cardNumberMasked: String?,
+    val approveNo: String?,
     val receiptUrl: String?,
     val failureMessage: String?,
     val approvedAt: LocalDateTime?,
     val periodEnd: LocalDateTime?,
     val createdAt: LocalDateTime,
+    val teamId: Long?,
+    val teamName: String?,
 )
 
 /**
@@ -67,6 +79,7 @@ class BillingService(
     private val payments: PaymentRepository,
     private val subscriptions: SubscriptionRepository,
     private val users: UserRepository,
+    private val teams: TeamRepository,
     private val notifications: NotificationService,
     private val mail: MailService,
     private val web: WebProperties,
@@ -113,18 +126,19 @@ class BillingService(
     // ----------------------------------------------------------------- 결제
 
     /**
-     * 플랜 결제. 같은 플랜을 이미 쓰고 있으면 남은 기간 뒤로 늘어나고, 다른 플랜이면 따로 새 구독이 생긴다
+     * 워크스페이스 플랜 결제 (소유자만). 같은 플랜을 이미 쓰고 있으면 남은 기간 뒤로 늘어나고, 다른 플랜이면 따로 새 구독이 생긴다
      * (가장 높은 플랜이 적용되고, 그게 끝나면 남은 낮은 플랜으로).
      */
-    fun purchase(userId: Long, planCode: String, cycle: BillingCycle, autoRenew: Boolean): SubscriptionView {
+    fun purchase(userId: Long, teamId: Long, planCode: String, cycle: BillingCycle, autoRenew: Boolean): SubscriptionView {
         requireEnabled()
+        val team = planService.requireOwnedTeam(teamId, userId)
         val plan = planService.findPlan(planCode)
         if (plan.isFree) throw BusinessException(ErrorCode.PLAN_NOT_PURCHASABLE)
         val card = billingKeys.findByUserIdAndActiveTrue(userId) ?: throw BusinessException(ErrorCode.BILLING_CARD_REQUIRED)
 
-        val payment = tx.execute { payments.save(newPayment(userId, plan, cycle, card)) }!!
+        val payment = tx.execute { payments.save(newPayment(userId, teamId, team.name, plan, cycle, card)) }!!
         try {
-            chargeAndApply(payment.orderId, card) { now -> planService.applyPurchase(userId, plan, cycle, autoRenew, now) }
+            chargeAndApply(payment.orderId, card) { now -> planService.applyPurchase(teamId, userId, plan, cycle, autoRenew, now) }
             log.info("결제 성공 (userId={}, {} {}, {}원, orderId={})", userId, plan.code, cycle, payment.amount, payment.orderId)
         } catch (e: TossException) {
             if (e.uncertain) {
@@ -134,25 +148,36 @@ class BillingService(
             log.info("결제 거절 (userId={}, orderId={}): {} {}", userId, payment.orderId, e.code, e.message)
             throw BusinessException(ErrorCode.PAYMENT_FAILED, mapOf("reason" to e.message), e.message)
         }
-        return planService.mySubscription(userId)
+        return planService.workspaceSubscription(teamId, userId)
     }
 
     fun history(userId: Long): List<PaymentView> {
         val plans = mutableMapOf<Long, Plan>()
+        val teamNames = mutableMapOf<Long, String?>()
         return payments.findTop50ByUserIdOrderByCreatedDtDesc(userId).map {
+            val plan = plans.getOrPut(it.planId) { planService.planById(it.planId) }
+            val supply = Math.round(it.amount * 10.0 / 11.0)
             PaymentView(
                 orderId = it.orderId,
                 orderName = it.orderName,
-                planCode = plans.getOrPut(it.planId) { planService.planById(it.planId) }.code,
+                planCode = plan.code,
+                planName = plan.name,
                 amount = it.amount,
+                supplyAmount = supply,
+                vat = it.amount - supply,
                 status = it.status,
                 billingCycle = it.billingCycle,
                 method = it.method,
+                cardCompany = it.cardCompany,
+                cardNumberMasked = it.cardNumberMasked,
+                approveNo = it.approveNo,
                 receiptUrl = it.receiptUrl,
                 failureMessage = it.failureMessage,
                 approvedAt = it.approvedAt,
                 periodEnd = it.periodEnd,
                 createdAt = it.createdDt,
+                teamId = it.teamId,
+                teamName = it.teamId?.let { id -> teamNames.getOrPut(id) { teams.findTeamById(id)?.name } },
             )
         }
     }
@@ -194,11 +219,12 @@ class BillingService(
         val card = billingKeys.findByUserIdAndActiveTrue(s.userId)
         val plan = planService.planById(s.planId)
         val cycle = s.billingCycle ?: BillingCycle.MONTHLY
-        if (!s.autoRenew || card == null || plan.isFree) {
+        val team = s.teamId?.let(teams::findTeamById)?.takeIf { it.status == TeamStatus.ACTIVE }
+        if (!s.autoRenew || card == null || plan.isFree || team == null) {
             tx.executeWithoutResult { expire(reload(s), plan, now) }
             return
         }
-        val payment = tx.execute { payments.save(newPayment(s.userId, plan, cycle, card)) }!!
+        val payment = tx.execute { payments.save(newPayment(s.userId, team.id!!, team.name, plan, cycle, card)) }!!
         try {
             chargeAndApply(payment.orderId, card) { at -> reload(s).also { it.extend(cycle, at) } }
             log.info("자동결제 성공 (subscriptionId={}, {} {})", s.id, plan.code, cycle)
@@ -213,7 +239,7 @@ class BillingService(
                 if (sub.failedAttempts >= Subscription.MAX_PAYMENT_ATTEMPTS) {
                     expire(sub, plan, now)
                 } else {
-                    notifyUser(sub.userId, NotificationType.PAYMENT_FAILED, plan, sub.nextRetryAt, PlanMailKind.PAYMENT_FAILED, e.message)
+                    notifyUser(sub, NotificationType.PAYMENT_FAILED, plan, sub.nextRetryAt, PlanMailKind.PAYMENT_FAILED, e.message)
                 }
             }
         }
@@ -224,12 +250,12 @@ class BillingService(
     private fun notifyExpiring(s: Subscription, now: LocalDateTime) {
         if (s.expiringNotifiedAt != null) return
         s.markExpiringNotified(now)
-        notifyUser(s.userId, NotificationType.PLAN_EXPIRING, planService.planById(s.planId), s.currentPeriodEnd, PlanMailKind.EXPIRING, null)
+        notifyUser(s, NotificationType.PLAN_EXPIRING, planService.planById(s.planId), s.currentPeriodEnd, PlanMailKind.EXPIRING, null)
     }
 
     private fun expire(s: Subscription, plan: Plan, now: LocalDateTime) {
         s.expire(now)
-        notifyUser(s.userId, NotificationType.PLAN_EXPIRED, plan, s.currentPeriodEnd, PlanMailKind.EXPIRED, null)
+        notifyUser(s, NotificationType.PLAN_EXPIRED, plan, s.currentPeriodEnd, PlanMailKind.EXPIRED, null)
     }
 
     // -----------------------------------------------------------------
@@ -247,34 +273,48 @@ class BillingService(
         tx.executeWithoutResult {
             val now = LocalDateTime.now()
             val p = payments.findByOrderId(orderId)!!
-            p.approve(result.paymentKey, result.method, result.receiptUrl, now)
+            p.approve(
+                result.paymentKey, result.method, result.receiptUrl, now,
+                cardCompany = result.cardCompany ?: card.cardCompany,
+                cardNumberMasked = result.cardNumber ?: card.cardNumberMasked,
+                approveNo = result.approveNo,
+            )
             val subscription = apply(now)
             p.linkSubscription(subscription.id!!, subscription.currentPeriodEnd)
         }
     }
 
-    private fun newPayment(userId: Long, plan: Plan, cycle: BillingCycle, card: BillingKey) = Payment(
+    private fun newPayment(userId: Long, teamId: Long, teamName: String, plan: Plan, cycle: BillingCycle, card: BillingKey) = Payment(
         userId = userId,
         planId = plan.id!!,
         orderId = "ORD-" + UUID.randomUUID().toString().replace("-", ""),
-        orderName = "Limeet ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"})",
+        // 토스 주문명은 100자까지
+        orderName = "Limeet ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"}) · $teamName".take(100),
         amount = plan.price(cycle),
         billingKeyId = card.id,
         billingCycle = cycle,
+        teamId = teamId,
     )
 
     private fun reload(s: Subscription) = subscriptions.findSubscriptionById(s.id!!)!!
 
-    private fun notifyUser(userId: Long, type: NotificationType, plan: Plan, date: LocalDateTime?, kind: PlanMailKind, reason: String?) {
+    /** 결제한 사람에게 알림·메일 (워크스페이스 이름과 함께) */
+    private fun notifyUser(s: Subscription, type: NotificationType, plan: Plan, date: LocalDateTime?, kind: PlanMailKind, reason: String?) {
+        val teamName = s.teamId?.let(teams::findTeamById)?.name
+        val path = BILLING_PATH + (s.teamId?.let { "?team=$it" } ?: "")
         notifications.notify(
-            listOf(userId),
+            listOf(s.userId),
             type,
-            mapOf("planCode" to plan.code, "planName" to plan.name, "date" to date?.let(JacksonConfig::toOffsetString), "reason" to reason),
-            BILLING_PATH,
+            mapOf(
+                "planCode" to plan.code, "planName" to plan.name, "teamName" to teamName,
+                "date" to date?.let(JacksonConfig::toOffsetString), "reason" to reason,
+            ),
+            path,
         )
-        val user = users.findUserById(userId) ?: return
+        val user = users.findUserById(s.userId) ?: return
         if (user.email.isBlank()) return
-        mail.sendAfterCommit(MailTemplates.planNotice(user.email, MailLanguage.KO, kind, plan.name, date, reason, web.link(BILLING_PATH)))
+        val label = teamName?.let { "${plan.name} ($it)" } ?: plan.name
+        mail.sendAfterCommit(MailTemplates.planNotice(user.email, MailLanguage.KO, kind, label, date, reason, web.link(path)))
     }
 
     private fun requireEnabled() {

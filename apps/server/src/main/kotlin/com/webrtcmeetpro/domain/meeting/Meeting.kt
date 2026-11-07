@@ -339,8 +339,8 @@ interface MeetingRecordingRepository {
     fun findAllByStatus(status: RecordingStatus): List<MeetingRecording>
     /** 보관 기간 정리용: 이 시각 전에 끝난 녹화 */
     fun findAllByStatusInAndEndedAtBefore(statuses: Collection<RecordingStatus>, before: LocalDateTime): List<MeetingRecording>
-    /** 팀 소유자 한 명이 가진 모든 팀의 녹화 용량 합계 (지운 것 빼고) */
-    fun sumBytesByTeamOwner(ownerId: Long): Long
+    /** 워크스페이스(팀) 하나의 녹화 용량 합계 (지운 것 빼고) */
+    fun sumBytesByTeam(teamId: Long): Long
 }
 
 /**

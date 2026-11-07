@@ -3,12 +3,12 @@ import { Check, FileText, LogOut, Paperclip, SendHorizonal, X } from 'lucide-rea
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { CHAT_FILE_LIMITS, chatApi, chatKeys, checkChatFiles, type ChatMessage, type ChatRoom } from '@/entities/chat'
+import { CHAT_FILE_LIMITS, chatApi, chatKeys, checkChatFiles, type ChatCategory, type ChatMessage, type ChatRoom } from '@/entities/chat'
 import type { TeamMember } from '@/entities/team'
 import { errorMessage, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
-import { Avatar, Button, Field, FieldError, Input, Modal } from '@/shared/ui'
+import { Avatar, Button, Field, FieldError, Input, Modal, Select } from '@/shared/ui'
 
 /** 팀원 목록 (단일 선택: onPick / 다중 선택: selected+onToggle) */
 function MemberList({
@@ -112,12 +112,13 @@ export function StartDirectChatModal({
   )
 }
 
-/** 그룹 채팅방 만들기 (팀 소유자 전용, 플랜 한도) */
+/** 채널(그룹 채팅방) 만들기 — 워크스페이스 OWNER·ADMIN. 카테고리(부서)를 고르면 그 안에 */
 export function CreateGroupRoomModal({
   teamId,
   members,
   myId,
-  usage,
+  categories,
+  defaultCategoryId,
   open,
   onClose,
   onCreated,
@@ -125,8 +126,9 @@ export function CreateGroupRoomModal({
   teamId: number
   members: TeamMember[]
   myId: number
-  /** max null = 제한 없음 */
-  usage: { used: number; max: number | null }
+  categories: ChatCategory[]
+  /** 카테고리 옆 + 로 열면 그 카테고리가 미리 골라져 있다 */
+  defaultCategoryId?: number | null
   open: boolean
   onClose: () => void
   onCreated: (room: ChatRoom) => void
@@ -135,9 +137,13 @@ export function CreateGroupRoomModal({
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [categoryId, setCategoryId] = useState<number | null>(defaultCategoryId ?? null)
+  useEffect(() => {
+    if (open) setCategoryId(defaultCategoryId ?? null)
+  }, [open, defaultCategoryId])
 
   const create = useMutation({
-    mutationFn: () => chatApi.createGroup(teamId, name.trim(), [...selected]),
+    mutationFn: () => chatApi.createGroup(teamId, name.trim(), [...selected], categoryId),
     onSuccess: (room) => {
       void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(teamId) })
       setName('')
@@ -169,9 +175,10 @@ export function CreateGroupRoomModal({
       }
     >
       <form id="group-room-form" onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Field label={t('chat.groupName')} htmlFor="group-name" required hint={usage.max == null ? t('chat.groupUsageUnlimited', { used: usage.used }) : t('chat.groupUsage', usage)}>
+        <Field label={t('chat.groupName')} htmlFor="group-name" required>
           <Input id="group-name" autoFocus maxLength={100} placeholder={t('chat.groupNamePlaceholder')} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
+        <CategorySelect id="group-category" categories={categories} value={categoryId} onChange={setCategoryId} />
         <div>
           <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('chat.groupMembers')} <span className="text-gray-400">({selected.size})</span>
@@ -446,5 +453,154 @@ export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m
         </Button>
       </div>
     </form>
+  )
+}
+
+/** 카테고리(부서) 고르기. 비우면 카테고리 밖 */
+function CategorySelect({
+  id,
+  categories,
+  value,
+  onChange,
+}: {
+  id: string
+  categories: ChatCategory[]
+  value: number | null
+  onChange: (v: number | null) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <Field label={t('chat.category')} htmlFor={id} hint={t('chat.categoryHint')}>
+      <Select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
+        <option value="">{t('chat.noCategory')}</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  )
+}
+
+/** 카테고리(부서) 만들기 / 이름 바꾸기 — 워크스페이스 OWNER·ADMIN */
+export function CategoryModal({
+  teamId,
+  category,
+  open,
+  onClose,
+}: {
+  teamId: number
+  /** 있으면 이름 바꾸기, 없으면 새로 만들기 */
+  category?: ChatCategory | null
+  open: boolean
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [name, setName] = useState('')
+  useEffect(() => {
+    if (open) setName(category?.name ?? '')
+  }, [open, category])
+
+  const save = useMutation({
+    mutationFn: () => (category ? chatApi.renameCategory(category.id, name.trim()) : chatApi.createCategory(teamId, name.trim())),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chatKeys.categories(teamId) })
+      onClose()
+    },
+  })
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (name.trim()) save.mutate()
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={category ? t('chat.renameCategory') : t('chat.newCategory')}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="category-form" loading={save.isPending} disabled={!name.trim()}>
+            {category ? t('common.save') : t('common.create')}
+          </Button>
+        </>
+      }
+    >
+      <form id="category-form" onSubmit={onSubmit} className="flex flex-col gap-3">
+        <Field label={t('chat.categoryName')} htmlFor="category-name" required hint={t('chat.categoryNameHint')}>
+          <Input id="category-name" autoFocus maxLength={50} placeholder={t('chat.categoryPlaceholder')} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <FieldError>{errorMessage(save.error)}</FieldError>
+      </form>
+    </Modal>
+  )
+}
+
+/** 채널 설정: 이름 바꾸기, 다른 카테고리로 옮기기 — 워크스페이스 OWNER·ADMIN */
+export function ChannelSettingsModal({
+  room,
+  categories,
+  open,
+  onClose,
+}: {
+  room: ChatRoom
+  categories: ChatCategory[]
+  open: boolean
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [name, setName] = useState('')
+  const [categoryId, setCategoryId] = useState<number | null>(null)
+  useEffect(() => {
+    if (open) {
+      setName(room.name ?? '')
+      setCategoryId(room.categoryId)
+    }
+  }, [open, room])
+
+  const save = useMutation({
+    mutationFn: () => chatApi.updateChannel(room.id, { name: name.trim(), categoryId, moveCategory: true }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(room.teamId) })
+      onClose()
+    },
+  })
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (name.trim()) save.mutate()
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={t('chat.channelSettings')}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="channel-form" loading={save.isPending} disabled={!name.trim()}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="channel-form" onSubmit={onSubmit} className="flex flex-col gap-4">
+        <Field label={t('chat.groupName')} htmlFor="channel-name" required>
+          <Input id="channel-name" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <CategorySelect id="channel-category" categories={categories} value={categoryId} onChange={setCategoryId} />
+        <FieldError>{errorMessage(save.error)}</FieldError>
+      </form>
+    </Modal>
   )
 }

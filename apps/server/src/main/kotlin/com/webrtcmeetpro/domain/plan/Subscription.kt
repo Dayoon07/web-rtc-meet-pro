@@ -29,9 +29,10 @@ enum class BillingCycle {
 }
 
 /**
- * 사용자 구독. 플랜마다 하나씩 여러 개를 동시에 가질 수 있고(예: Team 과 Pro 를 둘 다 결제),
+ * 워크스페이스(팀) 구독. [userId] = 결제한 사람, [teamId] = 요금제가 적용되는 워크스페이스.
+ * 한 워크스페이스가 플랜마다 하나씩 여러 구독을 동시에 가질 수 있고(예: Team 과 Pro 를 둘 다 결제),
  * 기간이 남은 것 중 가장 높은 플랜을 쓴다. Team 이 끝나면 남은 Pro 로, Pro 도 끝나면 무료로.
- * FREE 구독은 회원가입 때 만드는 기간 없는 구독이다.
+ * teamId 가 없는 FREE 구독은 회원가입 때 만드는 기간 없는 구독이다 (어디에도 적용 안 됨).
  */
 @Entity
 @Table(name = "subscriptions")
@@ -53,6 +54,8 @@ class Subscription(
 
     @Enumerated(EnumType.STRING)
     var billingCycle: BillingCycle? = null,
+
+    val teamId: Long? = null,
 ) : BaseEntity() {
 
     @Id
@@ -146,6 +149,8 @@ interface SubscriptionRepository {
     fun flush()
     fun findSubscriptionById(id: Long): Subscription?
     fun findAllByUserIdAndStatusIn(userId: Long, statuses: Collection<SubscriptionStatus>): List<Subscription>
+    fun findAllByTeamIdAndStatusIn(teamId: Long, statuses: Collection<SubscriptionStatus>): List<Subscription>
+    fun findAllByTeamIdInAndStatusIn(teamIds: Collection<Long>, statuses: Collection<SubscriptionStatus>): List<Subscription>
     fun findAllByUserIdOrderByStartedAtDesc(userId: Long): List<Subscription>
     /** 기간이 곧 끝나거나 끝난 구독 (스케줄러) */
     fun findAllByStatusInAndCurrentPeriodEndBefore(statuses: Collection<SubscriptionStatus>, before: LocalDateTime): List<Subscription>

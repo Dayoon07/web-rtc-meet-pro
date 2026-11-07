@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v0.9 (23 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v1.0 (24 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -63,6 +63,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-ch
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
@@ -183,21 +184,39 @@ COMMIT;
 - 팀 소유자의 모든 팀 녹화를 합쳐 `recording_storage_gb` 까지 저장하고(Team 50GB, Business 200GB), `recording_retention_days` 가 지나면 자동으로 지운다(Team 90일, Business 365일, 플랜이 끝나면 30일).
 - `STORAGE_TYPE=s3` 이면 녹화 중에는 서버 디스크에 모았다가 끝나면 S3 로 올린다 (그동안 `PROCESSING`). 재생은 서명된 S3 주소로 302.
 
+#### 워크스페이스 · 카테고리 · 채널 (디스코드처럼)
+
+```
+워크스페이스 (= DB 의 teams. 회사·모임 하나. 무료로 몇 개든 만들 수 있다)
+ ├─ 멤버 · 역할(OWNER/ADMIN/MEMBER) · 초대 · 요금제
+ ├─ 카테고리 "개발 연구소"   ← 부서 (chat_categories, 채널을 묶는 폴더)
+ │    ├─ # 백오피스          ← 부서별 팀 = 채널 (chat_rooms GROUP: 채팅 + 회의)
+ │    └─ # 프론트오피스
+ ├─ # 공지                   ← 카테고리 없는 채널
+ └─ 1:1 대화
+```
+
+- 코드·DB 이름은 그대로 `team` 이고 화면 이름만 "워크스페이스" 다.
+- 카테고리·채널은 OWNER·ADMIN 이 만들고 이름을 바꾸고 옮긴다. 카테고리를 지우면 안의 채널은 카테고리 밖으로 나온다.
+- 채널 개수 제한 없음.
+
 #### 요금제 · 결제 (토스페이먼츠 자동결제)
+
+**요금제는 워크스페이스마다** 붙는다 (슬랙·디스코드처럼). 결제는 워크스페이스 소유자가 하고, 그 워크스페이스의 멤버 전원이 플랜 기능을 쓴다.
 
 | | 무료 | Pro | Team | Business |
 |---|---|---|---|---|
 | 월 / 연(10% 할인) | 0 | 4,900 / 52,920 | 19,900 / 214,920 | 49,900 / 538,920 |
-| 만드는 팀(워크스페이스) | 1 | 3 | 3 | 10 |
-| 팀당 멤버 | 10 | 15 | 50 | 200 |
+| 워크스페이스 멤버 | 10 | 15 | 50 | 200 |
 | 회의당 인원 | 6 | 15 | 30 | 50 |
-| 팀당 그룹 채팅방 | 3 | 10 | 제한 없음 | 제한 없음 |
+| 채널 | 제한 없음 | 제한 없음 | 제한 없음 | 제한 없음 |
 | 녹화 | ✕ | ✕ | 50GB · 90일 | 200GB · 365일 |
 
-- 값은 전부 `plans` 테이블에 있다 (코드를 고치지 않고 바꿀 수 있음). 연 결제 금액은 `월 가격 × 12 × 0.9`.
-- **팀 = 워크스페이스.** 한도와 녹화는 팀 **소유자**의 지금 플랜을 따른다 (팀원은 무료 계정이어도 그 팀 안에서는 소유자 플랜 기능을 쓴다).
+- 값은 전부 `plans` 테이블에 있다 (코드를 고치지 않고 바꿀 수 있음). 연 결제 금액은 `월 가격 × 12 × 0.9`. `max_owned_teams` 는 더 쓰지 않는다.
+- 구독(`subscriptions`)의 `user_id` = 결제한 사람, `team_id` = 적용되는 워크스페이스. 워크스페이스를 지우면 남은 구독은 CANCELED (자동결제 멈춤).
 - 결제: 웹에서 토스 카드 등록창 → `authKey` 로 빌링키 발급(AES-GCM 으로 암호화해 저장) → 그 카드로 바로 결제. 한 사람당 카드 하나.
-- **여러 플랜을 동시에** 가질 수 있고(플랜마다 구독 하나), 기간이 남은 것 중 가장 높은 플랜이 적용된다. 같은 플랜을 다시 사면 남은 기간 뒤로 늘어난다.
+- 영수증: 결제 내역의 "영수증" 을 누르면 POS 영수증처럼 결제일시·주문번호·품목·공급가액(금액 × 10/11)·부가세·카드·승인번호를 보여 준다. 공식 매출전표는 토스 영수증 링크.
+- 한 워크스페이스가 **여러 플랜을 동시에** 가질 수 있고(플랜마다 구독 하나), 기간이 남은 것 중 가장 높은 플랜이 적용된다. 같은 플랜을 다시 사면 남은 기간 뒤로 늘어난다.
 - 자동결제(구독마다 켜고 끔): 켜져 있으면 기간이 끝날 때 다시 결제, 실패하면 하루 뒤 다시(3번 실패하면 만료, 그동안은 기능 유지). 꺼져 있으면 끝나기 3일 전에 알림·메일, 끝나면 만료.
 - 만료되면 알림·메일을 보내고, 웹·앱에 "플랜이 만료됐어요" 창을 띄운다. 만든 데이터는 지우지 않고 한도를 넘는 새 작업만 막는다.
 - 앱은 구독 상태·만료 창만 보여 주고 결제는 웹 요금제 화면으로 보낸다 (스토어 정책 검토 전).
@@ -292,11 +311,11 @@ DB 서버는 따로 두지 않는다. Render 같은 PaaS 는 WebRTC 미디어(UD
 
 | 기능 | 규칙 |
 |---|---|
-| 팀 | 만들 수 있는 팀 수 = 내 플랜 `max_owned_teams`. 만든 사람이 OWNER |
-| 회의 인원 | 한 회의에 함께 있을 수 있는 사람 = 팀 소유자 플랜 `max_meeting_participants`. 이미 들어와 있는 사람의 재접속은 막지 않음 |
-| 초대 | OWNER/ADMIN 이 이메일로 초대. 팀원 + 대기 중 초대 ≤ 팀 소유자 플랜 `max_members_per_team`. 7일 만료. 미가입자는 같은 이메일로 가입하면 초대가 보인다 |
+| 워크스페이스(팀) | 누구나 몇 개든 만들 수 있음. 만든 사람이 OWNER |
+| 회의 인원 | 한 회의에 함께 있을 수 있는 사람 = 워크스페이스 플랜 `max_meeting_participants`. 이미 들어와 있는 사람의 재접속은 막지 않음 |
+| 초대 | OWNER/ADMIN 이 이메일로 초대. 멤버 + 대기 중 초대 ≤ 워크스페이스 플랜 `max_members_per_team`. 7일 만료. 미가입자는 같은 이메일로 가입하면 초대가 보인다 |
 | 1:1 채팅 | **같은 팀 팀원끼리만**. 팀원이면 누구나 열 수 있고 두 사람당 방 하나 |
-| 그룹(1:N) 채팅 | **팀을 만든 사람(OWNER)만** 만들 수 있음. 팀당 `max_group_rooms_per_team` 개 (NULL = 제한 없음). 방 참여자는 다른 팀원을 초대할 수 있음 |
+| 채널(그룹 채팅) | **OWNER·ADMIN** 이 만들고 카테고리(부서)에 넣는다. 개수 제한 없음. 방 참여자는 다른 멤버를 초대할 수 있음 |
 | 회의 예약 | 팀원 중 참석자 선택(비우면 전체). 예약 시 알림, **시작 10분 전 알림**(30초 주기 스케줄러). 주최자는 언제든, 참석자는 10분 전부터 입장 |
 | 회의 종료 | 마지막 사람이 나가면 ENDED. 예정 시간 안이면 다시 들어와서 재개 가능. 입장만 하고 아무도 없는 회의는 예정 종료 후 자동 종료 |
 | 알림 | DB 에는 `type + params` 만 저장 → 클라이언트가 사용자 언어·시간대로 문장 생성. 접속 중이면 STOMP 로 즉시, 탭이 백그라운드면 브라우저 알림 |
@@ -346,8 +365,9 @@ com/webrtcmeetpro/
 | POST | `/api/sessions/web-handoff` | 앱 → 브라우저 로그인 넘기기용 60초 1회용 코드 (`/oauth/callback?code=…&next=…`) |
 | GET · PUT | `/api/users/me` · `/me/profile` | 내 정보 / 프로필(온보딩) |
 | POST · DELETE | `/api/users/me/profile-image` | 프로필 사진 (매직 바이트로 형식 판별) |
-| GET | `/api/plans` · `/api/subscriptions/me` | 플랜 / 내 구독(적용 중 플랜, 구독들, 만료 안내, 카드) |
-| POST · PATCH | `/api/subscriptions/purchase` · `/api/subscriptions/{id}` · `/{id}/acknowledge-expiry` | 결제(월/연, 자동결제) / 자동결제 켜고 끄기 / 만료 창 닫기 |
+| GET | `/api/plans` · `/api/teams/{id}/subscription` · `/api/subscriptions/notices` | 플랜 / 워크스페이스 요금제(적용 중 플랜, 구독들, 내 카드) / 내가 결제한 구독의 만료 안내 |
+| POST · PATCH | `/api/teams/{id}/subscription/purchase` · `/api/subscriptions/{id}` · `/{id}/acknowledge-expiry` | 워크스페이스 플랜 결제(소유자, 월/연, 자동결제) / 자동결제 켜고 끄기 / 만료 창 닫기 |
+| GET · POST · PATCH · DELETE | `/api/teams/{id}/chat/categories` · `/api/chat/categories/{id}` · PATCH `/api/chat/rooms/{id}` | 카테고리(부서) 목록·만들기·이름·지우기 / 채널 이름·카테고리 옮기기 |
 | POST · DELETE · GET | `/api/billing/card/prepare` · `/api/billing/card` · `/api/billing/payments` | 카드 등록창 값 / 카드 등록·삭제 / 결제 내역 |
 | POST · GET | `/api/teams` · `/api/teams/{id}` | 팀 만들기·목록·상세(팀원, 한도) |
 | POST · GET · DELETE | `/api/teams/{id}/invitations[/{invId}]` | 초대 보내기·목록·취소 |
@@ -411,6 +431,6 @@ apps/kmp/
 ## 다음 단계
 
 1. 앱: 화상회의 네이티브(WebRTC), 앱이 꺼져 있을 때 푸시(FCM), 구글 로그인
-2. 워크스페이스: 팀 고정 주소, 상시 회의방, Business 관리 기능(이메일 도메인 가입 제한, 관리 이력)
+2. 워크스페이스: 고정 주소, 채널 안 상시 회의방, 카테고리·채널 순서 끌어 옮기기, Business 관리 기능(이메일 도메인 가입 제한, 관리 이력)
 3. CloudFront (S3 재생 트래픽이 커지면), 회의당 인원 부하 테스트 후 조정
 4. 팀원 내보내기·역할 변경, 초대 메일 발송(SMTP)

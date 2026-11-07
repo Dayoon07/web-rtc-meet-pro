@@ -2,11 +2,12 @@ import { CreditCard, House, Mail, MessageSquare, Plus, Settings, Video, X } from
 import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink } from 'react-router'
-import { planName, useMySubscriptionQuery } from '@/entities/plan'
+import { planName } from '@/entities/plan'
 import { useMyInvitationsQuery, useTeamsQuery } from '@/entities/team'
+import { useMeQuery } from '@/entities/user'
 import { CreateTeamModal } from '@/features/create-team'
 import { cn } from '@/shared/lib/cn'
-import { IconButton, Logo, Progress } from '@/shared/ui'
+import { IconButton, Logo } from '@/shared/ui'
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -28,18 +29,17 @@ function NavItem({ to, icon, children, end, badge }: { to: string; icon: ReactNo
   )
 }
 
+/** 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다) */
 function PlanUsage() {
   const { t } = useTranslation()
-  const { data } = useMySubscriptionQuery()
-  if (!data) return null
+  const { data: me } = useMeQuery()
+  const { data: teams } = useTeamsQuery()
+  if (!me) return null
   return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-semibold text-gray-900 dark:text-white">{t('sidebar.planName', { name: planName(data.plan) })}</span>
-        <span className="text-xs text-gray-500">{t('sidebar.teamsUsage', { used: data.ownedTeams, max: data.plan.maxOwnedTeams })}</span>
-      </div>
-      <div className="mt-2.5">
-        <Progress value={data.ownedTeams} max={data.plan.maxOwnedTeams} />
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="truncate font-semibold text-gray-900 dark:text-white">{t('sidebar.planName', { name: planName(me.plan) })}</span>
+        <span className="shrink-0 text-xs text-gray-500">{t('sidebar.workspaces', { count: teams?.length ?? 0 })}</span>
       </div>
       <Link to="/app/billing" className="mt-3 inline-block text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300">
         {t('sidebar.upgrade')}

@@ -1,3 +1,4 @@
+/** 요금제. 워크스페이스(팀)마다 따로 붙는다 */
 export type Plan = {
   code: string
   name: string
@@ -5,9 +6,8 @@ export type Plan = {
   monthlyPrice: number
   /** 연 결제 금액 (월 가격 × 12 × 0.9) */
   yearlyPrice: number
-  maxOwnedTeams: number
   maxMembersPerTeam: number
-  /** null = 제한 없음 */
+  /** 워크스페이스당 채널 수. null = 제한 없음 */
   maxGroupRoomsPerTeam: number | null
   maxMeetingParticipants: number
   recordingEnabled: boolean
@@ -32,21 +32,36 @@ export type SubscriptionItem = {
   inUse: boolean
   failedAttempts: number
   nextRetryAt: string | null
+  /** 내가 결제한 구독 (자동결제를 켜고 끌 수 있다) */
+  mine: boolean
 }
 
-export type ExpiryNotice = { subscriptionId: number; plan: Plan; expiredAt: string | null }
+/** 아직 확인하지 않은 만료 → "플랜이 만료됐어요" 창 */
+export type ExpiryNotice = {
+  subscriptionId: number
+  plan: Plan
+  expiredAt: string | null
+  teamId: number | null
+  teamName: string | null
+  /** 그 워크스페이스에 지금 적용 중인 플랜 */
+  currentPlan: Plan
+}
 
 export type Card = { company: string | null; numberMasked: string | null; registeredAt: string }
 
+/** 워크스페이스 하나의 요금제 상태 (GET /teams/{id}/subscription) */
 export type Subscription = {
+  team: { id: number; name: string }
   /** 지금 적용 중인 플랜 (유료 구독이 없으면 FREE) */
   plan: Plan
   status: SubscriptionStatus
   startedAt: string | null
   currentPeriodEnd: string | null
-  ownedTeams: number
+  memberCount: number
   subscriptions: SubscriptionItem[]
-  expiryNotice: ExpiryNotice | null
+  /** 결제할 수 있는 사람 (워크스페이스 소유자) */
+  canManage: boolean
+  /** 내가 등록한 카드 */
   card: Card | null
   paymentsEnabled: boolean
 }
@@ -55,17 +70,27 @@ export type CardRegistration = { clientKey: string; customerKey: string; custome
 
 export type PaymentStatus = 'READY' | 'DONE' | 'CANCELED' | 'FAILED' | 'ABORTED'
 
+/** 결제 내역 한 줄 + 영수증 */
 export type Payment = {
   orderId: string
   orderName: string
   planCode: string
+  planName: string
   amount: number
+  /** 공급가액 = 금액 × 10/11, 부가세 = 금액 - 공급가액 */
+  supplyAmount: number
+  vat: number
   status: PaymentStatus
   billingCycle: BillingCycle | null
   method: string | null
+  cardCompany: string | null
+  cardNumberMasked: string | null
+  approveNo: string | null
   receiptUrl: string | null
   failureMessage: string | null
   approvedAt: string | null
   periodEnd: string | null
   createdAt: string
+  teamId: number | null
+  teamName: string | null
 }

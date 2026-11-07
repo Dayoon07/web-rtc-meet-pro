@@ -37,7 +37,18 @@ data class OpenDirectRequest(@field:NotNull val userId: Long?)
 data class CreateGroupRequest(
     @field:NotBlank @field:Size(max = 100) val name: String,
     @field:Size(max = 200) val memberIds: List<Long> = emptyList(),
+    /** 넣을 카테고리(부서). 없으면 카테고리 밖 */
+    val categoryId: Long? = null,
 )
+
+/** 채널 고치기: name 이 있으면 이름 바꾸기, moveCategory=true 면 categoryId 로 옮기기 (null = 카테고리 밖) */
+data class UpdateChannelRequest(
+    @field:Size(max = 100) val name: String? = null,
+    val categoryId: Long? = null,
+    val moveCategory: Boolean = false,
+)
+
+data class CategoryRequest(@field:NotBlank @field:Size(max = 50) val name: String)
 data class InviteMembersRequest(@field:Size(min = 1, max = 200) val userIds: List<Long>)
 data class SendMessageRequest(@field:NotBlank @field:Size(max = 4000) val content: String)
 data class MarkReadRequest(@field:NotNull val messageId: Long?)
@@ -60,7 +71,28 @@ class ChatController(private val chat: ChatService) {
     @PostMapping("/teams/{teamId}/chat/rooms/group")
     @ResponseStatus(HttpStatus.CREATED)
     fun createGroup(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: CreateGroupRequest) =
-        chat.createGroup(teamId, jwt.userId, req.name, req.memberIds)
+        chat.createGroup(teamId, jwt.userId, req.name, req.memberIds, req.categoryId)
+
+    @PatchMapping("/chat/rooms/{roomId}")
+    fun updateChannel(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: UpdateChannelRequest) =
+        chat.updateChannel(roomId, jwt.userId, req.name, req.categoryId, req.moveCategory)
+
+    /** 카테고리(부서) 목록 · 만들기 · 이름 바꾸기 · 지우기 (지워도 안의 채널은 남는다) */
+    @GetMapping("/teams/{teamId}/chat/categories")
+    fun categories(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = chat.categories(teamId, jwt.userId)
+
+    @PostMapping("/teams/{teamId}/chat/categories")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: CategoryRequest) =
+        chat.createCategory(teamId, jwt.userId, req.name)
+
+    @PatchMapping("/chat/categories/{categoryId}")
+    fun renameCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable categoryId: Long, @Valid @RequestBody req: CategoryRequest) =
+        chat.renameCategory(categoryId, jwt.userId, req.name)
+
+    @DeleteMapping("/chat/categories/{categoryId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable categoryId: Long) = chat.deleteCategory(categoryId, jwt.userId)
 
     @GetMapping("/chat/rooms/{roomId}")
     fun room(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long) = chat.room(roomId, jwt.userId)

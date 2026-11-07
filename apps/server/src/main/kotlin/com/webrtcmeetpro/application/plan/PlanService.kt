@@ -11,6 +11,9 @@ import com.webrtcmeetpro.domain.plan.PlanRepository
 import com.webrtcmeetpro.domain.plan.Subscription
 import com.webrtcmeetpro.domain.plan.SubscriptionRepository
 import com.webrtcmeetpro.domain.plan.SubscriptionStatus
+import com.webrtcmeetpro.domain.team.Team
+import com.webrtcmeetpro.domain.team.TeamMemberRepository
+import com.webrtcmeetpro.domain.team.TeamMemberStatus
 import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.team.TeamStatus
 import org.springframework.stereotype.Service
@@ -24,9 +27,8 @@ data class PlanView(
     val monthlyPrice: Long,
     /** 연 결제 금액 (월 가격 × 12 × 0.9) */
     val yearlyPrice: Long,
-    val maxOwnedTeams: Int,
     val maxMembersPerTeam: Int,
-    /** null = 제한 없음 */
+    /** 워크스페이스당 채널 수. null = 제한 없음 */
     val maxGroupRoomsPerTeam: Int?,
     val maxMeetingParticipants: Int,
     val recordingEnabled: Boolean,
@@ -42,7 +44,6 @@ data class PlanView(
             description = plan.description,
             monthlyPrice = plan.monthlyPrice,
             yearlyPrice = plan.price(BillingCycle.YEARLY),
-            maxOwnedTeams = plan.maxOwnedTeams,
             maxMembersPerTeam = plan.maxMembersPerTeam,
             maxGroupRoomsPerTeam = plan.maxGroupRoomsPerTeam,
             maxMeetingParticipants = plan.maxMeetingParticipants,
@@ -54,7 +55,7 @@ data class PlanView(
     }
 }
 
-/** 유료 구독 하나 (기간이 남았거나 자동결제를 다시 시도 중인 것) */
+/** 워크스페이스의 유료 구독 하나 (기간이 남았거나 자동결제를 다시 시도 중인 것) */
 data class SubscriptionItemView(
     val id: Long,
     val plan: PlanView,
@@ -67,34 +68,50 @@ data class SubscriptionItemView(
     val inUse: Boolean,
     val failedAttempts: Int,
     val nextRetryAt: LocalDateTime?,
+    /** 보는 사람이 결제한 구독인지 (자동결제를 켜고 끌 수 있는 사람) */
+    val mine: Boolean,
 )
 
-/** 아직 사용자가 확인하지 않은 만료 → 웹·앱이 "플랜이 만료됐어요" 창을 띄운다 */
-data class ExpiryNoticeView(val subscriptionId: Long, val plan: PlanView, val expiredAt: LocalDateTime?)
+/** 아직 확인하지 않은 만료 → 웹·앱이 "플랜이 만료됐어요" 창을 띄운다 */
+data class ExpiryNoticeView(
+    val subscriptionId: Long,
+    val plan: PlanView,
+    val expiredAt: LocalDateTime?,
+    val teamId: Long?,
+    val teamName: String?,
+    /** 그 워크스페이스에 지금 적용 중인 플랜 */
+    val currentPlan: PlanView,
+)
 
 data class CardView(val company: String?, val numberMasked: String?, val registeredAt: LocalDateTime)
 
+data class WorkspaceRef(val id: Long, val name: String)
+
+/** 워크스페이스 하나의 요금제 상태 */
 data class SubscriptionView(
+    val team: WorkspaceRef,
     /** 지금 적용 중인 플랜 (유료 구독이 없으면 FREE) */
     val plan: PlanView,
     val status: SubscriptionStatus,
     val startedAt: LocalDateTime?,
     /** 적용 중인 구독의 기간 끝 (FREE 는 null) */
     val currentPeriodEnd: LocalDateTime?,
-    val ownedTeams: Long,
+    val memberCount: Long,
     val subscriptions: List<SubscriptionItemView>,
-    val expiryNotice: ExpiryNoticeView?,
-    /** 자동결제에 등록한 카드 */
+    /** 결제할 수 있는 사람 (워크스페이스 소유자) */
+    val canManage: Boolean,
+    /** 보는 사람이 등록한 카드 */
     val card: CardView?,
     /** 토스 키가 설정돼 있어서 결제할 수 있는지 */
     val paymentsEnabled: Boolean,
 )
 
 /**
- * 요금제와 구독.
- * - 플랜마다 구독을 따로 가질 수 있고, 기간이 남은 것 중 가장 높은 플랜(sort_order)을 쓴다. 없으면 FREE.
- * - 팀·채팅방·초대·회의 인원·녹화 한도는 팀 "소유자" 의 지금 플랜으로 판단한다.
- * - 결제는 BillingService(토스 자동결제) 가 하고, 결제가 성공하면 [applyPurchase] 로 기간을 늘린다.
+ * 요금제와 구독. **요금제는 워크스페이스(팀)마다** 붙는다 (슬랙·디스코드처럼).
+ * - 워크스페이스는 몇 개든 만들 수 있고, 처음엔 FREE.
+ * - 한 워크스페이스가 여러 플랜을 동시에 가질 수 있고, 기간이 남은 것 중 가장 높은 플랜을 쓴다.
+ * - 멤버 수·회의 인원·녹화·채널 한도는 그 워크스페이스의 지금 플랜으로 판단한다.
+ * - 결제는 워크스페이스 소유자가 하고(BillingService), 성공하면 [applyPurchase] 로 기간을 늘린다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -102,6 +119,7 @@ class PlanService(
     private val planRepository: PlanRepository,
     private val subscriptionRepository: SubscriptionRepository,
     private val teamRepository: TeamRepository,
+    private val teamMemberRepository: TeamMemberRepository,
     private val billingKeyRepository: BillingKeyRepository,
     private val tossProperties: TossProperties,
 ) {
@@ -112,17 +130,27 @@ class PlanService(
     fun findPlan(code: String): Plan =
         planRepository.findByCode(code)?.takeIf { it.active } ?: throw BusinessException(ErrorCode.PLAN_NOT_FOUND)
 
-    /** 지금 쓸 수 있는 플랜 (한도 체크용). 유료 구독이 다 끝났으면 FREE */
-    fun currentPlanOf(userId: Long, now: LocalDateTime = LocalDateTime.now()): Plan =
-        inUse(userId, now)?.second ?: freePlan()
+    /** 워크스페이스에 지금 적용 중인 플랜 (한도 체크용). 유료 구독이 다 끝났으면 FREE */
+    fun planOfTeam(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Plan =
+        inUse(liveOf(teamId), now)?.second ?: freePlan()
 
-    fun mySubscription(userId: Long, now: LocalDateTime = LocalDateTime.now()): SubscriptionView {
-        val live = liveSubscriptions(userId)
-        val current = inUse(userId, now, live)
+    /** 내가 만든 워크스페이스 중 가장 높은 플랜 (내 정보 화면 표시용) */
+    fun bestOwnedPlan(userId: Long, now: LocalDateTime = LocalDateTime.now()): Plan {
+        val owned = ownedTeams(userId).map { it.id!! }
+        if (owned.isEmpty()) return freePlan()
+        val live = subscriptionRepository.findAllByTeamIdInAndStatusIn(owned, LIVE)
+        return inUse(live, now)?.second ?: freePlan()
+    }
+
+    /** 워크스페이스 요금제 화면. 멤버면 볼 수 있고, 결제는 소유자만 */
+    fun workspaceSubscription(teamId: Long, viewerId: Long, now: LocalDateTime = LocalDateTime.now()): SubscriptionView {
+        val team = requireMemberTeam(teamId, viewerId)
+        val live = liveOf(teamId)
+        val current = inUse(live, now)
         val plans = mutableMapOf<Long, Plan>()
-        fun planOf(id: Long) = plans.getOrPut(id) { planRepository.findPlanById(id) ?: freePlan() }
+        fun planOf(id: Long) = plans.getOrPut(id) { planById(id) }
 
-        val paid = live.filter { it.currentPeriodEnd != null }
+        val items = live.filter { it.currentPeriodEnd != null }
             .sortedWith(compareByDescending<Subscription> { planOf(it.planId).sortOrder }.thenBy { it.currentPeriodEnd })
             .map {
                 SubscriptionItemView(
@@ -136,58 +164,80 @@ class PlanService(
                     inUse = it.id == current?.first?.id,
                     failedAttempts = it.failedAttempts,
                     nextRetryAt = it.nextRetryAt,
+                    mine = it.userId == viewerId,
                 )
             }
-        val notice = subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.EXPIRED))
-            .filter { it.expiryAcknowledgedAt == null && it.expiredAt?.isAfter(now.minusDays(NOTICE_DAYS)) == true }
-            .maxByOrNull { it.expiredAt!! }
-            ?.let { ExpiryNoticeView(it.id!!, PlanView.from(planOf(it.planId)), it.expiredAt) }
-
         return SubscriptionView(
+            team = WorkspaceRef(team.id!!, team.name),
             plan = PlanView.from(current?.second ?: freePlan()),
             status = current?.first?.status ?: SubscriptionStatus.ACTIVE,
             startedAt = current?.first?.startedAt,
             currentPeriodEnd = current?.first?.currentPeriodEnd,
-            ownedTeams = teamRepository.countByOwnerIdAndStatus(userId, TeamStatus.ACTIVE),
-            subscriptions = paid,
-            expiryNotice = notice,
-            card = billingKeyRepository.findByUserIdAndActiveTrue(userId)?.let(::cardView),
+            memberCount = teamMemberRepository.countByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE),
+            subscriptions = items,
+            canManage = team.ownerId == viewerId,
+            card = billingKeyRepository.findByUserIdAndActiveTrue(viewerId)?.let(::cardView),
             paymentsEnabled = tossProperties.enabled,
         )
     }
 
-    /** 회원가입 직후 FREE 구독 생성 (기간 없음) */
+    /** 내가 결제한 구독 중 아직 확인하지 않은 만료 (최근 30일). 가장 최근 것부터 */
+    fun expiryNotices(userId: Long, now: LocalDateTime = LocalDateTime.now()): List<ExpiryNoticeView> =
+        subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.EXPIRED))
+            .filter { it.expiryAcknowledgedAt == null && it.expiredAt?.isAfter(now.minusDays(NOTICE_DAYS)) == true }
+            .sortedByDescending { it.expiredAt }
+            .map {
+                val team = it.teamId?.let(teamRepository::findTeamById)
+                ExpiryNoticeView(
+                    subscriptionId = it.id!!,
+                    plan = PlanView.from(planById(it.planId)),
+                    expiredAt = it.expiredAt,
+                    teamId = team?.id,
+                    teamName = team?.name,
+                    currentPlan = PlanView.from(team?.id?.let { id -> planOfTeam(id, now) } ?: freePlan()),
+                )
+            }
+
+    /** 회원가입 직후 FREE 구독 생성 (기간 없음, 어디에도 적용 안 됨 — 예전 구조와 맞추려고 남겨 둔다) */
     @Transactional
     fun startFreeSubscription(userId: Long): Subscription =
         subscriptionRepository.save(Subscription(userId = userId, planId = freePlan().id!!))
 
     /**
-     * 결제가 성공한 뒤 구독 기간을 늘린다. 같은 플랜 구독이 살아 있으면 그 뒤에 이어 붙이고, 없으면 오늘부터 새 구독.
+     * 결제가 성공한 뒤 워크스페이스의 구독 기간을 늘린다. 같은 플랜 구독이 살아 있으면 그 뒤에 이어 붙이고, 없으면 오늘부터 새 구독.
      * 다른 플랜 구독은 건드리지 않는다 (높은 플랜이 끝나면 남은 낮은 플랜으로 돌아간다).
      */
     @Transactional
-    fun applyPurchase(userId: Long, plan: Plan, cycle: BillingCycle, autoRenew: Boolean, now: LocalDateTime = LocalDateTime.now()): Subscription {
-        val live = liveSubscriptions(userId)
-        val subscription = live.firstOrNull { it.planId == plan.id && it.currentPeriodEnd != null }
-            ?: Subscription(userId = userId, planId = plan.id!!, startedAt = now, autoRenew = autoRenew, billingCycle = cycle)
+    fun applyPurchase(
+        teamId: Long,
+        payerId: Long,
+        plan: Plan,
+        cycle: BillingCycle,
+        autoRenew: Boolean,
+        now: LocalDateTime = LocalDateTime.now(),
+    ): Subscription {
+        val subscription = liveOf(teamId).firstOrNull { it.planId == plan.id && it.currentPeriodEnd != null }
+            ?: Subscription(userId = payerId, planId = plan.id!!, startedAt = now, autoRenew = autoRenew, billingCycle = cycle, teamId = teamId)
         subscription.extend(cycle, now)
         subscription.autoRenew = autoRenew
         // 같은 플랜을 다시 결제했으면 그 플랜의 만료 안내는 필요 없다
-        subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.EXPIRED))
+        subscriptionRepository.findAllByTeamIdAndStatusIn(teamId, listOf(SubscriptionStatus.EXPIRED))
             .filter { it.planId == plan.id && it.expiryAcknowledgedAt == null }
             .forEach { it.acknowledgeExpiry(now) }
         return subscriptionRepository.save(subscription)
     }
 
-    /** 자동결제 켜기·끄기. 끄면 기간이 끝날 때 결제하지 않고 만료된다. 켜려면 카드가 있어야 한다 */
+    /** 자동결제 켜기·끄기 (결제한 사람만). 끄면 기간이 끝날 때 결제하지 않고 만료된다. 켜려면 카드가 있어야 한다 */
     @Transactional
     fun setAutoRenew(userId: Long, subscriptionId: Long, autoRenew: Boolean): SubscriptionView {
-        val subscription = ownedLive(userId, subscriptionId)
+        val subscription = subscriptionRepository.findSubscriptionById(subscriptionId)
+            ?.takeIf { it.userId == userId && it.isLive && it.currentPeriodEnd != null && it.teamId != null }
+            ?: throw BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND)
         if (autoRenew && billingKeyRepository.findByUserIdAndActiveTrue(userId) == null) {
             throw BusinessException(ErrorCode.BILLING_CARD_REQUIRED)
         }
         subscription.autoRenew = autoRenew
-        return mySubscription(userId)
+        return workspaceSubscription(subscription.teamId!!, userId)
     }
 
     /** "플랜이 만료됐어요" 창을 닫음 */
@@ -198,25 +248,44 @@ class PlanService(
         subscription.acknowledgeExpiry()
     }
 
+    /** 워크스페이스를 지우면 남은 구독도 끝낸다 (자동결제 멈춤) */
+    @Transactional
+    fun cancelTeamSubscriptions(teamId: Long) {
+        liveOf(teamId).forEach { it.cancel() }
+    }
+
+    /** 결제할 수 있는 사람인지: 워크스페이스 소유자 */
+    fun requireOwnedTeam(teamId: Long, userId: Long): Team {
+        val team = teamRepository.findTeamById(teamId)?.takeIf { it.status == TeamStatus.ACTIVE } ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        if (team.ownerId != userId) throw BusinessException(ErrorCode.NOT_TEAM_OWNER)
+        return team
+    }
+
     fun planById(id: Long): Plan = planRepository.findPlanById(id) ?: freePlan()
 
     fun cardView(key: BillingKey) = CardView(key.cardCompany, key.cardNumberMasked, key.createdDt)
 
     // ---------------------------------------------------------------
 
-    private fun liveSubscriptions(userId: Long) =
-        subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE))
+    private fun liveOf(teamId: Long) = subscriptionRepository.findAllByTeamIdAndStatusIn(teamId, LIVE)
+
+    private fun ownedTeams(userId: Long): List<Team> {
+        val memberships = teamMemberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).map { it.teamId }
+        return teamRepository.findAllByIdInAndStatus(memberships, TeamStatus.ACTIVE).filter { it.ownerId == userId }
+    }
+
+    private fun requireMemberTeam(teamId: Long, userId: Long): Team {
+        val team = teamRepository.findTeamById(teamId)?.takeIf { it.status == TeamStatus.ACTIVE } ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        val member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+        if (member?.status != TeamMemberStatus.ACTIVE) throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        return team
+    }
 
     /** 지금 적용 중인 (구독, 플랜). 쓸 수 있는 구독 중 가장 높은 플랜 */
-    private fun inUse(userId: Long, now: LocalDateTime, live: List<Subscription> = liveSubscriptions(userId)): Pair<Subscription, Plan>? =
-        live.filter { it.isUsable(now) }
+    private fun inUse(live: List<Subscription>, now: LocalDateTime): Pair<Subscription, Plan>? =
+        live.filter { it.isUsable(now) && it.currentPeriodEnd != null }
             .mapNotNull { s -> planRepository.findPlanById(s.planId)?.let { s to it } }
-            .maxWithOrNull(compareBy<Pair<Subscription, Plan>> { it.second.sortOrder }.thenBy { it.first.currentPeriodEnd ?: LocalDateTime.MAX })
-
-    private fun ownedLive(userId: Long, subscriptionId: Long): Subscription =
-        subscriptionRepository.findSubscriptionById(subscriptionId)
-            ?.takeIf { it.userId == userId && it.isLive && it.currentPeriodEnd != null }
-            ?: throw BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND)
+            .maxWithOrNull(compareBy<Pair<Subscription, Plan>> { it.second.sortOrder }.thenBy { it.first.currentPeriodEnd })
 
     private fun freePlan(): Plan =
         planRepository.findByCode(Plan.FREE_CODE)
@@ -225,5 +294,6 @@ class PlanService(
     companion object {
         /** 이 기간 안에 끝난 구독만 만료 창으로 알린다 */
         const val NOTICE_DAYS = 30L
+        private val LIVE = listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE)
     }
 }

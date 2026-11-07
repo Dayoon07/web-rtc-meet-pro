@@ -20,7 +20,14 @@ class TossException(val code: String, override val message: String, val uncertai
 
 data class TossBilling(val billingKey: String, val cardCompany: String?, val cardNumber: String?)
 
-data class TossPayment(val paymentKey: String, val method: String?, val receiptUrl: String?)
+data class TossPayment(
+    val paymentKey: String,
+    val method: String?,
+    val receiptUrl: String?,
+    val cardCompany: String? = null,
+    val cardNumber: String? = null,
+    val approveNo: String? = null,
+)
 
 /**
  * 토스페이먼츠 자동결제 API (https://docs.tosspayments.com/reference).
@@ -55,10 +62,14 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         }
         val body = post("/v1/billing/${URLEncoder.encode(billingKey, Charsets.UTF_8)}", payload, orderId)
         if (body["status"] != "DONE") throw TossException(body["status"] as? String ?: "UNKNOWN", "결제가 완료되지 않았어요.")
+        val card = body["card"] as? Map<*, *>
         return TossPayment(
             paymentKey = body["paymentKey"] as String,
             method = body["method"] as? String,
             receiptUrl = (body["receipt"] as? Map<*, *>)?.get("url") as? String,
+            cardCompany = (card?.get("issuerCode") as? String)?.let(::issuerName),
+            cardNumber = card?.get("number") as? String,
+            approveNo = card?.get("approveNo") as? String,
         )
     }
 

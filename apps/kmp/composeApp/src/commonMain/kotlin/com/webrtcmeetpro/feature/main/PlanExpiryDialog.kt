@@ -18,7 +18,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.webrtcmeetpro.core.model.Subscription
+import com.webrtcmeetpro.core.model.ExpiryNotice
 import com.webrtcmeetpro.core.network.ApiConfig
 import com.webrtcmeetpro.core.network.LimeetApi
 import com.webrtcmeetpro.resources.Res
@@ -37,18 +37,18 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-/** 앱으로 돌아올 때마다 구독을 확인해서, 확인하지 않은 만료가 있으면 창을 띄운다 */
+/** 앱으로 돌아올 때마다 내가 결제한 워크스페이스 플랜의 만료를 확인해서, 확인하지 않은 것이 있으면 창을 띄운다 */
 class PlanExpiryViewModel(private val api: LimeetApi) : ViewModel() {
-    private val _subscription = MutableStateFlow<Subscription?>(null)
-    val subscription: StateFlow<Subscription?> = _subscription.asStateFlow()
+    private val _notices = MutableStateFlow<List<ExpiryNotice>>(emptyList())
+    val notices: StateFlow<List<ExpiryNotice>> = _notices.asStateFlow()
 
     fun refresh() {
-        viewModelScope.launch { runCatching { api.mySubscription() }.onSuccess { _subscription.value = it } }
+        viewModelScope.launch { runCatching { api.expiryNotices() }.onSuccess { _notices.value = it } }
     }
 
     fun acknowledge() {
-        val notice = _subscription.value?.expiryNotice ?: return
-        _subscription.value = _subscription.value?.copy(expiryNotice = null)
+        val notice = _notices.value.firstOrNull() ?: return
+        _notices.value = _notices.value.drop(1)
         viewModelScope.launch { runCatching { api.acknowledgeExpiry(notice.subscriptionId) } }
     }
 }
@@ -63,23 +63,24 @@ fun PlanExpiryDialog(viewModel: PlanExpiryViewModel = koinViewModel()) {
         viewModel.refresh()
         onPauseOrDispose { }
     }
-    val subscription by viewModel.subscription.collectAsStateWithLifecycle()
-    val notice = subscription?.expiryNotice ?: return
+    val notices by viewModel.notices.collectAsStateWithLifecycle()
+    val notice = notices.firstOrNull() ?: return
     val config = koinInject<ApiConfig>()
     val uriHandler = LocalUriHandler.current
-    val onFree = subscription?.plan?.monthlyPrice == 0L
+    val current = notice.currentPlan
+    val onFree = current == null || current.monthlyPrice == 0L
     val date = notice.expiredAt?.take(10) ?: ""
 
     AlertDialog(
         onDismissRequest = viewModel::acknowledge,
         icon = { Icon(Icons.Outlined.EventBusy, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-        title = { Text(stringResource(Res.string.plan_expired_title, notice.plan.name)) },
+        title = { Text(stringResource(Res.string.plan_expired_title, notice.plan.name) + (notice.teamName?.let { " · $it" } ?: "")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(Res.string.plan_expired_body, notice.plan.name, date))
                 Text(
                     if (onFree) stringResource(Res.string.plan_expired_now_free)
-                    else stringResource(Res.string.plan_expired_now_other, subscription?.plan?.name ?: ""),
+                    else stringResource(Res.string.plan_expired_now_other, current?.name ?: ""),
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(stringResource(Res.string.plan_expired_data_kept), style = MaterialTheme.typography.bodySmall)
@@ -88,7 +89,7 @@ fun PlanExpiryDialog(viewModel: PlanExpiryViewModel = koinViewModel()) {
         confirmButton = {
             TextButton(onClick = {
                 viewModel.acknowledge()
-                uriHandler.openUri(config.webUrl.trimEnd('/') + "/app/billing")
+                uriHandler.openUri(config.webUrl.trimEnd('/') + "/app/billing" + (notice.teamId?.let { "?team=$it" } ?: ""))
             }) { Text(stringResource(Res.string.plan_expired_renew)) }
         },
         dismissButton = { TextButton(onClick = viewModel::acknowledge) { Text(stringResource(Res.string.plan_expired_later)) } },

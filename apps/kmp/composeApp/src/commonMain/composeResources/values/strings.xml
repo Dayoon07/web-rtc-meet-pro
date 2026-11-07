@@ -6,7 +6,7 @@
     <string name="common_see_all">See all</string>
 
     <string name="nav_home">Home</string>
-    <string name="nav_teams">Teams</string>
+    <string name="nav_teams">Workspaces</string>
     <string name="nav_meetings">Meetings</string>
     <string name="nav_settings">Settings</string>
 
@@ -26,15 +26,15 @@
     <string name="error_UNKNOWN">Something went wrong. Please try again.</string>
 
     <string name="home_greeting">Hi, %1$s</string>
-    <string name="home_subtitle">Here is what is coming up for your teams.</string>
+    <string name="home_subtitle">Here is what is coming up for your workspaces.</string>
     <string name="home_upcoming">Upcoming meetings</string>
-    <string name="home_my_teams">My teams</string>
+    <string name="home_my_teams">My workspaces</string>
     <string name="home_no_meetings">No upcoming meetings</string>
     <string name="home_no_meetings_body">Scheduled meetings will show up here.</string>
-    <string name="home_no_teams">You are not in any team yet</string>
-    <string name="home_no_teams_body">Create a team or accept an invitation on the web.</string>
+    <string name="home_no_teams">You are not in any workspace yet</string>
+    <string name="home_no_teams_body">Create a workspace or accept an invitation on the web.</string>
 
-    <string name="teams_title">Teams</string>
+    <string name="teams_title">Workspaces</string>
     <string name="teams_members">%1$d members</string>
     <string name="role_OWNER">Owner</string>
     <string name="role_ADMIN">Admin</string>
@@ -75,8 +75,8 @@
     <string name="chat_group">Group</string>
     <string name="chat_group_name">Room name</string>
     <string name="chat_group_create">Create group</string>
-    <string name="chat_group_owner_only">Only the team owner can create group chats.</string>
-    <string name="chat_no_teammates">There are no other members in this team yet. Invite teammates first.</string>
+    <string name="chat_group_owner_only">Only the workspace owner or admins can create channels.</string>
+    <string name="chat_no_teammates">There are no other members in this workspace yet. Invite members first.</string>
     <string name="chat_members">%1$d members</string>
     <string name="chat_invite">Invite</string>
     <string name="chat_invite_none">Every teammate is already in this room.</string>
@@ -89,11 +89,11 @@
     <string name="error_INVALID_PHONE">Check the phone number format.</string>
     <string name="error_INVALID_INPUT">Please check what you entered.</string>
     <string name="error_FORBIDDEN">You do not have permission to do this.</string>
-    <string name="error_PLAN_TEAM_LIMIT">You reached the team limit of your plan.</string>
-    <string name="error_PLAN_MEMBER_LIMIT">This team reached the member limit of its plan.</string>
-    <string name="error_PLAN_GROUP_ROOM_LIMIT">This team reached the group chat limit of its plan.</string>
+    <string name="error_PLAN_TEAM_LIMIT">You reached the workspace limit of your plan.</string>
+    <string name="error_PLAN_MEMBER_LIMIT">This workspace reached the member limit of its plan.</string>
+    <string name="error_PLAN_GROUP_ROOM_LIMIT">This workspace reached the group chat limit of its plan.</string>
     <string name="error_CANNOT_INVITE_SELF">You cannot invite yourself.</string>
-    <string name="error_ALREADY_TEAM_MEMBER">This person is already a team member.</string>
+    <string name="error_ALREADY_TEAM_MEMBER">This person is already a member.</string>
     <string name="error_INVITATION_ALREADY_PENDING">An invitation was already sent to this email.</string>
     <string name="error_MEETING_TIME_IN_PAST">You cannot schedule a meeting in the past.</string>
     <string name="error_MEETING_NOT_JOINABLE">You cannot join this meeting right now.</string>
@@ -102,8 +102,8 @@
     <string name="invitation_accept">Accept</string>
     <string name="invitation_decline">Decline</string>
     <string name="invitation_expires">Expires %1$s</string>
-    <string name="team_create">Create team</string>
-    <string name="team_name">Team name</string>
+    <string name="team_create">Create workspace</string>
+    <string name="team_name">Workspace name</string>
     <string name="team_description">Description (optional)</string>
     <string name="team_invite">Invite</string>
     <string name="team_invite_email">Email to invite</string>
@@ -111,13 +111,13 @@
     <string name="team_members_limit">Members %1$d / %2$d</string>
     <string name="team_pending">Pending invitations</string>
     <string name="meeting_schedule">New meeting</string>
-    <string name="meeting_team">Team</string>
+    <string name="meeting_team">Workspace</string>
     <string name="meeting_title_label">Meeting title</string>
     <string name="meeting_description">Agenda (optional)</string>
     <string name="meeting_start_now">Start now</string>
     <string name="meeting_when">Date</string>
     <string name="meeting_invitees">Invitees</string>
-    <string name="meeting_invitees_hint">If you select no one, the whole team is invited.</string>
+    <string name="meeting_invitees_hint">If you select no one, the whole workspace is invited.</string>
     <string name="meeting_submit">Schedule</string>
     <string name="meeting_join">Join meeting</string>
     <string name="meeting_join_soon">You can join 10 minutes before the start</string>
@@ -128,8 +128,8 @@
     <string name="notif_title">Notifications</string>
     <string name="notif_empty">No notifications</string>
     <string name="notif_mark_all">Mark all read</string>
-    <string name="notif_TEAM_INVITATION">%1$s invited you to the %2$s team</string>
-    <string name="notif_TEAM_INVITATION_ACCEPTED">%1$s joined the %2$s team</string>
+    <string name="notif_TEAM_INVITATION">%1$s invited you to the %2$s workspace</string>
+    <string name="notif_TEAM_INVITATION_ACCEPTED">%1$s joined the %2$s workspace</string>
     <string name="notif_CHAT_ROOM_INVITED">%1$s invited you to the chat room “%2$s”</string>
     <string name="notif_MEETING_SCHEDULED">%1$s · “%2$s” is scheduled for %3$s</string>
     <string name="notif_MEETING_REMINDER">“%1$s” starts soon (%2$s)</string>
@@ -186,24 +186,24 @@
     <string name="error_FILE_TOO_LARGE">Each file can be up to 20 MB, and up to 50 MB in total at once.</string>
     <string name="error_BLOCKED_FILE_TYPE">For security, executable files (.exe and similar) cannot be sent.</string>
     <string name="error_EMPTY_FILE">Empty files cannot be sent.</string>
-    <string name="team_leave">Leave team</string>
+    <string name="team_leave">Leave workspace</string>
     <string name="team_leave_confirm">Leave “%1$s”? You will also leave its chat rooms.</string>
-    <string name="team_delete">Delete team</string>
-    <string name="team_delete_body">Deleting the team cancels scheduled meetings and removes its chat rooms and pending invitations. This cannot be undone.</string>
-    <string name="team_delete_confirm_label">Type the team name to confirm</string>
+    <string name="team_delete">Delete workspace</string>
+    <string name="team_delete_body">Deleting the workspace cancels scheduled meetings and removes its chat rooms and pending invitations. This cannot be undone.</string>
+    <string name="team_delete_confirm_label">Type the workspace name to confirm</string>
     <string name="team_remove">Remove</string>
-    <string name="team_remove_confirm">Remove %1$s from the team?</string>
-    <string name="team_removed">Removed %1$s from the team</string>
+    <string name="team_remove_confirm">Remove %1$s from the workspace?</string>
+    <string name="team_removed">Removed %1$s from the workspace</string>
     <string name="settings_withdraw">Delete account</string>
     <string name="settings_withdraw_title">Delete your account?</string>
-    <string name="settings_withdraw_body">Your profile will be erased and you will leave all teams and chat rooms. Messages you sent will remain as “Deleted user”. If you own any teams, delete them first.</string>
+    <string name="settings_withdraw_body">Your profile will be erased and you will leave all workspaces and chat rooms. Messages you sent will remain as “Deleted user”. If you own any workspaces, delete them first.</string>
     <string name="settings_withdraw_password">Password</string>
     <string name="settings_withdraw_confirm">Type “%1$s” to confirm</string>
     <string name="settings_withdraw_word">delete</string>
-    <string name="error_OWNER_CANNOT_LEAVE">The team owner cannot leave. Delete the team instead.</string>
+    <string name="error_OWNER_CANNOT_LEAVE">The workspace owner cannot leave. Delete the workspace instead.</string>
     <string name="error_CANNOT_REMOVE_MEMBER">You don’t have permission to remove this member.</string>
     <string name="error_INVALID_PASSWORD">The password is incorrect.</string>
-    <string name="error_OWNED_TEAMS_EXIST">You still own teams. Delete them before deleting your account.</string>
+    <string name="error_OWNED_TEAMS_EXIST">You still own workspaces. Delete them before deleting your account.</string>
     <string name="login_forgot">Forgot password?</string>
     <string name="verify_title">Check your email</string>
     <string name="verify_body">We sent a confirmation email to %1$s. Tap the button in the email to finish signing up, then come back here.</string>
@@ -229,7 +229,7 @@
     <string name="chat_edited">(edited)</string>
     <string name="chat_deleted_message">This message was deleted</string>
     <string name="chat_delete_confirm">Delete this message? Everyone will see “This message was deleted”.</string>
-    <string name="chat_delete_others_confirm">Delete someone else’s message? You’re deleting it as a team admin.</string>
+    <string name="chat_delete_others_confirm">Delete someone else’s message? You’re deleting it as a workspace admin.</string>
     <string name="common_save">Save</string>
     <string name="meeting_edit">Edit</string>
     <string name="meeting_edit_title">Edit meeting</string>
@@ -245,4 +245,6 @@
     <string name="plan_expired_later">Later</string>
     <string name="plan_expired_renew">Renew on the web</string>
     <string name="settings_billing">Plans &amp; billing (web)</string>
+    <string name="chat_channels">Channels</string>
+    <string name="chat_directs">Direct messages</string>
 </resources>

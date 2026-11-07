@@ -30,7 +30,8 @@ import com.webrtcmeetpro.core.model.RefreshRequest
 import com.webrtcmeetpro.core.model.ScheduleMeetingRequest
 import com.webrtcmeetpro.core.model.SendMessageRequest
 import com.webrtcmeetpro.core.model.SignUpRequest
-import com.webrtcmeetpro.core.model.Subscription
+import com.webrtcmeetpro.core.model.ExpiryNotice
+import com.webrtcmeetpro.core.model.ChatCategory
 import com.webrtcmeetpro.core.model.TeamDetail
 import com.webrtcmeetpro.core.model.TeamMember
 import com.webrtcmeetpro.core.model.TeamRole
@@ -85,7 +86,10 @@ class LimeetApi(private val client: HttpClient) {
         client.post("api/users/me/withdraw") { setBody(WithdrawRequest(password)) }
     }
 
-    suspend fun mySubscription(): Subscription = client.get("api/subscriptions/me").body()
+    /** 내가 결제한 워크스페이스 플랜 중 확인하지 않은 만료 (결제·구독 관리는 웹에서) */
+    suspend fun expiryNotices(): List<ExpiryNotice> = client.get("api/subscriptions/notices").body()
+
+    suspend fun chatCategories(teamId: Long): List<ChatCategory> = client.get("api/teams/$teamId/chat/categories").body()
 
     /** "플랜이 만료됐어요" 창을 닫음 */
     suspend fun acknowledgeExpiry(subscriptionId: Long) {

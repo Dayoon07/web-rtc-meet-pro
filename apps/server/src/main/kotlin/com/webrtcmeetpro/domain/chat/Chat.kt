@@ -17,9 +17,9 @@ import java.time.LocalDateTime
 enum class ChatRoomType { DIRECT, GROUP }
 
 /**
- * 팀 안의 채팅방.
- * - DIRECT: 팀원 두 명의 1:1 방. 팀원이면 누구나 열 수 있고 같은 두 사람의 방은 하나뿐(directKey)
- * - GROUP : 1:N 방. 팀 OWNER 만 만들 수 있고, 방 참여자가 다른 팀원을 초대할 수 있다
+ * 워크스페이스(팀) 안의 채팅방.
+ * - DIRECT: 멤버 두 명의 1:1 방. 멤버면 누구나 열 수 있고 같은 두 사람의 방은 하나뿐(directKey)
+ * - GROUP : 채널 (부서별 팀 등). OWNER·ADMIN 이 만들고 카테고리(부서)에 넣을 수 있다. 방 참여자가 다른 멤버를 초대할 수 있다
  */
 @Entity
 @Table(name = "chat_rooms")
@@ -47,7 +47,25 @@ class ChatRoom protected constructor(
     var lastMessageAt: LocalDateTime? = null
         protected set
 
+    /** 채널이 들어 있는 카테고리(부서). null = 카테고리 없음 */
+    var categoryId: Long? = null
+        protected set
+
+    @Column(nullable = false)
+    var sortOrder: Int = 0
+        protected set
+
     val isGroup: Boolean get() = roomType == ChatRoomType.GROUP
+
+    fun rename(name: String) {
+        check(isGroup) { "1:1 방은 이름이 없습니다." }
+        this.name = name.trim().take(100)
+    }
+
+    fun moveTo(categoryId: Long?) {
+        check(isGroup) { "1:1 방은 카테고리에 넣을 수 없습니다." }
+        this.categoryId = categoryId
+    }
 
     fun touch(at: LocalDateTime = LocalDateTime.now()) {
         lastMessageAt = at
@@ -65,6 +83,38 @@ class ChatRoom protected constructor(
         fun group(teamId: Long, creatorId: Long, name: String) =
             ChatRoom(teamId, ChatRoomType.GROUP, name.trim().take(100), null, creatorId)
     }
+}
+
+/** 채널을 묶는 카테고리 = 부서. 예) "개발 연구소" 안에 #백오피스, #프론트오피스 */
+@Entity
+@Table(name = "chat_categories")
+class ChatCategory(
+    @Column(nullable = false)
+    val teamId: Long,
+
+    @Column(nullable = false)
+    var name: String,
+
+    @Column(nullable = false)
+    var sortOrder: Int = 0,
+) : BaseEntity() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "category_id")
+    var id: Long? = null
+        protected set
+
+    fun rename(name: String) {
+        this.name = name.trim().take(50)
+    }
+
+    fun delete() = markDeleted()
+}
+
+interface ChatCategoryRepository {
+    fun save(category: ChatCategory): ChatCategory
+    fun findCategoryById(id: Long): ChatCategory?
+    fun findAllByTeamIdAndDeletedFalseOrderBySortOrderAscIdAsc(teamId: Long): List<ChatCategory>
 }
 
 interface ChatRoomRepository {

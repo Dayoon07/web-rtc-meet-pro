@@ -96,12 +96,9 @@ class TeamService(
 ) {
     private val random = SecureRandom()
 
+    /** 워크스페이스 만들기. 개수 제한 없음 (요금제는 워크스페이스마다 따로, 처음엔 FREE) */
     @Transactional
     fun create(ownerId: Long, name: String, description: String?): TeamSummaryView {
-        val plan = planService.currentPlanOf(ownerId)
-        val owned = teamRepository.countByOwnerIdAndStatus(ownerId, TeamStatus.ACTIVE)
-        if (!plan.canOwnMoreTeams(owned)) throw BusinessException(ErrorCode.PLAN_TEAM_LIMIT, mapOf("max" to plan.maxOwnedTeams))
-
         val team = teamRepository.save(Team(ownerId, name.trim(), description?.trim()?.ifBlank { null }))
         memberRepository.save(TeamMember(team.id!!, ownerId, TeamRole.OWNER))
         return summary(team, TeamRole.OWNER, 1)
@@ -119,7 +116,7 @@ class TeamService(
         val team = access.requireTeam(teamId)
         val members = memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)
         val users = userRepository.findAllByIdIn(members.map { it.userId }).associateBy { it.id!! }
-        val plan = planService.currentPlanOf(team.ownerId)
+        val plan = planService.planOfTeam(teamId)
         val pending = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).count { it.isPending() }
         return TeamDetailView(
             team = summary(team, me.role, members.size),
@@ -145,8 +142,8 @@ class TeamService(
         val pending = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }
         if (pending.any { it.inviteeEmail == email }) throw BusinessException(ErrorCode.INVITATION_ALREADY_PENDING)
 
-        // 팀 인원 한도는 팀 "소유자" 의 플랜 기준. 대기 중인 초대도 자리를 차지한다
-        val plan = planService.currentPlanOf(team.ownerId)
+        // 멤버 수 한도는 워크스페이스 플랜 기준. 대기 중인 초대도 자리를 차지한다
+        val plan = planService.planOfTeam(teamId)
         val active = memberRepository.countByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)
         if (!plan.canAddMember(active + pending.size)) {
             throw BusinessException(ErrorCode.PLAN_MEMBER_LIMIT, mapOf("max" to plan.maxMembersPerTeam))
@@ -202,7 +199,7 @@ class TeamService(
         val invitation = findMyInvitation(invitationId, user)
         val team = access.requireTeam(invitation.teamId)
 
-        val plan = planService.currentPlanOf(team.ownerId)
+        val plan = planService.planOfTeam(team.id!!)
         val active = memberRepository.countByTeamIdAndStatus(team.id!!, TeamMemberStatus.ACTIVE)
         if (!plan.canAddMember(active)) throw BusinessException(ErrorCode.PLAN_MEMBER_LIMIT, mapOf("max" to plan.maxMembersPerTeam))
 
@@ -277,6 +274,8 @@ class TeamService(
         invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }.forEach { it.cancel() }
         chatRoomRepository.findAllByTeamIdAndDeletedFalse(teamId).forEach { it.delete() }
         memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
+        // 남은 요금제 구독도 끝낸다 (자동결제가 더 나가지 않게)
+        planService.cancelTeamSubscriptions(teamId)
         team.delete()
     }
 
