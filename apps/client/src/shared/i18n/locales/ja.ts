@@ -304,6 +304,8 @@ const ja: Messages = {
     members: {
       title: 'メンバー',
       directChat: '1対1チャット',
+      roleLabel: '{{name}}さんの役割',
+      roleChanged: '{{name}}さんを{{role}}に変更しました。',
       invite: {
         title: 'メンバーを招待',
         email: 'メールアドレス',
@@ -592,6 +594,8 @@ const ja: Messages = {
     ALREADY_TEAM_MEMBER: 'すでにメンバーです。',
     INVITATION_ALREADY_PENDING: 'このメールアドレスにはすでに招待を送っています。',
     INVITATION_NOT_FOUND: '招待が見つからないか、期限切れです。',
+    OWNER_ROLE_FIXED: 'チームを作成した人の役割は変更できません。',
+    CANNOT_CHANGE_OWN_ROLE: '自分の役割は変更できません。',
     CHAT_ROOM_NOT_FOUND: 'チャットが見つかりません。',
     NOT_ROOM_MEMBER: 'このチャットの参加者ではありません。',
     CANNOT_DIRECT_SELF: '自分自身とはチャットできません。',

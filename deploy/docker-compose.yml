@@ -36,7 +36,7 @@ services:
       DB_USERNAME: limeet
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 를 .env 에 넣어 주세요}
-      ALLOWED_ORIGINS: https://${DOMAIN}
+      ALLOWED_ORIGINS: https://${DOMAIN},https://${ADMIN_DOMAIN}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       OAUTH_SUCCESS_REDIRECT: https://${DOMAIN}/oauth/callback
@@ -71,6 +71,13 @@ services:
       RTC_MAX_PORT: "40200"
       MEDIASOUP_WORKERS: ${MEDIASOUP_WORKERS:-2}
 
+  # 관리자 사이트 (admin.<도메인>). 포트를 밖으로 열지 않고, web(Caddy)이 관리자 도메인 요청을 이쪽으로 넘긴다
+  admin:
+    build:
+      context: ..
+      dockerfile: deploy/admin.Dockerfile
+    restart: unless-stopped
+
   web:
     build:
       context: ..
@@ -79,8 +86,10 @@ services:
     depends_on:
       - server
       - media
+      - admin
     environment:
       DOMAIN: ${DOMAIN:?DOMAIN 을 .env 에 넣어 주세요}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?ADMIN_DOMAIN 을 .env 에 넣어 주세요}
     ports:
       - "80:80"
       - "443:443"

@@ -1,11 +1,17 @@
 package com.webrtcmeetpro.core.network
 
+import io.ktor.http.HttpHeaders
+import io.ktor.http.Headers
+import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.request.forms.formData
+import io.ktor.client.plugins.timeout
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.AuthTokens
 import com.webrtcmeetpro.core.model.ChatMessage
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.core.model.CountResponse
 import com.webrtcmeetpro.core.model.CreateGroupRequest
+import com.webrtcmeetpro.core.model.ChangeRoleRequest
 import com.webrtcmeetpro.core.model.CreateTeamRequest
 import com.webrtcmeetpro.core.model.EmailAvailability
 import com.webrtcmeetpro.core.model.Invitation
@@ -22,6 +28,8 @@ import com.webrtcmeetpro.core.model.SendMessageRequest
 import com.webrtcmeetpro.core.model.SignUpRequest
 import com.webrtcmeetpro.core.model.Subscription
 import com.webrtcmeetpro.core.model.TeamDetail
+import com.webrtcmeetpro.core.model.TeamMember
+import com.webrtcmeetpro.core.model.TeamRole
 import com.webrtcmeetpro.core.model.TeamSummary
 import com.webrtcmeetpro.core.model.WebHandoff
 import io.ktor.client.HttpClient
@@ -29,6 +37,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 
@@ -77,6 +86,9 @@ class LimeetApi(private val client: HttpClient) {
         client.delete("api/teams/$teamId/invitations/$invitationId")
     }
 
+    suspend fun changeTeamRole(teamId: Long, userId: Long, role: TeamRole): TeamMember =
+        client.patch("api/teams/$teamId/members/$userId/role") { setBody(ChangeRoleRequest(role)) }.body()
+
     suspend fun myInvitations(): List<Invitation> = client.get("api/invitations").body()
 
     suspend fun acceptInvitation(invitationId: Long) {
@@ -115,6 +127,33 @@ class LimeetApi(private val client: HttpClient) {
     suspend fun sendMessage(roomId: Long, content: String): ChatMessage =
         client.post("api/chat/rooms/$roomId/messages") { setBody(SendMessageRequest(content)) }.body()
 
+    /**
+     * 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) = FILE 메시지 1개.
+     * 한글 파일 이름은 filename* (RFC 5987, UTF-8) 로 보낸다. 큰 파일은 기본 30초 제한을 넘을 수 있어 늘린다
+     */
+    suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?): ChatMessage =
+        client.submitFormWithBinaryData(
+            url = "api/chat/rooms/$roomId/files",
+            formData = formData {
+                content?.let { append("content", it, Headers.build { append(HttpHeaders.ContentType, "text/plain; charset=UTF-8") }) }
+                files.forEach { f ->
+                    append(
+                        "files",
+                        f.bytes,
+                        Headers.build {
+                            append(HttpHeaders.ContentType, f.contentType ?: "application/octet-stream")
+                            append(HttpHeaders.ContentDisposition, "filename=\"${asciiFileName(f.name)}\"; filename*=UTF-8''${rfc5987(f.name)}")
+                        },
+                    )
+                }
+            },
+        ) {
+            timeout {
+                requestTimeoutMillis = 5 * 60_000L
+                socketTimeoutMillis = 60_000L
+            }
+        }.body()
+
     suspend fun markRead(roomId: Long, messageId: Long) {
         client.post("api/chat/rooms/$roomId/read") { setBody(MarkReadRequest(messageId)) }
     }
@@ -147,4 +186,22 @@ class LimeetApi(private val client: HttpClient) {
 
     /** 로그인·로그아웃 뒤 캐시된 토큰을 비운다 */
     fun resetAuth() = client.resetAuthTokens()
+}
+
+/** 채팅 첨부파일 한 개 (멀티파트로 보낸다) */
+class UploadFile(val name: String, val contentType: String?, val bytes: ByteArray)
+
+/** filename="..." 용: ASCII 가 아닌 글자와 따옴표는 _ 로 (서버는 filename* 을 먼저 쓴다) */
+private fun asciiFileName(name: String): String =
+    name.map { c -> if (c.code in 0x20..0x7E && c != '"' && c != '\\') c else '_' }.joinToString("")
+
+/** RFC 5987 값 인코딩: UTF-8 바이트를 %XX 로 (영문·숫자와 일부 기호만 그대로) */
+private fun rfc5987(value: String): String = buildString {
+    val keep = "!#$&+-.^_`|~"
+    value.encodeToByteArray().forEach { byte ->
+        val c = byte.toInt() and 0xFF
+        val ch = c.toChar()
+        if (ch in 'a'..'z' || ch in 'A'..'Z' || ch in '0'..'9' || ch in keep) append(ch)
+        else append('%').append("0123456789ABCDEF"[c shr 4]).append("0123456789ABCDEF"[c and 0x0F])
+    }
 }

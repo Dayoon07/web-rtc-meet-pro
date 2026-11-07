@@ -16,7 +16,9 @@ Render 를 꼭 쓰려면 서버·웹만 Render 에 두고 mediasoup 사이드카
 ```
 인터넷 ──443──▶ Caddy(web) ─┬─ /api /ws /uploads /oauth2 /login/oauth2 ─▶ server:8080 ──▶ oracle:1521
                             ├─ /media/socket.io ─▶ 사이드카:4000 (호스트 네트워크)
-                            └─ 그 밖 ─▶ 웹 클라이언트 정적 파일 (SPA)
+                            ├─ 그 밖 ─▶ 웹 클라이언트 정적 파일 (SPA)
+                            └─ admin.<도메인> ─┬─ /api/auth /api/admin ─▶ server:8080
+                                               └─ 그 밖 ─▶ admin 컨테이너 (관리자 사이트 정적 파일)
 인터넷 ──UDP/TCP 40000-40200──▶ mediasoup 사이드카 (영상·음성)
 ```
 
@@ -55,6 +57,7 @@ nano deploy/.env
 ```
 
 - `DOMAIN`: 도메인이 없으면 공인 IP 로 `129-154-1-23.sslip.io` 처럼 쓰면 된다 (Caddy 가 Let's Encrypt 인증서를 자동 발급)
+- `ADMIN_DOMAIN`: 관리자 사이트 주소. 내 도메인이면 DNS 에 `admin` A 레코드를 같은 공인 IP 로 추가하고, sslip.io 면 `admin.129-154-1-23.sslip.io`
 - `PUBLIC_IP`: VM 공인 IP
 - 비밀값 5개는 `openssl rand -base64 48` 로 각각 다르게
 - 구글 로그인: Google Cloud Console 의 승인된 리디렉션 URI 에 `https://<DOMAIN>/login/oauth2/code/google` 추가 후 ID/Secret 입력
@@ -78,6 +81,18 @@ git pull && docker compose -f deploy/docker-compose.yml --env-file deploy/.env u
 ```
 
 백업: DB 는 `oracle-data`, 프로필 이미지는 `uploads`, 채팅 첨부파일은 `chat-files` 도커 볼륨에 있다.
+
+관리자 계정 지정 (관리자 사이트 `https://<ADMIN_DOMAIN>` 에 로그인하려면). 먼저 서비스에 가입한 뒤:
+
+```bash
+# 비밀번호는 deploy/.env 의 DB_PASSWORD
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec oracle sqlplus limeet@//localhost/FREEPDB1
+```
+
+```sql
+UPDATE users SET system_role = 'ADMIN' WHERE email = '관리자 이메일';
+COMMIT;
+```
 
 ## 5. 앱(Android · Windows)을 운영 서버로 빌드
 

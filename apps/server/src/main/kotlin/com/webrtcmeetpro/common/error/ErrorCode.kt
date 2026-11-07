@@ -46,6 +46,8 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     ALREADY_TEAM_MEMBER(HttpStatus.CONFLICT, "이미 팀원입니다."),
     INVITATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 초대를 보낸 이메일입니다."),
     INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "초대를 찾을 수 없거나 만료되었습니다."),
+    OWNER_ROLE_FIXED(HttpStatus.BAD_REQUEST, "팀을 만든 사람의 역할은 바꿀 수 없습니다."),
+    CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "자기 역할은 바꿀 수 없습니다."),
 
     // chat
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅방을 찾을 수 없습니다."),

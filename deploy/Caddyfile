@@ -26,3 +26,25 @@
 		file_server
 	}
 }
+
+# 관리자 사이트 (별도 컨테이너 admin). 로그인·관리자 API 만 Spring 서버로 넘긴다 (같은 출처라 CORS 불필요)
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+
+	# 두 matcher 가 겹치지 않게 써서 handle 정렬 순서와 상관없이 같은 결과가 나오게 한다
+	@api path /api/auth/* /api/admin/*
+	handle @api {
+		reverse_proxy server:8080
+	}
+	@otherApi {
+		path /api/*
+		not path /api/auth/* /api/admin/*
+	}
+	handle @otherApi {
+		respond 404
+	}
+
+	handle {
+		reverse_proxy admin:80
+	}
+}

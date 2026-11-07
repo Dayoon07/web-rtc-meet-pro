@@ -1,6 +1,7 @@
 package com.webrtcmeetpro.presentation.admin
 
 import com.webrtcmeetpro.application.admin.AdminErrorLogService
+import com.webrtcmeetpro.application.admin.SystemAdminAccess
 import com.webrtcmeetpro.common.web.userId
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -17,7 +18,14 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/api/admin")
-class AdminController(private val errorLogs: AdminErrorLogService) {
+class AdminController(
+    private val errorLogs: AdminErrorLogService,
+    private val admins: SystemAdminAccess,
+) {
+
+    /** 로그인한 관리자 (관리자가 아니면 403 → 관리자 사이트가 로그인을 막는다) */
+    @GetMapping("/me")
+    fun me(@AuthenticationPrincipal jwt: Jwt) = admins.me(jwt.userId)
 
     /** 최근 에러 100건. unresolved=true 면 해결 표시가 안 된 것만 */
     @GetMapping("/error-logs")

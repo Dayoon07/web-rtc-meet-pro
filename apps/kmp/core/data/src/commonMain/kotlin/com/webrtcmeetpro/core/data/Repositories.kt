@@ -1,5 +1,8 @@
 package com.webrtcmeetpro.core.data
 
+import com.webrtcmeetpro.core.network.UploadFile
+import com.webrtcmeetpro.core.model.TeamRole
+import com.webrtcmeetpro.core.model.TeamMember
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.ChatMessage
 import com.webrtcmeetpro.core.model.ChatRoom
@@ -67,6 +70,7 @@ class TeamRepository(private val api: LimeetApi) {
     suspend fun invite(teamId: Long, email: String): Invitation = api.inviteToTeam(teamId, email.trim())
     suspend fun pendingInvitations(teamId: Long): List<Invitation> = api.teamInvitations(teamId)
     suspend fun cancelInvitation(teamId: Long, invitationId: Long) = api.cancelInvitation(teamId, invitationId)
+    suspend fun changeRole(teamId: Long, userId: Long, role: TeamRole): TeamMember = api.changeTeamRole(teamId, userId, role)
     suspend fun myInvitations(): List<Invitation> = api.myInvitations()
     suspend fun accept(invitationId: Long) = api.acceptInvitation(invitationId)
     suspend fun decline(invitationId: Long) = api.declineInvitation(invitationId)
@@ -81,6 +85,8 @@ class ChatRepository(private val api: LimeetApi) {
     suspend fun leave(roomId: Long) = api.leaveRoom(roomId)
     suspend fun messages(roomId: Long, before: Long? = null): List<ChatMessage> = api.messages(roomId, before)
     suspend fun send(roomId: Long, content: String): ChatMessage = api.sendMessage(roomId, content.trim())
+    suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?): ChatMessage =
+        api.sendFiles(roomId, files, content?.trim()?.ifEmpty { null })
     suspend fun markRead(roomId: Long, messageId: Long) = api.markRead(roomId, messageId)
 }
 

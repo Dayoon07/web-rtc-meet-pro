@@ -2,15 +2,18 @@ package com.webrtcmeetpro.presentation.team
 
 import com.webrtcmeetpro.common.web.userId
 import com.webrtcmeetpro.application.team.TeamService
+import com.webrtcmeetpro.domain.team.TeamRole
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -24,6 +27,9 @@ data class CreateTeamRequest(
 )
 
 data class InviteRequest(@field:NotBlank @field:Email @field:Size(max = 255) val email: String)
+
+/** ADMIN 또는 MEMBER (OWNER 는 줄 수 없다) */
+data class ChangeRoleRequest(@field:NotNull val role: TeamRole?)
 
 @RestController
 @RequestMapping("/api")
@@ -55,6 +61,15 @@ class TeamController(private val teamService: TeamService) {
         teamService.cancel(teamId, invitationId, jwt.userId)
 
     /** 내가 받은 초대 */
+    /** 팀원 역할 바꾸기 (ADMIN 지정·해제). 팀 OWNER 만 */
+    @PatchMapping("/teams/{teamId}/members/{userId}/role")
+    fun changeRole(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable teamId: Long,
+        @PathVariable userId: Long,
+        @Valid @RequestBody req: ChangeRoleRequest,
+    ) = teamService.changeRole(teamId, jwt.userId, userId, req.role!!)
+
     @GetMapping("/invitations")
     fun myInvitations(@AuthenticationPrincipal jwt: Jwt) = teamService.myInvitations(jwt.userId)
 

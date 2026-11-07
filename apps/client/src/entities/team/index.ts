@@ -4,7 +4,7 @@ import { http } from '@/shared/api'
 export type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
 /** 팀 안에서 역할에 따라 할 수 있는 일. 어느 역할이 무엇을 할 수 있는지는 서버(TeamRole)만 안다 */
-export type TeamPermission = 'INVITE_MEMBER' | 'CREATE_GROUP_ROOM' | 'CANCEL_ANY_MEETING'
+export type TeamPermission = 'INVITE_MEMBER' | 'CREATE_GROUP_ROOM' | 'CANCEL_ANY_MEETING' | 'MANAGE_ROLES'
 
 export type TeamSummary = {
   id: number
@@ -60,6 +60,9 @@ export const teamApi = {
   cancelInvitation: (teamId: number, invitationId: number) =>
     http<void>(`/teams/${teamId}/invitations/${invitationId}`, { method: 'DELETE' }),
   myInvitations: () => http<Invitation[]>('/invitations'),
+  /** 팀원 역할 바꾸기 (ADMIN 지정·해제). MANAGE_ROLES 권한(팀 OWNER)만 */
+  changeRole: (teamId: number, userId: number, role: Exclude<TeamRole, 'OWNER'>) =>
+    http<TeamMember>(`/teams/${teamId}/members/${userId}/role`, { method: 'PATCH', json: { role } }),
   accept: (id: number) => http<TeamSummary>(`/invitations/${id}/accept`, { method: 'POST' }),
   decline: (id: number) => http<void>(`/invitations/${id}/decline`, { method: 'POST' }),
 }

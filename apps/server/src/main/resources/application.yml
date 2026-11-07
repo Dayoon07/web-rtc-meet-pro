@@ -34,7 +34,8 @@ app:
     access-token-ttl: 30m
     refresh-token-ttl: 14d
   cors:
-    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+    # 웹(5173) + 관리자 사이트(5174). 개발 중 Vite 프록시를 거쳐도 브라우저가 Origin 을 보내므로 둘 다 허용
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
   oauth2:
     google:
       # 비워 두면 구글 로그인이 비활성화되고 로그인 화면에서 버튼이 비활성으로 표시된다.

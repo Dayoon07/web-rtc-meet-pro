@@ -7,6 +7,7 @@ limeet-app(P2P, DB 없음)을 서비스형으로 확장한 모노레포. 회원 
 web-rtc-meet-pro/
 ├─ apps/
 │  ├─ client/        Vite + React 19 + TypeScript 7, FSD, Tailwind v4, i18next
+│  ├─ admin/         관리자 사이트 (admin.<도메인>, 별도 컨테이너) — 같은 서버의 /api/admin 사용
 │  ├─ server/        Spring Boot 4.1 + Kotlin 2.3 (Java 21), DDD — API·인증·DB·STOMP·알림 스케줄러
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
@@ -46,6 +47,10 @@ sqlplus system@//localhost:1521/XEPDB1 '@db/local-setup.sql'
 
 SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql` 을 열고 *스크립트 실행*(F5)해도 된다.
 
+> **반드시 XEPDB1(PDB)에 접속해서 만든다.** `sqlplus / as sysdba` 나 서비스 `XE` 는 CDB 루트라서 `CREATE USER limeet` 이 ORA-65096 으로 실패하고,
+> `C##limeet` 같은 공통 사용자를 만들어도 앱이 쓰는 XEPDB1 에는 로그인할 수 없다 (CREATE SESSION 이 루트에만 생김).
+> 이미 루트에 접속한 창이라면 먼저 `ALTER SESSION SET CONTAINER = XEPDB1;` 을 실행한다. `local-setup.sql` 은 루트에서 실행하면 바로 멈추고 이 안내를 보여 준다.
+
 `db/schema.sql` 이 바뀌었을 때는 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
 
 ```powershell
@@ -70,7 +75,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `DB_URL` | `jdbc:oracle:thin:@//localhost:1521/XEPDB1` (로컬 Oracle XE) |
 | `DB_USERNAME` / `DB_PASSWORD` | `limeet` / `limeet` |
 | `JWT_SECRET` | 개발용 값 (운영에서 반드시 교체, 32바이트 이상) |
-| `ALLOWED_ORIGINS` | `http://localhost:5173` |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` (웹, 관리자 사이트) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 비어 있음 → 구글 로그인 비활성 (버튼이 회색으로 표시) |
 | `OAUTH_SUCCESS_REDIRECT` / `OAUTH_FAILURE_REDIRECT` | `http://localhost:5173/oauth/callback` / `/login` |
 | `UPLOAD_DIR` | `./uploads` (프로필 이미지, `/uploads/**` 로 서빙) |
@@ -112,10 +117,11 @@ JPA 는 `ddl-auto: validate` 라서 테이블을 만들지 않고 엔티티와 �
 | `INVITE_MEMBER` 팀원 초대 · 보낸 초대 취소 | O | O | |
 | `CREATE_GROUP_ROOM` 그룹 채팅방 만들기 | O | | |
 | `CANCEL_ANY_MEETING` 다른 사람이 연 회의 취소 | O | O | |
+| `MANAGE_ROLES` 팀원 역할 바꾸기 (ADMIN 지정·해제) | O | | |
 
 - 팀원이면 누구나 하는 일(팀 채팅, 1:1 채팅, 회의 예약 · 참여)과 관계로 정해지는 일(방 참여자의 방 초대, 주최자의 자기 회의 취소)은 권한 표에 넣지 않는다.
 - 웹 · 앱은 역할 이름을 해석하지 않고 서버가 준 `myPermissions`(팀), `canCancel`(회의)로 버튼을 보여 준다. 권한 표를 바꿔도 화면 코드는 그대로다.
-- 팀 ADMIN 을 지정하는 화면은 아직 없다 (지금은 팀을 만든 사람이 OWNER, 초대받은 사람은 MEMBER).
+- 팀 OWNER 는 팀 상세 화면(웹·앱)에서 팀원을 ADMIN 으로 지정·해제한다 (`PATCH /api/teams/{teamId}/members/{userId}/role`). OWNER 는 팀을 만든 사람 한 명뿐이라 넘기거나 바꿀 수 없다.
 
 시스템 관리자 지정은 화면이 아니라 DB 에서 한다.
 
@@ -128,6 +134,7 @@ COMMIT;
 
 | | |
 |---|---|
+| `GET /api/admin/me` | 로그인한 관리자 (관리자가 아니면 403) |
 | `GET /api/admin/error-logs?unresolved=true` | 최근 에러 100건 (해결 표시 안 된 것만) |
 | `GET /api/admin/error-logs/{에러 코드}` | 사용자가 알려 준 에러 코드로 원인·스택 보기 |
 | `POST /api/admin/error-logs/{에러 코드}/resolve` | 해결 표시 (수정자 = 관리자) |
@@ -166,7 +173,16 @@ npm run dev:client
 
 `/api`·`/uploads`·`/oauth2`·`/login/oauth2`·`/ws` 는 8080, `/media` 는 4000 으로 Vite 가 프록시한다.
 
-### 5. Android · Windows 앱 (apps/kmp)
+### 5. 관리자 사이트 (http://localhost:5174)
+
+```bash
+npm run dev:admin
+```
+
+서비스와 같은 계정(이메일·비밀번호)으로 로그인한다. `users.system_role = 'ADMIN'` 인 계정만 들어갈 수 있다 (아래 *접근 통제* 참고).
+운영에서는 `admin.<도메인>` 의 별도 컨테이너(`deploy/admin.Dockerfile`)로 뜬다.
+
+### 6. Android · Windows 앱 (apps/kmp)
 
 JDK 21, Android SDK(compileSdk 37 — 없으면 Gradle 이 받아 줌)가 필요하다. 서버(8080)가 떠 있어야 로그인된다.
 
@@ -191,7 +207,7 @@ Windows 설치 파일은 `gradlew :composeApp:packageMsi` (또는 `packageExe`).
 adb reverse tcp:5173 tcp:5173
 ```
 
-### 6. 운영 배포
+### 7. 운영 배포
 
 Oracle Cloud VM 한 대에 Docker Compose 로 DB·서버·사이드카·웹(Caddy https)을 올린다. Render 는 WebRTC 미디어(UDP)를 열 수 없어 쓰지 않는다.
 자세한 순서는 [deploy/README.md](deploy/README.md).

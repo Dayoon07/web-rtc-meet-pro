@@ -7,7 +7,9 @@ import com.webrtcmeetpro.domain.admin.ErrorCategory
 import com.webrtcmeetpro.domain.team.TeamMember
 import com.webrtcmeetpro.domain.team.TeamPermission
 import com.webrtcmeetpro.domain.team.TeamRole
+import com.webrtcmeetpro.common.error.BusinessException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.sql.SQLException
 import java.sql.SQLRecoverableException
 import java.time.LocalDate
@@ -34,6 +36,21 @@ class AccessAndErrorRulesTest {
         assertTrue(owner.can(TeamPermission.INVITE_MEMBER))
         owner.leave()
         assertFalse(owner.can(TeamPermission.INVITE_MEMBER))
+    }
+
+    @Test
+    fun `OWNER 역할은 주거나 바꿀 수 없고 ADMIN 지정·해제만 된다`() {
+        val member = TeamMember(teamId = 1, userId = 3, role = TeamRole.MEMBER)
+        member.changeRole(TeamRole.ADMIN)
+        assertTrue(member.can(TeamPermission.INVITE_MEMBER))
+        member.changeRole(TeamRole.MEMBER)
+        assertFalse(member.can(TeamPermission.INVITE_MEMBER))
+        assertThrows<BusinessException> { member.changeRole(TeamRole.OWNER) }
+        val owner = TeamMember(teamId = 1, userId = 2, role = TeamRole.OWNER)
+        assertThrows<BusinessException> { owner.changeRole(TeamRole.MEMBER) }
+        // 역할 바꾸기 권한은 OWNER 만
+        assertTrue(TeamRole.OWNER.can(TeamPermission.MANAGE_ROLES))
+        assertFalse(TeamRole.ADMIN.can(TeamPermission.MANAGE_ROLES))
     }
 
     @Test

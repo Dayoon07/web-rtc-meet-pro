@@ -8,6 +8,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/media/package.json apps/media/
 COPY apps/client/package.json apps/client/
+COPY apps/admin/package.json apps/admin/
 RUN npm ci -w @wrmp/media --no-audit --no-fund
 COPY apps/media apps/media
 WORKDIR /app/apps/media

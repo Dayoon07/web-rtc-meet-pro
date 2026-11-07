@@ -178,4 +178,12 @@
     <string name="error_dialog_hint">Including the error code when you contact us helps us look into it quickly. You can select the code to copy it.</string>
     <string name="error_dialog_mail_subject">[Limeet Pro] Error report %1$s</string>
     <string name="error_dialog_ok">OK</string>
+    <string name="team_role_change">Change role</string>
+    <string name="team_role_changed">%1$s is now %2$s</string>
+    <string name="chat_attach">Attach files</string>
+    <string name="chat_remove_file">Remove attachment</string>
+    <string name="error_TOO_MANY_FILES">You can send up to 10 files at once.</string>
+    <string name="error_FILE_TOO_LARGE">Each file can be up to 20 MB, and up to 50 MB in total at once.</string>
+    <string name="error_BLOCKED_FILE_TYPE">For security, executable files (.exe and similar) cannot be sent.</string>
+    <string name="error_EMPTY_FILE">Empty files cannot be sent.</string>
 </resources>

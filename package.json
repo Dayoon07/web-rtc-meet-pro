@@ -3,13 +3,17 @@
   "private": true,
   "workspaces": [
     "apps/client",
+    "apps/admin",
     "apps/media"
   ],
   "scripts": {
     "dev:media": "npm run dev -w @wrmp/media",
     "dev:client": "npm run dev -w @wrmp/client",
+    "dev:admin": "npm run dev -w @wrmp/admin",
     "build:client": "npm run build -w @wrmp/client",
+    "build:admin": "npm run build -w @wrmp/admin",
     "lint:client": "npm run lint -w @wrmp/client",
+    "lint:admin": "npm run lint -w @wrmp/admin",
     "dev:server": "cd apps/server && gradlew bootRun",
     "build:server": "cd apps/server && gradlew build"
   }

@@ -1,11 +1,12 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CalendarPlus, MessageSquare, Video } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { chatApi } from '@/entities/chat'
 import { MeetingStatusBadge, useMeetingsQuery } from '@/entities/meeting'
-import { useTeamQuery } from '@/entities/team'
+import { hasTeamPermission, teamApi, teamKeys, type TeamRole, useTeamQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { InviteMemberPanel } from '@/features/invite-member'
 import { JoinMeetingButton } from '@/features/meeting-actions'
@@ -13,7 +14,7 @@ import { ScheduleMeetingModal } from '@/features/schedule-meeting'
 import { toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
-import { Avatar, Badge, Button, Card, EmptyState, Spinner } from '@/shared/ui'
+import { Avatar, Badge, Button, Card, EmptyState, Select, Spinner } from '@/shared/ui'
 
 export function TeamDetailPage() {
   const { t } = useTranslation()
@@ -26,6 +27,16 @@ export function TeamDetailPage() {
   const [tab, setTab] = useState<'members' | 'meetings'>('members')
   const [modal, setModal] = useState<'now' | 'schedule' | null>(null)
 
+  const queryClient = useQueryClient()
+  const changeRole = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: Exclude<TeamRole, 'OWNER'> }) => teamApi.changeRole(teamId, userId, role),
+    onSuccess: (m) => {
+      void queryClient.invalidateQueries({ queryKey: teamKeys.detail(teamId) })
+      toast.success(t('teams.members.roleChanged', { name: m.nickname, role: t(`teams.roles.${m.role}`) }))
+    },
+    onError: (e) => toastError(e),
+  })
+
   const openDirect = useMutation({
     mutationFn: (userId: number) => chatApi.openDirect(teamId, userId),
     onSuccess: (room) => navigate(`/app/chat/${teamId}/${room.id}`),
@@ -36,6 +47,8 @@ export function TeamDetailPage() {
   if (isError || !detail) return <EmptyState icon={<Video />} title={t('teams.notFound')} />
 
   const { team, members } = detail
+  // 역할 바꾸기는 MANAGE_ROLES 권한(팀 OWNER)만. OWNER 와 나 자신은 바꿀 수 없다
+  const canManageRoles = hasTeamPermission(team, 'MANAGE_ROLES')
   const meetings = upcoming.filter((m) => m.teamId === teamId)
 
   return (
@@ -97,7 +110,21 @@ export function TeamDetailPage() {
                     </p>
                     <p className="truncate text-xs text-gray-500">{m.email}</p>
                   </div>
-                  <Badge tone={m.role === 'OWNER' ? 'brand' : 'gray'}>{t(`teams.roles.${m.role}`)}</Badge>
+                  {canManageRoles && m.role !== 'OWNER' && m.userId !== me?.id ? (
+                    <Select
+                      aria-label={t('teams.members.roleLabel', { name: m.nickname })}
+                      value={m.role}
+                      disabled={changeRole.isPending}
+                      onChange={(e) => changeRole.mutate({ userId: m.userId, role: e.target.value as Exclude<TeamRole, 'OWNER'> })}
+                      compact
+                      className="shrink-0"
+                    >
+                      <option value="ADMIN">{t('teams.roles.ADMIN')}</option>
+                      <option value="MEMBER">{t('teams.roles.MEMBER')}</option>
+                    </Select>
+                  ) : (
+                    <Badge tone={m.role === 'OWNER' ? 'brand' : 'gray'}>{t(`teams.roles.${m.role}`)}</Badge>
+                  )}
                   {m.userId !== me?.id && (
                     <Button
                       variant="ghost"

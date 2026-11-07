@@ -303,6 +303,8 @@ const ko = {
     members: {
       title: '팀원',
       directChat: '1:1 채팅',
+      roleLabel: '{{name}}님 역할',
+      roleChanged: '{{name}}님을 {{role}}(으)로 바꿨어요.',
       invite: {
         title: '팀원 초대',
         email: '이메일',
@@ -591,6 +593,8 @@ const ko = {
     ALREADY_TEAM_MEMBER: '이미 팀원이에요.',
     INVITATION_ALREADY_PENDING: '이미 초대를 보낸 이메일이에요.',
     INVITATION_NOT_FOUND: '초대를 찾을 수 없거나 만료됐어요.',
+    OWNER_ROLE_FIXED: '팀을 만든 사람의 역할은 바꿀 수 없어요.',
+    CANNOT_CHANGE_OWN_ROLE: '자기 역할은 바꿀 수 없어요.',
     CHAT_ROOM_NOT_FOUND: '채팅방을 찾을 수 없어요.',
     NOT_ROOM_MEMBER: '이 채팅방의 참여자가 아니에요.',
     CANNOT_DIRECT_SELF: '자기 자신과는 채팅할 수 없어요.',

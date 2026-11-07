@@ -1,5 +1,16 @@
 package com.webrtcmeetpro.feature.teams
 
+import com.webrtcmeetpro.resources.team_role_changed
+import com.webrtcmeetpro.resources.team_role_change
+import com.webrtcmeetpro.core.model.TeamMember
+import com.webrtcmeetpro.core.data.UserRepository
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +81,9 @@ import androidx.compose.runtime.LaunchedEffect
 
 data class TeamDetailUiState(
     val team: TeamDetail? = null,
+    val myId: Long = 0,
+    /** 역할을 바꾼 팀원 (스낵바 한 번) */
+    val roleChanged: TeamMember? = null,
     val pending: List<Invitation> = emptyList(),
     val loadError: String? = null,
     val email: String = "",
@@ -81,6 +95,7 @@ data class TeamDetailUiState(
 class TeamDetailViewModel(
     private val teamId: Long,
     private val teams: TeamRepository,
+    private val users: UserRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(TeamDetailUiState())
     val state: StateFlow<TeamDetailUiState> = _state.asStateFlow()
@@ -95,8 +110,8 @@ class TeamDetailViewModel(
                 val pending = if (detail.team.canInvite) {
                     teams.pendingInvitations(teamId).filter { it.status == InvitationStatus.PENDING }
                 } else emptyList()
-                detail to pending
-            }.onSuccess { (detail, pending) -> _state.update { it.copy(team = detail, pending = pending) } }
+                Triple(detail, pending, users.me().id)
+            }.onSuccess { (detail, pending, myId) -> _state.update { it.copy(team = detail, pending = pending, myId = myId) } }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
         }
     }
@@ -122,6 +137,25 @@ class TeamDetailViewModel(
         }
     }
 
+    /** ADMIN 지정·해제 (팀 OWNER 만. 서버가 다시 확인한다) */
+    fun changeRole(member: TeamMember, role: TeamRole) {
+        if (member.role == role) return
+        viewModelScope.launch {
+            runCatching { teams.changeRole(teamId, member.userId, role) }
+                .onSuccess { updated ->
+                    _state.update { s ->
+                        s.copy(
+                            team = s.team?.copy(members = s.team.members.map { if (it.userId == updated.userId) updated else it }),
+                            roleChanged = updated,
+                        )
+                    }
+                }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
+    fun roleChangedShown() = _state.update { it.copy(roleChanged = null) }
+
     fun invitedShown() = _state.update { it.copy(invitedTo = null) }
     fun errorShown() = _state.update { it.copy(errorCode = null) }
 }
@@ -139,6 +173,12 @@ fun TeamDetailScreen(
         state.invitedTo?.let {
             viewModel.invitedShown()
             snackbar.showSnackbar(getString(Res.string.team_invite_sent, it))
+        }
+    }
+    LaunchedEffect(state.roleChanged) {
+        state.roleChanged?.let {
+            viewModel.roleChangedShown()
+            snackbar.showSnackbar(getString(Res.string.team_role_changed, it.nickname, getString(roleLabel(it.role))))
         }
     }
     val detail = state.team
@@ -205,20 +245,46 @@ fun TeamDetailScreen(
                                         Text(m.nickname, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                                         Text(m.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Badge(
-                                        stringResource(
-                                            when (m.role) {
-                                                TeamRole.OWNER -> Res.string.role_OWNER
-                                                TeamRole.ADMIN -> Res.string.role_ADMIN
-                                                TeamRole.MEMBER -> Res.string.role_MEMBER
-                                            },
-                                        ),
-                                    )
+                                    // 팀 OWNER 는 다른 팀원을 ADMIN 으로 지정·해제할 수 있다 (OWNER 와 나 자신은 제외)
+                                    if (detail.team.canManageRoles && m.role != TeamRole.OWNER && m.userId != state.myId) {
+                                        RoleMenu(m, onChange = { viewModel.changeRole(m, it) })
+                                    } else {
+                                        Badge(stringResource(roleLabel(m.role)))
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+private fun roleLabel(role: TeamRole) = when (role) {
+    TeamRole.OWNER -> Res.string.role_OWNER
+    TeamRole.ADMIN -> Res.string.role_ADMIN
+    TeamRole.MEMBER -> Res.string.role_MEMBER
+}
+
+/** 현재 역할 버튼 → 관리자 / 팀원 고르기 */
+@Composable
+private fun RoleMenu(member: TeamMember, onChange: (TeamRole) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) {
+            Text(stringResource(roleLabel(member.role)))
+            Icon(Icons.Outlined.ArrowDropDown, contentDescription = stringResource(Res.string.team_role_change))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            listOf(TeamRole.ADMIN, TeamRole.MEMBER).forEach { role ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(roleLabel(role))) },
+                    onClick = {
+                        open = false
+                        onChange(role)
+                    },
+                )
             }
         }
     }

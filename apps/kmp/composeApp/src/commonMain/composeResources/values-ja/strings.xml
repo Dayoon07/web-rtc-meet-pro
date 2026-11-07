@@ -177,4 +177,12 @@
     <string name="error_dialog_hint">お問い合わせの際にエラーコードをお知らせいただくと、迅速に確認できます。コードは選択してコピーできます。</string>
     <string name="error_dialog_mail_subject">[Limeet Pro] エラーのお問い合わせ %1$s</string>
     <string name="error_dialog_ok">OK</string>
+    <string name="team_role_change">役割を変更</string>
+    <string name="team_role_changed">%1$sさんを%2$sに変更しました</string>
+    <string name="chat_attach">ファイルを添付</string>
+    <string name="chat_remove_file">添付を外す</string>
+    <string name="error_TOO_MANY_FILES">一度に送信できるファイルは10個までです。</string>
+    <string name="error_FILE_TOO_LARGE">ファイルは1つ20MBまで、1回の合計50MBまで送信できます。</string>
+    <string name="error_BLOCKED_FILE_TYPE">セキュリティのため、実行ファイル（.exeなど）は送信できません。</string>
+    <string name="error_EMPTY_FILE">空のファイルは送信できません。</string>
 </resources>

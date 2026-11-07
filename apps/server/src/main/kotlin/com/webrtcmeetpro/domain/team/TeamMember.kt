@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain.team
 
+import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
@@ -31,6 +32,9 @@ enum class TeamPermission(val deniedError: ErrorCode) {
 
     /** 다른 사람이 연 예약 회의 취소 */
     CANCEL_ANY_MEETING(ErrorCode.NOT_MEETING_HOST),
+
+    /** 팀원의 역할 바꾸기 (ADMIN 지정·해제) */
+    MANAGE_ROLES(ErrorCode.NOT_TEAM_OWNER),
 }
 
 /** 팀 안 역할과 그 역할의 권한. 역할을 추가하거나 권한을 조정할 때는 여기만 바꾼다 */
@@ -79,6 +83,12 @@ class TeamMember(
 
     var leftAt: LocalDateTime? = null
         protected set
+
+    /** ADMIN 지정·해제. OWNER 는 팀을 만든 사람 한 명뿐이라 주거나 뺏을 수 없다 */
+    fun changeRole(next: TeamRole) {
+        if (role == TeamRole.OWNER || next == TeamRole.OWNER) throw BusinessException(ErrorCode.OWNER_ROLE_FIXED)
+        role = next
+    }
 
     /** 활동 중인 팀원이고 역할에 [permission] 이 있는지 */
     fun can(permission: TeamPermission): Boolean = status == TeamMemberStatus.ACTIVE && role.can(permission)

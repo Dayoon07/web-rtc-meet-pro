@@ -1,5 +1,9 @@
 package com.webrtcmeetpro.ui
 
+import com.webrtcmeetpro.resources.error_TOO_MANY_FILES
+import com.webrtcmeetpro.resources.error_FILE_TOO_LARGE
+import com.webrtcmeetpro.resources.error_EMPTY_FILE
+import com.webrtcmeetpro.resources.error_BLOCKED_FILE_TYPE
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -91,6 +95,10 @@ fun errorMessage(code: String): String = stringResource(
         "INVITATION_ALREADY_PENDING" -> Res.string.error_INVITATION_ALREADY_PENDING
         "MEETING_TIME_IN_PAST" -> Res.string.error_MEETING_TIME_IN_PAST
         "MEETING_NOT_JOINABLE", "MEETING_NOT_STARTED_YET" -> Res.string.error_MEETING_NOT_JOINABLE
+        "TOO_MANY_FILES" -> Res.string.error_TOO_MANY_FILES
+        "FILE_TOO_LARGE" -> Res.string.error_FILE_TOO_LARGE
+        "BLOCKED_FILE_TYPE" -> Res.string.error_BLOCKED_FILE_TYPE
+        "EMPTY_FILE" -> Res.string.error_EMPTY_FILE
         "NETWORK" -> Res.string.error_NETWORK
         else -> Res.string.error_UNKNOWN
     },

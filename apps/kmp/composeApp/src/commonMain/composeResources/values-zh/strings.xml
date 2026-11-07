@@ -177,4 +177,12 @@
     <string name="error_dialog_hint">联系我们时请一并提供错误代码，以便我们快速排查。可以选中代码进行复制。</string>
     <string name="error_dialog_mail_subject">[Limeet Pro] 错误咨询 %1$s</string>
     <string name="error_dialog_ok">确定</string>
+    <string name="team_role_change">更改角色</string>
+    <string name="team_role_changed">已将%1$s改为%2$s</string>
+    <string name="chat_attach">添加附件</string>
+    <string name="chat_remove_file">移除附件</string>
+    <string name="error_TOO_MANY_FILES">一次最多可以发送10个文件。</string>
+    <string name="error_FILE_TOO_LARGE">每个文件最大20MB，每次合计最多50MB。</string>
+    <string name="error_BLOCKED_FILE_TYPE">出于安全考虑，不能发送可执行文件（如 .exe）。</string>
+    <string name="error_EMPTY_FILE">不能发送空文件。</string>
 </resources>

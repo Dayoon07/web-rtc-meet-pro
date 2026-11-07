@@ -205,6 +205,17 @@ class TeamService(
         invitation.cancel()
     }
 
+    /** 팀원 역할 바꾸기 (MANAGE_ROLES 권한 — 지금은 OWNER). OWNER 와 자기 자신은 바꿀 수 없다 */
+    @Transactional
+    fun changeRole(teamId: Long, actorId: Long, targetUserId: Long, role: TeamRole): TeamMemberView {
+        access.requirePermission(teamId, actorId, TeamPermission.MANAGE_ROLES)
+        if (targetUserId == actorId) throw BusinessException(ErrorCode.CANNOT_CHANGE_OWN_ROLE)
+        val target = memberRepository.findByTeamIdAndUserId(teamId, targetUserId)?.takeIf { it.status == TeamMemberStatus.ACTIVE }
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        target.changeRole(role)
+        return memberView(target, findUser(targetUserId))
+    }
+
     private fun findMyInvitation(invitationId: Long, user: User): TeamInvitation =
         invitationRepository.findInvitationById(invitationId)?.takeIf { it.inviteeEmail == user.email && it.isPending() }
             ?: throw BusinessException(ErrorCode.INVITATION_NOT_FOUND)

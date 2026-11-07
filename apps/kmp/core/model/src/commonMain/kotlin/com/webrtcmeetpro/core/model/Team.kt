@@ -22,6 +22,8 @@ data class TeamSummary(
 ) {
     val canInvite get() = "INVITE_MEMBER" in myPermissions
     val canCreateGroupRoom get() = "CREATE_GROUP_ROOM" in myPermissions
+    /** 팀원 역할 바꾸기 (ADMIN 지정·해제). 지금은 팀 OWNER */
+    val canManageRoles get() = "MANAGE_ROLES" in myPermissions
 }
 
 @Serializable
@@ -61,3 +63,7 @@ data class CreateTeamRequest(val name: String, val description: String? = null)
 
 @Serializable
 data class InviteRequest(val email: String)
+
+/** PATCH /api/teams/{teamId}/members/{userId}/role. ADMIN 또는 MEMBER (OWNER 는 줄 수 없다) */
+@Serializable
+data class ChangeRoleRequest(val role: TeamRole)

@@ -3,6 +3,7 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/client/package.json apps/client/
+COPY apps/admin/package.json apps/admin/
 COPY apps/media/package.json apps/media/
 RUN npm ci -w @wrmp/client --no-audit --no-fund
 COPY apps/client apps/client

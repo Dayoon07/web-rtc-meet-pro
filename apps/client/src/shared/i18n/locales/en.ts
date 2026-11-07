@@ -304,6 +304,8 @@ const en: Messages = {
     members: {
       title: 'Members',
       directChat: 'Message',
+      roleLabel: "{{name}}'s role",
+      roleChanged: "Changed {{name}}'s role to {{role}}.",
       invite: {
         title: 'Invite members',
         email: 'Email',
@@ -592,6 +594,8 @@ const en: Messages = {
     ALREADY_TEAM_MEMBER: 'Already a team member.',
     INVITATION_ALREADY_PENDING: 'An invitation has already been sent to this email.',
     INVITATION_NOT_FOUND: 'Invitation not found or expired.',
+    OWNER_ROLE_FIXED: "The team owner's role can't be changed.",
+    CANNOT_CHANGE_OWN_ROLE: "You can't change your own role.",
     CHAT_ROOM_NOT_FOUND: 'Chat not found.',
     NOT_ROOM_MEMBER: "You're not in this chat.",
     CANNOT_DIRECT_SELF: "You can't message yourself.",

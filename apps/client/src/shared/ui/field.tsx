@@ -2,8 +2,11 @@ import { CircleAlert } from 'lucide-react'
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 import { cn } from '@/shared/lib/cn'
 
-const control =
-  'h-11 w-full rounded-lg border bg-white px-3.5 text-[15px] text-gray-900 shadow-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15 disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800'
+const controlBase =
+  'rounded-lg border bg-white text-gray-900 shadow-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15 disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800'
+const control = `h-11 w-full px-3.5 text-[15px] ${controlBase}`
+/** 목록 안의 작은 선택 상자 (높이·너비를 className 으로 덮어쓰면 클래스가 겹쳐 엉뚱한 쪽이 이긴다) */
+const controlCompact = `h-8 w-auto pl-2.5 text-xs ${controlBase}`
 
 const controlBorder = (invalid?: boolean) =>
   invalid ? 'border-red-400 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'
@@ -48,11 +51,16 @@ export function Input({ className, invalid, ...props }: InputHTMLAttributes<HTML
 export function Select({
   className,
   invalid,
+  compact,
   children,
   ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
+}: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean; compact?: boolean }) {
   return (
-    <select aria-invalid={invalid || undefined} className={cn(control, controlBorder(invalid), 'pr-8', className)} {...props}>
+    <select
+      aria-invalid={invalid || undefined}
+      className={cn(compact ? controlCompact : control, controlBorder(invalid), 'pr-8', className)}
+      {...props}
+    >
       {children}
     </select>
   )

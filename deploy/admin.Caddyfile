@@ -1,0 +1,13 @@
+# 관리자 사이트 정적 파일 (SPA). 앞단 web(Caddy)이 https 를 맡고 admin.<도메인> 요청을 여기로 넘긴다
+:80 {
+	encode zstd gzip
+	header {
+		X-Frame-Options DENY
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Robots-Tag "noindex, nofollow"
+	}
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}

@@ -24,7 +24,15 @@ class SystemAdminAccess(private val userRepository: UserRepository) {
     fun require(userId: Long) {
         if (!isSystemAdmin(userId)) throw BusinessException(ErrorCode.FORBIDDEN)
     }
+
+    /** 관리자 사이트가 로그인 직후 "관리자 계정인지" 확인할 때 */
+    fun me(userId: Long): AdminMeView {
+        val user = userRepository.findUserById(userId)?.takeIf { it.isSystemAdmin } ?: throw BusinessException(ErrorCode.FORBIDDEN)
+        return AdminMeView(user.id!!, user.email, user.nickname)
+    }
 }
+
+data class AdminMeView(val id: Long, val email: String, val nickname: String)
 
 /** 관리자 화면용 에러 기록. stackTrace 는 한 건 조회에서만 채운다 */
 data class AdminErrorLogView(

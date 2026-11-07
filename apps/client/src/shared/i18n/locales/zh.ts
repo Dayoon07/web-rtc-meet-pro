@@ -305,6 +305,8 @@ const zh: Messages = {
     members: {
       title: '成员',
       directChat: '发消息',
+      roleLabel: '{{name}}的角色',
+      roleChanged: '已将{{name}}改为{{role}}。',
       invite: {
         title: '邀请成员',
         email: '邮箱',
@@ -593,6 +595,8 @@ const zh: Messages = {
     ALREADY_TEAM_MEMBER: '已经是团队成员。',
     INVITATION_ALREADY_PENDING: '已向该邮箱发送过邀请。',
     INVITATION_NOT_FOUND: '邀请不存在或已过期。',
+    OWNER_ROLE_FIXED: '不能更改团队创建者的角色。',
+    CANNOT_CHANGE_OWN_ROLE: '不能更改自己的角色。',
     CHAT_ROOM_NOT_FOUND: '找不到该聊天。',
     NOT_ROOM_MEMBER: '你不在这个聊天中。',
     CANNOT_DIRECT_SELF: '不能和自己聊天。',

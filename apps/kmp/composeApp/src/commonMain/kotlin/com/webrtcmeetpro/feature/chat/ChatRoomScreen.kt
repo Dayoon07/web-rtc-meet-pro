@@ -1,5 +1,17 @@
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.resources.chat_remove_file
+import com.webrtcmeetpro.resources.chat_attach
+import com.webrtcmeetpro.platform.rememberFilePicker
+import com.webrtcmeetpro.platform.PickedFile
+import com.webrtcmeetpro.platform.ChatFileLimits
+import com.webrtcmeetpro.core.network.UploadFile
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -111,6 +123,8 @@ data class ChatRoomUiState(
     val hasOlder: Boolean = true,
     val loadingOlder: Boolean = false,
     val input: String = "",
+    /** 보내기 전 첨부파일 */
+    val pendingFiles: List<PickedFile> = emptyList(),
     val sending: Boolean = false,
     val errorCode: String? = null,
     val inviteCandidates: List<TeamMember>? = null,
@@ -173,15 +187,31 @@ class ChatRoomViewModel(
 
     fun setInput(value: String) = _state.update { it.copy(input = value.take(4000)) }
 
+    /** 첨부 추가. 서버와 같은 한도(개수·크기·실행 파일)를 먼저 확인하고, 넘으면 안내만 한다 */
+    fun addFiles(files: List<PickedFile>) {
+        if (_state.value.sending) return
+        val next = _state.value.pendingFiles + files
+        val problem = ChatFileLimits.check(next)
+        if (problem != null) _state.update { it.copy(errorCode = problem) }
+        else _state.update { it.copy(pendingFiles = next) }
+    }
+
+    fun removeFile(index: Int) = _state.update { s -> s.copy(pendingFiles = s.pendingFiles.filterIndexed { i, _ -> i != index }) }
+
+    /** 글만 있으면 글 메시지, 첨부가 있으면 첨부 + 글을 FILE 메시지 하나로 */
     fun send() {
         val s = _state.value
         val text = s.input.trim()
-        if (text.isEmpty() || s.sending) return
+        val files = s.pendingFiles
+        if ((text.isEmpty() && files.isEmpty()) || s.sending) return
         _state.update { it.copy(sending = true) }
         viewModelScope.launch {
-            runCatching { chat.send(roomId, text) }
+            runCatching {
+                if (files.isEmpty()) chat.send(roomId, text)
+                else chat.sendFiles(roomId, files.map { UploadFile(it.name, it.mimeType, it.bytes!!) }, text)
+            }
                 .onSuccess { sent ->
-                    _state.update { it.copy(input = "", sending = false) }
+                    _state.update { it.copy(input = "", pendingFiles = emptyList(), sending = false) }
                     append(sent)
                 }
                 .onFailure { e -> _state.update { it.copy(sending = false, errorCode = e.errorCode) } }
@@ -277,7 +307,15 @@ fun ChatRoomScreen(
             else -> Column(Modifier.fillMaxSize().imePadding()) {
                 MessageList(state, onReachTop = viewModel::loadOlder, modifier = Modifier.weight(1f))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                InputBar(state.input, state.sending, viewModel::setInput, viewModel::send)
+                InputBar(
+                    value = state.input,
+                    files = state.pendingFiles,
+                    sending = state.sending,
+                    onChange = viewModel::setInput,
+                    onAttach = viewModel::addFiles,
+                    onRemoveFile = viewModel::removeFile,
+                    onSend = viewModel::send,
+                )
             }
         }
     }
@@ -392,13 +430,49 @@ private fun TimeLabel(iso: String) {
 }
 
 @Composable
-private fun InputBar(value: String, sending: Boolean, onChange: (String) -> Unit, onSend: () -> Unit) {
+private fun InputBar(
+    value: String,
+    files: List<PickedFile>,
+    sending: Boolean,
+    onChange: (String) -> Unit,
+    onAttach: (List<PickedFile>) -> Unit,
+    onRemoveFile: (Int) -> Unit,
+    onSend: () -> Unit,
+) {
+    val pick = rememberFilePicker(stringResource(Res.string.chat_attach), onAttach)
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+      Column(Modifier.widthIn(max = 960.dp).fillMaxWidth()) {
+        // 보내기 전 첨부파일 (이름·크기, X 로 빼기)
+        if (files.isNotEmpty()) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                files.forEachIndexed { i, f ->
+                    Row(
+                        Modifier.clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(start = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Outlined.Description, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(Modifier.padding(start = 6.dp).widthIn(max = 160.dp)) {
+                            Text(f.name, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(formatBytes(f.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { onRemoveFile(i) }, enabled = !sending, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Outlined.Close, contentDescription = stringResource(Res.string.chat_remove_file), modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        }
         Row(
-            Modifier.widthIn(max = 960.dp).fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            IconButton(onClick = pick, enabled = !sending, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.AttachFile, contentDescription = stringResource(Res.string.chat_attach))
+            }
             OutlinedTextField(
                 value = value,
                 onValueChange = onChange,
@@ -417,10 +491,12 @@ private fun InputBar(value: String, sending: Boolean, onChange: (String) -> Unit
                     }
                 },
             )
-            FilledIconButton(onClick = onSend, enabled = value.isNotBlank() && !sending, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = stringResource(Res.string.chat_send))
+            FilledIconButton(onClick = onSend, enabled = (value.isNotBlank() || files.isNotEmpty()) && !sending, modifier = Modifier.size(48.dp)) {
+                if (sending) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                else Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = stringResource(Res.string.chat_send))
             }
         }
+      }
     }
 }
 
