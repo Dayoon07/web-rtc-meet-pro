@@ -234,4 +234,6 @@
     <string name="meeting_edit_title">회의 고치기</string>
     <string name="notif_MEETING_UPDATED">「%1$s」 회의 일정이 바뀌었어요</string>
     <string name="error_MEETING_NOT_EDITABLE">시작했거나 끝난 회의는 고칠 수 없어요.</string>
+    <string name="meeting_recordings">녹화</string>
+    <string name="meeting_recording_play">재생</string>
 </resources>

@@ -24,7 +24,34 @@ export type Meeting = {
   canCancel: boolean
   /** 내가 고칠 수 있는지 (취소와 같은 조건) */
   canEdit?: boolean
+  /** 지금 녹화 중인지 (회의실에 "녹화 중" 표시) */
+  recording?: boolean
+  /** 내가 녹화를 시작할 수 있는지 (열린 회의 + 주최자·팀 관리자 + 플랜에 녹화 포함) */
+  canRecord?: boolean
+  /** 팀 소유자 플랜에 녹화가 들어 있는지 */
+  recordingAvailable?: boolean
+  /** 주최자이거나 팀 관리자 */
+  canManage?: boolean
 }
+
+export type RecordingStatus = 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'DELETED'
+
+export type Recording = {
+  id: number
+  meetingId: number
+  startedBy: MeetingUser | null
+  status: RecordingStatus
+  sizeBytes: number
+  durationSeconds: number | null
+  startedAt: string
+  endedAt: string | null
+  /** 서명된 재생 주소 (READY 일 때만). &download=true 를 붙이면 내려받기 */
+  url: string | null
+  canDelete: boolean
+}
+
+/** 서버 /user/queue/meeting 이벤트 */
+export type MeetingRoomEvent = { type: 'RECORDING'; meetingId: number; recording: boolean; by: string | null }
 
 export type JoinInfo = { meeting: Meeting; mediaUrl: string; token: string }
 
@@ -41,6 +68,7 @@ export const meetingKeys = {
   upcoming: ['meetings', 'upcoming'] as const,
   past: ['meetings', 'past'] as const,
   detail: (id: number) => ['meetings', id] as const,
+  recordings: (id: number) => ['meetings', id, 'recordings'] as const,
 }
 
 export const meetingApi = {
@@ -50,6 +78,16 @@ export const meetingApi = {
   /** 예약 회의 고치기 (시작 전만). inviteeIds 를 비우면 팀원 전체 */
   update: (id: number, body: ScheduleBody & { scheduledAt: string }) => http<Meeting>(`/meetings/${id}`, { method: 'PUT', json: body }),
   cancel: (id: number) => http<void>(`/meetings/${id}/cancel`, { method: 'POST' }),
+  recordings: (id: number) => http<Recording[]>(`/meetings/${id}/recordings`),
+  startRecording: (id: number) => http<Recording>(`/meetings/${id}/recordings`, { method: 'POST' }),
+  uploadRecordingChunk: (id: number, recordingId: number, seq: number, chunk: Blob) => {
+    const form = new FormData()
+    form.append('chunk', chunk, `${seq}.webm`)
+    return http<Recording>(`/meetings/${id}/recordings/${recordingId}/chunks?seq=${seq}`, { method: 'POST', form })
+  },
+  finishRecording: (id: number, recordingId: number, durationSeconds: number) =>
+    http<Recording>(`/meetings/${id}/recordings/${recordingId}/finish`, { method: 'POST', json: { durationSeconds } }),
+  deleteRecording: (id: number, recordingId: number) => http<void>(`/meetings/${id}/recordings/${recordingId}`, { method: 'DELETE' }),
   join: (id: number) => http<JoinInfo>(`/meetings/${id}/join`, { method: 'POST' }),
 }
 

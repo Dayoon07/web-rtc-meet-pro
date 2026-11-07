@@ -32,6 +32,19 @@ data class Meeting(
     val isOpen get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
 }
 
+/** GET /api/meetings/{id}/recordings. url 은 서명된 재생 주소 (READY 일 때만, "/api/..." 상대 경로) */
+@Serializable
+data class Recording(
+    val id: Long,
+    val meetingId: Long,
+    val startedBy: MeetingUser? = null,
+    val status: String,
+    val sizeBytes: Long = 0,
+    val durationSeconds: Int? = null,
+    val startedAt: String,
+    val url: String? = null,
+)
+
 /** POST /api/teams/{id}/meetings. scheduledAt 을 비우면 지금 바로 시작. inviteeIds 를 비우면 팀원 전체 */
 @Serializable
 data class ScheduleMeetingRequest(

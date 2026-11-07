@@ -234,4 +234,6 @@
     <string name="meeting_edit_title">编辑会议</string>
     <string name="notif_MEETING_UPDATED">「%1$s」的安排已更改</string>
     <string name="error_MEETING_NOT_EDITABLE">已开始或已结束的会议不能编辑。</string>
+    <string name="meeting_recordings">录制</string>
+    <string name="meeting_recording_play">播放</string>
 </resources>

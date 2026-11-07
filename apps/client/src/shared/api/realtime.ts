@@ -2,15 +2,15 @@ import { Client, type IMessage } from '@stomp/stompjs'
 import { getAccessToken, refreshAccessToken } from './http'
 
 type Listener = (payload: unknown) => void
-type Channel = 'chat' | 'notifications'
+type Channel = 'chat' | 'notifications' | 'meeting'
 
 /**
  * 서버 STOMP(/ws) 연결. 로그인 동안 하나만 유지(싱글톤).
- * 내 큐(/user/queue/chat, /user/queue/notifications)만 구독하고, 보내기는 REST 로 한다.
+ * 내 큐(/user/queue/chat, /user/queue/notifications, /user/queue/meeting)만 구독하고, 보내기는 REST 로 한다.
  */
 class Realtime {
   private client: Client | null = null
-  private listeners: Record<Channel, Set<Listener>> = { chat: new Set(), notifications: new Set() }
+  private listeners: Record<Channel, Set<Listener>> = { chat: new Set(), notifications: new Set(), meeting: new Set() }
 
   start() {
     if (this.client) return
@@ -25,7 +25,7 @@ class Realtime {
         client.connectHeaders = { Authorization: `Bearer ${getAccessToken() ?? ''}` }
       },
       onConnect: () => {
-        ;(['chat', 'notifications'] as Channel[]).forEach((channel) =>
+        ;(['chat', 'notifications', 'meeting'] as Channel[]).forEach((channel) =>
           client.subscribe(`/user/queue/${channel}`, (msg: IMessage) => {
             const payload = JSON.parse(msg.body) as unknown
             this.listeners[channel].forEach((l) => l(payload))

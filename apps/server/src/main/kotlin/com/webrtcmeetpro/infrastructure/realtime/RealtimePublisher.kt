@@ -24,6 +24,8 @@ class RealtimePublisher(private val events: ApplicationEventPublisher) {
     companion object {
         const val CHAT = "/queue/chat"
         const val NOTIFICATIONS = "/queue/notifications"
+        /** 회의실 안 상태 (녹화 시작·끝) */
+        const val MEETING = "/queue/meeting"
     }
 }
 

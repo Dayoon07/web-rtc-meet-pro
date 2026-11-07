@@ -89,6 +89,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `OAUTH_SUCCESS_REDIRECT` / `OAUTH_FAILURE_REDIRECT` | `http://localhost:5173/oauth/callback` / `/login` |
 | `UPLOAD_DIR` | `./uploads` (프로필 이미지, `/uploads/**` 로 서빙) |
 | `CHAT_FILE_DIR` | `./data/chat-files` (채팅 첨부파일. 공개하지 않고 서명된 `/api/chat/files/{id}` 로만 내려받기) |
+| `RECORDING_DIR` | `./data/recordings` (회의 녹화 webm. 서명된 `/api/recordings/{id}/file` 로만 재생·내려받기) |
 | `MEDIA_JWT_SECRET` | 회의 입장 토큰 서명 키. **사이드카와 같은 값** |
 | `MEDIA_INTERNAL_SECRET` | 사이드카 → 서버 콜백 인증. **사이드카와 같은 값** |
 | `MEDIA_PUBLIC_URL` | 비우면 같은 출처의 `/media/socket.io` (dev 는 Vite 프록시) |
@@ -160,6 +161,13 @@ COMMIT;
 화면 이름·묶음·보기 전용·비밀값 같은 예외만 `application/admin/table/AdminTablePolicy.kt` 에 적는다.
 비밀값(비밀번호 해시·토큰·빌링키)은 보여 주지 않고, 행은 지우지 않으며(`deleted_yn`), 고친 내용은 `admin_data_changes` 에 이전 값 → 새 값으로 남는다.
 
+#### 회의 녹화
+
+- 주최자(또는 팀 OWNER·ADMIN) 브라우저가 회의 탭을 화면 공유로 잡아 녹화한다 (서버 CPU 를 쓰지 않는다). 탭 소리(다른 사람 목소리) + 내 마이크를 섞는다.
+- 10초마다 조각을 `/api/meetings/{id}/recordings/{rid}/chunks?seq=` 로 올리고 서버가 이어 붙인다. 주최자가 창을 닫아도 그때까지는 남고, 조각이 2분 동안 안 오면 서버가 마무리한다.
+- 녹화 중에는 회의실 모두에게 "녹화 중" 이 보인다 (STOMP `/user/queue/meeting`). 회의 상세에서 재생·내려받기·지우기.
+- 팀 소유자 플랜의 `recording_enabled` 가 `Y` 여야 한다 (FREE 는 `N`).
+
 #### 가입 이메일 인증 · 비밀번호
 
 - 이메일로 가입하면 24시간짜리 인증 링크를 메일로 보낸다 (`MAIL_HOST` 가 없으면 서버 로그에 링크). 인증 전에는 로그인은 되지만 "이메일을 확인해 주세요" 화면만 보이고, 받은 팀 초대를 보거나 수락할 수 없다 (남의 이메일로 가입해서 초대를 가로채지 못하게).
@@ -201,7 +209,7 @@ npm run dev:client
 ```
 
 `/api`·`/uploads`·`/oauth2`·`/login/oauth2`·`/ws` 는 8080, `/media` 는 4000 으로 Vite 가 프록시한다.
-다른 포트의 서버를 볼 때는 `API_TARGET=http://localhost:8081` (관리자 사이트는 `ADMIN_API_TARGET`).
+다른 포트의 서버를 볼 때는 `API_TARGET=http://localhost:8081`, 사이드카는 `MEDIA_TARGET=http://localhost:4001` (관리자 사이트는 `ADMIN_API_TARGET`).
 
 ### 5. 관리자 사이트 (http://localhost:5174)
 
@@ -356,7 +364,7 @@ apps/kmp/
 
 - 화면: 로그인·회원가입, 홈(다가오는 회의·내 팀·알림 종), 채팅(팀별 방 목록, 1:1, 그룹 — 팀 소유자만, 방 초대·나가기), 회의(예정/지난, 예약, 상세, 취소, 참여), 팀(받은 초대 수락·거절, 팀 만들기, 이메일 초대·취소), 알림, 설정.
 - 실시간: 로그인 동안 STOMP 연결 하나를 유지해 새 메시지·알림을 받는다. 다른 화면에 있으면 시스템 알림(Android 알림 / Windows 트레이)을 띄운다. 앱이 꺼져 있을 때의 푸시(FCM)는 아직 없다.
-- 화상회의: 앱이 `POST /api/sessions/web-handoff` 로 60초짜리 1회용 코드를 받아 `웹/oauth/callback?code=…&next=/meet/{id}` 를 브라우저로 연다. mediasoup 네이티브 클라이언트는 아직 없다.
+- 화상회의: 앱이 `POST /api/sessions/web-handoff` 로 60초짜리 1회용 코드를 받아 `웹/oauth/callback?code=…&next=/meet/{id}` 를 연다. **Android 는 앱 안 웹뷰**(카메라·마이크 권한을 앱이 묻는다, 회의에서 나가면 닫힘), **Windows 는 기본 브라우저**. 녹화 목록은 앱 회의 상세에서 보고 재생은 브라우저로.
 - 공통으로 쓸 수 있는 건 전부 `commonMain`/`core` 에 있다. JVM API 가 필요한 것은 `jvmSharedMain` 한 곳에, 정말 다른 것(언어 전환, 시스템 알림, 서버 주소·저장 경로)만 `androidMain`/`desktopMain` 에 둔다.
 - 좁은 화면(폰)은 하단 탭, 넓은 창(태블릿·데스크톱)은 왼쪽 레일 — 같은 화면 코드가 폭에 따라 바뀐다.
 - `androidApp` 이 따로 있는 이유: AGP 9 부터 `kotlin.multiplatform` 과 `com.android.application` 을 한 모듈에 둘 수 없다. 그래서 `composeApp` 은 Android 라이브러리 타깃(`com.android.kotlin.multiplatform.library`)이고, 실행 APK 만 `androidApp` 이 만든다.

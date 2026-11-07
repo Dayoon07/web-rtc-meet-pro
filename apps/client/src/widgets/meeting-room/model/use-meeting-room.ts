@@ -352,6 +352,8 @@ export function useMeetingRoom(meetingId: number, selfName: string) {
   return {
     state,
     retry,
+    /** 녹화에 섞을 내 마이크 트랙 (마이크를 끄면 트랙도 꺼진다) */
+    getMicTrack: () => producers.current.mic?.track ?? null,
     meeting,
     peers: Object.values(peers),
     local,

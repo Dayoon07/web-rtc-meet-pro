@@ -235,4 +235,6 @@
     <string name="meeting_edit_title">Edit meeting</string>
     <string name="notif_MEETING_UPDATED">“%1$s” was updated</string>
     <string name="error_MEETING_NOT_EDITABLE">Meetings that have started or ended can’t be edited.</string>
+    <string name="meeting_recordings">Recordings</string>
+    <string name="meeting_recording_play">Play</string>
 </resources>

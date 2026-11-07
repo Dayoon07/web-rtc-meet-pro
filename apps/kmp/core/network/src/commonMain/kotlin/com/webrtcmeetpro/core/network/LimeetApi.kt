@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.core.network
 
+import com.webrtcmeetpro.core.model.Recording
 import io.ktor.client.request.put
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Headers
@@ -202,6 +203,9 @@ class LimeetApi(private val client: HttpClient) {
 
     suspend fun scheduleMeeting(teamId: Long, request: ScheduleMeetingRequest): Meeting =
         client.post("api/teams/$teamId/meetings") { setBody(request) }.body()
+
+    /** 회의 녹화 목록 (녹화는 웹에서 주최자가 한다. 앱은 보기만) */
+    suspend fun recordings(meetingId: Long): List<Recording> = client.get("api/meetings/$meetingId/recordings").body()
 
     /** 예약 회의 고치기 (scheduledAt 필수) */
     suspend fun updateMeeting(meetingId: Long, request: ScheduleMeetingRequest): Meeting =

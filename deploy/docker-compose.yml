@@ -57,6 +57,8 @@ services:
       - uploads:/data/uploads
       # 채팅 첨부파일 (공개 경로가 아님. 서명된 /api/chat/files/{id} 로만 내려받기)
       - chat-files:/data/chat-files
+      # 회의 녹화 (주최자 브라우저가 올린 webm. 디스크를 많이 쓰니 남은 용량을 가끔 확인)
+      - recordings:/data/recordings
     ports:
       # 사이드카(호스트 네트워크)가 참가 기록을 보내는 내부 콜백용. 외부에는 열리지 않도록 127.0.0.1 에만
       - "127.0.0.1:8080:8080"
@@ -115,5 +117,6 @@ volumes:
   oracle-data:
   uploads:
   chat-files:
+  recordings:
   caddy-data:
   caddy-config:

@@ -81,6 +81,12 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없거나 링크가 만료되었습니다. 채팅방을 새로고침해 주세요."),
 
     // meeting
+    RECORDING_NOT_ALLOWED(HttpStatus.FORBIDDEN, "녹화는 플랜1 이상에서 쓸 수 있습니다."),
+    NOT_RECORDING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 녹화할 수 있습니다."),
+    RECORDING_IN_PROGRESS(HttpStatus.CONFLICT, "이미 녹화 중입니다."),
+    RECORDING_NOT_FOUND(HttpStatus.NOT_FOUND, "녹화를 찾을 수 없습니다."),
+    RECORDING_CHUNK_OUT_OF_ORDER(HttpStatus.CONFLICT, "녹화 조각 순서가 맞지 않습니다."),
+    RECORDING_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "녹화가 너무 깁니다. 녹화를 멈추고 새로 시작해 주세요."),
     MEETING_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "시작했거나 끝난 회의는 고칠 수 없습니다."),
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
     NOT_MEETING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 할 수 있습니다."),

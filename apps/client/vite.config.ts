@@ -5,6 +5,8 @@ import { defineConfig } from 'vite'
 
 // 다른 포트의 서버를 볼 때: API_TARGET=http://localhost:8081 npm run dev
 const api = process.env.API_TARGET ?? 'http://localhost:8080'
+// 미디어 사이드카도 다른 포트로: MEDIA_TARGET=http://localhost:4001
+const media = process.env.MEDIA_TARGET ?? 'http://localhost:4000'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -35,7 +37,7 @@ export default defineConfig({
       // STOMP(WebSocket): 채팅·알림 실시간 수신
       '/ws': { target: api.replace(/^http/, 'ws'), ws: true },
       // mediasoup 사이드카 (socket.io 시그널링)
-      '/media': { target: 'http://localhost:4000', ws: true },
+      '/media': { target: media, ws: true },
     },
   },
 })

@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.application.meeting
 
+import com.webrtcmeetpro.domain.meeting.MeetingRecordingRepository
+import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.application.team.TeamAccess
 import com.webrtcmeetpro.common.error.BusinessException
@@ -49,6 +51,14 @@ data class MeetingView(
     val canCancel: Boolean,
     /** 고칠 수 있는지 (취소와 같은 사람, 같은 조건) */
     val canEdit: Boolean = canCancel,
+    /** 지금 녹화 중인지 (회의실에 "녹화 중" 표시) */
+    val recording: Boolean = false,
+    /** 이 사람이 녹화를 시작할 수 있는지: 열린 회의 + (주최자 또는 팀 관리 권한) + 팀 소유자 플랜에 녹화 포함 */
+    val canRecord: Boolean = false,
+    /** 녹화 기능이 플랜에 포함돼 있는지 (아니면 버튼을 잠그고 플랜 안내) */
+    val recordingAvailable: Boolean = false,
+    /** 주최자이거나 팀 관리자 (회의 상태와 상관없이) */
+    val canManage: Boolean = false,
 )
 
 data class ScheduleMeetingCommand(
@@ -89,6 +99,8 @@ class MeetingService(
     private val notifications: NotificationService,
     private val tokenIssuer: MediaTokenIssuer,
     private val mediaProperties: MediaProperties,
+    private val recordingRepository: MeetingRecordingRepository,
+    private val planService: PlanService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val random = SecureRandom()
@@ -287,6 +299,17 @@ class MeetingService(
 
     private fun userView(u: User) = MeetingUserView(u.id!!, u.nickname, u.profileImageUrl)
 
+    /** 주최자이거나 팀에서 회의를 관리할 수 있는 사람 (OWNER·ADMIN) */
+    fun canManage(meeting: Meeting, viewerId: Long): Boolean =
+        if (meeting.hostId == viewerId) teamAccess.isMember(meeting.teamId, viewerId)
+        else teamAccess.can(meeting.teamId, viewerId, TeamPermission.CANCEL_ANY_MEETING)
+
+    /** 녹화는 팀 "소유자" 의 플랜 기준 (팀 인원 한도와 같은 규칙) */
+    fun recordingAvailable(meeting: Meeting): Boolean {
+        val ownerId = teamRepository.findTeamById(meeting.teamId)?.ownerId ?: return false
+        return planService.currentPlanOf(ownerId).recordingEnabled
+    }
+
     private fun canCancel(meeting: Meeting, viewerId: Long): Boolean =
         meeting.status == MeetingStatus.SCHEDULED &&
             if (meeting.hostId == viewerId) teamAccess.isMember(meeting.teamId, viewerId)
@@ -310,6 +333,11 @@ class MeetingService(
             invitees = inviteeIds.mapNotNull { users[it] }.map(::userView),
             liveParticipants = if (meeting.status == MeetingStatus.LIVE) participantRepository.countByMeetingIdAndLeftAtIsNull(meeting.id!!) else 0,
             canCancel = canCancel(meeting, viewerId),
+            canEdit = canCancel(meeting, viewerId),
+            recording = meeting.isOpen && recordingRepository.findAllByMeetingId(meeting.id!!).any { it.isRecording },
+            canRecord = meeting.isOpen && canManage(meeting, viewerId) && recordingAvailable(meeting),
+            recordingAvailable = recordingAvailable(meeting),
+            canManage = canManage(meeting, viewerId),
         )
     }
 }

@@ -13,6 +13,6 @@ WORKDIR /app
 RUN useradd --system --uid 1001 app && mkdir -p /data/uploads /data/chat-files && chown app /data/uploads /data/chat-files
 COPY --from=build /src/build/libs/*.jar app.jar
 USER app
-ENV UPLOAD_DIR=/data/uploads CHAT_FILE_DIR=/data/chat-files
+ENV UPLOAD_DIR=/data/uploads CHAT_FILE_DIR=/data/chat-files RECORDING_DIR=/data/recordings
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]

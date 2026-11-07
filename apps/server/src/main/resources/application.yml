@@ -53,6 +53,8 @@ app:
     upload-dir: ${UPLOAD_DIR:./uploads}
     # 채팅 첨부파일 저장 위치. 공개 경로가 아니다 (서명된 /api/chat/files/{id} 로만 내려받기)
     chat-file-dir: ${CHAT_FILE_DIR:./data/chat-files}
+    # 회의 녹화 (공개하지 않음. 서명된 /api/recordings/{id}/file 로만 재생·내려받기)
+    recording-dir: ${RECORDING_DIR:./data/recordings}
   media:
     # mediasoup 사이드카(apps/media)와 같은 값이어야 한다. 운영에서는 반드시 환경변수로 교체
     jwt-secret: ${MEDIA_JWT_SECRET:local-media-secret-change-me-0123456789abcdef}

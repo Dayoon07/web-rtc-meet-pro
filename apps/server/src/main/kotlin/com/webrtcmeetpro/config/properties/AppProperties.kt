@@ -26,6 +26,7 @@ data class OAuth2Properties(
 /**
  * @param uploadDir 프로필 이미지 (정적 경로 /uploads 아래로 공개)
  * @param chatFileDir 채팅 첨부파일 (공개하지 않음. 서명된 주소로만 내려받기)
+ * @param recordingDir 회의 녹화 (공개하지 않음. 서명된 주소로만 재생·내려받기)
  */
 @ConfigurationProperties("app.storage")
-data class StorageProperties(val uploadDir: String, val chatFileDir: String)
+data class StorageProperties(val uploadDir: String, val chatFileDir: String, val recordingDir: String = "./data/recordings")

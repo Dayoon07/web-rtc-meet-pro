@@ -1,5 +1,13 @@
 package com.webrtcmeetpro.feature.meetings
 
+import com.webrtcmeetpro.resources.meeting_recording_play
+import com.webrtcmeetpro.resources.meeting_recordings
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Movie
+import org.koin.compose.koinInject
+import com.webrtcmeetpro.core.network.ApiConfig
+import com.webrtcmeetpro.core.model.Recording
+import com.webrtcmeetpro.platform.inAppMeetingSupported
 import com.webrtcmeetpro.resources.meeting_edit
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +87,8 @@ data class MeetingDetailUiState(
     /** 브라우저로 열 주소. 화면이 한 번 열고 지운다 */
     val joinUrl: String? = null,
     val errorCode: String? = null,
+    /** 녹화 (재생 가능한 것만) */
+    val recordings: List<Recording> = emptyList(),
 ) {
     val isHost get() = meeting?.host?.id == myId
 
@@ -112,6 +122,8 @@ class MeetingDetailViewModel(
             runCatching { users.me().id to meetings.detail(meetingId) }
                 .onSuccess { (myId, m) -> _state.update { it.copy(meeting = m, myId = myId) } }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
+            runCatching { meetings.recordings(meetingId) }
+                .onSuccess { list -> _state.update { it.copy(recordings = list.filter { r -> r.url != null }) } }
         }
     }
 
@@ -145,6 +157,8 @@ fun MeetingDetailScreen(
     onBack: () -> Unit,
     /** 예약 회의 고치기 화면 열기 */
     onEdit: (meetingId: Long) -> Unit = {},
+    /** Android: 앱 안 회의 화면으로 (Windows 는 브라우저) */
+    onJoinInApp: (url: String) -> Unit = {},
     viewModel: MeetingDetailViewModel = koinViewModel(key = "meeting-$meetingId") { parametersOf(meetingId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -153,7 +167,7 @@ fun MeetingDetailScreen(
     LaunchedEffect(state.joinUrl) {
         state.joinUrl?.let {
             viewModel.joinOpened()
-            uriHandler.openUri(it)
+            if (inAppMeetingSupported) onJoinInApp(it) else uriHandler.openUri(it)
         }
     }
     var confirmCancel by remember { mutableStateOf(false) }
@@ -200,11 +214,37 @@ fun MeetingDetailScreen(
                                 loading = state.joining,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Text(
-                                stringResource(Res.string.meeting_browser_note),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            // Android 는 앱 안에서, Windows 는 브라우저로 열린다
+                            if (!inAppMeetingSupported) {
+                                Text(
+                                    stringResource(Res.string.meeting_browser_note),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+
+                    if (state.recordings.isNotEmpty()) {
+                        Text(stringResource(Res.string.meeting_recordings), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        val config = koinInject<ApiConfig>()
+                        state.recordings.forEach { r ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Outlined.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Column(Modifier.weight(1f)) {
+                                    Text(formatDateTime(r.startedAt), style = MaterialTheme.typography.bodyMedium)
+                                    val minutes = (r.durationSeconds ?: 0) / 60
+                                    Text(
+                                        "${r.startedBy?.nickname ?: ""} · ${stringResource(Res.string.meeting_duration, minutes)} · ${r.sizeBytes / 1024 / 1024} MB",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                // 재생은 브라우저(또는 동영상 앱)에서
+                                TextButton(onClick = { config.resolve(r.url)?.let { runCatching { uriHandler.openUri(it) } } }) {
+                                    Text(stringResource(Res.string.meeting_recording_play))
+                                }
+                            }
                         }
                     }
 

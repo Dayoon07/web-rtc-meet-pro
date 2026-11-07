@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.main
 
+import com.webrtcmeetpro.platform.InAppMeeting
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -87,6 +88,8 @@ import kotlin.reflect.KClass
 @Serializable data class MeetingDetailRoute(val meetingId: Long)
 @Serializable data object ScheduleMeetingRoute
 @Serializable data class EditMeetingRoute(val meetingId: Long)
+/** Android 앱 안 회의 화면 (url = 웹 로그인 넘김 주소) */
+@Serializable data class MeetRoomRoute(val url: String)
 @Serializable data class TeamDetailRoute(val teamId: Long)
 @Serializable data object NotificationsRoute
 
@@ -218,7 +221,15 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
             )
         }
         composable<MeetingDetailRoute> {
-            MeetingDetailScreen(it.toRoute<MeetingDetailRoute>().meetingId, onBack = back, onEdit = { id -> nav.navigate(EditMeetingRoute(id)) })
+            MeetingDetailScreen(
+                it.toRoute<MeetingDetailRoute>().meetingId,
+                onBack = back,
+                onEdit = { id -> nav.navigate(EditMeetingRoute(id)) },
+                onJoinInApp = { url -> nav.navigate(MeetRoomRoute(url)) },
+            )
+        }
+        composable<MeetRoomRoute> {
+            InAppMeeting(it.toRoute<MeetRoomRoute>().url, onClose = back)
         }
         composable<EditMeetingRoute> {
             ScheduleMeetingScreen(

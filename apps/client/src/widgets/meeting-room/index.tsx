@@ -1,9 +1,11 @@
-import { Hand, Link2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Users, Video, VideoOff, X } from 'lucide-react'
+import { Circle, Hand, Link2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Square, Users, Video, VideoOff, X } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import type { MeetingRoomEvent } from '@/entities/meeting'
+import { useMeetingRecorder } from '@/features/meeting-recorder'
 import { EffectsPanel, hasEffects } from '@/features/video-effects'
-import { errorMessage } from '@/shared/api'
+import { errorMessage, realtime } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
 import { Avatar, Button, Spinner } from '@/shared/ui'
@@ -117,6 +119,36 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
     if (room.state.phase === 'left') onExit()
   }, [room.state.phase, onExit])
 
+  // 녹화: 주최자(또는 팀 관리자)가 이 브라우저로 녹화. "녹화 중" 표시는 모두에게 (서버 이벤트)
+  const recorder = useMeetingRecorder(meetingId, room.getMicTrack)
+  // 이벤트 처리기가 지금 녹화 상태를 보도록 (내가 시작한 녹화인지)
+  const recorderRef = useRef(false)
+  recorderRef.current = recorder.status !== 'idle'
+  const [othersRecording, setOthersRecording] = useState<boolean | null>(null)
+  const recordingOn = recorder.recording || (othersRecording ?? !!room.meeting?.recording)
+  useEffect(
+    () =>
+      realtime.on('meeting', (payload) => {
+        const ev = payload as MeetingRoomEvent
+        if (ev.type !== 'RECORDING' || ev.meetingId !== meetingId) return
+        setOthersRecording(ev.recording)
+        // 내가 시작한 녹화는 알리지 않는다
+        if (ev.recording && ev.by && !recorderRef.current) toast(t('room.recordingStartedBy', { name: ev.by }))
+      }),
+    [meetingId, t],
+  )
+  useEffect(() => {
+    if (recorder.error) toast.error(errorMessage(recorder.error))
+  }, [recorder.error])
+  const toggleRecording = () => {
+    if (recorder.recording) return recorder.stop()
+    if (room.meeting && !room.meeting.recordingAvailable) return toast(t('room.recordingPlan'))
+    if (recordingOn) return toast(t('room.recordingByOther'))
+    void recorder.start()
+  }
+  // 녹화할 수 있는 사람에게만. 플랜에 녹화가 없으면 관리자에게 잠긴 버튼(누르면 플랜 안내)
+  const showRecordButton = !!room.meeting && (!!room.meeting.canRecord || (!!room.meeting.canManage && !room.meeting.recordingAvailable))
+
   useEffect(() => {
     if (room.deviceError) toast.warning(t('room.noDevice'))
   }, [room.deviceError, t])
@@ -220,6 +252,12 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
           <p className="truncate font-semibold">{room.meeting?.title}</p>
           <span className="hidden text-sm text-gray-400 sm:inline">{room.meeting?.teamName}</span>
           <span className="font-mono text-sm text-gray-400 tabular-nums">{elapsed}</span>
+          {recordingOn && (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-600/90 px-2.5 py-0.5 text-xs font-semibold">
+              <span className="size-1.5 animate-pulse rounded-full bg-white" />
+              {t('room.recordingNow')}
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -319,6 +357,11 @@ export function MeetingRoom({ meetingId, selfName, selfAvatar, onExit }: { meeti
         <ControlButton label={t(room.local.screen ? 'room.shareStop' : 'room.shareStart')} onClick={() => void room.toggleScreen()}>
           {room.local.screen ? <MonitorX className="text-brand-300" /> : <MonitorUp />}
         </ControlButton>
+        {showRecordButton && (
+          <ControlButton label={t(recorder.recording ? 'room.recordStop' : 'room.recordStart')} onClick={toggleRecording}>
+            {recorder.recording ? <Square className="fill-red-500 text-red-500" /> : <Circle className={cn(recorder.status === 'starting' && 'animate-pulse', 'text-red-400')} />}
+          </ControlButton>
+        )}
         <ControlButton label={t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand')} onClick={room.toggleHand}>
           <Hand className={cn(room.local.hand && 'text-amber-400')} />
         </ControlButton>

@@ -291,9 +291,48 @@ class MeetingRecording(
 
     var endedAt: LocalDateTime? = null
         protected set
+
+    val isRecording: Boolean get() = status == RecordingStatus.RECORDING
+
+    /** 디스크에 저장한 이름 (storage_url 컬럼). 녹화를 시작할 때 한 번 정한다 */
+    fun attachFile(storedName: String) {
+        storageUrl = storedName
+        fileSizeBytes = 0
+    }
+
+    /** 주최자 브라우저가 보낸 조각을 이어 붙였다 */
+    fun appended(bytes: Long) {
+        check(isRecording) { "녹화 중일 때만 이어 붙일 수 있습니다." }
+        fileSizeBytes = (fileSizeBytes ?: 0) + bytes
+    }
+
+    /** 녹화 끝 (주최자가 멈춤, 또는 조각이 한동안 안 와서 서버가 마무리). 받은 게 없으면 실패 */
+    fun finish(durationSeconds: Int?, at: LocalDateTime = LocalDateTime.now()) {
+        if (!isRecording) return
+        endedAt = at
+        this.durationSeconds = durationSeconds ?: java.time.Duration.between(startedAt, at).seconds.toInt()
+        status = if ((fileSizeBytes ?: 0) > 0) RecordingStatus.READY else RecordingStatus.FAILED
+    }
+
+    fun delete() {
+        status = RecordingStatus.DELETED
+        markDeleted()
+    }
 }
 
 interface MeetingRecordingRepository {
     fun save(recording: MeetingRecording): MeetingRecording
     fun findAllByMeetingId(meetingId: Long): List<MeetingRecording>
+    fun findRecordingById(id: Long): MeetingRecording?
+    fun findAllByStatus(status: RecordingStatus): List<MeetingRecording>
+}
+
+/** 녹화 파일 저장소 (infrastructure/storage). 조각을 순서대로 이어 붙인다 */
+interface RecordingStorage {
+    /** 빈 파일을 만들고 저장 이름을 돌려준다 */
+    fun create(): String
+    /** @return 이어 붙인 바이트 수 */
+    fun append(storedName: String, content: java.io.InputStream): Long
+    fun open(storedName: String): java.nio.file.Path?
+    fun delete(storedName: String)
 }
