@@ -18,17 +18,8 @@ import com.webrtcmeetpro.application.mail.MailSender
 import com.webrtcmeetpro.application.mail.MailService
 import com.webrtcmeetpro.config.properties.WebProperties
 import java.net.URLDecoder
-import com.webrtcmeetpro.application.plan.PlanService
-import com.webrtcmeetpro.domain.plan.Payment
-import com.webrtcmeetpro.domain.plan.PaymentRepository
-import com.webrtcmeetpro.domain.plan.Plan
-import com.webrtcmeetpro.domain.plan.PlanRepository
-import com.webrtcmeetpro.domain.plan.Subscription
-import com.webrtcmeetpro.domain.plan.SubscriptionRepository
-import com.webrtcmeetpro.domain.plan.SubscriptionStatus
-import com.webrtcmeetpro.domain.team.Team
-import com.webrtcmeetpro.domain.team.TeamRepository
-import com.webrtcmeetpro.domain.team.TeamStatus
+import com.webrtcmeetpro.application.plan.PlanFakes
+import com.webrtcmeetpro.application.plan.testPlan
 import com.webrtcmeetpro.domain.user.User
 import com.webrtcmeetpro.domain.user.UserProfile
 import com.webrtcmeetpro.domain.user.UserRepository
@@ -62,10 +53,7 @@ class GoogleLoginTest {
     private val users = mutableListOf<User>()
     private val socials = mutableListOf<SocialAccount>()
     private val histories = mutableListOf<LoginHistory>()
-    private val subscriptions = mutableListOf<Subscription>()
-    private val freePlan = assignId(
-        Plan("FREE", "무료", null, 0, 1, 10, 1, recordingEnabled = false),
-    )
+    private val freePlan = testPlan("FREE", 0, 0)
 
     private val userRepo = object : UserRepository {
         override fun save(user: User) = assignId(user).also { if (it !in users) users += it }
@@ -90,31 +78,9 @@ class GoogleLoginTest {
     private val historyRepo = object : LoginHistoryRepository {
         override fun save(history: LoginHistory) = assignId(history).also { histories += it }
     }
-    private val planService = PlanService(
-        object : PlanRepository {
-            override fun findPlanById(id: Long) = freePlan.takeIf { it.id == id }
-            override fun findByCode(code: String) = freePlan.takeIf { it.code == code }
-            override fun findAllByActiveTrueOrderBySortOrderAsc() = listOf(freePlan)
-        },
-        object : SubscriptionRepository {
-            override fun save(subscription: Subscription) = assignId(subscription).also { if (it !in subscriptions) subscriptions += it }
-            override fun flush() {}
-            override fun findByUserIdAndStatus(userId: Long, status: SubscriptionStatus) =
-                subscriptions.find { it.userId == userId && it.status == status }
-            override fun findAllByUserIdOrderByStartedAtDesc(userId: Long) = subscriptions.filter { it.userId == userId }
-        },
-        object : PaymentRepository {
-            override fun save(payment: Payment) = assignId(payment)
-            override fun findByOrderId(orderId: String): Payment? = null
-            override fun findAllByUserIdOrderByCreatedDtDesc(userId: Long) = emptyList<Payment>()
-        },
-        object : TeamRepository {
-            override fun save(team: Team) = team
-            override fun findTeamById(id: Long): Team? = null
-            override fun countByOwnerIdAndStatus(ownerId: Long, status: TeamStatus) = 0L
-            override fun findAllByIdInAndStatus(ids: Collection<Long>, status: TeamStatus) = emptyList<Team>()
-        },
-    )
+    private val planFakes = PlanFakes(listOf(freePlan))
+    private val subscriptions get() = planFakes.subscriptions
+    private val planService = planFakes.planService()
 
     private val encoder = BCryptPasswordEncoder(4)
     private val jwtProps = JwtProperties("test-secret-0123456789abcdef0123456789", "test", Duration.ofMinutes(5), Duration.ofDays(1))

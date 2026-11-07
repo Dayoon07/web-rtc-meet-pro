@@ -24,5 +24,8 @@ class MeetingReminderScheduler(private val meetingService: MeetingService, priva
         runCatching { recordingService.finishStale() }
             .onSuccess { if (it > 0) log.info("끊긴 녹화 {}건 마무리", it) }
             .onFailure { log.error("끊긴 녹화 정리 실패", it) }
+        // S3 에 올리다 실패했거나 서버 재시작으로 남은 녹화 다시 올리기
+        runCatching { recordingService.uploadPending() }
+            .onFailure { log.error("녹화 올리기 재시도 실패", it) }
     }
 }

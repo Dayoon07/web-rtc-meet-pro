@@ -1,6 +1,11 @@
 package com.webrtcmeetpro.application.mail
 
 import org.springframework.web.util.HtmlUtils
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+/** 플랜 안내 메일 종류 */
+enum class PlanMailKind { EXPIRING, EXPIRED, PAYMENT_FAILED }
 
 /**
  * 메일 본문 (한국어·영어·일본어·중국어). 메일 프로그램마다 CSS 지원이 달라서 인라인 스타일만 쓴다.
@@ -110,6 +115,59 @@ object MailTemplates {
                 if (registered) "查看邀请" else "注册并查看邀请",
                 "邀请将在 7 天后过期。如果你不认识发送者，请忽略此邮件。",
             )
+        }
+        return build(to, t, link)
+    }
+
+    /** 플랜 만료 3일 전 / 만료됨 / 자동결제 실패 */
+    fun planNotice(to: String, lang: MailLanguage, kind: PlanMailKind, planName: String, date: LocalDateTime?, reason: String?, link: String): MailMessage {
+        val d = date?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) ?: "-"
+        val why = reason?.let { " ($it)" } ?: ""
+        val t = when (lang) {
+            MailLanguage.KO -> when (kind) {
+                PlanMailKind.EXPIRING -> Texts("[Limeet] $planName 플랜이 곧 끝나요", "$planName 플랜이 곧 끝나요",
+                    "$planName 플랜 기간이 $d 에 끝나요. 자동결제가 꺼져 있어서, 계속 쓰려면 기간이 끝나기 전에 결제해 주세요.", "요금제 보기",
+                    "기간이 끝나면 그 플랜 기능(녹화, 늘어난 인원 등)을 쓸 수 없어요. 만든 데이터는 지워지지 않아요.")
+                PlanMailKind.EXPIRED -> Texts("[Limeet] $planName 플랜이 만료됐어요", "$planName 플랜이 만료됐어요",
+                    "$planName 플랜 기간($d 까지)이 끝났어요. 지금부터는 남아 있는 다른 플랜이나 무료 플랜으로 쓰게 돼요.", "다시 결제하기",
+                    "녹화 같은 플랜 기능은 다시 결제하면 바로 쓸 수 있어요.")
+                PlanMailKind.PAYMENT_FAILED -> Texts("[Limeet] $planName 플랜 자동결제에 실패했어요", "자동결제에 실패했어요",
+                    "$planName 플랜 자동결제가 되지 않았어요$why. $d 에 다시 시도해요. 카드를 확인하거나 다른 카드를 등록해 주세요.", "카드 확인하기",
+                    "세 번 실패하면 플랜이 만료돼요.")
+            }
+            MailLanguage.EN -> when (kind) {
+                PlanMailKind.EXPIRING -> Texts("[Limeet] Your $planName plan ends soon", "Your $planName plan ends soon",
+                    "Your $planName plan ends on $d. Auto-renewal is off, so please pay before then to keep using it.", "View plans",
+                    "When it ends, plan features (recording, larger limits) stop working. Your data is not deleted.")
+                PlanMailKind.EXPIRED -> Texts("[Limeet] Your $planName plan has expired", "Your $planName plan has expired",
+                    "Your $planName plan (until $d) has ended. You're now on your other remaining plan or the Free plan.", "Renew now",
+                    "Pay again any time to get the plan features back right away.")
+                PlanMailKind.PAYMENT_FAILED -> Texts("[Limeet] Auto-renewal failed for $planName", "Auto-renewal failed",
+                    "We couldn't charge your card for the $planName plan$why. We'll try again on $d. Please check your card or register another one.", "Check card",
+                    "After three failed attempts the plan expires.")
+            }
+            MailLanguage.JA -> when (kind) {
+                PlanMailKind.EXPIRING -> Texts("[Limeet] $planName プランがまもなく終了します", "$planName プランがまもなく終了します",
+                    "$planName プランは $d に終了します。自動決済がオフのため、続けて使うには期間内にお支払いください。", "料金プランを見る",
+                    "終了するとプランの機能（録画など）は使えなくなります。データは削除されません。")
+                PlanMailKind.EXPIRED -> Texts("[Limeet] $planName プランの期限が切れました", "$planName プランの期限が切れました",
+                    "$planName プラン（$d まで）が終了しました。これからは残っている他のプランか無料プランになります。", "もう一度支払う",
+                    "お支払いいただくとすぐにプランの機能が使えます。")
+                PlanMailKind.PAYMENT_FAILED -> Texts("[Limeet] $planName プランの自動決済に失敗しました", "自動決済に失敗しました",
+                    "$planName プランの自動決済ができませんでした$why。$d にもう一度試します。カードを確認するか、別のカードを登録してください。", "カードを確認",
+                    "3回失敗するとプランは終了します。")
+            }
+            MailLanguage.ZH -> when (kind) {
+                PlanMailKind.EXPIRING -> Texts("[Limeet] 你的 $planName 套餐即将到期", "$planName 套餐即将到期",
+                    "你的 $planName 套餐将于 $d 到期。自动续费已关闭，如需继续使用请在到期前付款。", "查看套餐",
+                    "到期后将无法使用套餐功能（录制等）。你的数据不会被删除。")
+                PlanMailKind.EXPIRED -> Texts("[Limeet] 你的 $planName 套餐已到期", "$planName 套餐已到期",
+                    "你的 $planName 套餐（至 $d）已结束。现在将使用你剩余的其他套餐或免费套餐。", "重新付款",
+                    "重新付款后即可立即使用套餐功能。")
+                PlanMailKind.PAYMENT_FAILED -> Texts("[Limeet] $planName 套餐自动续费失败", "自动续费失败",
+                    "$planName 套餐自动扣款失败$why。我们将在 $d 再次尝试。请检查银行卡或绑定其他卡。", "检查银行卡",
+                    "连续三次失败后套餐将到期。")
+            }
         }
         return build(to, t, link)
     }

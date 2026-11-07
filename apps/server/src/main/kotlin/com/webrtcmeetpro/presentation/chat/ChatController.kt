@@ -9,7 +9,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
-import org.springframework.core.io.FileSystemResource
+import com.webrtcmeetpro.presentation.common.StoredFileResponses
 import org.springframework.core.io.Resource
 import org.springframework.http.CacheControl
 import org.springframework.http.ContentDisposition
@@ -113,18 +113,17 @@ class ChatController(private val chat: ChatService) {
         @RequestParam sig: String,
         @RequestParam(defaultValue = "false") download: Boolean,
     ): ResponseEntity<Resource> {
-        val file = chat.openFile(fileId, exp, sig)
-        val inline = file.inline && !download
-        val disposition = (if (inline) ContentDisposition.inline() else ContentDisposition.attachment())
+        val file = chat.openFile(fileId, exp, sig, download)
+        val disposition = (if (file.inline) ContentDisposition.inline() else ContentDisposition.attachment())
             .filename(file.name, StandardCharsets.UTF_8)
             .build()
         val maxAge = (file.expiresAt - Instant.now().epochSecond).coerceAtLeast(0)
-        return ResponseEntity.ok()
-            .contentType(if (inline) MediaType.parseMediaType(file.contentType) else MediaType.APPLICATION_OCTET_STREAM)
-            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
-            .header("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox")
-            .cacheControl(CacheControl.maxAge(Duration.ofSeconds(maxAge)).cachePrivate())
-            .body(FileSystemResource(file.path))
+        return StoredFileResponses.of(file.file, maxAge) {
+            it.contentType(MediaType.parseMediaType(file.contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox")
+                .cacheControl(CacheControl.maxAge(Duration.ofSeconds(maxAge)).cachePrivate())
+        }
     }
 
     @PostMapping("/chat/rooms/{roomId}/read")

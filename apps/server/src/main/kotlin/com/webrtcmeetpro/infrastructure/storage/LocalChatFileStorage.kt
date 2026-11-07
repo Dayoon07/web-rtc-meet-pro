@@ -3,7 +3,10 @@ package com.webrtcmeetpro.infrastructure.storage
 import com.webrtcmeetpro.config.properties.StorageProperties
 import com.webrtcmeetpro.domain.chat.ChatFileStorage
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import com.webrtcmeetpro.domain.common.ServeAs
+import com.webrtcmeetpro.domain.common.StoredFile
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -16,6 +19,7 @@ import java.util.UUID
  * 저장 이름은 "년/월/UUID" — 원래 파일 이름·확장자는 DB 에만 둔다 (서버에서 실행되거나 해석될 일이 없게).
  */
 @Component
+@ConditionalOnProperty(prefix = "app.storage", name = ["type"], havingValue = "local", matchIfMissing = true)
 class LocalChatFileStorage(storageProperties: StorageProperties) : ChatFileStorage {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -25,16 +29,16 @@ class LocalChatFileStorage(storageProperties: StorageProperties) : ChatFileStora
         Files.createDirectories(root)
     }
 
-    override fun store(content: InputStream): String {
-        val month = YearMonth.now()
-        val name = "%04d/%02d/%s".format(month.year, month.monthValue, UUID.randomUUID().toString().replace("-", ""))
+    override fun store(content: InputStream, size: Long): String {
+        val name = newName()
         val target = resolve(name) ?: error("잘못된 저장 이름: $name")
         Files.createDirectories(target.parent)
         Files.copy(content, target)
         return name
     }
 
-    override fun open(storedName: String): Path? = resolve(storedName)?.takeIf { Files.isRegularFile(it) }
+    override fun open(storedName: String, serveAs: ServeAs): StoredFile? =
+        resolve(storedName)?.takeIf { Files.isRegularFile(it) }?.let(StoredFile::Local)
 
     override fun delete(storedName: String) {
         val target = resolve(storedName) ?: return
@@ -49,6 +53,11 @@ class LocalChatFileStorage(storageProperties: StorageProperties) : ChatFileStora
     }
 
     companion object {
-        private val STORED_NAME = Regex("^\\d{4}/\\d{2}/[0-9a-f]{32}$")
+        val STORED_NAME = Regex("^\\d{4}/\\d{2}/[0-9a-f]{32}$")
+
+        fun newName(): String {
+            val month = YearMonth.now()
+            return "%04d/%02d/%s".format(month.year, month.monthValue, UUID.randomUUID().toString().replace("-", ""))
+        }
     }
 }

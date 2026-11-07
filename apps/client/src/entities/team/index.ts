@@ -39,7 +39,15 @@ export type TeamMember = {
 export type TeamDetail = {
   team: TeamSummary
   members: TeamMember[]
-  limits: { maxMembers: number; maxGroupRooms: number; pendingInvitations: number }
+  limits: {
+    maxMembers: number
+    /** null = 제한 없음 */
+    maxGroupRooms: number | null
+    pendingInvitations: number
+    maxMeetingParticipants: number
+    recordingEnabled: boolean
+    planCode: string
+  }
 }
 
 export type Invitation = {

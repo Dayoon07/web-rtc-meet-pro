@@ -236,13 +236,13 @@ interface ChatMessageFileRepository {
     fun findAllByMessageIdIn(messageIds: Collection<Long>): List<ChatMessageFile>
 }
 
-/** 채팅 첨부파일 저장소 포트. 지금은 서버 디스크, 이후 오브젝트 스토리지로 바꿀 수 있다 */
+/** 채팅 첨부파일 저장소 포트 (서버 디스크 또는 S3) */
 interface ChatFileStorage {
     /** @return 저장한 이름 (chat_message_files.stored_name) */
-    fun store(content: InputStream): String
+    fun store(content: InputStream, size: Long): String
 
     /** 없으면 null */
-    fun open(storedName: String): Path?
+    fun open(storedName: String, serveAs: com.webrtcmeetpro.domain.common.ServeAs): com.webrtcmeetpro.domain.common.StoredFile?
 
     fun delete(storedName: String)
 }

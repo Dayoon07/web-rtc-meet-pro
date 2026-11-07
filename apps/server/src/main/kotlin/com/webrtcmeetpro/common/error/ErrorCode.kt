@@ -49,6 +49,16 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     PLAN_TEAM_LIMIT(HttpStatus.FORBIDDEN, "현재 플랜에서 만들 수 있는 팀 수를 넘었습니다."),
     PLAN_MEMBER_LIMIT(HttpStatus.FORBIDDEN, "현재 플랜에서 초대할 수 있는 팀원 수를 넘었습니다."),
     PLAN_GROUP_ROOM_LIMIT(HttpStatus.FORBIDDEN, "현재 플랜에서 만들 수 있는 그룹 채팅방 수를 넘었습니다."),
+    PLAN_NOT_PURCHASABLE(HttpStatus.BAD_REQUEST, "무료 플랜은 결제할 필요가 없습니다."),
+    SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "구독을 찾을 수 없습니다."),
+
+    // billing (토스페이먼츠 자동결제)
+    PAYMENT_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "결제 기능이 아직 준비되지 않았습니다."),
+    BILLING_CARD_REQUIRED(HttpStatus.BAD_REQUEST, "결제할 카드를 먼저 등록해 주세요."),
+    BILLING_CARD_INVALID(HttpStatus.BAD_REQUEST, "카드 등록 정보가 올바르지 않습니다. 다시 등록해 주세요."),
+    BILLING_CARD_FAILED(HttpStatus.BAD_REQUEST, "카드를 등록하지 못했습니다: {{reason}}"),
+    PAYMENT_FAILED(HttpStatus.PAYMENT_REQUIRED, "결제하지 못했습니다: {{reason}}"),
+    PAYMENT_UNCERTAIN(HttpStatus.BAD_GATEWAY, "결제 결과를 확인하지 못했습니다. 잠시 뒤 결제 내역을 확인해 주세요."),
 
     // team
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "팀을 찾을 수 없습니다."),
@@ -81,7 +91,8 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없거나 링크가 만료되었습니다. 채팅방을 새로고침해 주세요."),
 
     // meeting
-    RECORDING_NOT_ALLOWED(HttpStatus.FORBIDDEN, "녹화는 플랜1 이상에서 쓸 수 있습니다."),
+    RECORDING_NOT_ALLOWED(HttpStatus.FORBIDDEN, "녹화는 Team 플랜 이상에서 쓸 수 있습니다."),
+    RECORDING_STORAGE_FULL(HttpStatus.FORBIDDEN, "녹화 저장 공간({{gb}}GB)이 가득 찼습니다. 지난 녹화를 지우거나 플랜을 올려 주세요."),
     NOT_RECORDING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 녹화할 수 있습니다."),
     RECORDING_IN_PROGRESS(HttpStatus.CONFLICT, "이미 녹화 중입니다."),
     RECORDING_NOT_FOUND(HttpStatus.NOT_FOUND, "녹화를 찾을 수 없습니다."),
@@ -89,6 +100,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     RECORDING_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "녹화가 너무 깁니다. 녹화를 멈추고 새로 시작해 주세요."),
     MEETING_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "시작했거나 끝난 회의는 고칠 수 없습니다."),
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
+    MEETING_FULL(HttpStatus.FORBIDDEN, "이 회의는 {{max}}명까지 들어올 수 있습니다. (팀 소유자의 플랜 기준)"),
     NOT_MEETING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 할 수 있습니다."),
     MEETING_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "종료되었거나 취소된 회의입니다."),
     MEETING_NOT_STARTED_YET(HttpStatus.BAD_REQUEST, "회의 시작 10분 전부터 입장할 수 있습니다."),

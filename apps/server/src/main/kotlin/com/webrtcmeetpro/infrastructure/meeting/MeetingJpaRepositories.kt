@@ -28,4 +28,13 @@ interface MeetingParticipantJpaRepository : JpaRepository<MeetingParticipant, Lo
 
 interface MeetingEventJpaRepository : JpaRepository<MeetingEvent, Long>, MeetingEventRepository
 
-interface MeetingRecordingJpaRepository : JpaRepository<MeetingRecording, Long>, MeetingRecordingRepository
+interface MeetingRecordingJpaRepository : JpaRepository<MeetingRecording, Long>, MeetingRecordingRepository {
+    @Query(
+        """
+        select coalesce(sum(r.fileSizeBytes), 0) from MeetingRecording r, Meeting m, Team t
+        where r.meetingId = m.id and m.teamId = t.id and t.ownerId = :ownerId
+          and r.status <> com.webrtcmeetpro.domain.meeting.RecordingStatus.DELETED
+        """,
+    )
+    override fun sumBytesByTeamOwner(@Param("ownerId") ownerId: Long): Long
+}

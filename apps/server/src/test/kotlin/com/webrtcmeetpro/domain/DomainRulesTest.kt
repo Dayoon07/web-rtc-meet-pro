@@ -24,7 +24,7 @@ class DomainRulesTest {
     private fun plan(teams: Int, members: Int, channels: Int) = Plan(
         code = "T", name = "t", description = null, monthlyPrice = 0,
         maxOwnedTeams = teams, maxMembersPerTeam = members, maxGroupRoomsPerTeam = channels,
-        recordingEnabled = false,
+        maxMeetingParticipants = 6, recordingEnabled = false,
     )
 
     @Test

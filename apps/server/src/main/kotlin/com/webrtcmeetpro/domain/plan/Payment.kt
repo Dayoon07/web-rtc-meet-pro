@@ -38,6 +38,9 @@ class Payment(
     val amount: Long,
 
     var billingKeyId: Long? = null,
+
+    @Enumerated(EnumType.STRING)
+    val billingCycle: BillingCycle? = null,
 ) : BaseEntity() {
 
     @Id
@@ -75,6 +78,10 @@ class Payment(
     var canceledAt: LocalDateTime? = null
         protected set
 
+    /** 이 결제로 늘어난 구독 기간 끝 */
+    var periodEnd: LocalDateTime? = null
+        protected set
+
     fun approve(paymentKey: String?, method: String?, receiptUrl: String?, at: LocalDateTime = LocalDateTime.now()) {
         check(status == PaymentStatus.READY) { "READY 상태에서만 승인할 수 있습니다." }
         this.paymentKey = paymentKey
@@ -90,8 +97,9 @@ class Payment(
         status = PaymentStatus.FAILED
     }
 
-    fun linkSubscription(subscriptionId: Long) {
+    fun linkSubscription(subscriptionId: Long, periodEnd: LocalDateTime? = null) {
         this.subscriptionId = subscriptionId
+        this.periodEnd = periodEnd
     }
 
     fun cancel(at: LocalDateTime = LocalDateTime.now()) {
@@ -104,6 +112,7 @@ interface PaymentRepository {
     fun save(payment: Payment): Payment
     fun findByOrderId(orderId: String): Payment?
     fun findAllByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
+    fun findTop50ByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
 }
 
 /** 토스 자동결제 빌링키. billingKey 는 애플리케이션에서 암호화한 값 */
@@ -145,4 +154,6 @@ class BillingKey(
 interface BillingKeyRepository {
     fun save(billingKey: BillingKey): BillingKey
     fun findByUserIdAndActiveTrue(userId: Long): BillingKey?
+    fun findAllByUserIdAndActiveTrue(userId: Long): List<BillingKey>
+    fun findBillingKeyById(id: Long): BillingKey?
 }

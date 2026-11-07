@@ -236,4 +236,12 @@
     <string name="error_MEETING_NOT_EDITABLE">시작했거나 끝난 회의는 고칠 수 없어요.</string>
     <string name="meeting_recordings">녹화</string>
     <string name="meeting_recording_play">재생</string>
+    <string name="plan_expired_title">%1$s 플랜이 만료됐어요</string>
+    <string name="plan_expired_body">%1$s 플랜 기간(%2$s까지)이 끝났어요.</string>
+    <string name="plan_expired_now_free">지금은 무료 플랜으로 쓰고 있어요. 녹화나 늘어난 인원 같은 기능은 웹에서 다시 결제하면 쓸 수 있어요.</string>
+    <string name="plan_expired_now_other">지금은 남아 있는 %1$s 플랜으로 쓰고 있어요.</string>
+    <string name="plan_expired_data_kept">만든 팀·채팅·녹화는 지워지지 않아요. 한도를 넘는 새 작업만 막혀요.</string>
+    <string name="plan_expired_later">나중에</string>
+    <string name="plan_expired_renew">웹에서 결제하기</string>
+    <string name="settings_billing">요금제·결제 (웹)</string>
 </resources>

@@ -1,10 +1,11 @@
--- 플랜 초기값. 금액/한도는 이 값만 바꾸면 된다 (현재 전부 0원)
-INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, recording_enabled, sort_order)
-VALUES ('FREE',  '무료',  '개인 / 소규모 팀',   0,  1,  10,  1, 'N', 0);
-INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, recording_enabled, sort_order)
-VALUES ('PLAN1', '플랜1', '팀 3개, 팀원 50명',  0,  3,  50,  3, 'Y', 1);
-INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, recording_enabled, sort_order)
-VALUES ('PLAN2', '플랜2', '팀 5개, 팀원 100명', 0,  5, 100,  5, 'Y', 2);
-INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, recording_enabled, sort_order)
-VALUES ('PLAN3', '플랜3', '팀 10개, 팀원 200명', 0, 10, 200, 10, 'Y', 3);
+-- 플랜 초기값. 금액/한도는 이 값만 바꾸면 된다. 연 결제 = 월 가격 × 12 × 0.9 (서버가 계산)
+-- max_group_rooms_per_team NULL = 제한 없음
+INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, max_meeting_participants, recording_enabled, recording_storage_gb, recording_retention_days, sort_order)
+VALUES ('FREE',     '무료',     '가볍게 쓰는 개인·모임',     0,  1,  10,    3,  6, 'N',   0,  30, 0);
+INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, max_meeting_participants, recording_enabled, recording_storage_gb, recording_retention_days, sort_order)
+VALUES ('PRO',      'Pro',      '자주 회의하는 개인',     4900,  3,  15,   10, 15, 'N',   0,  30, 1);
+INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, max_meeting_participants, recording_enabled, recording_storage_gb, recording_retention_days, sort_order)
+VALUES ('TEAM',     'Team',     '작은 회사·팀',          19900,  3,  50, NULL, 30, 'Y',  50,  90, 2);
+INSERT INTO plans (code, name, description, monthly_price, max_owned_teams, max_members_per_team, max_group_rooms_per_team, max_meeting_participants, recording_enabled, recording_storage_gb, recording_retention_days, sort_order)
+VALUES ('BUSINESS', 'Business', '관리가 필요한 회사',     49900, 10, 200, NULL, 50, 'Y', 200, 365, 3);
 COMMIT;

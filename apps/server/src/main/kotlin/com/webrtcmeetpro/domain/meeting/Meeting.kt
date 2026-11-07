@@ -306,12 +306,24 @@ class MeetingRecording(
         fileSizeBytes = (fileSizeBytes ?: 0) + bytes
     }
 
-    /** 녹화 끝 (주최자가 멈춤, 또는 조각이 한동안 안 와서 서버가 마무리). 받은 게 없으면 실패 */
-    fun finish(durationSeconds: Int?, at: LocalDateTime = LocalDateTime.now()) {
+    /**
+     * 녹화 끝 (주최자가 멈춤, 또는 조각이 한동안 안 와서 서버가 마무리). 받은 게 없으면 실패.
+     * @param needsUpload S3 처럼 따로 올려야 하면 PROCESSING (다 올리면 [uploaded])
+     */
+    fun finish(durationSeconds: Int?, at: LocalDateTime = LocalDateTime.now(), needsUpload: Boolean = false) {
         if (!isRecording) return
         endedAt = at
         this.durationSeconds = durationSeconds ?: java.time.Duration.between(startedAt, at).seconds.toInt()
-        status = if ((fileSizeBytes ?: 0) > 0) RecordingStatus.READY else RecordingStatus.FAILED
+        status = when {
+            (fileSizeBytes ?: 0) <= 0 -> RecordingStatus.FAILED
+            needsUpload -> RecordingStatus.PROCESSING
+            else -> RecordingStatus.READY
+        }
+    }
+
+    /** S3 에 다 올림 */
+    fun uploaded() {
+        if (status == RecordingStatus.PROCESSING) status = RecordingStatus.READY
     }
 
     fun delete() {
@@ -325,14 +337,25 @@ interface MeetingRecordingRepository {
     fun findAllByMeetingId(meetingId: Long): List<MeetingRecording>
     fun findRecordingById(id: Long): MeetingRecording?
     fun findAllByStatus(status: RecordingStatus): List<MeetingRecording>
+    /** 보관 기간 정리용: 이 시각 전에 끝난 녹화 */
+    fun findAllByStatusInAndEndedAtBefore(statuses: Collection<RecordingStatus>, before: LocalDateTime): List<MeetingRecording>
+    /** 팀 소유자 한 명이 가진 모든 팀의 녹화 용량 합계 (지운 것 빼고) */
+    fun sumBytesByTeamOwner(ownerId: Long): Long
 }
 
-/** 녹화 파일 저장소 (infrastructure/storage). 조각을 순서대로 이어 붙인다 */
+/**
+ * 녹화 파일 저장소 (infrastructure/storage). 녹화 중에는 서버 디스크에 조각을 순서대로 이어 붙이고,
+ * S3 를 쓰면 녹화가 끝난 뒤 [upload] 로 올린다 (그동안 상태는 PROCESSING).
+ */
 interface RecordingStorage {
+    /** 녹화가 끝난 뒤 따로 올려야 하는지 (S3) */
+    val needsUpload: Boolean
     /** 빈 파일을 만들고 저장 이름을 돌려준다 */
     fun create(): String
     /** @return 이어 붙인 바이트 수 */
     fun append(storedName: String, content: java.io.InputStream): Long
-    fun open(storedName: String): java.nio.file.Path?
+    /** 다 모은 파일을 최종 저장소로 올린다 (서버 디스크면 아무것도 안 함). 같은 이름으로 다시 불러도 된다 */
+    fun upload(storedName: String)
+    fun open(storedName: String, serveAs: com.webrtcmeetpro.domain.common.ServeAs): com.webrtcmeetpro.domain.common.StoredFile?
     fun delete(storedName: String)
 }

@@ -41,7 +41,15 @@ data class TeamMember(
 )
 
 @Serializable
-data class TeamLimits(val maxMembers: Int, val maxGroupRooms: Int, val pendingInvitations: Int)
+data class TeamLimits(
+    val maxMembers: Int,
+    /** null = 제한 없음 */
+    val maxGroupRooms: Int? = null,
+    val pendingInvitations: Int = 0,
+    val maxMeetingParticipants: Int = 0,
+    val recordingEnabled: Boolean = false,
+    val planCode: String = "",
+)
 
 /** GET /api/teams/{id} */
 @Serializable

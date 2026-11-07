@@ -55,7 +55,15 @@ data class TeamMemberView(
     val removable: Boolean = false,
 )
 
-data class TeamLimitsView(val maxMembers: Int, val maxGroupRooms: Int, val pendingInvitations: Int)
+/** maxGroupRooms: null = 제한 없음. 한도는 팀 소유자의 지금 플랜 기준 */
+data class TeamLimitsView(
+    val maxMembers: Int,
+    val maxGroupRooms: Int?,
+    val pendingInvitations: Int,
+    val maxMeetingParticipants: Int = 0,
+    val recordingEnabled: Boolean = false,
+    val planCode: String = "",
+)
 
 data class TeamDetailView(val team: TeamSummaryView, val members: List<TeamMemberView>, val limits: TeamLimitsView)
 
@@ -118,7 +126,7 @@ class TeamService(
             members = members
                 .mapNotNull { m -> users[m.userId]?.let { memberView(m, it, removable = me.canRemove(m)) } }
                 .sortedWith(compareBy({ it.role.ordinal }, { it.joinedAt })),
-            limits = TeamLimitsView(plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, pending),
+            limits = TeamLimitsView(plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, pending, plan.maxMeetingParticipants, plan.recordingEnabled, plan.code),
         )
     }
 

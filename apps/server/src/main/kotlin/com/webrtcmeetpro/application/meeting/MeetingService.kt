@@ -209,6 +209,12 @@ class MeetingService(
         if (!meeting.canJoin(userId)) {
             throw BusinessException(ErrorCode.MEETING_NOT_STARTED_YET, mapOf("startsAt" to JacksonConfig.toOffsetString(meeting.scheduledAt)))
         }
+        // 회의당 인원: 팀 소유자 플랜 기준. 이미 들어와 있는 사람(새로고침·재접속)은 막지 않는다
+        val plan = ownerPlan(meeting)
+        val inRoom = participantRepository.findAllByMeetingIdAndLeftAtIsNull(meeting.id!!).map { it.userId }.toSet()
+        if (userId !in inRoom && plan != null && !plan.canJoinMeeting(inRoom.size.toLong())) {
+            throw BusinessException(ErrorCode.MEETING_FULL, mapOf("max" to plan.maxMeetingParticipants))
+        }
         if (meeting.start()) {
             eventRepository.save(MeetingEvent(meeting.id!!, userId, MeetingEventType.MEETING_STARTED))
             notifyInvitees(meeting, NotificationType.MEETING_STARTED, except = userId)
@@ -305,10 +311,10 @@ class MeetingService(
         else teamAccess.can(meeting.teamId, viewerId, TeamPermission.CANCEL_ANY_MEETING)
 
     /** 녹화는 팀 "소유자" 의 플랜 기준 (팀 인원 한도와 같은 규칙) */
-    fun recordingAvailable(meeting: Meeting): Boolean {
-        val ownerId = teamRepository.findTeamById(meeting.teamId)?.ownerId ?: return false
-        return planService.currentPlanOf(ownerId).recordingEnabled
-    }
+    fun recordingAvailable(meeting: Meeting): Boolean = ownerPlan(meeting)?.recordingEnabled ?: false
+
+    private fun ownerPlan(meeting: Meeting) =
+        teamRepository.findTeamById(meeting.teamId)?.ownerId?.let { planService.currentPlanOf(it) }
 
     private fun canCancel(meeting: Meeting, viewerId: Long): Boolean =
         meeting.status == MeetingStatus.SCHEDULED &&

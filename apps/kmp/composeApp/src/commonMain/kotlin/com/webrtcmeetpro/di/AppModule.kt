@@ -1,6 +1,7 @@
 package com.webrtcmeetpro.di
 
 import com.webrtcmeetpro.feature.auth.VerifyEmailViewModel
+import com.webrtcmeetpro.feature.main.PlanExpiryViewModel
 import com.webrtcmeetpro.AppViewModel
 import com.webrtcmeetpro.core.data.AuthRepository
 import com.webrtcmeetpro.core.data.BadgeRepository
@@ -59,6 +60,7 @@ val dataModule = module {
 /** 화면별 ViewModel. id 를 받는 화면은 koinViewModel { parametersOf(id) } 로 넘긴다 */
 val viewModelModule = module {
     viewModelOf(::AppViewModel)
+    viewModelOf(::PlanExpiryViewModel)
     viewModelOf(::LoginViewModel)
     viewModelOf(::SignupViewModel)
     viewModelOf(::HomeViewModel)

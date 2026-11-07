@@ -1,6 +1,9 @@
 spring:
   application:
     name: web-rtc-meet-pro-server
+  config:
+    # 로컬 개발용 비밀값 파일 (git 에 올리지 않음): apps/server/.env.local — "이름=값" 한 줄씩 (토스·AWS 키 등)
+    import: optional:file:.env.local[.properties]
   datasource:
     url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
     username: ${DB_USERNAME:limeet}
@@ -55,6 +58,16 @@ app:
     chat-file-dir: ${CHAT_FILE_DIR:./data/chat-files}
     # 회의 녹화 (공개하지 않음. 서명된 /api/recordings/{id}/file 로만 재생·내려받기)
     recording-dir: ${RECORDING_DIR:./data/recordings}
+    # local = 서버 디스크 (위 폴더들), s3 = AWS S3 버킷 (프로필 이미지·채팅 첨부·녹화)
+    type: ${STORAGE_TYPE:local}
+    s3:
+      bucket: ${S3_BUCKET:}
+      region: ${S3_REGION:ap-northeast-2}
+      # 비우면 AWS 기본 방법(AWS_ACCESS_KEY_ID 환경변수, 서버 역할 등)으로 찾는다
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      # 버킷 안 폴더. 개발(dev)과 운영(prod)이 같은 버킷을 써도 섞이지 않게
+      prefix: ${S3_PREFIX:dev}
   media:
     # mediasoup 사이드카(apps/media)와 같은 값이어야 한다. 운영에서는 반드시 환경변수로 교체
     jwt-secret: ${MEDIA_JWT_SECRET:local-media-secret-change-me-0123456789abcdef}
@@ -74,6 +87,16 @@ app:
     password: ${MAIL_PASSWORD:}
     from: ${MAIL_FROM:Limeet <no-reply@localhost>}
     starttls: ${MAIL_STARTTLS:true}
+  toss:
+    # 토스페이먼츠 개발자센터 → API 키 → "API 개별 연동 키" (자동결제). 둘 중 하나라도 비면 결제 기능이 꺼진다
+    client-key: ${TOSS_CLIENT_KEY:}
+    secret-key: ${TOSS_SECRET_KEY:}
+    # 카드 빌링키를 DB 에 암호화해 넣는 비밀값. 운영에서는 반드시 따로 정하고 바꾸지 말 것 (바꾸면 등록된 카드를 못 씀)
+    billing-key-secret: ${BILLING_KEY_SECRET:}
+  billing:
+    # 구독 기간 확인(자동결제·만료·만료 3일 전 알림) 주기, 오래된 녹화 정리 주기
+    renew-interval: ${BILLING_RENEW_INTERVAL:10m}
+    retention-interval: ${BILLING_RETENTION_INTERVAL:6h}
   admin:
     # 관리자 사이트 데이터 관리에 보일 테이블 접두어. 비워 두면 전부 (테스트용 zz_ 사본을 볼 때만 zz_)
     table-prefix: ${ADMIN_TABLE_PREFIX:}

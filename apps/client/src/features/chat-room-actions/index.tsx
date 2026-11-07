@@ -125,7 +125,8 @@ export function CreateGroupRoomModal({
   teamId: number
   members: TeamMember[]
   myId: number
-  usage: { used: number; max: number }
+  /** max null = 제한 없음 */
+  usage: { used: number; max: number | null }
   open: boolean
   onClose: () => void
   onCreated: (room: ChatRoom) => void
@@ -168,7 +169,7 @@ export function CreateGroupRoomModal({
       }
     >
       <form id="group-room-form" onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Field label={t('chat.groupName')} htmlFor="group-name" required hint={t('chat.groupUsage', usage)}>
+        <Field label={t('chat.groupName')} htmlFor="group-name" required hint={usage.max == null ? t('chat.groupUsageUnlimited', { used: usage.used }) : t('chat.groupUsage', usage)}>
           <Input id="group-name" autoFocus maxLength={100} placeholder={t('chat.groupNamePlaceholder')} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <div>

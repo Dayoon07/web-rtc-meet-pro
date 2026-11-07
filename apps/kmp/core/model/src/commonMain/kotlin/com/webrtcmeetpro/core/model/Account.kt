@@ -10,8 +10,14 @@ data class Plan(
     val monthlyPrice: Long = 0,
     val maxOwnedTeams: Int,
     val maxMembersPerTeam: Int,
-    val maxGroupRoomsPerTeam: Int,
+    /** null = 제한 없음 */
+    val maxGroupRoomsPerTeam: Int? = null,
     val recordingEnabled: Boolean = false,
+    val yearlyPrice: Long = 0,
+    val maxMeetingParticipants: Int = 0,
+    val recordingStorageGb: Int = 0,
+    val recordingRetentionDays: Int = 0,
+    val rank: Int = 0,
 )
 
 /** GET /api/users/me */
@@ -40,10 +46,17 @@ data class ChangePasswordRequest(val currentPassword: String? = null, val newPas
 @Serializable
 data class WithdrawRequest(val password: String? = null)
 
-/** GET /api/subscriptions/me */
+/** 아직 확인하지 않은 플랜 만료 → "플랜이 만료됐어요" 창 */
+@Serializable
+data class ExpiryNotice(val subscriptionId: Long, val plan: Plan, val expiredAt: String? = null)
+
+/** GET /api/subscriptions/me (결제·구독 관리는 웹에서) */
 @Serializable
 data class Subscription(
+    /** 지금 적용 중인 플랜 (유료 구독이 여러 개면 가장 높은 것, 없으면 FREE) */
     val plan: Plan,
     val status: String,
     val ownedTeams: Long,
+    val currentPeriodEnd: String? = null,
+    val expiryNotice: ExpiryNotice? = null,
 )

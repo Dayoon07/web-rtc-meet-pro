@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v0.8 (23 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v0.9 (23 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -58,6 +58,7 @@ SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql`
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
@@ -87,7 +88,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` (웹, 관리자 사이트) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 비어 있음 → 구글 로그인 비활성 (버튼이 회색으로 표시) |
 | `OAUTH_SUCCESS_REDIRECT` / `OAUTH_FAILURE_REDIRECT` | `http://localhost:5173/oauth/callback` / `/login` |
-| `UPLOAD_DIR` | `./uploads` (프로필 이미지, `/uploads/**` 로 서빙) |
+| `UPLOAD_DIR` | `./uploads` (프로필 이미지, `/uploads/profile/{이름}` 으로 서빙) |
 | `CHAT_FILE_DIR` | `./data/chat-files` (채팅 첨부파일. 공개하지 않고 서명된 `/api/chat/files/{id}` 로만 내려받기) |
 | `RECORDING_DIR` | `./data/recordings` (회의 녹화 webm. 서명된 `/api/recordings/{id}/file` 로만 재생·내려받기) |
 | `MEDIA_JWT_SECRET` | 회의 입장 토큰 서명 키. **사이드카와 같은 값** |
@@ -95,6 +96,14 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `MEDIA_PUBLIC_URL` | 비우면 같은 출처의 `/media/socket.io` (dev 는 Vite 프록시) |
 | `WEB_URL` | `http://localhost:5173` (메일 안의 링크: 비밀번호 재설정, 팀 초대) |
 | `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_FROM` | `MAIL_HOST` 가 비어 있으면 메일을 보내지 않고 **서버 로그에 제목·본문·링크를 찍는다** (로컬은 로그의 링크를 눌러 확인) |
+| `TOSS_CLIENT_KEY` / `TOSS_SECRET_KEY` | 토스페이먼츠 개발자센터 → API 키 → **API 개별 연동 키**(`test_ck_` / `test_sk_`, 자동결제). 둘 중 하나라도 비면 결제 기능이 꺼진다 |
+| `BILLING_KEY_SECRET` | 카드 빌링키를 DB 에 암호화하는 비밀값. 비우면 `JWT_SECRET` 에서 만든다. **운영에서는 따로 정하고 바꾸지 말 것** (바꾸면 등록된 카드로 결제 못 함) |
+| `STORAGE_TYPE` | `local` (서버 디스크, 기본) / `s3` (프로필 이미지·채팅 첨부·녹화를 S3 에) |
+| `S3_BUCKET` / `S3_REGION` / `S3_PREFIX` | 버킷 이름 / `ap-northeast-2` / 버킷 안 폴더(`dev`, `prod`) |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | IAM 사용자 키. 비우면 AWS 기본 방법(환경변수 `AWS_ACCESS_KEY_ID`, 서버 역할)으로 찾는다 |
+| `BILLING_RENEW_INTERVAL` | `10m` (구독 기간 확인: 자동결제·만료·만료 3일 전 알림) |
+
+로컬에서는 비밀값을 **`apps/server/.env.local`** (git 에 안 올라감) 에 `이름=값` 으로 적어 두면 서버가 시작할 때 읽는다 (환경변수가 있으면 환경변수가 이긴다).
 
 ```bash
 cd apps/server
@@ -166,7 +175,29 @@ COMMIT;
 - 주최자(또는 팀 OWNER·ADMIN) 브라우저가 회의 탭을 화면 공유로 잡아 녹화한다 (서버 CPU 를 쓰지 않는다). 탭 소리(다른 사람 목소리) + 내 마이크를 섞는다.
 - 10초마다 조각을 `/api/meetings/{id}/recordings/{rid}/chunks?seq=` 로 올리고 서버가 이어 붙인다. 주최자가 창을 닫아도 그때까지는 남고, 조각이 2분 동안 안 오면 서버가 마무리한다.
 - 녹화 중에는 회의실 모두에게 "녹화 중" 이 보인다 (STOMP `/user/queue/meeting`). 회의 상세에서 재생·내려받기·지우기.
-- 팀 소유자 플랜의 `recording_enabled` 가 `Y` 여야 한다 (FREE 는 `N`).
+- 팀 소유자 플랜의 `recording_enabled` 가 `Y` 여야 한다 (**Team 플랜 이상**).
+- 팀 소유자의 모든 팀 녹화를 합쳐 `recording_storage_gb` 까지 저장하고(Team 50GB, Business 200GB), `recording_retention_days` 가 지나면 자동으로 지운다(Team 90일, Business 365일, 플랜이 끝나면 30일).
+- `STORAGE_TYPE=s3` 이면 녹화 중에는 서버 디스크에 모았다가 끝나면 S3 로 올린다 (그동안 `PROCESSING`). 재생은 서명된 S3 주소로 302.
+
+#### 요금제 · 결제 (토스페이먼츠 자동결제)
+
+| | 무료 | Pro | Team | Business |
+|---|---|---|---|---|
+| 월 / 연(10% 할인) | 0 | 4,900 / 52,920 | 19,900 / 214,920 | 49,900 / 538,920 |
+| 만드는 팀(워크스페이스) | 1 | 3 | 3 | 10 |
+| 팀당 멤버 | 10 | 15 | 50 | 200 |
+| 회의당 인원 | 6 | 15 | 30 | 50 |
+| 팀당 그룹 채팅방 | 3 | 10 | 제한 없음 | 제한 없음 |
+| 녹화 | ✕ | ✕ | 50GB · 90일 | 200GB · 365일 |
+
+- 값은 전부 `plans` 테이블에 있다 (코드를 고치지 않고 바꿀 수 있음). 연 결제 금액은 `월 가격 × 12 × 0.9`.
+- **팀 = 워크스페이스.** 한도와 녹화는 팀 **소유자**의 지금 플랜을 따른다 (팀원은 무료 계정이어도 그 팀 안에서는 소유자 플랜 기능을 쓴다).
+- 결제: 웹에서 토스 카드 등록창 → `authKey` 로 빌링키 발급(AES-GCM 으로 암호화해 저장) → 그 카드로 바로 결제. 한 사람당 카드 하나.
+- **여러 플랜을 동시에** 가질 수 있고(플랜마다 구독 하나), 기간이 남은 것 중 가장 높은 플랜이 적용된다. 같은 플랜을 다시 사면 남은 기간 뒤로 늘어난다.
+- 자동결제(구독마다 켜고 끔): 켜져 있으면 기간이 끝날 때 다시 결제, 실패하면 하루 뒤 다시(3번 실패하면 만료, 그동안은 기능 유지). 꺼져 있으면 끝나기 3일 전에 알림·메일, 끝나면 만료.
+- 만료되면 알림·메일을 보내고, 웹·앱에 "플랜이 만료됐어요" 창을 띄운다. 만든 데이터는 지우지 않고 한도를 넘는 새 작업만 막는다.
+- 앱은 구독 상태·만료 창만 보여 주고 결제는 웹 요금제 화면으로 보낸다 (스토어 정책 검토 전).
+- 서버가 여러 대가 되면 구독 갱신 스케줄러가 한 대에서만 돌게 해야 한다 (ShedLock 등).
 
 #### 가입 이메일 인증 · 비밀번호
 
@@ -258,9 +289,10 @@ DB 서버는 따로 두지 않는다. Render 같은 PaaS 는 WebRTC 미디어(UD
 | 기능 | 규칙 |
 |---|---|
 | 팀 | 만들 수 있는 팀 수 = 내 플랜 `max_owned_teams`. 만든 사람이 OWNER |
+| 회의 인원 | 한 회의에 함께 있을 수 있는 사람 = 팀 소유자 플랜 `max_meeting_participants`. 이미 들어와 있는 사람의 재접속은 막지 않음 |
 | 초대 | OWNER/ADMIN 이 이메일로 초대. 팀원 + 대기 중 초대 ≤ 팀 소유자 플랜 `max_members_per_team`. 7일 만료. 미가입자는 같은 이메일로 가입하면 초대가 보인다 |
 | 1:1 채팅 | **같은 팀 팀원끼리만**. 팀원이면 누구나 열 수 있고 두 사람당 방 하나 |
-| 그룹(1:N) 채팅 | **팀을 만든 사람(OWNER)만** 만들 수 있음. 팀당 `max_group_rooms_per_team` 개. 방 참여자는 다른 팀원을 초대할 수 있음 |
+| 그룹(1:N) 채팅 | **팀을 만든 사람(OWNER)만** 만들 수 있음. 팀당 `max_group_rooms_per_team` 개 (NULL = 제한 없음). 방 참여자는 다른 팀원을 초대할 수 있음 |
 | 회의 예약 | 팀원 중 참석자 선택(비우면 전체). 예약 시 알림, **시작 10분 전 알림**(30초 주기 스케줄러). 주최자는 언제든, 참석자는 10분 전부터 입장 |
 | 회의 종료 | 마지막 사람이 나가면 ENDED. 예정 시간 안이면 다시 들어와서 재개 가능. 입장만 하고 아무도 없는 회의는 예정 종료 후 자동 종료 |
 | 알림 | DB 에는 `type + params` 만 저장 → 클라이언트가 사용자 언어·시간대로 문장 생성. 접속 중이면 STOMP 로 즉시, 탭이 백그라운드면 브라우저 알림 |
@@ -310,7 +342,9 @@ com/webrtcmeetpro/
 | POST | `/api/sessions/web-handoff` | 앱 → 브라우저 로그인 넘기기용 60초 1회용 코드 (`/oauth/callback?code=…&next=…`) |
 | GET · PUT | `/api/users/me` · `/me/profile` | 내 정보 / 프로필(온보딩) |
 | POST · DELETE | `/api/users/me/profile-image` | 프로필 사진 (매직 바이트로 형식 판별) |
-| GET · PUT | `/api/plans` · `/api/subscriptions/me` | 플랜 / 내 구독·변경 |
+| GET | `/api/plans` · `/api/subscriptions/me` | 플랜 / 내 구독(적용 중 플랜, 구독들, 만료 안내, 카드) |
+| POST · PATCH | `/api/subscriptions/purchase` · `/api/subscriptions/{id}` · `/{id}/acknowledge-expiry` | 결제(월/연, 자동결제) / 자동결제 켜고 끄기 / 만료 창 닫기 |
+| POST · DELETE · GET | `/api/billing/card/prepare` · `/api/billing/card` · `/api/billing/payments` | 카드 등록창 값 / 카드 등록·삭제 / 결제 내역 |
 | POST · GET | `/api/teams` · `/api/teams/{id}` | 팀 만들기·목록·상세(팀원, 한도) |
 | POST · GET · DELETE | `/api/teams/{id}/invitations[/{invId}]` | 초대 보내기·목록·취소 |
 | GET · POST | `/api/invitations` · `/{id}/accept` · `/{id}/decline` | 받은 초대 |
@@ -368,11 +402,11 @@ apps/kmp/
 - 공통으로 쓸 수 있는 건 전부 `commonMain`/`core` 에 있다. JVM API 가 필요한 것은 `jvmSharedMain` 한 곳에, 정말 다른 것(언어 전환, 시스템 알림, 서버 주소·저장 경로)만 `androidMain`/`desktopMain` 에 둔다.
 - 좁은 화면(폰)은 하단 탭, 넓은 창(태블릿·데스크톱)은 왼쪽 레일 — 같은 화면 코드가 폭에 따라 바뀐다.
 - `androidApp` 이 따로 있는 이유: AGP 9 부터 `kotlin.multiplatform` 과 `com.android.application` 을 한 모듈에 둘 수 없다. 그래서 `composeApp` 은 Android 라이브러리 타깃(`com.android.kotlin.multiplatform.library`)이고, 실행 APK 만 `androidApp` 이 만든다.
-- 구글 로그인·프로필 사진 변경·요금제 변경은 아직 웹에서만 된다.
+- 구글 로그인·프로필 사진 변경·요금제 결제는 아직 웹에서만 된다 (앱은 설정 → "요금제·결제 (웹)" 으로 브라우저를 연다).
 
 ## 다음 단계
 
 1. 앱: 화상회의 네이티브(WebRTC), 앱이 꺼져 있을 때 푸시(FCM), 구글 로그인
-2. 유료 플랜용 토스페이먼츠 결제 승인 / 빌링
-3. 회의 녹화 (mediasoup PlainTransport → FFmpeg), 플랜 `recording_enabled` 반영
+2. 워크스페이스: 팀 고정 주소, 상시 회의방, Business 관리 기능(이메일 도메인 가입 제한, 관리 이력)
+3. CloudFront (S3 재생 트래픽이 커지면), 회의당 인원 부하 테스트 후 조정
 4. 팀원 내보내기·역할 변경, 초대 메일 발송(SMTP)

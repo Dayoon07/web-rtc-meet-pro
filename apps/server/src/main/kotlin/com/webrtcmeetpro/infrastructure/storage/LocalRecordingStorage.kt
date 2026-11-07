@@ -3,7 +3,10 @@ package com.webrtcmeetpro.infrastructure.storage
 import com.webrtcmeetpro.config.properties.StorageProperties
 import com.webrtcmeetpro.domain.meeting.RecordingStorage
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import com.webrtcmeetpro.domain.common.ServeAs
+import com.webrtcmeetpro.domain.common.StoredFile
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -16,7 +19,10 @@ import java.util.UUID
  * 주최자 브라우저가 10초마다 보내는 조각(webm)을 순서대로 이어 붙이면 그대로 재생되는 파일이 된다.
  */
 @Component
+@ConditionalOnProperty(prefix = "app.storage", name = ["type"], havingValue = "local", matchIfMissing = true)
 class LocalRecordingStorage(storageProperties: StorageProperties) : RecordingStorage {
+
+    override val needsUpload = false
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val root: Path = Path.of(storageProperties.recordingDir).toAbsolutePath().normalize()
@@ -39,7 +45,11 @@ class LocalRecordingStorage(storageProperties: StorageProperties) : RecordingSto
         Files.newOutputStream(target, StandardOpenOption.APPEND).use { out -> return content.copyTo(out) }
     }
 
-    override fun open(storedName: String): Path? = resolve(storedName)?.takeIf { Files.isRegularFile(it) }
+    override fun upload(storedName: String) = Unit
+
+    override fun open(storedName: String, serveAs: ServeAs): StoredFile? = path(storedName)?.takeIf { Files.isRegularFile(it) }?.let(StoredFile::Local)
+
+    fun path(storedName: String): Path? = resolve(storedName)
 
     override fun delete(storedName: String) {
         val target = resolve(storedName) ?: return
@@ -53,6 +63,6 @@ class LocalRecordingStorage(storageProperties: StorageProperties) : RecordingSto
     }
 
     companion object {
-        private val STORED_NAME = Regex("^\\d{4}/\\d{2}/[0-9a-f]{32}\\.webm$")
+        val STORED_NAME = Regex("^\\d{4}/\\d{2}/[0-9a-f]{32}\\.webm$")
     }
 }

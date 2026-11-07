@@ -236,4 +236,12 @@
     <string name="error_MEETING_NOT_EDITABLE">已开始或已结束的会议不能编辑。</string>
     <string name="meeting_recordings">录制</string>
     <string name="meeting_recording_play">播放</string>
+    <string name="plan_expired_title">%1$s 套餐已到期</string>
+    <string name="plan_expired_body">%1$s 套餐（至 %2$s）已结束。</string>
+    <string name="plan_expired_now_free">现在使用的是免费套餐。在网页上重新付款即可使用录制和更高的上限。</string>
+    <string name="plan_expired_now_other">现在使用的是剩余的 %1$s 套餐。</string>
+    <string name="plan_expired_data_kept">你创建的团队、聊天和录制不会被删除，只会限制超出上限的新操作。</string>
+    <string name="plan_expired_later">稍后</string>
+    <string name="plan_expired_renew">在网页上付款</string>
+    <string name="settings_billing">套餐与付款（网页）</string>
 </resources>

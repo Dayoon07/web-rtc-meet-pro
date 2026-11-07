@@ -236,4 +236,12 @@
     <string name="error_MEETING_NOT_EDITABLE">開始済み・終了済みの会議は編集できません。</string>
     <string name="meeting_recordings">録画</string>
     <string name="meeting_recording_play">再生</string>
+    <string name="plan_expired_title">%1$sプランの期限が切れました</string>
+    <string name="plan_expired_body">%1$sプラン（%2$sまで）の期間が終わりました。</string>
+    <string name="plan_expired_now_free">現在は無料プランです。録画や上限の拡大はWebでもう一度お支払いいただくと使えます。</string>
+    <string name="plan_expired_now_other">現在は残っている%1$sプランを利用しています。</string>
+    <string name="plan_expired_data_kept">作成したチーム・チャット・録画は削除されません。上限を超える新しい操作だけが制限されます。</string>
+    <string name="plan_expired_later">あとで</string>
+    <string name="plan_expired_renew">Webで支払う</string>
+    <string name="settings_billing">料金プラン・支払い（Web）</string>
 </resources>

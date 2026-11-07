@@ -71,6 +71,10 @@ import com.webrtcmeetpro.core.model.Me
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.lang_system
 import com.webrtcmeetpro.resources.settings_language
+import com.webrtcmeetpro.resources.settings_billing
+import androidx.compose.ui.platform.LocalUriHandler
+import com.webrtcmeetpro.core.network.ApiConfig
+import org.koin.compose.koinInject
 import com.webrtcmeetpro.resources.settings_logout
 import com.webrtcmeetpro.resources.settings_plan
 import com.webrtcmeetpro.resources.settings_theme
@@ -168,6 +172,17 @@ fun SettingsScreen(viewModel: SettingsViewModel = koinViewModel()) {
         item { ScreenTitle(stringResource(Res.string.settings_title)) }
 
         me?.let { user -> item { ProfileCard(user) } }
+
+        // 요금제 결제·자동결제·카드 관리는 웹에서 (앱 안 결제는 스토어 정책 검토 후)
+        item {
+            val uriHandler = LocalUriHandler.current
+            val config = koinInject<ApiConfig>()
+            SecondaryButton(
+                stringResource(Res.string.settings_billing),
+                onClick = { uriHandler.openUri(config.webUrl.trimEnd('/') + "/app/billing") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         item {
             SettingsSection(stringResource(Res.string.settings_theme)) {

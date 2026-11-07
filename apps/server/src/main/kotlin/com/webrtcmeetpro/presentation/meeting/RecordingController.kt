@@ -2,7 +2,7 @@ package com.webrtcmeetpro.presentation.meeting
 
 import com.webrtcmeetpro.application.meeting.RecordingService
 import com.webrtcmeetpro.common.web.userId
-import org.springframework.core.io.FileSystemResource
+import com.webrtcmeetpro.presentation.common.StoredFileResponses
 import org.springframework.core.io.Resource
 import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
@@ -74,15 +74,15 @@ class RecordingController(private val recordings: RecordingService) {
         @RequestParam sig: String,
         @RequestParam(defaultValue = "false") download: Boolean,
     ): ResponseEntity<Resource> {
-        val file = recordings.openFile(recordingId, exp, sig)
+        val file = recordings.openFile(recordingId, exp, sig, download)
         val disposition = (if (download) ContentDisposition.attachment() else ContentDisposition.inline())
             .filename(file.name, StandardCharsets.UTF_8).build()
         val maxAge = (file.expiresAt - Instant.now().epochSecond).coerceAtLeast(0)
-        return ResponseEntity.ok()
-            .contentType(MediaType.parseMediaType("video/webm"))
-            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
-            .header(HttpHeaders.CACHE_CONTROL, "private, max-age=$maxAge")
-            .header("Content-Security-Policy", "default-src 'none'; media-src 'self'; sandbox")
-            .body(FileSystemResource(file.path))
+        return StoredFileResponses.of(file.file, maxAge) {
+            it.contentType(MediaType.parseMediaType("video/webm"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=$maxAge")
+                .header("Content-Security-Policy", "default-src 'none'; media-src 'self'; sandbox")
+        }
     }
 }

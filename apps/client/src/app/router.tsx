@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router'
 import { AppHomePage } from '@/pages/app-home'
-import { BillingPage } from '@/pages/billing'
+import { BillingPage, CardReturnPage } from '@/pages/billing'
 import { ChatPage } from '@/pages/chat'
 import { HomePage } from '@/pages/home'
 import { InvitationsPage } from '@/pages/invitations'
@@ -18,6 +18,7 @@ import { SignupPage } from '@/pages/signup'
 import { TeamDetailPage } from '@/pages/team-detail'
 import { TeamsPage } from '@/pages/teams'
 import { ConfirmEmailPage, VerifyEmailPage } from '@/pages/verify-email'
+import { PlanExpiryGate } from '@/widgets/plan-expiry-notice'
 import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile, VerifyEmailOnly } from './guards'
 import { AppLayout, AuthLayout, MarketingLayout } from './layouts'
 
@@ -70,6 +71,10 @@ export const router = createBrowserRouter([
                 path: '/app',
                 element: <AppLayout />,
                 children: [
+                  {
+                    // 플랜이 만료되면 앱 화면 위에 안내 창
+                    element: <PlanExpiryGate />,
+                    children: [
                   { index: true, element: <AppHomePage />, handle: { title: 'nav.home' } },
                   { path: 'chat/:teamId?/:roomId?', element: <ChatPage />, handle: { title: 'nav.chat' } },
                   { path: 'meetings', element: <MeetingsPage />, handle: { title: 'nav.meetings' } },
@@ -78,7 +83,10 @@ export const router = createBrowserRouter([
                   { path: 'teams/:teamId', element: <TeamDetailPage />, handle: { title: 'nav.teams' } },
                   { path: 'invitations', element: <InvitationsPage />, handle: { title: 'nav.invitations' } },
                   { path: 'billing', element: <BillingPage />, handle: { title: 'nav.billing' } },
+                  { path: 'billing/card', element: <CardReturnPage />, handle: { title: 'nav.billing' } },
                   { path: 'settings', element: <SettingsPage />, handle: { title: 'nav.settings' } },
+                    ],
+                  },
                 ],
               },
             ],

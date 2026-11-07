@@ -30,6 +30,9 @@ dependencies {
 	// 메일 발송 (비밀번호 재설정·팀 초대). MAIL_HOST 가 없으면 보내지 않고 서버 로그에만 남긴다
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	// 파일 저장소 S3 (app.storage.type=s3 일 때만 쓴다. 기본은 서버 디스크)
+	implementation(platform("software.amazon.awssdk:bom:2.56.0"))
+	implementation("software.amazon.awssdk:s3")
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("tools.jackson.module:jackson-module-kotlin")

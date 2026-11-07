@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellRing, CalendarClock, Mail, MessageSquare, UserCheck, Video, X } from 'lucide-react'
+import { Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, UserCheck, Video, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -17,6 +17,9 @@ const ICONS: Record<NotificationType, typeof Bell> = {
   MEETING_STARTED: Video,
   MEETING_CANCELED: X,
   MEETING_UPDATED: CalendarClock,
+  PLAN_EXPIRING: CreditCard,
+  PLAN_EXPIRED: CreditCard,
+  PAYMENT_FAILED: CreditCard,
 }
 
 /** 상단 바 종 아이콘: 안 읽은 개수 + 최근 알림 드롭다운 + 브라우저 알림 권한 */
@@ -160,6 +163,7 @@ export function useNotificationSideEffects(subscribe: (cb: (payload: unknown) =>
         if (n.type.startsWith('MEETING')) void queryClient.invalidateQueries({ queryKey: ['meetings'] })
         if (n.type === 'TEAM_INVITATION') void queryClient.invalidateQueries({ queryKey: ['invitations'] })
         if (n.type === 'TEAM_INVITATION_ACCEPTED') void queryClient.invalidateQueries({ queryKey: ['teams'] })
+        if (n.type.startsWith('PLAN') || n.type === 'PAYMENT_FAILED') void queryClient.invalidateQueries({ queryKey: ['subscriptions'] })
 
         const text = notificationText(n, t, fmt.dateTime)
         if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {

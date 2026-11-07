@@ -237,4 +237,12 @@
     <string name="error_MEETING_NOT_EDITABLE">Meetings that have started or ended can’t be edited.</string>
     <string name="meeting_recordings">Recordings</string>
     <string name="meeting_recording_play">Play</string>
+    <string name="plan_expired_title">Your %1$s plan has expired</string>
+    <string name="plan_expired_body">Your %1$s plan (until %2$s) has ended.</string>
+    <string name="plan_expired_now_free">You’re now on the Free plan. Renew on the web to get recording and higher limits back.</string>
+    <string name="plan_expired_now_other">You’re now on your remaining %1$s plan.</string>
+    <string name="plan_expired_data_kept">Your teams, chats and recordings aren’t deleted. Only new things above the limits are blocked.</string>
+    <string name="plan_expired_later">Later</string>
+    <string name="plan_expired_renew">Renew on the web</string>
+    <string name="settings_billing">Plans &amp; billing (web)</string>
 </resources>

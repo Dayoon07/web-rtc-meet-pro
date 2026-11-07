@@ -148,7 +148,7 @@ export function AppHomePage() {
               </div>
               <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.groupRoomsPerTeam')}</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{sub.plan.maxGroupRoomsPerTeam}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{sub.plan.maxGroupRoomsPerTeam ?? t('plan.unlimited')}</p>
               </div>
             </div>
           </Card>

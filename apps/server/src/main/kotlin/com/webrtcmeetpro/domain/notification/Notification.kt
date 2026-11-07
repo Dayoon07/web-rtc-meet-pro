@@ -21,6 +21,12 @@ enum class NotificationType {
     MEETING_CANCELED,
     /** 예약 회의의 시간·제목 등이 바뀜 */
     MEETING_UPDATED,
+    /** 자동결제가 꺼진 플랜이 3일 안에 끝남 */
+    PLAN_EXPIRING,
+    /** 플랜 기간이 끝남 */
+    PLAN_EXPIRED,
+    /** 자동결제 실패 (하루 뒤 다시 시도) */
+    PAYMENT_FAILED,
 }
 
 /** 문구는 저장하지 않는다. type + params(JSON) 를 클라이언트가 사용자 언어로 번역해 보여준다 */

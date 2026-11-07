@@ -7,6 +7,7 @@ import com.webrtcmeetpro.domain.team.TeamMemberStatus
 import com.webrtcmeetpro.domain.team.TeamMemberRepository
 import com.webrtcmeetpro.domain.plan.SubscriptionStatus
 import com.webrtcmeetpro.domain.plan.SubscriptionRepository
+import com.webrtcmeetpro.domain.plan.BillingKeyRepository
 import com.webrtcmeetpro.domain.chat.ChatRoomMemberRepository
 import com.webrtcmeetpro.domain.auth.RefreshTokenRepository
 import com.webrtcmeetpro.domain.auth.SocialAccountRepository
@@ -66,6 +67,7 @@ class UserService(
     private val chatMemberRepository: ChatRoomMemberRepository,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val subscriptionRepository: SubscriptionRepository,
+    private val billingKeyRepository: BillingKeyRepository,
 ) {
     fun me(userId: Long): MeView = toView(findUser(userId))
 
@@ -87,7 +89,7 @@ class UserService(
         val extension = detectImageExtension(upload) ?: throw BusinessException(ErrorCode.INVALID_IMAGE)
         val user = findUser(userId)
         val previous = user.profileImageUrl
-        user.changeProfileImage(profileImageStorage.store(userId, extension, upload.bytes.inputStream()))
+        user.changeProfileImage(profileImageStorage.store(userId, extension, upload.bytes.inputStream(), upload.bytes.size.toLong()))
         previous?.let(profileImageStorage::deleteIfOwned)
         return toView(user)
     }
@@ -118,7 +120,9 @@ class UserService(
         teamMemberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
         chatMemberRepository.findAllByUserIdAndLeftAtIsNull(userId).forEach { it.leave() }
         refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(userId).forEach { it.revoke() }
-        subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)?.cancel()
+        // 남은 구독은 모두 끝내고(자동결제도 멈춤) 등록한 카드도 해지
+        subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE)).forEach { it.cancel() }
+        billingKeyRepository.findAllByUserIdAndActiveTrue(userId).forEach { it.revoke() }
         socialAccountRepository.findAllByUserId(userId).forEach(socialAccountRepository::delete)
         user.profileImageUrl?.let(profileImageStorage::deleteIfOwned)
         user.withdraw()

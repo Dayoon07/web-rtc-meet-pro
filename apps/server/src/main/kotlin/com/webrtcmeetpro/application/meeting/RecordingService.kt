@@ -1,6 +1,15 @@
 package com.webrtcmeetpro.application.meeting
 
+import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.team.TeamAccess
+import com.webrtcmeetpro.domain.common.ServeAs
+import com.webrtcmeetpro.domain.common.StoredFile
+import com.webrtcmeetpro.domain.team.TeamRepository
+import org.slf4j.LoggerFactory
+import jakarta.annotation.PreDestroy
+import java.util.concurrent.Executors
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.config.properties.JwtProperties
@@ -19,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.io.InputStream
-import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
@@ -47,7 +55,7 @@ data class RecordingView(
 /** /user/queue/meeting 으로 회의실 사람들에게: 녹화 시작·끝 (회의실에 "녹화 중" 표시) */
 data class MeetingRoomEvent(val type: String, val meetingId: Long, val recording: Boolean, val by: String? = null)
 
-data class RecordingFile(val path: Path, val name: String, val size: Long, val expiresAt: Long)
+data class RecordingFile(val file: StoredFile, val name: String, val size: Long, val expiresAt: Long)
 
 /** 녹화 재생 주소 서명 (?exp=&sig=). <video src> 는 토큰을 못 보내므로 볼 수 있는 사람에게만 서명된 주소를 준다 */
 @Component
@@ -77,7 +85,9 @@ class RecordingUrlSigner(props: JwtProperties) {
  * 회의 녹화 (주최자 브라우저 녹화 방식).
  * 주최자(또는 팀 OWNER·ADMIN) 브라우저가 회의 탭을 MediaRecorder 로 녹화해서 10초마다 조각을 올리고, 서버는 순서대로 이어 붙인다.
  * 주최자가 창을 닫아 멈춤 신호가 오지 않아도, 조각이 2분 동안 안 오면 서버가 그때까지 받은 것으로 마무리한다.
- * 플랜: 팀 소유자의 플랜에 녹화가 포함돼야 한다 (plans.recording_enabled).
+ * 플랜: 팀 소유자의 플랜에 녹화가 포함돼야 한다 (plans.recording_enabled). 소유자의 모든 팀 녹화를 합쳐
+ * plans.recording_storage_gb 까지 저장할 수 있고, plans.recording_retention_days 가 지나면 자동으로 지운다.
+ * S3 를 쓰면 녹화가 끝난 뒤 올리는 동안 PROCESSING 이고, 다 올리면 READY.
  */
 @Service
 @Transactional(readOnly = true)
@@ -91,7 +101,22 @@ class RecordingService(
     private val storage: RecordingStorage,
     private val signer: RecordingUrlSigner,
     private val realtime: RealtimePublisher,
+    private val planService: PlanService,
+    private val teams: TeamRepository,
+    transactionManager: PlatformTransactionManager,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+    private val tx = TransactionTemplate(transactionManager)
+
+    /** S3 에 올리는 중인 녹화 (같은 녹화를 두 번 올리지 않게) */
+    private val uploading = ConcurrentHashMap.newKeySet<Long>()
+
+    /** 녹화 올리기 전용 (큰 파일이 메일·에러 기록 등 다른 비동기 작업을 붙잡지 않게 따로 2개) */
+    private val executor = Executors.newFixedThreadPool(2) { r -> Thread(r, "recording-upload").apply { isDaemon = true } }
+
+    @PreDestroy
+    fun shutdown() = executor.shutdown()
+
     /** 녹화별 다음에 받을 조각 번호 (재시도로 같은 조각이 두 번 와도 한 번만 붙인다). 서버 재시작 후에는 처음 오는 번호부터 */
     private val nextSeq = ConcurrentHashMap<Long, Int>()
 
@@ -103,6 +128,7 @@ class RecordingService(
         if (!meetingService.canManage(meeting, userId)) throw BusinessException(ErrorCode.NOT_RECORDING_HOST)
         if (!meetingService.recordingAvailable(meeting)) throw BusinessException(ErrorCode.RECORDING_NOT_ALLOWED)
         if (recordings.findAllByMeetingId(meetingId).any { it.isRecording }) throw BusinessException(ErrorCode.RECORDING_IN_PROGRESS)
+        requireStorage(meeting.teamId, 0)
 
         val stored = storage.create()
         // DB 저장이 실패하면 만든 빈 파일도 지운다
@@ -129,6 +155,7 @@ class RecordingService(
             seq > expected -> throw BusinessException(ErrorCode.RECORDING_CHUNK_OUT_OF_ORDER, mapOf("expected" to expected))
         }
         if ((recording.fileSizeBytes ?: 0) + size > MAX_BYTES) throw BusinessException(ErrorCode.RECORDING_TOO_LARGE)
+        meetings.findMeetingById(meetingId)?.let { requireStorage(it.teamId, size) }
         val written = content().use { storage.append(recording.storageUrl!!, it) }
         recording.appended(written)
         nextSeq[recordingId] = seq + 1
@@ -140,9 +167,10 @@ class RecordingService(
         val recording = findRecording(meetingId, recordingId)
         if (recording.startedBy != userId) throw BusinessException(ErrorCode.NOT_RECORDING_HOST)
         if (recording.isRecording) {
-            recording.finish(durationSeconds?.coerceIn(0, MAX_SECONDS))
+            recording.finish(durationSeconds?.coerceIn(0, MAX_SECONDS), needsUpload = storage.needsUpload)
             nextSeq.remove(recordingId)
             broadcast(meetingId, recording = false)
+            uploadAfterCommit(recording)
         }
         return view(recording, userId)
     }
@@ -176,14 +204,15 @@ class RecordingService(
     }
 
     /** 서명된 주소로 재생·내려받기 */
-    fun openFile(recordingId: Long, exp: Long, sig: String): RecordingFile {
+    fun openFile(recordingId: Long, exp: Long, sig: String, download: Boolean = false): RecordingFile {
         if (!signer.isValid(recordingId, exp, sig)) throw BusinessException(ErrorCode.RECORDING_NOT_FOUND)
         val recording = recordings.findRecordingById(recordingId)
             ?.takeIf { it.status == RecordingStatus.READY && !it.deleted } ?: throw BusinessException(ErrorCode.RECORDING_NOT_FOUND)
-        val path = recording.storageUrl?.let(storage::open) ?: throw BusinessException(ErrorCode.RECORDING_NOT_FOUND)
         val meeting = meetings.findMeetingById(recording.meetingId)
         val name = "${meeting?.title ?: "meeting"}-${recording.startedAt.toLocalDate()}.webm".replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        return RecordingFile(path, name, recording.fileSizeBytes ?: 0, exp)
+        val file = recording.storageUrl?.let { storage.open(it, ServeAs(name, "video/webm", attachment = download)) }
+            ?: throw BusinessException(ErrorCode.RECORDING_NOT_FOUND)
+        return RecordingFile(file, name, recording.fileSizeBytes ?: 0, exp)
     }
 
     /** 조각이 2분 넘게 안 온 녹화 = 주최자가 창을 닫음 → 받은 데까지로 마무리 (스케줄러) */
@@ -191,11 +220,83 @@ class RecordingService(
     fun finishStale(now: LocalDateTime = LocalDateTime.now()): Int {
         val stale = recordings.findAllByStatus(RecordingStatus.RECORDING).filter { it.editedDt.isBefore(now.minus(STALE_AFTER)) }
         stale.forEach {
-            it.finish(null, it.editedDt)
+            it.finish(null, it.editedDt, needsUpload = storage.needsUpload)
             nextSeq.remove(it.id!!)
             broadcast(it.meetingId, recording = false)
+            uploadAfterCommit(it)
         }
         return stale.size
+    }
+
+    /** 올리다 실패했거나 서버가 재시작돼서 PROCESSING 에 남은 녹화를 다시 올린다 (스케줄러) */
+    fun uploadPending(): Int {
+        val pending = recordings.findAllByStatus(RecordingStatus.PROCESSING).filter { it.id !in uploading }
+        pending.forEach { upload(it.id!!, it.storageUrl) }
+        return pending.size
+    }
+
+    /**
+     * 보관 기간이 지난 녹화 지우기 (스케줄러). 기간은 팀 소유자의 "지금" 플랜 기준 —
+     * 플랜이 끝나 녹화가 없는 플랜이 되면 그 플랜의 보관 일수(기본 30일)가 지난 것부터 지운다.
+     */
+    @Transactional
+    fun purgeExpired(now: LocalDateTime = LocalDateTime.now()): Int {
+        val minDays = planService.listPlans().minOfOrNull { it.recordingRetentionDays } ?: return 0
+        val candidates = recordings.findAllByStatusInAndEndedAtBefore(
+            listOf(RecordingStatus.READY, RecordingStatus.FAILED), now.minusDays(minDays.toLong()),
+        )
+        val retentionByOwner = mutableMapOf<Long, Int>()
+        var purged = 0
+        candidates.forEach { r ->
+            val ownerId = meetings.findMeetingById(r.meetingId)?.let { teams.findTeamById(it.teamId) }?.ownerId ?: return@forEach
+            val days = retentionByOwner.getOrPut(ownerId) { planService.currentPlanOf(ownerId, now).recordingRetentionDays }
+            if (r.endedAt!!.isBefore(now.minusDays(days.toLong()))) {
+                r.delete()
+                r.storageUrl?.let { name ->
+                    TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+                        override fun afterCommit() = storage.delete(name)
+                    })
+                }
+                purged++
+            }
+        }
+        return purged
+    }
+
+    /** 팀 소유자 플랜의 녹화 저장 공간이 남았는지 */
+    private fun requireStorage(teamId: Long, adding: Long) {
+        val ownerId = teams.findTeamById(teamId)?.ownerId ?: return
+        val plan = planService.currentPlanOf(ownerId)
+        val used = recordings.sumBytesByTeamOwner(ownerId)
+        // 시작할 때(adding = 0)는 이미 꽉 찼으면, 조각을 붙일 때는 넘치면 막는다
+        if (used + adding > plan.recordingStorageBytes || used >= plan.recordingStorageBytes) {
+            throw BusinessException(ErrorCode.RECORDING_STORAGE_FULL, mapOf("gb" to plan.recordingStorageGb))
+        }
+    }
+
+    private fun uploadAfterCommit(recording: MeetingRecording) {
+        if (recording.status != RecordingStatus.PROCESSING) return
+        val id = recording.id!!
+        val name = recording.storageUrl
+        TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+            override fun afterCommit() = upload(id, name)
+        })
+    }
+
+    /** 다른 스레드에서 S3 에 올리고, 끝나면 READY */
+    private fun upload(recordingId: Long, storedName: String?) {
+        if (storedName == null || !uploading.add(recordingId)) return
+        executor.execute {
+            try {
+                storage.upload(storedName)
+                tx.executeWithoutResult { recordings.findRecordingById(recordingId)?.uploaded() }
+                log.info("녹화 {} 올리기 끝", recordingId)
+            } catch (e: Exception) {
+                log.error("녹화 {} 올리기 실패 (스케줄러가 다시 시도)", recordingId, e)
+            } finally {
+                uploading.remove(recordingId)
+            }
+        }
     }
 
     private fun findRecording(meetingId: Long, recordingId: Long) =

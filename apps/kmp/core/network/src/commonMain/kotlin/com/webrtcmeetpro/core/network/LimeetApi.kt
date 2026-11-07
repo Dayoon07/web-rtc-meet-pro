@@ -87,6 +87,11 @@ class LimeetApi(private val client: HttpClient) {
 
     suspend fun mySubscription(): Subscription = client.get("api/subscriptions/me").body()
 
+    /** "플랜이 만료됐어요" 창을 닫음 */
+    suspend fun acknowledgeExpiry(subscriptionId: Long) {
+        client.post("api/subscriptions/$subscriptionId/acknowledge-expiry")
+    }
+
     // team
     suspend fun teams(): List<TeamSummary> = client.get("api/teams").body()
 

@@ -13,6 +13,8 @@ import com.webrtcmeetpro.domain.chat.ChatRoomType
 import com.webrtcmeetpro.domain.chat.MessageType
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
+import com.webrtcmeetpro.domain.common.ServeAs
+import com.webrtcmeetpro.domain.common.StoredFile
 import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.domain.notification.NotificationType
@@ -81,7 +83,7 @@ data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val m
 data class FileUpload(val name: String?, val contentType: String?, val size: Long, val open: () -> InputStream)
 
 /** 내려받을 파일. inline = 브라우저에서 바로 보여 줘도 되는 이미지 */
-data class ChatFileDownload(val name: String, val contentType: String, val size: Long, val path: Path, val inline: Boolean, val expiresAt: Long)
+data class ChatFileDownload(val name: String, val contentType: String, val size: Long, val file: StoredFile, val inline: Boolean, val expiresAt: Long)
 
 @Service
 @Transactional(readOnly = true)
@@ -144,7 +146,7 @@ class ChatService(
 
         val plan = planService.currentPlanOf(team.ownerId)
         val groups = roomRepository.countByTeamIdAndRoomTypeAndDeletedFalse(teamId, ChatRoomType.GROUP)
-        if (!plan.canAddGroupRoom(groups)) throw BusinessException(ErrorCode.PLAN_GROUP_ROOM_LIMIT, mapOf("max" to plan.maxGroupRoomsPerTeam))
+        if (!plan.canAddGroupRoom(groups)) throw BusinessException(ErrorCode.PLAN_GROUP_ROOM_LIMIT, mapOf("max" to (plan.maxGroupRoomsPerTeam ?: 0)))
 
         val invitees = validTeamMembers(teamId, memberIds) - userId
         val room = roomRepository.save(ChatRoom.group(teamId, userId, name))
@@ -228,7 +230,7 @@ class ChatService(
                 if (status != TransactionSynchronization.STATUS_COMMITTED) stored.forEach(fileStorage::delete)
             }
         })
-        checked.forEach { (upload, _, _) -> upload.open().use { stored += fileStorage.store(it) } }
+        checked.forEach { (upload, _, _) -> upload.open().use { stored += fileStorage.store(it, upload.size) } }
 
         val saved = messageRepository.save(ChatMessage(roomId, userId, content, MessageType.FILE))
         val files = checked.mapIndexed { i, (upload, name, type) ->
@@ -238,11 +240,13 @@ class ChatService(
     }
 
     /** 서명이 맞고 지워지지 않은 파일만 내려준다. 서명이 틀리거나 만료되면 없는 파일처럼 보이게 한다 */
-    fun openFile(fileId: Long, exp: Long, sig: String): ChatFileDownload {
+    fun openFile(fileId: Long, exp: Long, sig: String, download: Boolean = false): ChatFileDownload {
         if (!fileUrls.isValid(fileId, exp, sig)) throw BusinessException(ErrorCode.FILE_NOT_FOUND)
         val file = fileRepository.findFileById(fileId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.FILE_NOT_FOUND)
-        val path = fileStorage.open(file.storedName) ?: throw BusinessException(ErrorCode.FILE_NOT_FOUND)
-        return ChatFileDownload(file.originalName, file.contentType, file.sizeBytes, path, file.isPreviewableImage, exp)
+        val inline = file.isPreviewableImage && !download
+        val serveAs = ServeAs(file.originalName, if (inline) file.contentType else "application/octet-stream", attachment = !inline)
+        val stored = fileStorage.open(file.storedName, serveAs) ?: throw BusinessException(ErrorCode.FILE_NOT_FOUND)
+        return ChatFileDownload(file.originalName, serveAs.contentType, file.sizeBytes, stored, inline, exp)
     }
 
     /** 내가 보낸 글 메시지 고치기 */

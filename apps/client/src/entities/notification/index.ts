@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import { http } from '@/shared/api'
+import { translateDynamic } from '@/shared/i18n'
 
 export type NotificationType =
   | 'TEAM_INVITATION'
@@ -11,6 +12,9 @@ export type NotificationType =
   | 'MEETING_STARTED'
   | 'MEETING_CANCELED'
   | 'MEETING_UPDATED'
+  | 'PLAN_EXPIRING'
+  | 'PLAN_EXPIRED'
+  | 'PAYMENT_FAILED'
 
 export type AppNotification = {
   id: number
@@ -39,5 +43,8 @@ export const useUnreadNotificationsQuery = () =>
 export function notificationText(n: AppNotification, t: TFunction, formatTime: (iso: string) => string) {
   const p = n.params
   const time = typeof p.scheduledAt === 'string' ? formatTime(p.scheduledAt) : ''
-  return t(`notifications.types.${n.type}`, { ...p, time })
+  const date = typeof p.date === 'string' ? formatTime(p.date) : ''
+  // 플랜 이름은 코드로 번역 (없으면 서버가 보낸 이름)
+  const plan = typeof p.planCode === 'string' ? translateDynamic(`plan.names.${p.planCode}`, undefined, String(p.planName ?? p.planCode)) : ''
+  return t(`notifications.types.${n.type}`, { ...p, time, date, plan })
 }

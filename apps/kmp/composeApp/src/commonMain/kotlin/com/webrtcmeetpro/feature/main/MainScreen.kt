@@ -174,6 +174,7 @@ fun MainScreen() {
                     MainNavHost(navController, Modifier.weight(1f))
                 }
             }
+            PlanExpiryDialog()
         }
     }
 }
