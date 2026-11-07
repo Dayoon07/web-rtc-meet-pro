@@ -41,6 +41,10 @@ export function PlanCard({ plan, cycle = 'MONTHLY', current, highlighted, action
         ? t('plan.features.recordingDetail', { gb: plan.recordingStorageGb, days: plan.recordingRetentionDays })
         : t('plan.features.recording'),
     },
+    {
+      on: plan.aiNotesMinutes > 0,
+      text: plan.aiNotesMinutes > 0 ? t('plan.features.aiNotesDetail', { minutes: plan.aiNotesMinutes }) : t('plan.features.aiNotes'),
+    },
   ]
 
   return (

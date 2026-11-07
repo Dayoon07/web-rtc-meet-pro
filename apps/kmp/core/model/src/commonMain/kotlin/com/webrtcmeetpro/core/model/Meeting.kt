@@ -28,9 +28,32 @@ data class Meeting(
     val canCancel: Boolean = false,
     /** 내가 고칠 수 있는지 (취소와 같은 조건) */
     val canEdit: Boolean = false,
+    /** 채널 상시 음성방이면 그 채널 */
+    val chatRoomId: Long? = null,
+    /** AI 회의록 상태 (RECORDING/PAUSED/PROCESSING/READY/FAILED/EMPTY). 켠 적이 없으면 null */
+    val notesStatus: String? = null,
 ) {
     val isOpen get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
 }
+
+/** GET /api/meetings/{id}/notes: AI 회의록 (요약·결정 사항·할 일) */
+@Serializable
+data class MeetingNotes(
+    val meetingId: Long,
+    val status: String,
+    val on: Boolean = false,
+    val title: String? = null,
+    val summary: List<String> = emptyList(),
+    val decisions: List<String> = emptyList(),
+    val actionItems: List<NotesActionItem> = emptyList(),
+    val generatedAt: String? = null,
+    val minutes: Long = 0,
+    val lineCount: Int = 0,
+    val canRegenerate: Boolean = false,
+)
+
+@Serializable
+data class NotesActionItem(val task: String, val owner: String? = null, val ownerUserId: Long? = null, val due: String? = null)
 
 /** GET /api/meetings/{id}/recordings. url 은 서명된 재생 주소 (READY 일 때만, "/api/..." 상대 경로) */
 @Serializable

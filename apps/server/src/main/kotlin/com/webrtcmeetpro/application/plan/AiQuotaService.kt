@@ -1,0 +1,41 @@
+package com.webrtcmeetpro.application.plan
+
+import com.webrtcmeetpro.domain.plan.AiFeature
+import com.webrtcmeetpro.domain.plan.AiUsage
+import com.webrtcmeetpro.domain.plan.AiUsageRepository
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
+
+/**
+ * AI 기능 한 달 사용 시간. 한도는 워크스페이스의 지금 플랜 (plans.ai_notes_minutes / live_caption_minutes, 0 = 없음).
+ * 달이 바뀌면 새로 센다.
+ */
+@Service
+@Transactional(readOnly = true)
+class AiQuotaService(
+    private val usages: AiUsageRepository,
+    private val planService: PlanService,
+) {
+    /** 플랜의 한 달 한도(초). 0 = 플랜에 없음 */
+    fun limitSeconds(teamId: Long, feature: AiFeature, now: LocalDateTime = LocalDateTime.now()): Long {
+        val plan = planService.planOfTeam(teamId, now)
+        val minutes = when (feature) {
+            AiFeature.NOTES -> plan.aiNotesMinutes
+            AiFeature.CAPTIONS -> plan.liveCaptionMinutes
+        }
+        return minutes.toLong() * 60
+    }
+
+    fun usedSeconds(teamId: Long, feature: AiFeature, now: LocalDateTime = LocalDateTime.now()): Long =
+        usages.findByTeamIdAndFeatureAndUsageMonth(teamId, feature, AiUsage.monthOf(now))?.usedSeconds ?: 0
+
+    @Transactional
+    fun add(teamId: Long, feature: AiFeature, seconds: Long, now: LocalDateTime = LocalDateTime.now()) {
+        if (seconds <= 0) return
+        val month = AiUsage.monthOf(now)
+        val usage = usages.findByTeamIdAndFeatureAndUsageMonth(teamId, feature, month)
+            ?: usages.save(AiUsage(teamId, feature, month))
+        usage.add(seconds)
+    }
+}

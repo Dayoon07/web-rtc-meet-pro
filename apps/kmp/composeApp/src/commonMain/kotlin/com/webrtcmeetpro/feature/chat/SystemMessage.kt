@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.chat
 
+import com.webrtcmeetpro.resources.chat_sys_meeting_notes
 import com.webrtcmeetpro.resources.chat_deleted_message
 import androidx.compose.runtime.Composable
 import com.webrtcmeetpro.core.model.ChatFile
@@ -21,7 +22,25 @@ import org.jetbrains.compose.resources.stringResource
 
 /** 서버가 SYSTEM 메시지 본문에 넣는 JSON: {"key":"invited","actor":"서준","targets":["하늘"]} */
 @Serializable
-private data class SystemPayload(val key: String, val actor: String = "", val targets: List<String> = emptyList())
+private data class SystemPayload(val key: String, val actor: String = "", val targets: List<String> = emptyList(), val title: String = "")
+
+/** 채널에 올라온 AI 회의록 카드 (SYSTEM, key = meetingNotes) */
+@Serializable
+data class NotesCardPayload(
+    val key: String,
+    val meetingId: Long = 0,
+    val title: String = "",
+    val summary: List<String> = emptyList(),
+    val decisions: Int = 0,
+    val actions: Int = 0,
+)
+
+fun meetingNotesCard(message: ChatMessage): NotesCardPayload? {
+    if (message.type != MessageType.SYSTEM || message.deleted) return null
+    val raw = message.content ?: return null
+    if (!raw.contains("\"meetingNotes\"")) return null
+    return runCatching { ApiJson.decodeFromString<NotesCardPayload>(raw) }.getOrNull()?.takeIf { it.key == "meetingNotes" && it.meetingId > 0 }
+}
 
 /** SYSTEM 메시지는 현재 언어 문장으로, 일반 메시지는 그대로 (웹 chat.system.* 과 같은 규칙) */
 @Composable
@@ -37,6 +56,7 @@ fun messageText(message: ChatMessage): String {
         else stringResource(Res.string.chat_sys_created_with, payload.actor, targets)
         "invited" -> stringResource(Res.string.chat_sys_invited, payload.actor, targets)
         "left" -> stringResource(Res.string.chat_sys_left, payload.actor)
+        "meetingNotes" -> stringResource(Res.string.chat_sys_meeting_notes, payload.title)
         else -> raw
     }
 }

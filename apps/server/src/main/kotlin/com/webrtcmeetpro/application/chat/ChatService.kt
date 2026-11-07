@@ -361,6 +361,18 @@ class ChatService(
         return publishUpdate(room, message)
     }
 
+    /** AI 회의록이 준비되면 채널(음성방이 열린 그 채널)에 카드로 올린다. SYSTEM 메시지, key = meetingNotes */
+    @Transactional
+    fun postMeetingNotes(roomId: Long, meetingId: Long, params: Map<String, Any?>) {
+        val room = roomRepository.findRoomById(roomId)?.takeIf { !it.deleted } ?: return
+        val content = json.writeValueAsString(mapOf("key" to "meetingNotes", "meetingId" to meetingId) + params)
+        val saved = messageRepository.save(ChatMessage(roomId, null, content, MessageType.SYSTEM, meetingId = meetingId))
+        room.touch(saved.createdDt)
+        val view = messageView(saved, emptyMap(), emptyList())
+        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
+        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, roomId, view))
+    }
+
     @Transactional
     fun markRead(roomId: Long, userId: Long, messageId: Long) {
         requireRoomMember(roomId, userId).second.markRead(messageId)

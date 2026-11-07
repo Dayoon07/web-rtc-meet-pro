@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router'
 import { MeetingStatusBadge, useMeetingQuery } from '@/entities/meeting'
 import { useMeQuery } from '@/entities/user'
 import { CancelMeetingButton, JoinMeetingButton } from '@/features/meeting-actions'
+import { MeetingNotesCard } from '@/features/meeting-notes'
 import { RecordingList } from '@/features/meeting-recorder/RecordingList'
 import { ScheduleMeetingModal } from '@/features/schedule-meeting'
 import { useFormat } from '@/shared/lib/format'
@@ -86,6 +87,7 @@ export function MeetingDetailPage() {
         </div>
       </Card>
 
+      <MeetingNotesCard meeting={meeting} />
       <RecordingList meeting={meeting} />
     </div>
   )

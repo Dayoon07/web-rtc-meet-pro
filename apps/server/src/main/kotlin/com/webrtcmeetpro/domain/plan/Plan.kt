@@ -54,6 +54,14 @@ class Plan(
     @Column(nullable = false)
     var recordingRetentionDays: Int = 30,
 
+    /** 한 달 동안 AI 회의록을 켤 수 있는 시간(분). 0 = 플랜에 없음 */
+    @Column(nullable = false)
+    var aiNotesMinutes: Int = 0,
+
+    /** 한 달 동안 실시간 자막·번역을 쓸 수 있는 시간(분). 0 = 없음 (Business 전용) */
+    @Column(nullable = false)
+    var liveCaptionMinutes: Int = 0,
+
     @Column(nullable = false)
     var sortOrder: Int = 0,
 

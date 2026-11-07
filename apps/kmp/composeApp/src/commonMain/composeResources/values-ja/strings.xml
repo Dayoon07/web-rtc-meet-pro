@@ -256,4 +256,18 @@
     <string name="chat_channel_settings">チャンネル設定</string>
     <string name="chat_voice_join">音声に参加</string>
     <string name="chat_voice_now">%1$d人が音声中</string>
+    <string name="chat_sys_meeting_notes">AI議事録: %1$s</string>
+    <string name="notif_MEETING_NOTES_READY">「%1$s」のAI議事録ができました（タスク%2$s件）</string>
+    <string name="notes_title">AI議事録</string>
+    <string name="notes_regenerate">作り直す</string>
+    <string name="notes_status_live">会議を文字起こし中です。会議が終わると要約します。</string>
+    <string name="notes_status_processing">議事録を作成中…</string>
+    <string name="notes_status_empty">文字起こしされた発言がないため、議事録は作成していません。</string>
+    <string name="notes_status_failed">議事録を作成できませんでした。「作り直す」を押してください。</string>
+    <string name="notes_decisions">決定事項</string>
+    <string name="notes_actions">タスク</string>
+    <string name="notes_no_actions">決まったタスクはありません。</string>
+    <string name="notes_no_owner">担当者なし</string>
+    <string name="notes_disclaimer">AIによる文字起こし・要約のため、誤りが含まれることがあります。</string>
+    <string name="notes_card_counts">決定 %1$d · タスク %2$d · 詳しく見る</string>
 </resources>

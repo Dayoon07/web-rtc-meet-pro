@@ -370,6 +370,8 @@ fun ChatRoomScreen(
     onBack: () -> Unit,
     /** Android: 앱 안 회의 화면으로 (Windows 는 브라우저) */
     onJoinInApp: (url: String) -> Unit = {},
+    /** 채널에 올라온 AI 회의록 카드를 누르면 회의 상세로 */
+    onOpenMeeting: (meetingId: Long) -> Unit = {},
     viewModel: ChatRoomViewModel = koinViewModel(key = "room-$roomId") { parametersOf(roomId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -428,7 +430,7 @@ fun ChatRoomScreen(
             room == null && state.loadError != null -> ErrorState(state.loadError!!, onRetry = viewModel::load)
             room == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else -> Column(Modifier.fillMaxSize().imePadding()) {
-                MessageList(state, onReachTop = viewModel::loadOlder, onLongPress = viewModel::select, modifier = Modifier.weight(1f))
+                MessageList(state, onReachTop = viewModel::loadOlder, onLongPress = viewModel::select, onOpenMeeting = onOpenMeeting, modifier = Modifier.weight(1f))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 InputBar(
                     value = state.input,
@@ -517,7 +519,7 @@ fun ChatRoomScreen(
 }
 
 @Composable
-private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPress: (ChatMessage) -> Unit, modifier: Modifier) {
+private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPress: (ChatMessage) -> Unit, onOpenMeeting: (Long) -> Unit, modifier: Modifier) {
     val listState = rememberLazyListState()
     val newestFirst = state.messages.asReversed()
 
@@ -550,6 +552,7 @@ private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPr
                     mine = mine,
                     showSender = state.room?.type == ChatRoomType.GROUP,
                     onLongPress = if (actionable) ({ onLongPress(message) }) else null,
+                    onOpenMeeting = onOpenMeeting,
                 )
             }
             if (state.loadingOlder) {
@@ -560,7 +563,17 @@ private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPr
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage, mine: Boolean, showSender: Boolean, onLongPress: (() -> Unit)? = null) {
+private fun MessageBubble(
+    message: ChatMessage,
+    mine: Boolean,
+    showSender: Boolean,
+    onLongPress: (() -> Unit)? = null,
+    onOpenMeeting: (Long) -> Unit = {},
+) {
+    meetingNotesCard(message)?.let { card ->
+        MeetingNotesChatCard(card, onClick = { onOpenMeeting(card.meetingId) })
+        return
+    }
     if (message.type == MessageType.SYSTEM) {
         Text(
             messageText(message),

@@ -1,6 +1,7 @@
 package com.webrtcmeetpro.batch.meeting
 
 import com.webrtcmeetpro.application.meeting.RecordingService
+import com.webrtcmeetpro.application.meeting.MeetingNotesService
 import com.webrtcmeetpro.application.meeting.MeetingService
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -8,7 +9,11 @@ import org.springframework.stereotype.Component
 
 /** 30초마다 곧 시작할 예약 회의를 찾아 초대자에게 알림 (서버 여러 대면 ShedLock 등으로 한 대만 돌게 해야 함) */
 @Component
-class MeetingReminderScheduler(private val meetingService: MeetingService, private val recordingService: RecordingService) {
+class MeetingReminderScheduler(
+    private val meetingService: MeetingService,
+    private val recordingService: RecordingService,
+    private val notesService: MeetingNotesService,
+) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -27,5 +32,9 @@ class MeetingReminderScheduler(private val meetingService: MeetingService, priva
         // S3 에 올리다 실패했거나 서버 재시작으로 남은 녹화 다시 올리기
         runCatching { recordingService.uploadPending() }
             .onFailure { log.error("녹화 올리기 재시도 실패", it) }
+        // AI 회의록: 끝난 회의인데 열려 있는 것 닫기, 요약하다 멈춘 것 다시
+        runCatching { notesService.processPending() }
+            .onSuccess { if (it > 0) log.info("AI 회의록 {}건 처리", it) }
+            .onFailure { log.error("AI 회의록 처리 실패", it) }
     }
 }

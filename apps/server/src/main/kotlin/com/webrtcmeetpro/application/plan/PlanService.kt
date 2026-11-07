@@ -34,6 +34,10 @@ data class PlanView(
     val recordingEnabled: Boolean,
     val recordingStorageGb: Int,
     val recordingRetentionDays: Int,
+    /** 한 달 AI 회의록 시간(분). 0 = 없음 */
+    val aiNotesMinutes: Int,
+    /** 한 달 실시간 자막·번역 시간(분). 0 = 없음 */
+    val liveCaptionMinutes: Int,
     /** 클수록 높은 플랜 */
     val rank: Int,
 ) {
@@ -50,6 +54,8 @@ data class PlanView(
             recordingEnabled = plan.recordingEnabled,
             recordingStorageGb = plan.recordingStorageGb,
             recordingRetentionDays = plan.recordingRetentionDays,
+            aiNotesMinutes = plan.aiNotesMinutes,
+            liveCaptionMinutes = plan.liveCaptionMinutes,
             rank = plan.sortOrder,
         )
     }

@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.core.network
 
+import com.webrtcmeetpro.core.model.MeetingNotes
 import com.webrtcmeetpro.core.model.UpdateChannelRequest
 import com.webrtcmeetpro.core.model.CategoryRequest
 import com.webrtcmeetpro.core.model.Recording
@@ -235,6 +236,11 @@ class LimeetApi(private val client: HttpClient) {
 
     /** 회의 녹화 목록 (녹화는 웹에서 주최자가 한다. 앱은 보기만) */
     suspend fun recordings(meetingId: Long): List<Recording> = client.get("api/meetings/$meetingId/recordings").body()
+
+    /** AI 회의록 (켜고 받아쓰기는 회의 화면(웹)에서. 앱은 결과를 본다) */
+    suspend fun meetingNotes(meetingId: Long): MeetingNotes = client.get("api/meetings/$meetingId/notes").body()
+
+    suspend fun regenerateNotes(meetingId: Long): MeetingNotes = client.post("api/meetings/$meetingId/notes/regenerate").body()
 
     /** 예약 회의 고치기 (scheduledAt 필수) */
     suspend fun updateMeeting(meetingId: Long, request: ScheduleMeetingRequest): Meeting =

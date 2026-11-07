@@ -34,6 +34,8 @@ dependencies {
 	implementation(platform("software.amazon.awssdk:bom:2.56.0"))
 	implementation("software.amazon.awssdk:s3")
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
+	// AI 회의록 요약·실시간 자막 번역 (Claude API). ANTHROPIC_API_KEY 가 없으면 AI 기능을 끈다
+	implementation("com.anthropic:anthropic-java:3.5.0")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("tools.jackson.module:jackson-module-kotlin")
 	runtimeOnly("com.oracle.database.jdbc:ojdbc17")

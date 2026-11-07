@@ -257,4 +257,18 @@
     <string name="chat_channel_settings">Channel settings</string>
     <string name="chat_voice_join">Join voice</string>
     <string name="chat_voice_now">%1$d in voice</string>
+    <string name="chat_sys_meeting_notes">AI meeting notes: %1$s</string>
+    <string name="notif_MEETING_NOTES_READY">AI notes for “%1$s” are ready (%2$s action items)</string>
+    <string name="notes_title">AI meeting notes</string>
+    <string name="notes_regenerate">Regenerate</string>
+    <string name="notes_status_live">Transcribing the meeting. We\'ll summarize it when the meeting ends.</string>
+    <string name="notes_status_processing">Writing the notes…</string>
+    <string name="notes_status_empty">Nothing was transcribed, so no notes were made.</string>
+    <string name="notes_status_failed">Couldn\'t write the notes. Press Regenerate to try again.</string>
+    <string name="notes_decisions">Decisions</string>
+    <string name="notes_actions">Action items</string>
+    <string name="notes_no_actions">No action items.</string>
+    <string name="notes_no_owner">No owner</string>
+    <string name="notes_disclaimer">Transcribed and summarized by AI, so it may contain mistakes.</string>
+    <string name="notes_card_counts">%1$d decisions · %2$d action items · Open</string>
 </resources>

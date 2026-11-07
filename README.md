@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v1.1 (24 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v1.2 (27 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -65,6 +65,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
@@ -107,6 +108,8 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `STORAGE_TYPE` | `local` (서버 디스크, 기본) / `s3` (프로필 이미지·채팅 첨부·녹화를 S3 에) |
 | `S3_BUCKET` / `S3_REGION` / `S3_PREFIX` | 버킷 이름 / `ap-northeast-2` / 버킷 안 폴더(`dev`, `prod`) |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | IAM 사용자 키. 비우면 AWS 기본 방법(환경변수 `AWS_ACCESS_KEY_ID`, 서버 역할)으로 찾는다 |
+| `ANTHROPIC_API_KEY` | Claude API 키 (AI 회의록 요약). 비우면 AI 기능이 꺼진다 (회의실 버튼은 "준비 중") |
+| `AI_MODEL` / `AI_FALLBACKS` | 회의록 모델(기본 `claude-opus-5-5`) / 모델이 정책상 거절하면 추천 모델로 한 번 더(beta, 기본 `true`) |
 | `BILLING_RENEW_INTERVAL` | `10m` (구독 기간 확인: 자동결제·만료·만료 3일 전 알림) |
 
 로컬에서는 비밀값을 **`apps/server/.env.local`** (git 에 안 올라감) 에 `이름=값` 으로 적어 두면 서버가 시작할 때 읽는다 (환경변수가 있으면 환경변수가 이긴다).
@@ -201,6 +204,14 @@ COMMIT;
 - 카테고리·채널은 OWNER·ADMIN 이 만들고 이름을 바꾸고 옮긴다. 카테고리를 지우면 안의 채널은 카테고리 밖으로 나온다. (웹과 Android·Windows 앱 모두: 앱은 채팅 목록의 폴더 아이콘·카테고리 옆 연필/휴지통, 채널 화면의 설정 아이콘)
 - 채널 개수 제한 없음.
 - **채널 상시 음성방** (디스코드처럼): 채널 상단 "음성 참여" 를 누르면 그 채널의 진행 중인 음성방(`meetings.chat_room_id`)으로, 없으면 새로 연다. 카메라는 꺼진 채로 시작하고, 사이드바 채널 아래에 지금 들어와 있는 사람이 실시간으로 보인다. 알림은 보내지 않는다. 모두 나가면 끝나고(아무도 없으면 2분 뒤 정리) 다음에 누가 누르면 새로 열린다. 채널 참여자만 들어갈 수 있다. 앱은 채널 화면의 헤드폰 아이콘.
+
+#### AI 회의록 (받아쓰기 → 요약 → 결정 사항·할 일 → 채널에 올리기)
+
+- 회의 중 아무나 아래 메모 아이콘으로 켜고 끈다. 켜지면 모두의 화면에 "AI 회의록 작성 중" 이 뜨고, **각 참여자 브라우저가 자기 마이크를 받아써서**(Web Speech API) 한 문장씩 보낸다 → 누가 말했는지 정확하다. 마이크를 끄면 받아쓰기도 멈춘다.
+- 회의가 끝나면(모두 나감) 서버가 Claude 로 요약 3~7줄 · 결정 사항 · 할 일(담당자 = 참석자 이름, 기한 = 날짜)을 만든다. 채널 음성방이면 그 채널에 카드로 올리고, 참석한 사람에게 알림. 회의 상세(웹·앱)에서 요약·할 일·받아쓴 내용을 볼 수 있고, 주최자·관리자는 "다시 만들기".
+- 플랜: 워크스페이스 플랜의 한 달 시간(`plans.ai_notes_minutes`, Pro 120분 · Team 600분 · Business 3000분, Free 없음). 켜져 있던 시간만큼 쓴다(`ai_usages`). 다 쓰면 켜지지 않고, 켜 둔 채 넘으면 자동으로 꺼진다.
+- 받아쓰기는 Chrome·Edge·Safari 만 된다 (Firefox·Android 앱 회의 화면은 그 사람 말만 빠진다). Chrome 받아쓰기는 소리를 Google 음성 인식으로 보낸다.
+- 로컬에서 API 키 없이 확인: `APP_AI_FAKE=true ANTHROPIC_API_KEY=x` 로 `bootTestRun` 하면 테스트 전용 가짜 요약기(`FakeMeetingNotesAi`)를 쓴다.
 
 #### 요금제 · 결제 (토스페이먼츠 자동결제)
 
@@ -381,8 +392,9 @@ com/webrtcmeetpro/
 | POST | `/api/teams/{id}/meetings` | 회의 예약(`scheduledAt` 생략 = 지금 시작) |
 | GET | `/api/meetings?scope=upcoming\|past` · `/api/meetings/{id}` | 내 회의 / 상세 |
 | POST | `/api/meetings/{id}/join` · `/cancel` | 입장 토큰 발급 / 취소(주최자) |
+| GET · POST | `/api/meetings/{id}/notes` · `/state` · `/transcript` · `/start` · `/stop` · `/lines` · `/regenerate` | AI 회의록 보기 / 회의실 상태(남은 시간) / 받아쓴 내용 / 켜기·끄기(회의 안의 사람) / 받아쓴 문장 / 다시 만들기(주최자·관리자) |
 | GET · POST | `/api/notifications` · `/unread-count` · `/{id}/read` · `/read-all` | 알림 |
-| STOMP | `/ws` → `/user/queue/chat`, `/user/queue/notifications` | 실시간 수신 (CONNECT 헤더 `Authorization: Bearer`) |
+| STOMP | `/ws` → `/user/queue/chat`, `/user/queue/notifications`, `/user/queue/meeting`(녹화·AI 회의록 켜짐) | 실시간 수신 (CONNECT 헤더 `Authorization: Bearer`) |
 | POST | `/internal/media/events` | 사이드카 전용 (`X-Internal-Secret`) — 외부에 노출하지 말 것 |
 
 ## 클라이언트 구조 (FSD)

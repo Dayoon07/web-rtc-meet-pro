@@ -1,8 +1,9 @@
-import { Circle, Hand, Link2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Square, Users, Video, VideoOff, X } from 'lucide-react'
+import { Circle, Hand, Link2, NotebookPen, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Square, Users, Video, VideoOff, X } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import type { MeetingRoomEvent } from '@/entities/meeting'
+import { useMeetingNotes } from '@/features/meeting-notes'
 import { useMeetingRecorder } from '@/features/meeting-recorder'
 import { EffectsPanel, hasEffects } from '@/features/video-effects'
 import { errorMessage, realtime } from '@/shared/api'
@@ -160,6 +161,8 @@ export function MeetingRoom({
     void recorder.start()
   }
   // 녹화할 수 있는 사람에게만. 플랜에 녹화가 없으면 관리자에게 잠긴 버튼(누르면 플랜 안내)
+  // AI 회의록: 켜져 있으면 내 마이크를 받아써서 보낸다 (마이크를 끄면 받아쓰기도 멈춤)
+  const notes = useMeetingNotes(room.meeting, room.local.mic)
   const showRecordButton = !!room.meeting && (!!room.meeting.canRecord || (!!room.meeting.canManage && !room.meeting.recordingAvailable))
 
   useEffect(() => {
@@ -271,6 +274,12 @@ export function MeetingRoom({
               {t('room.recordingNow')}
             </span>
           )}
+          {notes.on && (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-600/90 px-2.5 py-0.5 text-xs font-semibold" title={t('notes.liveHint')}>
+              <NotebookPen className="size-3" />
+              <span className="hidden sm:inline">{t('notes.liveNow')}</span>
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -375,6 +384,9 @@ export function MeetingRoom({
             {recorder.recording ? <Square className="fill-red-500 text-red-500" /> : <Circle className={cn(recorder.status === 'starting' && 'animate-pulse', 'text-red-400')} />}
           </ControlButton>
         )}
+        <ControlButton label={t(notes.on ? 'notes.stop' : 'notes.start')} onClick={() => void notes.toggle()}>
+          <NotebookPen className={cn(notes.on && 'text-brand-300', notes.busy && 'animate-pulse', !notes.available && !notes.on && 'opacity-50')} />
+        </ControlButton>
         <ControlButton label={t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand')} onClick={room.toggleHand}>
           <Hand className={cn(room.local.hand && 'text-amber-400')} />
         </ControlButton>

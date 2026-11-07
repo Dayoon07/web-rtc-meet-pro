@@ -93,6 +93,13 @@ app:
     secret-key: ${TOSS_SECRET_KEY:}
     # 카드 빌링키를 DB 에 암호화해 넣는 비밀값. 운영에서는 반드시 따로 정하고 바꾸지 말 것 (바꾸면 등록된 카드를 못 씀)
     billing-key-secret: ${BILLING_KEY_SECRET:}
+  ai:
+    # Claude API (AI 회의록 요약·실시간 자막 번역). https://platform.claude.com → API Keys. 비우면 AI 기능이 꺼진다
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${AI_MODEL:claude-opus-5-5}
+    caption-model: ${AI_CAPTION_MODEL:claude-opus-5-5}
+    # 모델이 정책상 거절하면 Anthropic 추천 모델로 한 번 더 (beta). 문제가 있으면 false
+    fallbacks: ${AI_FALLBACKS:true}
   billing:
     # 구독 기간 확인(자동결제·만료·만료 3일 전 알림) 주기, 오래된 녹화 정리 주기
     renew-interval: ${BILLING_RENEW_INTERVAL:10m}

@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.infrastructure.plan
 
+import com.webrtcmeetpro.domain.plan.AiUsage
+import com.webrtcmeetpro.domain.plan.AiUsageRepository
 import com.webrtcmeetpro.domain.plan.BillingKey
 import com.webrtcmeetpro.domain.plan.BillingKeyRepository
 import com.webrtcmeetpro.domain.plan.Payment
@@ -17,3 +19,5 @@ interface SubscriptionJpaRepository : JpaRepository<Subscription, Long>, Subscri
 interface PaymentJpaRepository : JpaRepository<Payment, Long>, PaymentRepository
 
 interface BillingKeyJpaRepository : JpaRepository<BillingKey, Long>, BillingKeyRepository
+
+interface AiUsageJpaRepository : JpaRepository<AiUsage, Long>, AiUsageRepository

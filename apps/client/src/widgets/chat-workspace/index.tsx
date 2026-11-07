@@ -1,8 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, MessageSquarePlus, MessagesSquare, Pencil, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, MessageSquarePlus, MessagesSquare, NotebookPen, Pencil, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import {
   chatApi,
   chatKeys,
@@ -11,6 +11,8 @@ import {
   type ChatFile,
   type ChatMessage,
   type ChatRoom,
+  meetingNotesCard,
+  type MeetingNotesCard,
   previewText,
   roomPeer,
   roomTitle,
@@ -402,6 +404,8 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canMo
                   }}
                 />
               </div>
+            ) : meetingNotesCard(m) ? (
+              <NotesCard card={meetingNotesCard(m)!} />
             ) : m.type === 'SYSTEM' ? (
               <p className="my-3 text-center text-xs text-gray-500 dark:text-gray-400">
                 <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-gray-800">{systemText(m, t, fmt.list)}</span>
@@ -778,5 +782,34 @@ export function ChatWorkspace({
         </>
       )}
     </div>
+  )
+}
+
+/** 채널에 올라온 AI 회의록: 요약 몇 줄 + 결정·할 일 개수, 누르면 회의 상세 */
+function NotesCard({ card }: { card: MeetingNotesCard }) {
+  const { t } = useTranslation()
+  return (
+    <Link
+      to={`/app/meetings/${card.meetingId}`}
+      className="my-4 block max-w-xl rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 transition hover:border-brand-400 dark:border-brand-500/30 dark:bg-brand-500/10"
+    >
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-brand-700 dark:text-brand-300">
+        <NotebookPen className="size-3.5" />
+        {t('notes.cardLabel')}
+      </p>
+      <p className="mt-1 font-semibold text-gray-900 dark:text-white">{card.title}</p>
+      {card.summary.length > 0 && (
+        <ul className="mt-1.5 flex list-disc flex-col gap-0.5 pl-5 text-sm text-gray-700 dark:text-gray-300">
+          {card.summary.map((s, i) => (
+            <li key={i} className="line-clamp-2">
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-gray-500">
+        {t('notes.cardCounts', { decisions: card.decisions, actions: card.actions })} · {t('notes.cardOpen')}
+      </p>
+    </Link>
   )
 }

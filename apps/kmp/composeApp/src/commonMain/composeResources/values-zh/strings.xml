@@ -256,4 +256,18 @@
     <string name="chat_channel_settings">频道设置</string>
     <string name="chat_voice_join">加入语音</string>
     <string name="chat_voice_now">%1$d 人正在语音</string>
+    <string name="chat_sys_meeting_notes">AI 会议纪要：%1$s</string>
+    <string name="notif_MEETING_NOTES_READY">「%1$s」的 AI 会议纪要已生成（待办 %2$s 项）</string>
+    <string name="notes_title">AI 会议纪要</string>
+    <string name="notes_regenerate">重新生成</string>
+    <string name="notes_status_live">正在转写会议内容，会议结束后会生成摘要。</string>
+    <string name="notes_status_processing">正在生成会议纪要…</string>
+    <string name="notes_status_empty">没有转写到发言，所以没有生成会议纪要。</string>
+    <string name="notes_status_failed">未能生成会议纪要，请点击「重新生成」。</string>
+    <string name="notes_decisions">决定事项</string>
+    <string name="notes_actions">待办事项</string>
+    <string name="notes_no_actions">没有待办事项。</string>
+    <string name="notes_no_owner">未指定负责人</string>
+    <string name="notes_disclaimer">由 AI 转写和总结，可能有错误。</string>
+    <string name="notes_card_counts">决定 %1$d · 待办 %2$d · 查看详情</string>
 </resources>

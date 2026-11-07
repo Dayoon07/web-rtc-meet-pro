@@ -143,6 +143,20 @@ export function filesSummary(files: ChatFile[], t: TFunction): string {
 }
 
 /** SYSTEM 메시지 JSON → 현재 언어 문장 */
+/** 채널에 올라온 AI 회의록 카드 (SYSTEM 메시지, key = meetingNotes). 아니면 null */
+export type MeetingNotesCard = { meetingId: number; title: string; summary: string[]; decisions: number; actions: number }
+
+export function meetingNotesCard(message: ChatMessage): MeetingNotesCard | null {
+  if (message.type !== 'SYSTEM' || !message.content) return null
+  try {
+    const c = JSON.parse(message.content) as Partial<MeetingNotesCard> & { key?: string }
+    if (c.key !== 'meetingNotes' || typeof c.meetingId !== 'number') return null
+    return { meetingId: c.meetingId, title: c.title ?? '', summary: c.summary ?? [], decisions: c.decisions ?? 0, actions: c.actions ?? 0 }
+  } catch {
+    return null
+  }
+}
+
 export function systemText(message: ChatMessage, t: TFunction, list: (items: string[]) => string): string {
   try {
     const { key, actor, targets } = JSON.parse(message.content ?? '') as { key: string; actor: string; targets: string[] }
@@ -154,6 +168,8 @@ export function systemText(message: ChatMessage, t: TFunction, list: (items: str
         return t('chat.system.invited', { actor, targets: joined })
       case 'left':
         return t('chat.system.left', { actor })
+      case 'meetingNotes':
+        return t('chat.system.meetingNotes', { title: meetingNotesCard(message)?.title ?? '' })
       default:
         return ''
     }

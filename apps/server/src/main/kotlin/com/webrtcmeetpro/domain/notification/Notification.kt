@@ -21,6 +21,8 @@ enum class NotificationType {
     MEETING_CANCELED,
     /** 예약 회의의 시간·제목 등이 바뀜 */
     MEETING_UPDATED,
+    /** AI 회의록(요약·할 일)이 준비됨 */
+    MEETING_NOTES_READY,
     /** 자동결제가 꺼진 플랜이 3일 안에 끝남 */
     PLAN_EXPIRING,
     /** 플랜 기간이 끝남 */

@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.notifications
 
+import com.webrtcmeetpro.resources.notif_MEETING_NOTES_READY
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +80,7 @@ private fun template(n: AppNotification): Pair<StringResource, Array<Any>>? {
         "MEETING_STARTED" -> Res.string.notif_MEETING_STARTED to arrayOf(n.param("title"))
         "MEETING_CANCELED" -> Res.string.notif_MEETING_CANCELED to arrayOf(n.param("title"))
         "MEETING_UPDATED" -> Res.string.notif_MEETING_UPDATED to arrayOf(n.param("title"))
+        "MEETING_NOTES_READY" -> Res.string.notif_MEETING_NOTES_READY to arrayOf(n.param("title"), n.param("actions"))
         else -> null
     }
 }

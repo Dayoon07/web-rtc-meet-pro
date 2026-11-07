@@ -34,7 +34,37 @@ export type Meeting = {
   canManage?: boolean
   /** 채널 상시 음성방이면 그 채널 */
   chatRoomId?: number | null
+  /** AI 회의록 상태 (켠 적이 없으면 null) */
+  notesStatus?: NoteStatus | null
+  /** 지금 AI 회의록을 받아쓰는 중 */
+  aiNotesOn?: boolean
+  /** 워크스페이스 플랜에 AI 회의록이 있고 서버에 AI 가 준비됨 */
+  aiNotesAvailable?: boolean
 }
+
+export type NoteStatus = 'RECORDING' | 'PAUSED' | 'PROCESSING' | 'READY' | 'FAILED' | 'EMPTY'
+
+export type NotesActionItem = { task: string; owner: string | null; ownerUserId: number | null; due: string | null }
+
+export type MeetingNotes = {
+  meetingId: number
+  status: NoteStatus
+  on: boolean
+  startedBy: MeetingUser | null
+  title: string | null
+  summary: string[]
+  decisions: string[]
+  actionItems: NotesActionItem[]
+  language: string | null
+  generatedAt: string | null
+  minutes: number
+  lineCount: number
+  canRegenerate: boolean
+}
+
+export type NotesState = { on: boolean; available: boolean; remainingMinutes: number; limitMinutes: number }
+
+export type TranscriptLine = { id: number; userId: number; speaker: string; text: string; at: string }
 
 export type RecordingStatus = 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'DELETED'
 
@@ -53,7 +83,10 @@ export type Recording = {
 }
 
 /** 서버 /user/queue/meeting 이벤트 */
-export type MeetingRoomEvent = { type: 'RECORDING'; meetingId: number; recording: boolean; by: string | null }
+export type MeetingRoomEvent =
+  | { type: 'RECORDING'; meetingId: number; recording: boolean; by: string | null }
+  /** AI 회의록 켜짐·꺼짐. reason QUOTA = 이번 달 시간을 다 써서 꺼짐 */
+  | { type: 'AI_NOTES'; meetingId: number; on: boolean; by: string | null; reason: string | null }
 
 export type JoinInfo = { meeting: Meeting; mediaUrl: string; token: string }
 
@@ -71,6 +104,8 @@ export const meetingKeys = {
   past: ['meetings', 'past'] as const,
   detail: (id: number) => ['meetings', id] as const,
   recordings: (id: number) => ['meetings', id, 'recordings'] as const,
+  notes: (id: number) => ['meetings', id, 'notes'] as const,
+  transcript: (id: number) => ['meetings', id, 'transcript'] as const,
 }
 
 export const meetingApi = {
@@ -91,6 +126,15 @@ export const meetingApi = {
     http<Recording>(`/meetings/${id}/recordings/${recordingId}/finish`, { method: 'POST', json: { durationSeconds } }),
   deleteRecording: (id: number, recordingId: number) => http<void>(`/meetings/${id}/recordings/${recordingId}`, { method: 'DELETE' }),
   join: (id: number) => http<JoinInfo>(`/meetings/${id}/join`, { method: 'POST' }),
+  notes: (id: number) => http<MeetingNotes>(`/meetings/${id}/notes`),
+  notesState: (id: number) => http<NotesState>(`/meetings/${id}/notes/state`),
+  transcript: (id: number) => http<TranscriptLine[]>(`/meetings/${id}/notes/transcript`),
+  startNotes: (id: number) => http<NotesState>(`/meetings/${id}/notes/start`, { method: 'POST' }),
+  stopNotes: (id: number) => http<NotesState>(`/meetings/${id}/notes/stop`, { method: 'POST' }),
+  /** 받아쓴 한 문장. on=false 면 꺼졌으니 받아쓰기를 멈춘다 */
+  sendNotesLine: (id: number, text: string, lang: string) =>
+    http<{ on: boolean }>(`/meetings/${id}/notes/lines`, { method: 'POST', json: { text, lang } }),
+  regenerateNotes: (id: number) => http<MeetingNotes>(`/meetings/${id}/notes/regenerate`, { method: 'POST' }),
 }
 
 export const useMeetingsQuery = (scope: 'upcoming' | 'past') =>
@@ -104,7 +148,8 @@ const EARLY_JOIN_MS = 10 * 60 * 1000
 export function canJoinNow(m: Meeting, myId: number | undefined, now = Date.now()) {
   if (m.status === 'LIVE') return true
   // 모두 나가서 끝났어도 예정 시간 안이면 다시 열 수 있다 (서버 Meeting.canReopen 과 같은 규칙)
-  if (m.status === 'ENDED') return now < new Date(m.scheduledAt).getTime() + m.durationMinutes * 60_000
+  // 채널 음성방은 끝나면 다시 열지 않는다 (채널에서 새로 들어간다)
+  if (m.status === 'ENDED') return !m.chatRoomId && now < new Date(m.scheduledAt).getTime() + m.durationMinutes * 60_000
   if (m.status !== 'SCHEDULED') return false
   return m.host?.id === myId || now >= new Date(m.scheduledAt).getTime() - EARLY_JOIN_MS
 }

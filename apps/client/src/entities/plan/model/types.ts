@@ -13,6 +13,10 @@ export type Plan = {
   recordingEnabled: boolean
   recordingStorageGb: number
   recordingRetentionDays: number
+  /** 한 달 AI 회의록 시간(분). 0 = 없음 */
+  aiNotesMinutes: number
+  /** 한 달 실시간 자막·번역 시간(분). 0 = 없음 */
+  liveCaptionMinutes: number
   /** 클수록 높은 플랜 */
   rank: number
 }

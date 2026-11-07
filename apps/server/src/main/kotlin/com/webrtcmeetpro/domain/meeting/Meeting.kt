@@ -226,6 +226,7 @@ interface MeetingParticipantRepository {
     fun save(participant: MeetingParticipant): MeetingParticipant
     fun findParticipantById(id: Long): MeetingParticipant?
     fun findAllByMeetingIdAndLeftAtIsNull(meetingId: Long): List<MeetingParticipant>
+    fun findAllByMeetingId(meetingId: Long): List<MeetingParticipant>
     fun countByMeetingIdAndLeftAtIsNull(meetingId: Long): Long
 }
 

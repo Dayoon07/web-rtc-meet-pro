@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.core.data
 
+import com.webrtcmeetpro.core.model.MeetingNotes
 import com.webrtcmeetpro.core.model.UpdateChannelRequest
 import com.webrtcmeetpro.core.model.Recording
 import com.webrtcmeetpro.core.network.UploadFile
@@ -141,6 +142,8 @@ class MeetingRepository(
     suspend fun cancel(meetingId: Long) = api.cancelMeeting(meetingId)
     suspend fun update(meetingId: Long, request: ScheduleMeetingRequest): Meeting = api.updateMeeting(meetingId, request)
     suspend fun recordings(meetingId: Long): List<Recording> = api.recordings(meetingId)
+    suspend fun notes(meetingId: Long): MeetingNotes = api.meetingNotes(meetingId)
+    suspend fun regenerateNotes(meetingId: Long): MeetingNotes = api.regenerateNotes(meetingId)
 
     /**
      * 화상회의는 아직 웹(mediasoup-client)에서만 된다. 로그인 상태를 1회용 코드로 넘겨

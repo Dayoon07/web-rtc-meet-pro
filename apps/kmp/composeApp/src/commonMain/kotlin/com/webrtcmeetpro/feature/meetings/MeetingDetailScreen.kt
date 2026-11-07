@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.feature.meetings
 
+import com.webrtcmeetpro.core.model.MeetingNotes
+import kotlinx.coroutines.delay
 import com.webrtcmeetpro.resources.meeting_recording_play
 import com.webrtcmeetpro.resources.meeting_recordings
 import androidx.compose.material3.Icon
@@ -89,6 +91,9 @@ data class MeetingDetailUiState(
     val errorCode: String? = null,
     /** 녹화 (재생 가능한 것만) */
     val recordings: List<Recording> = emptyList(),
+    /** AI 회의록 (켠 적이 있을 때만) */
+    val notes: MeetingNotes? = null,
+    val regenerating: Boolean = false,
 ) {
     val isHost get() = meeting?.host?.id == myId
 
@@ -124,6 +129,27 @@ class MeetingDetailViewModel(
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
             runCatching { meetings.recordings(meetingId) }
                 .onSuccess { list -> _state.update { it.copy(recordings = list.filter { r -> r.url != null }) } }
+            loadNotes()
+        }
+    }
+
+    private suspend fun loadNotes() {
+        if (_state.value.meeting?.notesStatus == null) return
+        runCatching { meetings.notes(meetingId) }.onSuccess { n -> _state.update { it.copy(notes = n) } }
+        // 요약 중이면 끝날 때까지 가끔 다시
+        while (_state.value.notes?.status in setOf("RECORDING", "PAUSED", "PROCESSING")) {
+            delay(5_000)
+            runCatching { meetings.notes(meetingId) }.onSuccess { n -> _state.update { it.copy(notes = n) } }
+        }
+    }
+
+    fun regenerateNotes() {
+        if (_state.value.regenerating) return
+        _state.update { it.copy(regenerating = true) }
+        viewModelScope.launch {
+            runCatching { meetings.regenerateNotes(meetingId) }
+                .onSuccess { n -> _state.update { it.copy(regenerating = false, notes = n) }; loadNotes() }
+                .onFailure { e -> _state.update { it.copy(regenerating = false, errorCode = e.errorCode) } }
         }
     }
 
@@ -224,6 +250,8 @@ fun MeetingDetailScreen(
                             }
                         }
                     }
+
+                    state.notes?.let { MeetingNotesSection(it, state.regenerating, viewModel::regenerateNotes) }
 
                     if (state.recordings.isNotEmpty()) {
                         Text(stringResource(Res.string.meeting_recordings), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

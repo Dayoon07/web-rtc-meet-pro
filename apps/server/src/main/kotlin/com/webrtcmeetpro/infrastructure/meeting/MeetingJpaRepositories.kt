@@ -1,5 +1,10 @@
 package com.webrtcmeetpro.infrastructure.meeting
 
+import com.webrtcmeetpro.domain.meeting.MeetingNote
+import com.webrtcmeetpro.domain.meeting.MeetingNoteRepository
+import com.webrtcmeetpro.domain.meeting.MeetingTranscript
+import com.webrtcmeetpro.domain.meeting.MeetingTranscriptRepository
+
 import com.webrtcmeetpro.domain.meeting.Meeting
 import com.webrtcmeetpro.domain.meeting.MeetingEvent
 import com.webrtcmeetpro.domain.meeting.MeetingEventRepository
@@ -38,3 +43,7 @@ interface MeetingRecordingJpaRepository : JpaRepository<MeetingRecording, Long>,
     )
     override fun sumBytesByTeam(@Param("teamId") teamId: Long): Long
 }
+
+interface MeetingNoteJpaRepository : JpaRepository<MeetingNote, Long>, MeetingNoteRepository
+
+interface MeetingTranscriptJpaRepository : JpaRepository<MeetingTranscript, Long>, MeetingTranscriptRepository

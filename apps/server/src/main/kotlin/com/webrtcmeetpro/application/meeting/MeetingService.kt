@@ -29,6 +29,10 @@ import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.user.User
 import com.webrtcmeetpro.domain.user.UserRepository
 import com.webrtcmeetpro.external.media.MediaTokenIssuer
+import com.webrtcmeetpro.config.properties.AiProperties
+import com.webrtcmeetpro.domain.meeting.MeetingNoteRepository
+import com.webrtcmeetpro.domain.meeting.NoteStatus
+import org.springframework.context.ApplicationEventPublisher
 import java.security.SecureRandom
 import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
@@ -65,6 +69,12 @@ data class MeetingView(
     val canManage: Boolean = false,
     /** 채널 음성방이면 그 채널 */
     val chatRoomId: Long? = null,
+    /** AI 회의록 상태 (켠 적이 없으면 null) */
+    val notesStatus: NoteStatus? = null,
+    /** 지금 AI 회의록을 받아쓰는 중 */
+    val aiNotesOn: Boolean = false,
+    /** 워크스페이스 플랜에 AI 회의록이 있고 서버에 AI 가 준비됨 */
+    val aiNotesAvailable: Boolean = false,
 )
 
 data class ScheduleMeetingCommand(
@@ -110,6 +120,9 @@ class MeetingService(
     private val chatRoomRepository: ChatRoomRepository,
     private val chatMemberRepository: ChatRoomMemberRepository,
     private val realtime: RealtimePublisher,
+    private val noteRepository: MeetingNoteRepository,
+    private val aiProperties: AiProperties,
+    private val events: ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val random = SecureRandom()
@@ -295,6 +308,7 @@ class MeetingService(
                 if (meeting.status == MeetingStatus.LIVE) {
                     meeting.end()
                     eventRepository.save(MeetingEvent(meeting.id!!, null, MeetingEventType.MEETING_ENDED))
+                    events.publishEvent(MeetingEndedEvent(meeting.id!!))
                 }
                 pushVoicePresence(meeting)
             }
@@ -332,6 +346,7 @@ class MeetingService(
         stale.forEach {
             it.end(now)
             eventRepository.save(MeetingEvent(it.id!!, null, MeetingEventType.MEETING_ENDED, "abandoned"))
+            events.publishEvent(MeetingEndedEvent(it.id!!))
             pushVoicePresence(it)
         }
         return stale.size
@@ -391,6 +406,7 @@ class MeetingService(
     private fun view(meeting: Meeting, viewerId: Long): MeetingView {
         val inviteeIds = inviteeRepository.findAllByMeetingId(meeting.id!!).map { it.userId }
         val users = userRepository.findAllByIdIn(inviteeIds + meeting.hostId).associateBy { it.id!! }
+        val note = noteRepository.findByMeetingId(meeting.id!!)
         return MeetingView(
             id = meeting.id!!,
             teamId = meeting.teamId,
@@ -412,6 +428,9 @@ class MeetingService(
             recordingAvailable = recordingAvailable(meeting),
             canManage = canManage(meeting, viewerId),
             chatRoomId = meeting.chatRoomId,
+            notesStatus = note?.status,
+            aiNotesOn = note?.isOn == true,
+            aiNotesAvailable = aiProperties.enabled && (ownerPlan(meeting)?.aiNotesMinutes ?: 0) > 0,
         )
     }
 
