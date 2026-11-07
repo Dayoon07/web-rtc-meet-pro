@@ -3,6 +3,9 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// 다른 포트의 서버를 볼 때: API_TARGET=http://localhost:8081 npm run dev
+const api = process.env.API_TARGET ?? 'http://localhost:8080'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -21,16 +24,16 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Spring Boot API
-      '/api': 'http://localhost:8080',
+      '/api': api,
       // 프로필 이미지
-      '/uploads': 'http://localhost:8080',
+      '/uploads': api,
       // 구글 로그인 왕복. Host 헤더를 5173 으로 유지해서 redirect_uri 가
       // http://localhost:5173/login/oauth2/code/google 이 되도록 changeOrigin 은 끈다
       // (문자열 축약형은 changeOrigin: true 가 되므로 객체로 써야 한다)
-      '/oauth2': { target: 'http://localhost:8080', changeOrigin: false },
-      '/login/oauth2': { target: 'http://localhost:8080', changeOrigin: false },
+      '/oauth2': { target: api, changeOrigin: false },
+      '/login/oauth2': { target: api, changeOrigin: false },
       // STOMP(WebSocket): 채팅·알림 실시간 수신
-      '/ws': { target: 'ws://localhost:8080', ws: true },
+      '/ws': { target: api.replace(/^http/, 'ws'), ws: true },
       // mediasoup 사이드카 (socket.io 시그널링)
       '/media': { target: 'http://localhost:4000', ws: true },
     },

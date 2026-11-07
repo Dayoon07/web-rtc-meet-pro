@@ -4,6 +4,7 @@ import com.webrtcmeetpro.application.auth.AuthService
 import com.webrtcmeetpro.application.auth.AuthTokens
 import com.webrtcmeetpro.application.auth.LoginCommand
 import com.webrtcmeetpro.application.auth.OAuthLoginCodeStore
+import com.webrtcmeetpro.application.auth.PasswordResetService
 import com.webrtcmeetpro.application.auth.SignUpCommand
 import com.webrtcmeetpro.config.properties.OAuth2Properties
 import com.webrtcmeetpro.common.error.BusinessException
@@ -48,6 +49,11 @@ data class LoginRequest(
 data class RefreshRequest(@field:NotBlank val refreshToken: String)
 data class OAuthExchangeRequest(@field:NotBlank val code: String)
 data class AuthProvidersResponse(val google: Boolean)
+data class PasswordResetRequest(@field:NotBlank @field:Email @field:Size(max = 255) val email: String)
+data class PasswordResetConfirmRequest(
+    @field:NotBlank @field:Size(max = 500) val token: String,
+    @field:NotBlank @field:Size(min = 8, max = 72) val password: String,
+)
 
 @RestController
 @RequestMapping("/api/auth")
@@ -55,6 +61,7 @@ class AuthController(
     private val authService: AuthService,
     private val codeStore: OAuthLoginCodeStore,
     private val oauth2Properties: OAuth2Properties,
+    private val passwordReset: PasswordResetService,
 ) {
 
     @PostMapping("/signup")
@@ -99,6 +106,17 @@ class AuthController(
     /** 로그인 화면에서 구글 버튼 활성 여부 */
     @GetMapping("/providers")
     fun providers() = AuthProvidersResponse(google = oauth2Properties.googleEnabled)
+
+    /** 비밀번호 재설정 메일 요청. 가입하지 않은 이메일이어도 똑같이 204 (가입 여부를 알려 주지 않는다) */
+    @PostMapping("/password-reset/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun requestPasswordReset(@Valid @RequestBody request: PasswordResetRequest) = passwordReset.request(request.email)
+
+    /** 메일 링크의 토큰으로 새 비밀번호 정하기. 다른 기기의 로그인은 모두 끊긴다 */
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun confirmPasswordReset(@Valid @RequestBody request: PasswordResetConfirmRequest) =
+        passwordReset.confirm(request.token.trim(), request.password)
 
     /** 구글 로그인 후 리다이렉트로 받은 1회용 코드를 토큰으로 교환 */
     @PostMapping("/oauth/exchange")

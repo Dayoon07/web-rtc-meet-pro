@@ -10,6 +10,7 @@ import { MeetingsPage } from '@/pages/meetings'
 import { NotFoundPage } from '@/pages/not-found'
 import { OAuthCallbackPage } from '@/pages/oauth-callback'
 import { OnboardingPage } from '@/pages/onboarding'
+import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/password-reset'
 import { PricingPage } from '@/pages/pricing'
 import { RouteErrorPage } from '@/pages/route-error'
 import { SettingsPage } from '@/pages/settings'
@@ -40,8 +41,11 @@ export const router = createBrowserRouter([
             children: [
               { path: '/login', element: <LoginPage /> },
               { path: '/signup', element: <SignupPage /> },
+              { path: '/forgot-password', element: <ForgotPasswordPage /> },
             ],
           },
+          // 메일 링크로 들어온다. 다른 계정으로 로그인한 상태여도 열 수 있게 GuestOnly 밖에 둔다
+          { path: '/reset-password', element: <ResetPasswordPage /> },
         ],
       },
       { path: '/oauth/callback', element: <OAuthCallbackPage /> },

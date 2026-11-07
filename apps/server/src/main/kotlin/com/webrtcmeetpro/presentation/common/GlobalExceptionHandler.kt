@@ -47,11 +47,12 @@ class GlobalExceptionHandler(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private fun respond(code: ErrorCode, params: Map<String, Any> = emptyMap(), field: String? = null) =
-        ResponseEntity.status(code.status).body(ErrorResponse(code.name, code.message, params, field))
+    private fun respond(code: ErrorCode, params: Map<String, Any> = emptyMap(), field: String? = null, message: String = code.message) =
+        ResponseEntity.status(code.status).body(ErrorResponse(code.name, message, params, field))
 
+    /** 메시지를 따로 준 경우(관리자 API 의 자세한 이유 등)는 그 메시지를, 아니면 에러 코드의 기본 메시지를 보낸다 */
     @ExceptionHandler(BusinessException::class)
-    fun handleBusiness(e: BusinessException) = respond(e.errorCode, e.params)
+    fun handleBusiness(e: BusinessException) = respond(e.errorCode, e.params, message = e.message ?: e.errorCode.message)
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(e: MethodArgumentNotValidException) =

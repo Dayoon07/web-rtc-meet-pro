@@ -185,4 +185,23 @@
     <string name="error_FILE_TOO_LARGE">ファイルは1つ20MBまで、1回の合計50MBまで送信できます。</string>
     <string name="error_BLOCKED_FILE_TYPE">セキュリティのため、実行ファイル（.exeなど）は送信できません。</string>
     <string name="error_EMPTY_FILE">空のファイルは送信できません。</string>
+    <string name="team_leave">チームを退出</string>
+    <string name="team_leave_confirm">「%1$s」から退出しますか？チームのチャットルームからも退出します。</string>
+    <string name="team_delete">チームを削除</string>
+    <string name="team_delete_body">チームを削除すると、予定された会議はキャンセルされ、チャットルームと未承認の招待もすべて削除されます。元に戻せません。</string>
+    <string name="team_delete_confirm_label">確認のためチーム名を入力してください</string>
+    <string name="team_remove">退出させる</string>
+    <string name="team_remove_confirm">%1$s さんをチームから退出させますか？</string>
+    <string name="team_removed">%1$s さんをチームから退出させました</string>
+    <string name="settings_withdraw">退会</string>
+    <string name="settings_withdraw_title">本当に退会しますか？</string>
+    <string name="settings_withdraw_body">退会するとプロフィール情報が削除され、すべてのチームとチャットルームから退出します。送信したチャットは「退会したユーザー」として残ります。作成したチームがある場合は先に削除してください。</string>
+    <string name="settings_withdraw_password">パスワード</string>
+    <string name="settings_withdraw_confirm">確認のため「%1$s」と入力してください</string>
+    <string name="settings_withdraw_word">退会</string>
+    <string name="error_OWNER_CANNOT_LEAVE">チームの作成者は退出できません。チームを削除してください。</string>
+    <string name="error_CANNOT_REMOVE_MEMBER">このメンバーを退出させる権限がありません。</string>
+    <string name="error_INVALID_PASSWORD">パスワードが正しくありません。</string>
+    <string name="error_OWNED_TEAMS_EXIST">作成したチームがあります。先にチームを削除してから退会してください。</string>
+    <string name="login_forgot">パスワードをお忘れですか？</string>
 </resources>

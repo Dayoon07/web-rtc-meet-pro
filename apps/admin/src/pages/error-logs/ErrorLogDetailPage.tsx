@@ -55,7 +55,7 @@ export function ErrorLogDetailPage() {
   })
 
   const back = (
-    <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+    <Link to="/errors" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
       <ArrowLeft className="size-4" />
       에러 기록
     </Link>

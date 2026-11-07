@@ -16,7 +16,9 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.http.HttpHeaders
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -28,7 +30,16 @@ import kotlinx.serialization.json.JsonPrimitive
  * 서버 주소. Android 에뮬레이터는 10.0.2.2, 데스크톱은 localhost (플랫폼 DI 모듈에서 정함).
  * webUrl 은 웹 클라이언트 주소 — 화상회의처럼 아직 브라우저에서만 되는 화면을 열 때 쓴다.
  */
-data class ApiConfig(val baseUrl: String, val webUrl: String) {
+/**
+ * @param language 지금 앱 언어 (ko/en/ja/zh). 서버가 보내는 메일(팀 초대 등)을 같은 언어로 쓰게 Accept-Language 로 보낸다
+ */
+data class ApiConfig(
+    val baseUrl: String,
+    val webUrl: String,
+    val language: () -> String = { "ko" },
+    /** 서버 기록(로그인 기록·에러 기록)에 남는 앱 이름. 예: Limeet-App (Android 14; Pixel 7) */
+    val userAgent: String = "Limeet-App",
+) {
     /** 프로필 이미지처럼 "/uploads/..." 로 오는 경로를 절대 URL 로 */
     fun resolve(pathOrUrl: String?): String? = when {
         pathOrUrl.isNullOrBlank() -> null
@@ -60,6 +71,9 @@ fun createHttpClient(config: ApiConfig, tokens: TokenStorage): HttpClient = Http
     defaultRequest {
         url(config.baseUrl.trimEnd('/') + "/")
         contentType(ContentType.Application.Json)
+        // defaultRequest 는 요청마다 실행된다 → 설정에서 언어를 바꾸면 다음 요청부터 바로 반영
+        header(HttpHeaders.AcceptLanguage, config.language())
+        header(HttpHeaders.UserAgent, config.userAgent)
     }
     install(ContentNegotiation) { json(ApiJson) }
     install(WebSockets)

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/shared/config/env'
-import { translateDynamic } from '@/shared/i18n'
+import { currentLanguage, translateDynamic } from '@/shared/i18n'
 import { type ErrorReason, newErrorCode, showUnexpectedError, toErrorReason } from '@/shared/lib/unexpected-error'
 
 /**
@@ -83,6 +83,8 @@ export async function http<T>(path: string, options: HttpOptions = {}, retried =
   const { json, form, auth = true, headers, ...rest } = options
   const h = new Headers(headers)
   if (json !== undefined) h.set('Content-Type', 'application/json')
+  // 서버가 보내는 메일(초대, 비밀번호 재설정)을 화면과 같은 언어로 쓰게
+  if (!h.has('Accept-Language')) h.set('Accept-Language', currentLanguage())
   const token = auth ? hooks.getAccessToken() : null
   if (token) h.set('Authorization', `Bearer ${token}`)
 

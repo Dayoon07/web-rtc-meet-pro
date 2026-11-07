@@ -35,6 +35,12 @@ enum class TeamPermission(val deniedError: ErrorCode) {
 
     /** 팀원의 역할 바꾸기 (ADMIN 지정·해제) */
     MANAGE_ROLES(ErrorCode.NOT_TEAM_OWNER),
+
+    /** 팀원 내보내기 (ADMIN 은 일반 팀원만 내보낼 수 있다 — TeamMember.canRemove) */
+    REMOVE_MEMBER(ErrorCode.CANNOT_REMOVE_MEMBER),
+
+    /** 팀 삭제 */
+    DELETE_TEAM(ErrorCode.NOT_TEAM_OWNER),
 }
 
 /** 팀 안 역할과 그 역할의 권한. 역할을 추가하거나 권한을 조정할 때는 여기만 바꾼다 */
@@ -43,7 +49,7 @@ enum class TeamRole(val permissions: Set<TeamPermission>) {
     OWNER(TeamPermission.entries.toSet()),
 
     /** 운영을 돕는 팀원: 초대, 회의 정리 */
-    ADMIN(setOf(TeamPermission.INVITE_MEMBER, TeamPermission.CANCEL_ANY_MEETING)),
+    ADMIN(setOf(TeamPermission.INVITE_MEMBER, TeamPermission.CANCEL_ANY_MEETING, TeamPermission.REMOVE_MEMBER)),
 
     /** 일반 팀원 */
     MEMBER(emptySet()),
@@ -89,6 +95,11 @@ class TeamMember(
         if (role == TeamRole.OWNER || next == TeamRole.OWNER) throw BusinessException(ErrorCode.OWNER_ROLE_FIXED)
         role = next
     }
+
+    /** 이 팀원이 [target] 을 내보낼 수 있는지: 권한이 있고, OWNER·자기 자신은 안 되며, ADMIN 은 일반 팀원만 */
+    fun canRemove(target: TeamMember): Boolean =
+        can(TeamPermission.REMOVE_MEMBER) && target.userId != userId && target.role != TeamRole.OWNER &&
+            (role == TeamRole.OWNER || target.role == TeamRole.MEMBER)
 
     /** 활동 중인 팀원이고 역할에 [permission] 이 있는지 */
     fun can(permission: TeamPermission): Boolean = status == TeamMemberStatus.ACTIVE && role.can(permission)

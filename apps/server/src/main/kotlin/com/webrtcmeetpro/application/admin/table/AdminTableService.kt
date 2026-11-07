@@ -1,0 +1,529 @@
+package com.webrtcmeetpro.application.admin.table
+
+import com.webrtcmeetpro.common.error.BusinessException
+import com.webrtcmeetpro.common.error.ErrorCode
+import com.webrtcmeetpro.config.properties.AdminProperties
+import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
+import org.springframework.jdbc.support.GeneratedKeyHolder
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.json.JsonMapper
+import java.math.BigDecimal
+import java.sql.ResultSet
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.util.concurrent.ConcurrentHashMap
+
+/** 화면이 값을 어떻게 보여 주고 입력받을지 */
+enum class AdminColumnKind { TEXT, LONG_TEXT, NUMBER, DATETIME, YN, ENUM, BINARY }
+
+data class AdminColumnRef(val table: String, val column: String)
+
+data class AdminColumn(
+    val name: String,
+    /** DB 주석(COMMENT ON COLUMN). 없으면 null */
+    val comment: String?,
+    val kind: AdminColumnKind,
+    /** 예: VARCHAR2(255 CHAR), NUMBER(19), TIMESTAMP(6) */
+    val dbType: String,
+    /** 글자 컬럼의 최대 길이 */
+    val maxLength: Int?,
+    val nullable: Boolean,
+    val primaryKey: Boolean,
+    val editable: Boolean,
+    /** 비밀값: 값 대신 있음(true)/없음(false) 만 내려간다 */
+    val secret: Boolean,
+    /** CHECK (col IN (...)) 에서 읽은 허용 값 */
+    val options: List<String>,
+    /** FK 가 가리키는 테이블.컬럼 (화면에서 눌러서 이동) */
+    val references: AdminColumnRef?,
+    /** 이 컬럼을 가리키는 다른 테이블들 (PK 에서 "이 회원의 팀원 기록 보기" 같은 이동) */
+    val referencedBy: List<AdminColumnRef>,
+)
+
+data class AdminTableSummary(
+    val name: String,
+    val label: String,
+    val group: String,
+    val description: String?,
+    val rowCount: Long,
+    val readOnly: Boolean,
+    val insertable: Boolean,
+)
+
+data class AdminTableMeta(
+    val name: String,
+    val label: String,
+    val group: String,
+    val description: String?,
+    val primaryKey: String?,
+    val readOnly: Boolean,
+    val insertable: Boolean,
+    /** deleted_yn 컬럼이 있어서 "사용/미사용" 필터를 쓸 수 있는지 */
+    val softDelete: Boolean,
+    val columns: List<AdminColumn>,
+)
+
+data class AdminRowPage(val rows: List<Map<String, Any?>>, val total: Long, val page: Int, val size: Int)
+
+/** 목록 조회 조건. filters 는 컬럼 = 값 (값이 빈 문자열이면 IS NULL) */
+data class AdminRowQuery(
+    val page: Int = 0,
+    val size: Int = 50,
+    val sort: String? = null,
+    val desc: Boolean = true,
+    val q: String? = null,
+    val filters: Map<String, String> = emptyMap(),
+    /** deleted_yn 이 있는 테이블: null = 전부, false = 사용 중(N)만, true = 미사용(Y)만 */
+    val deleted: Boolean? = null,
+)
+
+/**
+ * 관리자 사이트 "데이터 관리". 테이블·컬럼·PK·FK·CHECK 를 Oracle 사전(user_tables 등)에서 읽어서
+ * 어떤 테이블이든 같은 화면으로 보고·찾고·고친다. 운영 중에 테이블이 늘어나도 코드를 고치지 않아도 된다.
+ *
+ * 안전장치
+ *   - SQL 에 들어가는 테이블·컬럼 이름은 사전에서 읽은 이름만 쓴다 (사용자 입력은 전부 바인드 변수)
+ *   - 비밀값 컬럼은 값을 내보내지 않는다. 행 삭제는 없다 (deleted_yn 으로 숨김)
+ *   - 고친 내용은 admin_data_changes 에 이전 값 → 새 값으로 남긴다
+ */
+@Service
+class AdminTableService(
+    private val jdbc: NamedParameterJdbcTemplate,
+    private val props: AdminProperties,
+    private val json: JsonMapper,
+) {
+    private val zone = ZoneId.systemDefault()
+    private val metaCache = ConcurrentHashMap<String, Pair<Instant, AdminTableMeta>>()
+
+    // ---------------------------------------------------------------- 목록·구조
+
+    fun tables(): List<AdminTableSummary> =
+        tableNames().map { name ->
+            val key = policyKey(name)
+            val info = AdminTablePolicy.infoOf(key)
+            val count = jdbc.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM ${q(name)}", java.lang.Long::class.java)?.toLong() ?: 0L
+            AdminTableSummary(
+                name = name,
+                label = info?.label ?: tableComment(name) ?: name,
+                group = info?.group ?: "기타",
+                description = info?.description,
+                rowCount = count,
+                readOnly = key in AdminTablePolicy.readOnlyTables,
+                insertable = key in AdminTablePolicy.insertableTables,
+            )
+        }.sortedWith(compareBy({ AdminTablePolicy.order(policyKey(it.name)) }, { it.name }))
+
+    /** 30초 동안 캐시한다 (사전 조회가 여러 번 필요해서). 새 컬럼은 길어야 30초 뒤에 보인다 */
+    fun meta(table: String): AdminTableMeta {
+        val name = table.lowercase()
+        metaCache[name]?.let { (at, meta) -> if (at.plusSeconds(30).isAfter(Instant.now())) return meta }
+        if (name !in tableNames()) throw BusinessException(ErrorCode.ADMIN_TABLE_NOT_FOUND)
+        return loadMeta(name).also { metaCache[name] = Instant.now() to it }
+    }
+
+    private fun tableNames(): List<String> =
+        jdbc.jdbcTemplate.queryForList("SELECT LOWER(table_name) FROM user_tables WHERE table_name NOT LIKE 'BIN$%'", String::class.java)
+            .filterNotNull().filter { it.startsWith(props.tablePrefix) }
+
+    /** 테스트용 접두어(zz_ 등)를 떼고 정책을 찾는다 */
+    private fun policyKey(name: String) = name.removePrefix(props.tablePrefix)
+
+    private fun tableComment(name: String): String? = jdbc.queryForList(
+        "SELECT comments FROM user_tab_comments WHERE table_name = :t",
+        mapOf("t" to name.uppercase()),
+        String::class.java,
+    ).firstOrNull()?.takeIf { it.isNotBlank() }
+
+    private fun loadMeta(name: String): AdminTableMeta {
+        val t = mapOf("t" to name.uppercase())
+        val key = policyKey(name)
+        val pk = jdbc.queryForList(
+            """SELECT LOWER(cc.column_name) FROM user_constraints c
+               JOIN user_cons_columns cc ON cc.constraint_name = c.constraint_name
+               WHERE c.table_name = :t AND c.constraint_type = 'P'""",
+            t, String::class.java,
+        ).filterNotNull().singleOrNull()
+        val fks = jdbc.query(
+            """SELECT LOWER(a.column_name) col, LOWER(rc.table_name) rt, LOWER(rcc.column_name) rcol
+               FROM user_constraints c
+               JOIN user_cons_columns a ON a.constraint_name = c.constraint_name
+               JOIN user_constraints rc ON rc.constraint_name = c.r_constraint_name
+               JOIN user_cons_columns rcc ON rcc.constraint_name = rc.constraint_name AND rcc.position = a.position
+               WHERE c.table_name = :t AND c.constraint_type = 'R'""",
+            t,
+        ) { rs, _ -> rs.getString("col") to AdminColumnRef(rs.getString("rt"), rs.getString("rcol")) }.toMap()
+        val referencedBy = jdbc.query(
+            """SELECT LOWER(a.column_name) col, LOWER(c.table_name) tbl, LOWER(pcc.column_name) pcol
+               FROM user_constraints c
+               JOIN user_cons_columns a ON a.constraint_name = c.constraint_name
+               JOIN user_constraints p ON p.constraint_name = c.r_constraint_name
+               JOIN user_cons_columns pcc ON pcc.constraint_name = p.constraint_name AND pcc.position = a.position
+               WHERE p.table_name = :t AND c.constraint_type = 'R'
+               ORDER BY c.table_name""",
+            t,
+        ) { rs, _ -> rs.getString("pcol") to AdminColumnRef(rs.getString("tbl"), rs.getString("col")) }
+            .groupBy({ it.first }, { it.second })
+        val options = jdbc.queryForList(
+            "SELECT search_condition_vc FROM user_constraints WHERE table_name = :t AND constraint_type = 'C' AND search_condition_vc IS NOT NULL",
+            t, String::class.java,
+        ).filterNotNull().mapNotNull(::parseInCheck).toMap()
+
+        val tableReadOnly = key in AdminTablePolicy.readOnlyTables
+        val extraReadOnly = AdminTablePolicy.readOnlyColumns[key].orEmpty()
+        val columns = jdbc.query(
+            """SELECT LOWER(c.column_name) name, c.data_type, c.data_length, c.char_length, c.char_used,
+                      c.data_precision, c.data_scale, c.nullable, c.identity_column, cc.comments
+               FROM user_tab_columns c
+               LEFT JOIN user_col_comments cc ON cc.table_name = c.table_name AND cc.column_name = c.column_name
+               WHERE c.table_name = :t ORDER BY c.column_id""",
+            t,
+        ) { rs, _ ->
+            val col = rs.getString("name")
+            val type = rs.getString("data_type")
+            val opts = options[col].orEmpty()
+            val secret = AdminTablePolicy.isSecret(col)
+            val kind = kindOf(type, opts)
+            val charUsed = rs.getString("char_used")
+            val maxLength = when (kind) {
+                AdminColumnKind.TEXT, AdminColumnKind.YN, AdminColumnKind.ENUM ->
+                    if (charUsed == "C") rs.getInt("char_length") else rs.getInt("data_length")
+                else -> null
+            }
+            val isPk = col == pk
+            val editable = !tableReadOnly && !isPk && !secret &&
+                rs.getString("identity_column") != "YES" &&
+                col !in AdminTablePolicy.auditColumns && col !in extraReadOnly &&
+                kind != AdminColumnKind.BINARY && kind != AdminColumnKind.LONG_TEXT
+            AdminColumn(
+                name = col,
+                comment = rs.getString("comments")?.takeIf { it.isNotBlank() },
+                kind = kind,
+                dbType = dbTypeOf(type, rs.getInt("data_precision").takeIf { !rs.wasNull() }, rs.getInt("data_scale"), maxLength, charUsed),
+                maxLength = maxLength,
+                nullable = rs.getString("nullable") == "Y",
+                primaryKey = isPk,
+                editable = editable,
+                secret = secret,
+                options = opts,
+                references = fks[col],
+                referencedBy = referencedBy[col].orEmpty(),
+            )
+        }
+        val info = AdminTablePolicy.infoOf(key)
+        return AdminTableMeta(
+            name = name,
+            label = info?.label ?: tableComment(name) ?: name,
+            group = info?.group ?: "기타",
+            description = info?.description,
+            primaryKey = pk,
+            // PK 가 하나가 아니면 행을 짚을 수 없어서 보기만 한다
+            readOnly = tableReadOnly || pk == null,
+            insertable = key in AdminTablePolicy.insertableTables && pk != null,
+            softDelete = columns.any { it.name == "deleted_yn" },
+            columns = columns,
+        )
+    }
+
+    // ---------------------------------------------------------------- 조회
+
+    fun rows(table: String, query: AdminRowQuery): AdminRowPage {
+        val meta = meta(table)
+        val size = query.size.coerceIn(1, 200)
+        val page = query.page.coerceAtLeast(0)
+        val params = MapSqlParameterSource()
+        val where = whereOf(meta, query, params)
+        val total = jdbc.queryForObject("SELECT COUNT(*) FROM ${q(meta.name)}$where", params, java.lang.Long::class.java)?.toLong() ?: 0L
+        params.addValue("offset", page.toLong() * size).addValue("limit", size)
+        val sql = "SELECT ${selectList(meta, full = false)} FROM ${q(meta.name)}$where ORDER BY ${orderOf(meta, query)} " +
+            "OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"
+        return AdminRowPage(jdbc.query(sql, params) { rs, _ -> readRow(meta, rs) }, total, page, size)
+    }
+
+    fun row(table: String, id: String): Map<String, Any?> {
+        val meta = meta(table)
+        val pk = meta.primaryKey ?: throw BusinessException(ErrorCode.ADMIN_ROW_NOT_FOUND)
+        val params = MapSqlParameterSource("id", convert(meta.column(pk), id))
+        return jdbc.query("SELECT ${selectList(meta, full = true)} FROM ${q(meta.name)} WHERE ${q(pk)} = :id", params) { rs, _ -> readRow(meta, rs) }
+            .firstOrNull() ?: throw BusinessException(ErrorCode.ADMIN_ROW_NOT_FOUND)
+    }
+
+    /** 엑셀에서 바로 열리게 UTF-8 BOM + 쉼표 구분. 최대 10,000행, 비밀값은 비운다 */
+    fun exportCsv(table: String, query: AdminRowQuery): String {
+        val meta = meta(table)
+        val params = MapSqlParameterSource()
+        val where = whereOf(meta, query, params)
+        val sql = "SELECT ${selectList(meta, full = false)} FROM ${q(meta.name)}$where ORDER BY ${orderOf(meta, query)} FETCH FIRST $EXPORT_LIMIT ROWS ONLY"
+        val rows = jdbc.query(sql, params) { rs, _ -> readRow(meta, rs) }
+        val cols = meta.columns.filterNot { it.secret }
+        val sb = StringBuilder("﻿")
+        sb.append(cols.joinToString(",") { csv(it.name) }).append("\r\n")
+        rows.forEach { row -> sb.append(cols.joinToString(",") { csv(row[it.name]?.toString()) }).append("\r\n") }
+        return sb.toString()
+    }
+
+    // ---------------------------------------------------------------- 수정·추가
+
+    /**
+     * 행 고치기. 바뀐 컬럼만 UPDATE 하고 edited_dt / edited_us 를 채운다.
+     * @return 고친 뒤의 행
+     */
+    @Transactional
+    fun update(table: String, id: String, values: Map<String, Any?>, adminId: Long): Map<String, Any?> {
+        val meta = meta(table)
+        if (meta.readOnly) throw BusinessException(ErrorCode.ADMIN_READ_ONLY)
+        val pk = meta.primaryKey!!
+        val before = row(table, id)
+        val params = MapSqlParameterSource("id", convert(meta.column(pk), id))
+        val changes = linkedMapOf<String, Map<String, Any?>>()
+        val sets = mutableListOf<String>()
+        values.forEach { (name, raw) ->
+            val col = meta.columnOrNull(name) ?: throw invalid(name, "없는 컬럼입니다.")
+            if (!col.editable) throw BusinessException(ErrorCode.ADMIN_READ_ONLY, mapOf("field" to name), "${name}: 고칠 수 없는 컬럼입니다.")
+            guardSelfLockout(meta, col, id, raw, adminId)
+            val value = convertInput(col, raw)
+            if (sameValue(col, before[name], value)) return@forEach
+            val p = "v${sets.size}"
+            sets += "${q(name)} = :$p"
+            params.addValue(p, value)
+            changes[name] = mapOf("from" to before[name], "to" to displayOf(value))
+        }
+        if (sets.isEmpty()) return before
+        if (meta.columnOrNull("edited_dt") != null) sets += "${q("edited_dt")} = SYSTIMESTAMP"
+        if (meta.columnOrNull("edited_us") != null) {
+            sets += "${q("edited_us")} = :adminId"
+            params.addValue("adminId", adminId)
+        }
+        guardConstraint { jdbc.update("UPDATE ${q(meta.name)} SET ${sets.joinToString(", ")} WHERE ${q(pk)} = :id", params) }
+        recordChange(meta.name, id, "UPDATE", changes, adminId)
+        return row(table, id)
+    }
+
+    /** 행 추가 (insertableTables 만). IDENTITY PK 는 DB 가 만든다 */
+    @Transactional
+    fun insert(table: String, values: Map<String, Any?>, adminId: Long): Map<String, Any?> {
+        val meta = meta(table)
+        if (!meta.insertable) throw BusinessException(ErrorCode.ADMIN_READ_ONLY)
+        val pk = meta.primaryKey!!
+        val params = MapSqlParameterSource()
+        val cols = mutableListOf<String>()
+        val shown = linkedMapOf<String, Map<String, Any?>>()
+        values.forEach { (name, raw) ->
+            val col = meta.columnOrNull(name) ?: throw invalid(name, "없는 컬럼입니다.")
+            if (!col.editable) throw BusinessException(ErrorCode.ADMIN_READ_ONLY, mapOf("field" to name), "${name}: 직접 넣을 수 없는 컬럼입니다.")
+            val value = convertInput(col, raw) ?: return@forEach
+            cols += name
+            params.addValue("v${cols.size}", value)
+            shown[name] = mapOf("from" to null, "to" to displayOf(value))
+        }
+        listOf("created_us", "edited_us").filter { meta.columnOrNull(it) != null }.forEach {
+            cols += it
+            params.addValue("v${cols.size}", adminId)
+        }
+        val keys = GeneratedKeyHolder()
+        val sql = "INSERT INTO ${q(meta.name)} (${cols.joinToString(", ") { q(it) }}) VALUES (${cols.indices.joinToString(", ") { ":v${it + 1}" }})"
+        guardConstraint { jdbc.update(sql, params, keys, arrayOf(pk.uppercase())) }
+        val id = keys.keyList.firstOrNull()?.values?.firstOrNull()?.toString() ?: throw BusinessException(ErrorCode.ADMIN_ROW_NOT_FOUND)
+        recordChange(meta.name, id, "INSERT", shown, adminId)
+        return row(table, id)
+    }
+
+    /** 자기 자신의 관리자 권한을 빼면 관리자 사이트에 다시 들어올 수 없다 → 막는다 */
+    private fun guardSelfLockout(meta: AdminTableMeta, col: AdminColumn, id: String, raw: Any?, adminId: Long) {
+        val key = policyKey(meta.name)
+        if (key == "users" && id == adminId.toString() &&
+            ((col.name == "system_role" && raw != "ADMIN") || (col.name == "status" && raw != "ACTIVE") || (col.name == "deleted_yn" && raw != "N"))
+        ) {
+            throw BusinessException(ErrorCode.ADMIN_READ_ONLY, mapOf("field" to col.name), "내 계정의 관리자 권한·상태는 여기서 바꿀 수 없습니다. 다른 관리자에게 부탁해 주세요.")
+        }
+    }
+
+    private fun recordChange(table: String, id: String, action: String, changes: Map<String, Any?>, adminId: Long) {
+        val log = props.tablePrefix + "admin_data_changes"
+        if (log !in tableNames()) return
+        jdbc.update(
+            "INSERT INTO ${q(log)} (table_name, row_id, action, changes, admin_id, created_us, edited_us) VALUES (:t, :id, :a, :c, :admin, :admin, :admin)",
+            MapSqlParameterSource()
+                .addValue("t", table).addValue("id", id).addValue("a", action)
+                .addValue("c", json.writeValueAsString(changes)).addValue("admin", adminId),
+        )
+    }
+
+    private fun <T> guardConstraint(block: () -> T): T = try {
+        block()
+    } catch (e: DataIntegrityViolationException) {
+        // ORA-00001 (중복), ORA-02291 (참조할 행 없음), ORA-02290 (CHECK) 등. 첫 줄만 보여 준다
+        val detail = (e.mostSpecificCause.message ?: "").lineSequence().firstOrNull()?.take(300).orEmpty()
+        throw BusinessException(ErrorCode.ADMIN_DATA_CONSTRAINT, mapOf("detail" to detail), "${ErrorCode.ADMIN_DATA_CONSTRAINT.message} ($detail)")
+    }
+
+    // ---------------------------------------------------------------- SQL 조립
+
+    private fun whereOf(meta: AdminTableMeta, query: AdminRowQuery, params: MapSqlParameterSource): String {
+        val conds = mutableListOf<String>()
+        query.filters.forEach { (name, value) ->
+            val col = meta.columnOrNull(name)?.takeIf { !it.secret && it.kind != AdminColumnKind.BINARY && it.kind != AdminColumnKind.LONG_TEXT }
+                ?: throw invalid(name, "이 컬럼으로는 거를 수 없습니다.")
+            if (value.isEmpty()) {
+                conds += "${q(name)} IS NULL"
+            } else {
+                val p = "f${conds.size}"
+                conds += if (col.kind == AdminColumnKind.DATETIME) "TRUNC(${q(name)}) = TRUNC(:$p)" else "${q(name)} = :$p"
+                params.addValue(p, convert(col, value))
+            }
+        }
+        if (query.deleted != null && meta.softDelete) conds += "${q("deleted_yn")} = '${if (query.deleted) "Y" else "N"}'"
+        val text = query.q?.trim()?.takeIf { it.isNotEmpty() }
+        if (text != null) {
+            val ors = meta.columns
+                .filter { !it.secret && it.kind in setOf(AdminColumnKind.TEXT, AdminColumnKind.ENUM, AdminColumnKind.LONG_TEXT) }
+                .map { if (it.kind == AdminColumnKind.LONG_TEXT) "UPPER(DBMS_LOB.SUBSTR(${q(it.name)}, 4000, 1)) LIKE :q ESCAPE '\\'" else "UPPER(${q(it.name)}) LIKE :q ESCAPE '\\'" }
+                .toMutableList()
+            params.addValue("q", "%" + text.uppercase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+            // 숫자면 PK·숫자 컬럼(user_id 등)도 같은 값을 찾는다
+            text.toBigDecimalOrNull()?.let { n ->
+                meta.columns.filter { it.kind == AdminColumnKind.NUMBER && !it.secret }.forEach { ors += "${q(it.name)} = :qn" }
+                params.addValue("qn", n)
+            }
+            if (ors.isNotEmpty()) conds += "(" + ors.joinToString(" OR ") + ")"
+        }
+        return if (conds.isEmpty()) "" else " WHERE " + conds.joinToString(" AND ")
+    }
+
+    private fun orderOf(meta: AdminTableMeta, query: AdminRowQuery): String {
+        val col = query.sort?.let { meta.columnOrNull(it) }?.takeIf { !it.secret && it.kind != AdminColumnKind.LONG_TEXT && it.kind != AdminColumnKind.BINARY }
+            ?: meta.primaryKey?.let { meta.column(it) }
+            ?: meta.columns.first()
+        val dir = if (query.desc) "DESC NULLS LAST" else "ASC NULLS FIRST"
+        // 같은 값끼리 순서가 매번 바뀌지 않게 PK 를 덧붙인다
+        val tie = meta.primaryKey?.takeIf { it != col.name }?.let { ", ${q(it)} DESC" } ?: ""
+        return "${q(col.name)} $dir$tie"
+    }
+
+    /** 목록에서는 긴 글(CLOB)을 앞부분만, 바이너리는 크기만, 비밀값은 있음/없음만 */
+    private fun selectList(meta: AdminTableMeta, full: Boolean): String = meta.columns.joinToString(", ") { c ->
+        val n = q(c.name)
+        when {
+            c.secret -> "CASE WHEN $n IS NULL THEN 0 ELSE 1 END AS $n"
+            c.kind == AdminColumnKind.BINARY -> "DBMS_LOB.GETLENGTH($n) AS $n"
+            c.kind == AdminColumnKind.LONG_TEXT && !full -> "DBMS_LOB.SUBSTR($n, $LIST_TEXT_LIMIT, 1) AS $n"
+            else -> n
+        }
+    }
+
+    private fun readRow(meta: AdminTableMeta, rs: ResultSet): Map<String, Any?> = meta.columns.associate { c ->
+        val v: Any? = when {
+            c.secret -> rs.getInt(c.name) == 1
+            c.kind == AdminColumnKind.NUMBER || c.kind == AdminColumnKind.BINARY -> rs.getBigDecimal(c.name)?.let(::compactNumber)
+            c.kind == AdminColumnKind.DATETIME -> rs.getTimestamp(c.name)?.toLocalDateTime()
+            else -> rs.getString(c.name)
+        }
+        c.name to v
+    }
+
+    // ---------------------------------------------------------------- 값 변환
+
+    /** 화면 입력(JSON 값)을 DB 값으로. 길이·허용 값·필수 여부를 먼저 확인한다 */
+    private fun convertInput(col: AdminColumn, raw: Any?): Any? {
+        val text = raw?.toString()
+        if (text == null || (text.isEmpty() && col.kind != AdminColumnKind.TEXT)) {
+            if (!col.nullable) throw invalid(col.name, "비워 둘 수 없습니다.")
+            return null
+        }
+        return when (col.kind) {
+            AdminColumnKind.TEXT -> text.also {
+                val len = if (col.dbType.contains("CHAR)")) it.length else it.toByteArray().size
+                if (col.maxLength != null && len > col.maxLength) throw invalid(col.name, "최대 ${col.maxLength}자(바이트)입니다.")
+                if (it.isEmpty() && !col.nullable) throw invalid(col.name, "비워 둘 수 없습니다.")
+            }.ifEmpty { null }
+            AdminColumnKind.YN, AdminColumnKind.ENUM -> text.also {
+                if (col.options.isNotEmpty() && it !in col.options) throw invalid(col.name, "${col.options.joinToString(", ")} 중 하나여야 합니다.")
+            }
+            else -> convert(col, text)
+        }
+    }
+
+    /** 필터·PK 값처럼 글자로 온 값을 컬럼 형식으로 */
+    private fun convert(col: AdminColumn, text: String): Any = when (col.kind) {
+        AdminColumnKind.NUMBER -> text.trim().toBigDecimalOrNull() ?: throw invalid(col.name, "숫자를 입력해 주세요.")
+        AdminColumnKind.DATETIME -> Timestamp.valueOf(parseDateTime(text) ?: throw invalid(col.name, "날짜·시간 형식이 올바르지 않습니다. 예: 2026-11-07T09:30"))
+        else -> text
+    }
+
+    private fun parseDateTime(text: String): LocalDateTime? {
+        val s = text.trim()
+        return runCatching { OffsetDateTime.parse(s).atZoneSameInstant(zone).toLocalDateTime() }.getOrNull()
+            ?: runCatching { LocalDateTime.parse(s) }.getOrNull()
+            ?: runCatching { LocalDateTime.parse(s.replace(' ', 'T')) }.getOrNull()
+            ?: runCatching { java.time.LocalDate.parse(s).atStartOfDay() }.getOrNull()
+    }
+
+    private fun sameValue(col: AdminColumn, before: Any?, after: Any?): Boolean = when {
+        before == null || after == null -> before == after
+        col.kind == AdminColumnKind.NUMBER -> BigDecimal(before.toString()).compareTo(after as BigDecimal) == 0
+        col.kind == AdminColumnKind.DATETIME -> (before as LocalDateTime) == (after as Timestamp).toLocalDateTime()
+        else -> before.toString() == after.toString()
+    }
+
+    private fun displayOf(value: Any?): Any? = when (value) {
+        is Timestamp -> value.toLocalDateTime().toString()
+        is BigDecimal -> compactNumber(value)
+        else -> value
+    }
+
+    private fun compactNumber(n: BigDecimal): Any =
+        if (n.scale() <= 0 || n.stripTrailingZeros().scale() <= 0) n.toBigInteger().let { if (it.bitLength() < 63) it.toLong() else it } else n
+
+    private fun invalid(field: String, reason: String) =
+        BusinessException(ErrorCode.ADMIN_INVALID_VALUE, mapOf("field" to field), "${field}: $reason")
+
+    private fun kindOf(type: String, options: List<String>): AdminColumnKind = when {
+        options.toSet() == setOf("Y", "N") -> AdminColumnKind.YN
+        options.isNotEmpty() -> AdminColumnKind.ENUM
+        type == "NUMBER" || type == "FLOAT" || type.startsWith("BINARY_") -> AdminColumnKind.NUMBER
+        type == "DATE" || type.startsWith("TIMESTAMP") -> AdminColumnKind.DATETIME
+        type == "CLOB" || type == "NCLOB" || type == "LONG" -> AdminColumnKind.LONG_TEXT
+        type == "BLOB" || type == "RAW" || type == "LONG RAW" -> AdminColumnKind.BINARY
+        else -> AdminColumnKind.TEXT
+    }
+
+    private fun dbTypeOf(type: String, precision: Int?, scale: Int, length: Int?, charUsed: String?): String = when {
+        type == "NUMBER" && precision != null -> if (scale > 0) "NUMBER($precision,$scale)" else "NUMBER($precision)"
+        length != null && (type.contains("CHAR")) -> "$type($length${if (charUsed == "C") " CHAR" else ""})"
+        else -> type
+    }
+
+    /** CHECK (status IN ('A', 'B')) → status to [A, B] */
+    private fun parseInCheck(condition: String): Pair<String, List<String>>? {
+        val m = IN_CHECK.matchEntire(condition.trim()) ?: return null
+        val values = QUOTED.findAll(m.groupValues[2]).map { it.groupValues[1] }.toList()
+        return if (values.isEmpty()) null else m.groupValues[1].lowercase() to values
+    }
+
+    private fun AdminTableMeta.columnOrNull(name: String) = columns.firstOrNull { it.name == name.lowercase() }
+    private fun AdminTableMeta.column(name: String) = columnOrNull(name) ?: throw invalid(name, "없는 컬럼입니다.")
+
+    /** 사전에서 읽은 이름만 들어온다. 큰따옴표로 감싸 대문자 이름으로 정확히 가리킨다 */
+    private fun q(identifier: String): String {
+        require(IDENTIFIER.matches(identifier)) { "잘못된 이름: $identifier" }
+        return "\"" + identifier.uppercase() + "\""
+    }
+
+    private fun csv(value: String?): String {
+        val v = value ?: return ""
+        return if (v.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
+    }
+
+    companion object {
+        const val EXPORT_LIMIT = 10_000
+        const val LIST_TEXT_LIMIT = 300
+        private val IDENTIFIER = Regex("[A-Za-z][A-Za-z0-9_$#]{0,127}")
+        private val IN_CHECK = Regex("""(?is)"?([A-Za-z0-9_$#]+)"?\s+IN\s*\((.*)\)""")
+        private val QUOTED = Regex("'((?:[^']|'')*)'")
+    }
+}

@@ -4,7 +4,13 @@ import { http } from '@/shared/api'
 export type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
 /** 팀 안에서 역할에 따라 할 수 있는 일. 어느 역할이 무엇을 할 수 있는지는 서버(TeamRole)만 안다 */
-export type TeamPermission = 'INVITE_MEMBER' | 'CREATE_GROUP_ROOM' | 'CANCEL_ANY_MEETING' | 'MANAGE_ROLES'
+export type TeamPermission =
+  | 'INVITE_MEMBER'
+  | 'CREATE_GROUP_ROOM'
+  | 'CANCEL_ANY_MEETING'
+  | 'MANAGE_ROLES'
+  | 'REMOVE_MEMBER'
+  | 'DELETE_TEAM'
 
 export type TeamSummary = {
   id: number
@@ -25,6 +31,8 @@ export type TeamMember = {
   profileImageUrl: string | null
   role: TeamRole
   joinedAt: string
+  /** 지금 보는 사람이 이 팀원을 내보낼 수 있는지 (서버가 계산) */
+  removable: boolean
 }
 
 export type TeamDetail = {
@@ -63,6 +71,12 @@ export const teamApi = {
   /** 팀원 역할 바꾸기 (ADMIN 지정·해제). MANAGE_ROLES 권한(팀 OWNER)만 */
   changeRole: (teamId: number, userId: number, role: Exclude<TeamRole, 'OWNER'>) =>
     http<TeamMember>(`/teams/${teamId}/members/${userId}/role`, { method: 'PATCH', json: { role } }),
+  /** 팀 나가기 (OWNER 는 못 나간다. 팀을 삭제해야 한다) */
+  leave: (teamId: number) => http<void>(`/teams/${teamId}/leave`, { method: 'POST' }),
+  /** 팀원 내보내기. REMOVE_MEMBER 권한 */
+  removeMember: (teamId: number, userId: number) => http<void>(`/teams/${teamId}/members/${userId}`, { method: 'DELETE' }),
+  /** 팀 삭제. DELETE_TEAM 권한(OWNER)만 */
+  remove: (teamId: number) => http<void>(`/teams/${teamId}`, { method: 'DELETE' }),
   accept: (id: number) => http<TeamSummary>(`/invitations/${id}/accept`, { method: 'POST' }),
   decline: (id: number) => http<void>(`/invitations/${id}/decline`, { method: 'POST' }),
 }

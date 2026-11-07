@@ -186,4 +186,23 @@
     <string name="error_FILE_TOO_LARGE">Each file can be up to 20 MB, and up to 50 MB in total at once.</string>
     <string name="error_BLOCKED_FILE_TYPE">For security, executable files (.exe and similar) cannot be sent.</string>
     <string name="error_EMPTY_FILE">Empty files cannot be sent.</string>
+    <string name="team_leave">Leave team</string>
+    <string name="team_leave_confirm">Leave “%1$s”? You will also leave its chat rooms.</string>
+    <string name="team_delete">Delete team</string>
+    <string name="team_delete_body">Deleting the team cancels scheduled meetings and removes its chat rooms and pending invitations. This cannot be undone.</string>
+    <string name="team_delete_confirm_label">Type the team name to confirm</string>
+    <string name="team_remove">Remove</string>
+    <string name="team_remove_confirm">Remove %1$s from the team?</string>
+    <string name="team_removed">Removed %1$s from the team</string>
+    <string name="settings_withdraw">Delete account</string>
+    <string name="settings_withdraw_title">Delete your account?</string>
+    <string name="settings_withdraw_body">Your profile will be erased and you will leave all teams and chat rooms. Messages you sent will remain as “Deleted user”. If you own any teams, delete them first.</string>
+    <string name="settings_withdraw_password">Password</string>
+    <string name="settings_withdraw_confirm">Type “%1$s” to confirm</string>
+    <string name="settings_withdraw_word">delete</string>
+    <string name="error_OWNER_CANNOT_LEAVE">The team owner cannot leave. Delete the team instead.</string>
+    <string name="error_CANNOT_REMOVE_MEMBER">You don’t have permission to remove this member.</string>
+    <string name="error_INVALID_PASSWORD">The password is incorrect.</string>
+    <string name="error_OWNED_TEAMS_EXIST">You still own teams. Delete them before deleting your account.</string>
+    <string name="login_forgot">Forgot password?</string>
 </resources>

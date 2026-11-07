@@ -13,7 +13,7 @@ export function Badge({ children, tone = 'brand', className }: { children: React
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold',
+        'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
         tone === 'brand' && 'bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200',
         tone === 'gray' && 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
         tone === 'green' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',

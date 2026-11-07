@@ -89,6 +89,9 @@ fun androidPlatformModule(context: Context) = module {
         ApiConfig(
             baseUrl = BuildEnv.API_URL.ifEmpty { "http://10.0.2.2:8080" },
             webUrl = BuildEnv.WEB_URL.ifEmpty { "http://localhost:5173" },
+            // 앱 언어를 바꾸면 LocalAppLocale 이 Locale.setDefault 를 바꾼다
+            language = { Locale.getDefault().language },
+            userAgent = "Limeet-App (Android ${Build.VERSION.RELEASE}; ${Build.MANUFACTURER} ${Build.MODEL})",
         )
     }
     single { createPreferencesDataStore(context.filesDir.resolve(PREFERENCES_FILE_NAME).absolutePath) }

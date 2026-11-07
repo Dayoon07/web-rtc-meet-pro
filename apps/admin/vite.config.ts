@@ -17,7 +17,8 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '/api': 'http://localhost:8080',
+      // 다른 포트의 서버를 볼 때: ADMIN_API_TARGET=http://localhost:8081 npm run dev
+      '/api': process.env.ADMIN_API_TARGET ?? 'http://localhost:8080',
     },
   },
 })

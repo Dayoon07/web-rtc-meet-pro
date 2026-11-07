@@ -1,5 +1,13 @@
 package com.webrtcmeetpro.application.team
 
+import com.webrtcmeetpro.application.mail.MailLanguage
+import com.webrtcmeetpro.application.mail.MailService
+import com.webrtcmeetpro.application.mail.MailTemplates
+import com.webrtcmeetpro.config.properties.WebProperties
+import com.webrtcmeetpro.domain.meeting.MeetingStatus
+import com.webrtcmeetpro.domain.meeting.MeetingRepository
+import com.webrtcmeetpro.domain.chat.ChatRoomRepository
+import com.webrtcmeetpro.domain.chat.ChatRoomMemberRepository
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.application.notification.NotificationService
@@ -43,6 +51,8 @@ data class TeamMemberView(
     val profileImageUrl: String?,
     val role: TeamRole,
     val joinedAt: LocalDateTime,
+    /** 이 화면을 보는 사람이 이 팀원을 내보낼 수 있는지 (OWNER: 누구나, ADMIN: 일반 팀원만) */
+    val removable: Boolean = false,
 )
 
 data class TeamLimitsView(val maxMembers: Int, val maxGroupRooms: Int, val pendingInvitations: Int)
@@ -70,6 +80,11 @@ class TeamService(
     private val planService: PlanService,
     private val notifications: NotificationService,
     private val access: TeamAccess,
+    private val chatRoomRepository: ChatRoomRepository,
+    private val chatMemberRepository: ChatRoomMemberRepository,
+    private val meetingRepository: MeetingRepository,
+    private val mail: MailService,
+    private val web: WebProperties,
 ) {
     private val random = SecureRandom()
 
@@ -101,7 +116,7 @@ class TeamService(
         return TeamDetailView(
             team = summary(team, me.role, members.size),
             members = members
-                .mapNotNull { m -> users[m.userId]?.let { memberView(m, it) } }
+                .mapNotNull { m -> users[m.userId]?.let { memberView(m, it, removable = me.canRemove(m)) } }
                 .sortedWith(compareBy({ it.role.ordinal }, { it.joinedAt })),
             limits = TeamLimitsView(plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, pending),
         )
@@ -147,6 +162,11 @@ class TeamService(
                 "/app/invitations",
             )
         }
+        // 초대 메일 (커밋된 뒤에 보낸다). 아직 가입 안 한 사람은 가입 화면으로 (같은 이메일로 가입하면 초대가 보인다)
+        val link = web.link(if (invitee != null) "/app/invitations" else "/signup")
+        mail.sendAfterCommit(
+            MailTemplates.teamInvitation(email, MailLanguage.current(), team.name, inviterUser.nickname, link, registered = invitee != null),
+        )
         return invitationView(invitation, team, inviterUser)
     }
 
@@ -216,6 +236,49 @@ class TeamService(
         return memberView(target, findUser(targetUserId))
     }
 
+    /** 팀 나가기. 팀을 만든 사람(OWNER)은 나갈 수 없다 — 팀을 삭제한다 */
+    @Transactional
+    fun leave(teamId: Long, userId: Long) {
+        val me = access.requireMember(teamId, userId)
+        if (me.role == TeamRole.OWNER) throw BusinessException(ErrorCode.OWNER_CANNOT_LEAVE)
+        me.leave()
+        leaveTeamChatRooms(teamId, userId)
+    }
+
+    /** 팀원 내보내기 (REMOVE_MEMBER): OWNER 는 누구나, ADMIN 은 일반 팀원만. 그 팀의 채팅방에서도 나가게 한다 */
+    @Transactional
+    fun removeMember(teamId: Long, actorId: Long, targetUserId: Long) {
+        val actor = access.requirePermission(teamId, actorId, TeamPermission.REMOVE_MEMBER)
+        val target = memberRepository.findByTeamIdAndUserId(teamId, targetUserId)?.takeIf { it.status == TeamMemberStatus.ACTIVE }
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        if (!actor.canRemove(target)) throw BusinessException(ErrorCode.CANNOT_REMOVE_MEMBER)
+        target.kick()
+        leaveTeamChatRooms(teamId, targetUserId)
+    }
+
+    /**
+     * 팀 삭제 (DELETE_TEAM — OWNER). 행은 지우지 않고 사용 안 함으로:
+     * 예약 회의 취소 · 대기 중인 초대 취소 · 채팅방 사용 안 함 · 팀원 모두 나감 · 팀 DELETED
+     */
+    @Transactional
+    fun delete(teamId: Long, userId: Long) {
+        access.requirePermission(teamId, userId, TeamPermission.DELETE_TEAM)
+        val team = access.requireTeam(teamId)
+        meetingRepository.findAllByTeamIdAndStatus(teamId, MeetingStatus.SCHEDULED).forEach { it.cancel() }
+        invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }.forEach { it.cancel() }
+        chatRoomRepository.findAllByTeamIdAndDeletedFalse(teamId).forEach { it.delete() }
+        memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
+        team.delete()
+    }
+
+    /** 이 팀의 채팅방에서 나가게 한다 (안 읽은 개수·방 목록에서 빠지도록) */
+    private fun leaveTeamChatRooms(teamId: Long, userId: Long) {
+        val mine = chatMemberRepository.findAllByUserIdAndLeftAtIsNull(userId)
+        if (mine.isEmpty()) return
+        val teamRooms = chatRoomRepository.findAllByIdInAndDeletedFalse(mine.map { it.roomId }).filter { it.teamId == teamId }.map { it.id }.toSet()
+        mine.filter { it.roomId in teamRooms }.forEach { it.leave() }
+    }
+
     private fun findMyInvitation(invitationId: Long, user: User): TeamInvitation =
         invitationRepository.findInvitationById(invitationId)?.takeIf { it.inviteeEmail == user.email && it.isPending() }
             ?: throw BusinessException(ErrorCode.INVITATION_NOT_FOUND)
@@ -227,8 +290,8 @@ class TeamService(
     private fun summary(team: Team, role: TeamRole, memberCount: Int) =
         TeamSummaryView(team.id!!, team.name, team.description, team.ownerId, role, role.permissions.sorted(), memberCount, team.createdDt)
 
-    private fun memberView(m: TeamMember, u: User) =
-        TeamMemberView(u.id!!, u.nickname, u.email, u.profileImageUrl, m.role, m.joinedAt)
+    private fun memberView(m: TeamMember, u: User, removable: Boolean = false) =
+        TeamMemberView(u.id!!, u.nickname, u.email, u.profileImageUrl, m.role, m.joinedAt, removable)
 
     private fun invitationView(inv: TeamInvitation, team: Team, inviter: User?) = InvitationView(
         id = inv.id!!,

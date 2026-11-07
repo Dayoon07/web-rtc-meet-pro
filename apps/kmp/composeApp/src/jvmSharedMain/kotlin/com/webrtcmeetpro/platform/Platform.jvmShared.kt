@@ -49,3 +49,26 @@ actual fun countryName(code: String): String =
     Locale.Builder().setRegion(code).build().getDisplayCountry(Locale.getDefault()).ifEmpty { code }
 
 actual fun currentYear(): Int = LocalDate.now().year
+
+// ---------------------------------------------------------------- 앱 오류 신고 (AppErrorReporter)
+
+actual fun todayYmd(): String = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
+
+actual fun installCrashHandler(onCrash: (Throwable) -> Unit) {
+    val previous = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, e ->
+        runCatching { onCrash(e) }
+        // 원래 처리기(Android 의 "앱이 중지됨" 등)를 그대로 부른다
+        if (previous != null) previous.uncaughtException(thread, e) else e.printStackTrace()
+    }
+}
+
+actual fun appendLine(path: String, line: String) {
+    java.io.File(path).apply { parentFile?.mkdirs() }.appendText(line + "\n", Charsets.UTF_8)
+}
+
+actual fun readAndDeleteText(path: String): String? {
+    val file = java.io.File(path)
+    if (!file.exists()) return null
+    return file.readText(Charsets.UTF_8).also { file.delete() }
+}

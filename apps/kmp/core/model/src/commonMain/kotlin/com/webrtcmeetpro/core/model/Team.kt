@@ -24,6 +24,8 @@ data class TeamSummary(
     val canCreateGroupRoom get() = "CREATE_GROUP_ROOM" in myPermissions
     /** 팀원 역할 바꾸기 (ADMIN 지정·해제). 지금은 팀 OWNER */
     val canManageRoles get() = "MANAGE_ROLES" in myPermissions
+    /** 팀 삭제. 지금은 팀 OWNER (OWNER 는 팀을 나갈 수 없고 삭제만 할 수 있다) */
+    val canDeleteTeam get() = "DELETE_TEAM" in myPermissions
 }
 
 @Serializable
@@ -34,6 +36,8 @@ data class TeamMember(
     val profileImageUrl: String? = null,
     val role: TeamRole,
     val joinedAt: String,
+    /** 지금 보는 사람이 이 팀원을 내보낼 수 있는지 (서버가 계산) */
+    val removable: Boolean = false,
 )
 
 @Serializable

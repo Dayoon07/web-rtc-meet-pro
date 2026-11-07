@@ -70,6 +70,22 @@ class TeamController(private val teamService: TeamService) {
         @Valid @RequestBody req: ChangeRoleRequest,
     ) = teamService.changeRole(teamId, jwt.userId, userId, req.role!!)
 
+    /** 팀 나가기 (OWNER 는 못 나간다) */
+    @PostMapping("/teams/{teamId}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun leave(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = teamService.leave(teamId, jwt.userId)
+
+    /** 팀원 내보내기 (OWNER: 누구나, ADMIN: 일반 팀원만) */
+    @DeleteMapping("/teams/{teamId}/members/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun removeMember(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @PathVariable userId: Long) =
+        teamService.removeMember(teamId, jwt.userId, userId)
+
+    /** 팀 삭제 (OWNER) */
+    @DeleteMapping("/teams/{teamId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = teamService.delete(teamId, jwt.userId)
+
     @GetMapping("/invitations")
     fun myInvitations(@AuthenticationPrincipal jwt: Jwt) = teamService.myInvitations(jwt.userId)
 

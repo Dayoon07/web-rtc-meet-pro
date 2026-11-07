@@ -11,6 +11,9 @@ spring:
       # 채팅 첨부파일 기준 (파일당 20MB, 한 번에 10개까지 합계 50MB). 프로필 이미지 5MB 제한은 UserService 가 따로 확인한다
       max-file-size: 20MB
       max-request-size: 51MB
+  transaction:
+    # 다른 세션이 행을 잠그고(커밋 안 한 UPDATE 등) 있으면 Oracle 은 끝없이 기다린다 → 30초면 끊고 에러 코드로 알린다
+    default-timeout: 30s
   jpa:
     open-in-view: false
     hibernate:
@@ -58,3 +61,17 @@ app:
     public-url: ${MEDIA_PUBLIC_URL:}
   meeting:
     reminder-interval: 30s
+  web:
+    # 웹 주소. 메일 안의 링크(비밀번호 재설정, 팀 초대)에 쓴다
+    url: ${WEB_URL:http://localhost:5173}
+  mail:
+    # 비워 두면 메일을 보내지 않고 서버 로그에 내용(링크 포함)만 남긴다 → 로컬 개발은 로그의 링크를 눌러 확인
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:Limeet <no-reply@localhost>}
+    starttls: ${MAIL_STARTTLS:true}
+  admin:
+    # 관리자 사이트 데이터 관리에 보일 테이블 접두어. 비워 두면 전부 (테스트용 zz_ 사본을 볼 때만 zz_)
+    table-prefix: ${ADMIN_TABLE_PREFIX:}

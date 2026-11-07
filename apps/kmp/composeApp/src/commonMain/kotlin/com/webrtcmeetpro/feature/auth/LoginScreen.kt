@@ -43,6 +43,10 @@ import com.webrtcmeetpro.core.designsystem.component.LimeetCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.network.errorCode
 import com.webrtcmeetpro.resources.Res
+import com.webrtcmeetpro.resources.login_forgot
+import androidx.compose.ui.platform.LocalUriHandler
+import com.webrtcmeetpro.core.network.ApiConfig
+import org.koin.compose.koinInject
 import com.webrtcmeetpro.resources.login_email
 import com.webrtcmeetpro.resources.login_hide_password
 import com.webrtcmeetpro.resources.login_password
@@ -148,6 +152,18 @@ fun LoginScreen(onSignup: () -> Unit, viewModel: LoginViewModel = koinViewModel(
                     state.errorCode?.let {
                         Text(errorMessage(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
+                    // 비밀번호 재설정은 웹 화면에서 한다 (메일 링크도 웹으로 열린다)
+                    val uriHandler = LocalUriHandler.current
+                    val config = koinInject<ApiConfig>()
+                    Text(
+                        stringResource(Res.string.login_forgot),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.align(Alignment.End)
+                            .clickable { uriHandler.openUri(config.webUrl.trimEnd('/') + "/forgot-password") }
+                            .padding(4.dp),
+                    )
                     PrimaryButton(
                         text = stringResource(Res.string.login_submit),
                         onClick = viewModel::submit,

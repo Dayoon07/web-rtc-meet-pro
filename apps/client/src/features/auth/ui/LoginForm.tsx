@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useSessionStore } from '@/entities/session'
 import { errorMessage } from '@/shared/api'
 import { Button, Divider, Field, FieldError, Input } from '@/shared/ui'
@@ -70,6 +70,9 @@ export function LoginForm({ redirectTo = '/app' }: { redirectTo?: string }) {
             </button>
           </div>
         </Field>
+        <Link to="/forgot-password" className="-mt-2 self-end text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
+          {t('auth.login.forgot')}
+        </Link>
         <FieldError>{errorMessage(login.error)}</FieldError>
         <Button type="submit" size="lg" loading={login.isPending} disabled={!email || !password}>
           {t('auth.login.submit')}

@@ -185,4 +185,23 @@
     <string name="error_FILE_TOO_LARGE">每个文件最大20MB，每次合计最多50MB。</string>
     <string name="error_BLOCKED_FILE_TYPE">出于安全考虑，不能发送可执行文件（如 .exe）。</string>
     <string name="error_EMPTY_FILE">不能发送空文件。</string>
+    <string name="team_leave">退出团队</string>
+    <string name="team_leave_confirm">要退出「%1$s」吗？你也会退出该团队的聊天室。</string>
+    <string name="team_delete">删除团队</string>
+    <string name="team_delete_body">删除团队后，已安排的会议将被取消，团队聊天室和未处理的邀请也会全部删除。此操作无法撤销。</string>
+    <string name="team_delete_confirm_label">请输入团队名称以确认</string>
+    <string name="team_remove">移出</string>
+    <string name="team_remove_confirm">要将 %1$s 移出团队吗？</string>
+    <string name="team_removed">已将 %1$s 移出团队</string>
+    <string name="settings_withdraw">注销账号</string>
+    <string name="settings_withdraw_title">确定要注销吗？</string>
+    <string name="settings_withdraw_body">注销后，你的个人资料将被删除，并退出所有团队和聊天室。你发送的消息将显示为「已注销用户」。如果你创建了团队，请先删除。</string>
+    <string name="settings_withdraw_password">密码</string>
+    <string name="settings_withdraw_confirm">请输入「%1$s」以确认</string>
+    <string name="settings_withdraw_word">注销</string>
+    <string name="error_OWNER_CANNOT_LEAVE">团队创建者不能退出，请删除团队。</string>
+    <string name="error_CANNOT_REMOVE_MEMBER">你没有权限移出该成员。</string>
+    <string name="error_INVALID_PASSWORD">密码不正确。</string>
+    <string name="error_OWNED_TEAMS_EXIST">你还有自己创建的团队，请先删除团队再注销。</string>
+    <string name="login_forgot">忘记密码？</string>
 </resources>

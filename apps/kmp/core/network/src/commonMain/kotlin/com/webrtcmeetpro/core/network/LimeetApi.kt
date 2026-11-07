@@ -8,6 +8,7 @@ import io.ktor.client.plugins.timeout
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.AuthTokens
 import com.webrtcmeetpro.core.model.ChatMessage
+import com.webrtcmeetpro.core.model.ClientErrorRequest
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.core.model.CountResponse
 import com.webrtcmeetpro.core.model.CreateGroupRequest
@@ -32,6 +33,7 @@ import com.webrtcmeetpro.core.model.TeamMember
 import com.webrtcmeetpro.core.model.TeamRole
 import com.webrtcmeetpro.core.model.TeamSummary
 import com.webrtcmeetpro.core.model.WebHandoff
+import com.webrtcmeetpro.core.model.WithdrawRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -67,6 +69,10 @@ class LimeetApi(private val client: HttpClient) {
     // user / plan
     suspend fun me(): Me = client.get("api/users/me").body()
 
+    suspend fun withdraw(password: String?) {
+        client.post("api/users/me/withdraw") { setBody(WithdrawRequest(password)) }
+    }
+
     suspend fun mySubscription(): Subscription = client.get("api/subscriptions/me").body()
 
     // team
@@ -88,6 +94,18 @@ class LimeetApi(private val client: HttpClient) {
 
     suspend fun changeTeamRole(teamId: Long, userId: Long, role: TeamRole): TeamMember =
         client.patch("api/teams/$teamId/members/$userId/role") { setBody(ChangeRoleRequest(role)) }.body()
+
+    suspend fun leaveTeam(teamId: Long) {
+        client.post("api/teams/$teamId/leave")
+    }
+
+    suspend fun removeTeamMember(teamId: Long, userId: Long) {
+        client.delete("api/teams/$teamId/members/$userId")
+    }
+
+    suspend fun deleteTeam(teamId: Long) {
+        client.delete("api/teams/$teamId")
+    }
 
     suspend fun myInvitations(): List<Invitation> = client.get("api/invitations").body()
 
@@ -185,6 +203,11 @@ class LimeetApi(private val client: HttpClient) {
     }
 
     /** 로그인·로그아웃 뒤 캐시된 토큰을 비운다 */
+    /** 앱 오류 신고 (로그인 전에도 된다) */
+    suspend fun reportClientError(request: ClientErrorRequest) {
+        client.post("api/client-errors") { setBody(request) }
+    }
+
     fun resetAuth() = client.resetAuthTokens()
 }
 

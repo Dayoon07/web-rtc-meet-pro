@@ -12,7 +12,8 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v0.5 (22 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v0.6 (23 테이블, 19c 이상)
+│  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
 │  └─ local-reset.sql  limeet 테이블을 지우고 다시 만들기 (스키마가 바뀌었을 때, SYSTEM 필요 없음)
@@ -51,7 +52,13 @@ SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql`
 > `C##limeet` 같은 공통 사용자를 만들어도 앱이 쓰는 XEPDB1 에는 로그인할 수 없다 (CREATE SESSION 이 루트에만 생김).
 > 이미 루트에 접속한 창이라면 먼저 `ALTER SESSION SET CONTAINER = XEPDB1;` 을 실행한다. `local-setup.sql` 은 루트에서 실행하면 바로 멈추고 이 안내를 보여 준다.
 
-`db/schema.sql` 이 바뀌었을 때는 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
+`db/schema.sql` 이 바뀌었을 때 데이터를 지키려면 `db/migrations/` 의 해당 파일만 실행한다 (예: v0.5 → v0.6):
+
+```powershell
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
+```
+
+데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
 
 ```powershell
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
@@ -83,6 +90,8 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `MEDIA_JWT_SECRET` | 회의 입장 토큰 서명 키. **사이드카와 같은 값** |
 | `MEDIA_INTERNAL_SECRET` | 사이드카 → 서버 콜백 인증. **사이드카와 같은 값** |
 | `MEDIA_PUBLIC_URL` | 비우면 같은 출처의 `/media/socket.io` (dev 는 Vite 프록시) |
+| `WEB_URL` | `http://localhost:5173` (메일 안의 링크: 비밀번호 재설정, 팀 초대) |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_FROM` | `MAIL_HOST` 가 비어 있으면 메일을 보내지 않고 **서버 로그에 제목·본문·링크를 찍는다** (로컬은 로그의 링크를 눌러 확인) |
 
 ```bash
 cd apps/server
@@ -101,6 +110,8 @@ JPA 는 `ddl-auto: validate` 라서 테이블을 만들지 않고 엔티티와 �
 - 원인 분류(`category`): `DB_SCHEMA`(테이블·컬럼 구조와 코드 불일치) · `DB_CONSTRAINT`(중복·필수값·참조 규칙) · `DB_CONNECTION` · `DB_ETC` · `EXTERNAL`(외부 연동) · `CODE`(소스 코드 버그) · `CLIENT`(화면 코드) · `NETWORK`(화면이 서버에 연결 못 함)
 - 웹·앱은 안내 창에 원인(쉬운 말), "잠시 후 다시 시도해 주세요.", **문의 이메일**, **에러 코드**를 보여 준다. 사용자가 알려 준 코드로 `admin_error_logs.error_code` 를 찾으면 된다.
 - 웹 화면 오류(렌더링 오류 등)는 화면이 코드를 만들어 `POST /api/client-errors` 로 신고한다 (IP 당 분당 20건).
+- 앱(Android·Windows)도 같은 주소로 신고한다 (출처 `APP`, 경로 `app/android`·`app/windows`). 알 수 없는 오류는 바로 보내고 안내 창을 띄우며,
+  앱이 죽는 오류는 `pending-errors.jsonl` 에 남겼다가 다음 실행 때 보내고 그때의 에러 코드를 보여 준다 (`platform/AppErrorReporter.kt`).
 - 서버 로그에도 같은 에러 코드가 찍힌다 (DB 가 꺼져서 기록하지 못한 경우를 위해).
 - 문의 이메일은 웹 `VITE_SUPPORT_EMAIL` (기본 `gangd0642@gmail.com`), 앱 `ui/UnexpectedErrorDialog.kt` 의 `SUPPORT_EMAIL`.
 
@@ -138,6 +149,14 @@ COMMIT;
 | `GET /api/admin/error-logs?unresolved=true` | 최근 에러 100건 (해결 표시 안 된 것만) |
 | `GET /api/admin/error-logs/{에러 코드}` | 사용자가 알려 준 에러 코드로 원인·스택 보기 |
 | `POST /api/admin/error-logs/{에러 코드}/resolve` | 해결 표시 (수정자 = 관리자) |
+| `GET /api/admin/tables` | 데이터 관리: 모든 테이블 (이름·묶음·행 수) |
+| `GET /api/admin/tables/{테이블}` | 컬럼·PK·FK·CHECK 허용 값 (Oracle 사전에서 바로 읽는다) |
+| `GET /api/admin/tables/{테이블}/rows?q=&sort=&desc=&page=&size=&deleted=active\|deleted&filter=컬럼:값` | 행 목록 (검색·정렬·필터·페이지) |
+| `GET·PATCH /api/admin/tables/{테이블}/rows/{PK}` · `POST .../rows` · `GET .../export` | 행 보기·고치기·추가(허용된 테이블만)·CSV |
+
+데이터 관리는 테이블 구조를 DB 에서 읽기 때문에 **새 테이블을 만들면 코드를 고치지 않아도 바로 보이고 고칠 수 있다**.
+화면 이름·묶음·보기 전용·비밀값 같은 예외만 `application/admin/table/AdminTablePolicy.kt` 에 적는다.
+비밀값(비밀번호 해시·토큰·빌링키)은 보여 주지 않고, 행은 지우지 않으며(`deleted_yn`), 고친 내용은 `admin_data_changes` 에 이전 값 → 새 값으로 남는다.
 
 #### 구글 로그인 설정
 
@@ -172,6 +191,7 @@ npm run dev:client
 ```
 
 `/api`·`/uploads`·`/oauth2`·`/login/oauth2`·`/ws` 는 8080, `/media` 는 4000 으로 Vite 가 프록시한다.
+다른 포트의 서버를 볼 때는 `API_TARGET=http://localhost:8081` (관리자 사이트는 `ADMIN_API_TARGET`).
 
 ### 5. 관리자 사이트 (http://localhost:5174)
 
@@ -181,6 +201,8 @@ npm run dev:admin
 
 서비스와 같은 계정(이메일·비밀번호)으로 로그인한다. `users.system_role = 'ADMIN'` 인 계정만 들어갈 수 있다 (아래 *접근 통제* 참고).
 운영에서는 `admin.<도메인>` 의 별도 컨테이너(`deploy/admin.Dockerfile`)로 뜬다.
+
+화면은 `apps/admin/src/app/screens.tsx` 한 곳에 등록한다. 한 줄을 추가하면 주소와 왼쪽 메뉴가 같이 생긴다 (대시보드 · 에러 기록 · 데이터 관리).
 
 ### 6. Android · Windows 앱 (apps/kmp)
 

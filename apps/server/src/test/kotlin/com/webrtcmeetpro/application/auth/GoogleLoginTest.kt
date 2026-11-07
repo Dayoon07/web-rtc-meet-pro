@@ -74,10 +74,12 @@ class GoogleLoginTest {
         override fun findByProviderAndProviderUserId(provider: SocialProvider, providerUserId: String) =
             socials.find { it.provider == provider && it.providerUserId == providerUserId }
         override fun findAllByUserId(userId: Long) = socials.filter { it.userId == userId }
+        override fun delete(account: SocialAccount) { socials -= account }
     }
     private val refreshRepo = object : RefreshTokenRepository {
         override fun save(token: RefreshToken) = assignId(token)
         override fun findByTokenHash(tokenHash: String): RefreshToken? = null
+        override fun findAllByUserIdAndRevokedAtIsNull(userId: Long) = emptyList<RefreshToken>()
     }
     private val historyRepo = object : LoginHistoryRepository {
         override fun save(history: LoginHistory) = assignId(history).also { histories += it }

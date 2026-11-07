@@ -45,4 +45,5 @@ class RefreshToken(
 interface RefreshTokenRepository {
     fun save(token: RefreshToken): RefreshToken
     fun findByTokenHash(tokenHash: String): RefreshToken?
+    fun findAllByUserIdAndRevokedAtIsNull(userId: Long): List<RefreshToken>
 }

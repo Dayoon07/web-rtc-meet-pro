@@ -78,12 +78,30 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PersonRemove
+import com.webrtcmeetpro.resources.common_cancel
+import com.webrtcmeetpro.resources.team_delete
+import com.webrtcmeetpro.resources.team_delete_body
+import com.webrtcmeetpro.resources.team_delete_confirm_label
+import com.webrtcmeetpro.resources.team_leave
+import com.webrtcmeetpro.resources.team_leave_confirm
+import com.webrtcmeetpro.resources.team_remove
+import com.webrtcmeetpro.resources.team_remove_confirm
+import com.webrtcmeetpro.resources.team_removed
 
 data class TeamDetailUiState(
     val team: TeamDetail? = null,
     val myId: Long = 0,
     /** 역할을 바꾼 팀원 (스낵바 한 번) */
     val roleChanged: TeamMember? = null,
+    /** 내보낸 팀원 (스낵바 한 번) */
+    val removed: TeamMember? = null,
+    /** 팀을 나갔거나 삭제했다 → 화면을 닫는다 */
+    val exited: Boolean = false,
+    val busy: Boolean = false,
     val pending: List<Invitation> = emptyList(),
     val loadError: String? = null,
     val email: String = "",
@@ -156,6 +174,37 @@ class TeamDetailViewModel(
 
     fun roleChangedShown() = _state.update { it.copy(roleChanged = null) }
 
+    /** 팀 나가기. OWNER 는 서버가 막는다 (팀 삭제만 할 수 있다) */
+    fun leave() = exit { teams.leave(teamId) }
+
+    /** 팀 삭제 (DELETE_TEAM 권한. 서버가 다시 확인한다) */
+    fun deleteTeam() = exit { teams.delete(teamId) }
+
+    private fun exit(action: suspend () -> Unit) {
+        if (_state.value.busy) return
+        _state.update { it.copy(busy = true) }
+        viewModelScope.launch {
+            runCatching { action() }
+                .onSuccess { _state.update { it.copy(busy = false, exited = true) } }
+                .onFailure { e -> _state.update { it.copy(busy = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    /** 팀원 내보내기 (서버가 removable 로 알려 준 팀원만 버튼이 보인다) */
+    fun removeMember(member: TeamMember) {
+        viewModelScope.launch {
+            runCatching { teams.removeMember(teamId, member.userId) }
+                .onSuccess {
+                    _state.update { s ->
+                        s.copy(team = s.team?.copy(members = s.team.members.filterNot { it.userId == member.userId }), removed = member)
+                    }
+                }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
+    fun removedShown() = _state.update { it.copy(removed = null) }
+
     fun invitedShown() = _state.update { it.copy(invitedTo = null) }
     fun errorShown() = _state.update { it.copy(errorCode = null) }
 }
@@ -181,9 +230,37 @@ fun TeamDetailScreen(
             snackbar.showSnackbar(getString(Res.string.team_role_changed, it.nickname, getString(roleLabel(it.role))))
         }
     }
+    LaunchedEffect(state.removed) {
+        state.removed?.let {
+            viewModel.removedShown()
+            snackbar.showSnackbar(getString(Res.string.team_removed, it.nickname))
+        }
+    }
+    LaunchedEffect(state.exited) { if (state.exited) onBack() }
     val detail = state.team
+    var confirmLeave by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf<TeamMember?>(null) }
 
-    DetailScaffold(title = detail?.team?.name ?: stringResource(Res.string.teams_title), subtitle = detail?.team?.description, onBack = onBack) {
+    DetailScaffold(
+        title = detail?.team?.name ?: stringResource(Res.string.teams_title),
+        subtitle = detail?.team?.description,
+        onBack = onBack,
+        actions = {
+            // 삭제 권한(OWNER)이 있으면 "팀 삭제", 아니면 "팀 나가기"
+            if (detail != null) {
+                if (detail.team.canDeleteTeam) {
+                    IconButton(onClick = { confirmDelete = true }, enabled = !state.busy) {
+                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(Res.string.team_delete))
+                    }
+                } else {
+                    IconButton(onClick = { confirmLeave = true }, enabled = !state.busy) {
+                        Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = stringResource(Res.string.team_leave))
+                    }
+                }
+            }
+        },
+    ) {
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) {
             when {
                 detail == null && state.loadError != null -> ErrorState(state.loadError!!, onRetry = viewModel::load)
@@ -251,6 +328,11 @@ fun TeamDetailScreen(
                                     } else {
                                         Badge(stringResource(roleLabel(m.role)))
                                     }
+                                    if (m.removable) {
+                                        IconButton(onClick = { confirmRemove = m }) {
+                                            Icon(Icons.Outlined.PersonRemove, contentDescription = stringResource(Res.string.team_remove))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -259,7 +341,66 @@ fun TeamDetailScreen(
             }
         }
     }
+
+    if (confirmLeave && detail != null) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            text = { Text(stringResource(Res.string.team_leave_confirm, detail.team.name)) },
+            confirmButton = {
+                TextButton(onClick = { confirmLeave = false; viewModel.leave() }) {
+                    Text(stringResource(Res.string.team_leave), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+    if (confirmDelete && detail != null) {
+        DeleteTeamDialog(detail.team.name, onDismiss = { confirmDelete = false }, onConfirm = { confirmDelete = false; viewModel.deleteTeam() })
+    }
+    confirmRemove?.let { m ->
+        AlertDialog(
+            onDismissRequest = { confirmRemove = null },
+            text = { Text(stringResource(Res.string.team_remove_confirm, m.nickname)) },
+            confirmButton = {
+                TextButton(onClick = { confirmRemove = null; viewModel.removeMember(m) }) {
+                    Text(stringResource(Res.string.team_remove), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemove = null }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
 }
+
+/** 팀 삭제는 되돌릴 수 없어서 팀 이름을 그대로 입력해야 지울 수 있다 */
+@Composable
+private fun DeleteTeamDialog(teamName: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    var typed by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.team_delete)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(Res.string.team_delete_body), style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it.take(100) },
+                    label = { Text(stringResource(Res.string.team_delete_confirm_label)) },
+                    placeholder = { Text(teamName) },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = typed.trim() == teamName) {
+                Text(stringResource(Res.string.team_delete), color = if (typed.trim() == teamName) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
 
 private fun roleLabel(role: TeamRole) = when (role) {
     TeamRole.OWNER -> Res.string.role_OWNER

@@ -3,9 +3,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
-import { AdminLayout } from './Layout'
-import { ErrorLogDetailPage } from './pages/ErrorLogDetailPage'
-import { ErrorLogsPage } from './pages/ErrorLogsPage'
+import { AdminLayout } from './app/Layout'
+import { SCREENS } from './app/screens'
 import { LoginPage } from './pages/LoginPage'
 import './styles.css'
 
@@ -17,10 +16,8 @@ const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
     element: <AdminLayout />,
-    children: [
-      { path: '/', element: <ErrorLogsPage /> },
-      { path: '/errors/:code', element: <ErrorLogDetailPage /> },
-    ],
+    // 화면 목록은 app/screens.tsx 한 곳에서 관리한다 (메뉴도 거기서 만들어진다)
+    children: SCREENS.map(({ path, element }) => ({ path, element })),
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ])

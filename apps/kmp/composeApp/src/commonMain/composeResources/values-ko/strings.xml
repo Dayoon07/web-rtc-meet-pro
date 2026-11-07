@@ -185,4 +185,23 @@
     <string name="error_FILE_TOO_LARGE">파일은 하나에 20MB, 한 번에 합계 50MB까지 보낼 수 있어요.</string>
     <string name="error_BLOCKED_FILE_TYPE">보안을 위해 실행 파일(.exe 등)은 보낼 수 없어요.</string>
     <string name="error_EMPTY_FILE">빈 파일은 보낼 수 없어요.</string>
+    <string name="team_leave">팀 나가기</string>
+    <string name="team_leave_confirm">「%1$s」 팀에서 나갈까요? 팀 채팅방에서도 나가게 돼요.</string>
+    <string name="team_delete">팀 삭제</string>
+    <string name="team_delete_body">팀을 삭제하면 예정된 회의는 취소되고, 팀 채팅방과 보내지 않은 초대도 모두 사라져요. 되돌릴 수 없어요.</string>
+    <string name="team_delete_confirm_label">확인을 위해 팀 이름을 입력해 주세요</string>
+    <string name="team_remove">내보내기</string>
+    <string name="team_remove_confirm">%1$s 님을 팀에서 내보낼까요?</string>
+    <string name="team_removed">%1$s 님을 팀에서 내보냈어요</string>
+    <string name="settings_withdraw">회원 탈퇴</string>
+    <string name="settings_withdraw_title">정말 탈퇴할까요?</string>
+    <string name="settings_withdraw_body">탈퇴하면 프로필 정보가 지워지고 모든 팀과 채팅방에서 나가요. 보낸 채팅은 「탈퇴한 사용자」로 남아요. 내가 만든 팀이 있으면 먼저 삭제해 주세요.</string>
+    <string name="settings_withdraw_password">비밀번호</string>
+    <string name="settings_withdraw_confirm">확인을 위해 「%1$s」라고 입력해 주세요</string>
+    <string name="settings_withdraw_word">탈퇴</string>
+    <string name="error_OWNER_CANNOT_LEAVE">팀을 만든 사람은 나갈 수 없어요. 팀을 삭제해 주세요.</string>
+    <string name="error_CANNOT_REMOVE_MEMBER">이 팀원을 내보낼 권한이 없어요.</string>
+    <string name="error_INVALID_PASSWORD">비밀번호가 맞지 않아요.</string>
+    <string name="error_OWNED_TEAMS_EXIST">내가 만든 팀이 있어요. 팀을 먼저 삭제한 뒤 탈퇴해 주세요.</string>
+    <string name="login_forgot">비밀번호를 잊으셨나요?</string>
 </resources>

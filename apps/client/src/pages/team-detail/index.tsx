@@ -11,6 +11,7 @@ import { useMeQuery } from '@/entities/user'
 import { InviteMemberPanel } from '@/features/invite-member'
 import { JoinMeetingButton } from '@/features/meeting-actions'
 import { ScheduleMeetingModal } from '@/features/schedule-meeting'
+import { RemoveMemberButton, TeamExitButton } from '@/features/team-membership'
 import { toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
@@ -57,14 +58,16 @@ export function TeamDetailPage() {
         <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 text-2xl font-bold text-white">
           {team.name.slice(0, 1).toUpperCase()}
         </span>
-        <div className="min-w-0 flex-1">
+        {/* 이름 칸이 좁아지면(14rem 미만) 버튼 줄이 아래로 내려간다 */}
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{team.name}</h2>
             <Badge tone={team.myRole === 'OWNER' ? 'brand' : 'gray'}>{t(`teams.roles.${team.myRole}`)}</Badge>
           </div>
           <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{team.description ?? t('teams.memberCount', { count: team.memberCount })}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <TeamExitButton team={team} />
           <Button variant="outline" icon={<MessageSquare className="size-4" />} onClick={() => navigate(`/app/chat/${teamId}`)}>
             {t('nav.chat')}
           </Button>
@@ -97,7 +100,7 @@ export function TeamDetailPage() {
       </div>
 
       {tab === 'members' ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <Card className="p-0">
             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
               {members.map((m) => (
@@ -136,6 +139,7 @@ export function TeamDetailPage() {
                       <span className="hidden sm:inline">{t('teams.members.directChat')}</span>
                     </Button>
                   )}
+                  <RemoveMemberButton teamId={teamId} member={m} />
                 </li>
               ))}
             </ul>

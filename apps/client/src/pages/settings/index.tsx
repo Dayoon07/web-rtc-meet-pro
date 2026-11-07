@@ -5,6 +5,7 @@ import { useMeQuery } from '@/entities/user'
 import { LanguageSelector } from '@/features/change-language'
 import { EditProfileForm, ProfileImageSection } from '@/features/edit-profile'
 import { ThemeSelector } from '@/features/toggle-theme'
+import { WithdrawAccount } from '@/features/withdraw-account'
 import { Badge, Card, GoogleMark, Spinner } from '@/shared/ui'
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -82,6 +83,10 @@ export function SettingsPage() {
         <div className="max-w-sm">
           <ThemeSelector />
         </div>
+      </Section>
+
+      <Section title={t('settings.withdraw.title')} description={t('settings.withdraw.desc')}>
+        <WithdrawAccount me={me} />
       </Section>
     </div>
   )

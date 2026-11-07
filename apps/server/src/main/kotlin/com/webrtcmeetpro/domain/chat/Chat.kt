@@ -53,6 +53,9 @@ class ChatRoom protected constructor(
         lastMessageAt = at
     }
 
+    /** 팀을 삭제하면 방도 사용 안 함 (행은 남긴다) */
+    fun delete() = markDeleted()
+
     companion object {
         fun directKeyOf(a: Long, b: Long) = "${minOf(a, b)}_${maxOf(a, b)}"
 
@@ -70,6 +73,7 @@ interface ChatRoomRepository {
     fun findByTeamIdAndDirectKey(teamId: Long, directKey: String): ChatRoom?
     fun findAllByIdInAndDeletedFalse(ids: Collection<Long>): List<ChatRoom>
     fun countByTeamIdAndRoomTypeAndDeletedFalse(teamId: Long, roomType: ChatRoomType): Long
+    fun findAllByTeamIdAndDeletedFalse(teamId: Long): List<ChatRoom>
 }
 
 @Entity

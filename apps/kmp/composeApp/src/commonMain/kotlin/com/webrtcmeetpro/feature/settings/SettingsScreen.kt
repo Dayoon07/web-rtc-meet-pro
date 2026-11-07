@@ -9,6 +9,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.PersonRemove
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.webrtcmeetpro.core.network.errorCode
+import com.webrtcmeetpro.resources.common_cancel
+import com.webrtcmeetpro.resources.settings_withdraw
+import com.webrtcmeetpro.resources.settings_withdraw_body
+import com.webrtcmeetpro.resources.settings_withdraw_confirm
+import com.webrtcmeetpro.resources.settings_withdraw_password
+import com.webrtcmeetpro.resources.settings_withdraw_title
+import com.webrtcmeetpro.resources.settings_withdraw_word
+import com.webrtcmeetpro.ui.errorMessage
+import kotlinx.coroutines.flow.update
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -79,7 +97,26 @@ class SettingsViewModel(
 
     /** 토큰이 지워지면 App 이 알아서 로그인 화면으로 돌아간다 */
     fun logout() = viewModelScope.launch { auth.logout() }
+
+    private val _withdraw = MutableStateFlow(WithdrawState())
+    val withdraw: StateFlow<WithdrawState> = _withdraw.asStateFlow()
+
+    /** 회원 탈퇴. 성공하면 토큰이 지워져서 로그인 화면으로 돌아간다 */
+    fun withdraw(password: String?) {
+        if (_withdraw.value.running) return
+        _withdraw.value = WithdrawState(running = true)
+        viewModelScope.launch {
+            runCatching { auth.withdraw(password) }
+                .onSuccess { _withdraw.value = WithdrawState() }
+                .onFailure { e -> _withdraw.update { it.copy(running = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    fun clearWithdrawError() = _withdraw.update { it.copy(errorCode = null) }
 }
+
+data class WithdrawState(val running: Boolean = false, val errorCode: String? = null)
+
 
 /** 언어 이름은 번역하지 않고 각 언어로 표기 (웹과 동일) */
 private val languageNames = linkedMapOf(
@@ -140,7 +177,67 @@ fun SettingsScreen(viewModel: SettingsViewModel = koinViewModel()) {
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             )
         }
+
+        me?.let { user ->
+            item {
+                var open by remember { mutableStateOf(false) }
+                TextButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(Res.string.settings_withdraw), color = MaterialTheme.colorScheme.error)
+                }
+                if (open) {
+                    WithdrawDialog(
+                        hasPassword = user.hasPassword,
+                        viewModel = viewModel,
+                        onDismiss = {
+                            open = false
+                            viewModel.clearWithdrawError()
+                        },
+                    )
+                }
+            }
+        }
     }
+}
+
+/** 비밀번호가 있는 계정은 비밀번호로, 구글로만 가입한 계정은 확인 문구로 한 번 더 확인한다 (웹과 동일) */
+@Composable
+private fun WithdrawDialog(hasPassword: Boolean, viewModel: SettingsViewModel, onDismiss: () -> Unit) {
+    val state by viewModel.withdraw.collectAsStateWithLifecycle()
+    var input by remember { mutableStateOf("") }
+    val word = stringResource(Res.string.settings_withdraw_word)
+    val ready = if (hasPassword) input.isNotEmpty() else input.trim() == word
+    AlertDialog(
+        onDismissRequest = { if (!state.running) onDismiss() },
+        icon = { androidx.compose.material3.Icon(Icons.Outlined.PersonRemove, contentDescription = null) },
+        title = { Text(stringResource(Res.string.settings_withdraw_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(Res.string.settings_withdraw_body), style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it.take(100); viewModel.clearWithdrawError() },
+                    label = {
+                        Text(
+                            if (hasPassword) stringResource(Res.string.settings_withdraw_password)
+                            else stringResource(Res.string.settings_withdraw_confirm, word),
+                        )
+                    },
+                    singleLine = true,
+                    visualTransformation = if (hasPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                    isError = state.errorCode != null,
+                    supportingText = state.errorCode?.let { code -> { Text(errorMessage(code)) } },
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { viewModel.withdraw(if (hasPassword) input else null) }, enabled = ready && !state.running) {
+                Text(stringResource(Res.string.settings_withdraw), color = if (ready) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !state.running) { Text(stringResource(Res.string.common_cancel)) } },
+    )
 }
 
 @Composable

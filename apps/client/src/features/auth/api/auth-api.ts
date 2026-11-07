@@ -11,6 +11,11 @@ export const authApi = {
   signup: (body: SignupBody) => http<AuthTokens>('/auth/signup', { method: 'POST', json: body, auth: false }),
   emailAvailable: (email: string) =>
     http<{ available: boolean }>(`/auth/email-availability?email=${encodeURIComponent(email)}`, { auth: false }),
+  /** 가입하지 않은 이메일이어도 성공(204)으로 응답한다 */
+  requestPasswordReset: (email: string) =>
+    http<void>('/auth/password-reset/request', { method: 'POST', json: { email }, auth: false }),
+  confirmPasswordReset: (token: string, password: string) =>
+    http<void>('/auth/password-reset/confirm', { method: 'POST', json: { token, password }, auth: false }),
   providers: () => http<{ google: boolean }>('/auth/providers', { auth: false }),
   exchangeOAuthCode: (code: string) =>
     http<AuthTokens>('/auth/oauth/exchange', { method: 'POST', json: { code }, auth: false }),

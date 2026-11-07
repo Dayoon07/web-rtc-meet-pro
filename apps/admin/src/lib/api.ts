@@ -67,7 +67,7 @@ function refresh(): Promise<boolean> {
 }
 
 /** auth: false 면 토큰을 붙이지 않는다 (로그인·로그아웃 — 만료된 토큰이 남아 있으면 서버가 401 로 막는다) */
-async function http<T>(path: string, init: RequestInit & { json?: unknown; auth?: boolean } = {}, retried = false): Promise<T> {
+export async function http<T>(path: string, init: RequestInit & { json?: unknown; auth?: boolean } = {}, retried = false): Promise<T> {
   const { json, headers, auth = true, ...rest } = init
   const h = new Headers(headers)
   if (json !== undefined) h.set('Content-Type', 'application/json')
@@ -134,6 +134,22 @@ export const adminApi = {
   errorLogs: (unresolved: boolean) => http<ErrorLog[]>(`/admin/error-logs?unresolved=${unresolved}`),
   errorLog: (code: string) => http<ErrorLog>(`/admin/error-logs/${encodeURIComponent(code)}`),
   resolve: (code: string) => http<ErrorLog>(`/admin/error-logs/${encodeURIComponent(code)}/resolve`, { method: 'POST' }),
+}
+
+/** CSV 같은 파일 내려받기 (토큰을 붙여야 해서 <a href> 로는 안 된다) */
+export async function downloadFile(path: string, fallbackName: string) {
+  const send = () => fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${useSession.getState().accessToken ?? ''}` } })
+  let res = await send()
+  if (res.status === 401 && (await refresh())) res = await send()
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string } | null
+    throw new ApiError(res.status, 'DOWNLOAD_FAILED', body?.message ?? '내려받지 못했어요.')
+  }
+  const name = /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? fallbackName
+  const url = URL.createObjectURL(await res.blob())
+  const a = Object.assign(document.createElement('a'), { href: url, download: name })
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 /** 에러 코드 형식: ERR-YYYYMMDD-(대문자 16진수 20자리) */

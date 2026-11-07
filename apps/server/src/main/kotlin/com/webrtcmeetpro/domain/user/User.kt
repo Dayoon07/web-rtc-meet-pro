@@ -156,13 +156,35 @@ class User(
         lastLoginAt = at
     }
 
-    /** 탈퇴: 행은 남기고 status = DELETED + deleted_yn = 'Y' (탈퇴 시각은 edited_dt) */
+    /**
+     * 탈퇴: 행은 남기되(보낸 메시지·회의 기록이 이 행을 가리킨다) 개인정보는 지운다.
+     * 이메일은 deleted-{id}@deleted.invalid 로 바꿔서 같은 이메일로 다시 가입할 수 있게 한다.
+     * status = DELETED + deleted_yn = 'Y' (탈퇴 시각은 edited_dt)
+     */
     fun withdraw() {
+        email = "deleted-$id@deleted.invalid"
+        nickname = WITHDRAWN_NICKNAME
+        passwordHash = null
+        realName = null
+        phoneNumber = null
+        countryCode = null
+        birthYear = null
+        gender = null
+        profileImageUrl = null
+        marketingAgreed = false
         status = UserStatus.DELETED
         markDeleted()
     }
 
+    /** 비밀번호 바꾸기·만들기 (구글로만 가입한 사람도 비밀번호를 만들 수 있다). 해시는 서비스가 만든다 */
+    fun changePassword(hash: String) {
+        passwordHash = hash
+    }
+
     companion object {
+        /** 탈퇴한 사용자가 보낸 메시지 등에 보이는 이름 */
+        const val WITHDRAWN_NICKNAME = "(탈퇴한 사용자)"
+
         /** 이메일 가입: 프로필 + 약관 동의를 한 번에 받는다 */
         fun register(email: String, passwordHash: String, profile: UserProfile, marketingAgreed: Boolean) =
             User(email, passwordHash, profile.nickname).apply {

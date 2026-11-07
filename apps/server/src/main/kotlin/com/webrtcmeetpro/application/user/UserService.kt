@@ -1,5 +1,14 @@
 package com.webrtcmeetpro.application.user
 
+import org.springframework.security.crypto.password.PasswordEncoder
+import com.webrtcmeetpro.domain.team.TeamStatus
+import com.webrtcmeetpro.domain.team.TeamRepository
+import com.webrtcmeetpro.domain.team.TeamMemberStatus
+import com.webrtcmeetpro.domain.team.TeamMemberRepository
+import com.webrtcmeetpro.domain.plan.SubscriptionStatus
+import com.webrtcmeetpro.domain.plan.SubscriptionRepository
+import com.webrtcmeetpro.domain.chat.ChatRoomMemberRepository
+import com.webrtcmeetpro.domain.auth.RefreshTokenRepository
 import com.webrtcmeetpro.domain.auth.SocialAccountRepository
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
@@ -49,6 +58,12 @@ class UserService(
     private val socialAccountRepository: SocialAccountRepository,
     private val planService: PlanService,
     private val profileImageStorage: ProfileImageStorage,
+    private val passwordEncoder: PasswordEncoder,
+    private val teamRepository: TeamRepository,
+    private val teamMemberRepository: TeamMemberRepository,
+    private val chatMemberRepository: ChatRoomMemberRepository,
+    private val refreshTokenRepository: RefreshTokenRepository,
+    private val subscriptionRepository: SubscriptionRepository,
 ) {
     fun me(userId: Long): MeView = toView(findUser(userId))
 
@@ -81,6 +96,30 @@ class UserService(
         user.profileImageUrl?.let(profileImageStorage::deleteIfOwned)
         user.changeProfileImage(null)
         return toView(user)
+    }
+
+    /**
+     * 회원 탈퇴. 비밀번호가 있는 계정은 비밀번호로 한 번 더 확인한다 (구글로만 가입했으면 화면에서 확인 문구만).
+     * 내가 만든 팀이 남아 있으면 막는다 (팀원들의 팀이 갑자기 사라지지 않게 — 먼저 팀을 삭제한다).
+     * 팀·채팅방에서 나가고, 로그인 토큰·구독·구글 연결을 정리한 뒤 개인정보를 지운다.
+     */
+    @Transactional
+    fun withdraw(userId: Long, password: String?) {
+        val user = findUser(userId)
+        val hash = user.passwordHash
+        if (hash != null && (password.isNullOrEmpty() || !passwordEncoder.matches(password, hash))) {
+            throw BusinessException(ErrorCode.INVALID_PASSWORD)
+        }
+        val owned = teamRepository.countByOwnerIdAndStatus(userId, TeamStatus.ACTIVE)
+        if (owned > 0) throw BusinessException(ErrorCode.OWNED_TEAMS_EXIST, mapOf("count" to owned))
+
+        teamMemberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
+        chatMemberRepository.findAllByUserIdAndLeftAtIsNull(userId).forEach { it.leave() }
+        refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(userId).forEach { it.revoke() }
+        subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)?.cancel()
+        socialAccountRepository.findAllByUserId(userId).forEach(socialAccountRepository::delete)
+        user.profileImageUrl?.let(profileImageStorage::deleteIfOwned)
+        user.withdraw()
     }
 
     private fun findUser(userId: Long): User =

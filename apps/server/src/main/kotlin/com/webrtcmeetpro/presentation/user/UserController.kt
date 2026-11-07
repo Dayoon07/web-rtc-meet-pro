@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.presentation.user
 
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.http.HttpStatus
 import com.webrtcmeetpro.common.web.userId
 import com.webrtcmeetpro.application.user.ImageUpload
 import com.webrtcmeetpro.application.user.MeView
@@ -36,6 +38,9 @@ data class UpdateProfileRequest(
     val marketingAgreed: Boolean? = null,
 )
 
+/** 회원 탈퇴 확인용 비밀번호 (구글로만 가입한 계정은 비워 둔다) */
+data class WithdrawRequest(val password: String? = null)
+
 @RestController
 @RequestMapping("/api/users/me")
 class UserController(private val userService: UserService) {
@@ -66,4 +71,10 @@ class UserController(private val userService: UserService) {
 
     @DeleteMapping("/profile-image")
     fun removeProfileImage(@AuthenticationPrincipal jwt: Jwt): MeView = userService.removeProfileImage(jwt.userId)
+
+    /** 회원 탈퇴. 비밀번호가 있는 계정은 password 필수 */
+    @PostMapping("/withdraw")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun withdraw(@AuthenticationPrincipal jwt: Jwt, @RequestBody(required = false) request: WithdrawRequest?) =
+        userService.withdraw(jwt.userId, request?.password)
 }

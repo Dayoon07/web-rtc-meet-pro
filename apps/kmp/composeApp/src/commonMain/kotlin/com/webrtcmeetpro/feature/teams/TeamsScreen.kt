@@ -91,6 +91,9 @@ class TeamsViewModel(
         viewModelScope.launch {
             realtime.notifications.collect { if (it.type.startsWith("TEAM")) refresh() }
         }
+        viewModelScope.launch {
+            teams.changed.collect { refresh() }
+        }
     }
 
     fun refresh() {

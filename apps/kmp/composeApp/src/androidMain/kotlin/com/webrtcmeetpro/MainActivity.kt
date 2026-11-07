@@ -10,7 +10,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import com.webrtcmeetpro.core.network.LimeetApi
 import com.webrtcmeetpro.di.initKoin
+import com.webrtcmeetpro.platform.AppErrorReporter
 import com.webrtcmeetpro.platform.androidPlatformModule
 import org.koin.android.ext.koin.androidContext
 
@@ -35,6 +37,8 @@ class MainActivity : ComponentActivity() {
 class LimeetApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        initKoin(androidPlatformModule(this)) { androidContext(this@LimeetApplication) }
+        val koin = initKoin(androidPlatformModule(this)) { androidContext(this@LimeetApplication) }.koin
+        // 앱 오류를 서버 에러 기록으로 (앱이 죽으면 다음 실행 때 보낸다)
+        AppErrorReporter.install(koin.get<LimeetApi>(), filesDir.absolutePath, "android")
     }
 }

@@ -16,7 +16,9 @@ import com.webrtcmeetpro.core.model.TeamSummary
 import com.webrtcmeetpro.core.network.ApiConfig
 import com.webrtcmeetpro.core.network.LimeetApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -43,6 +45,16 @@ class AuthRepository(
     suspend fun logout() {
         val refresh = session.load()?.refreshToken
         if (refresh != null) runCatching { api.logout(refresh) }
+        clearLocal()
+    }
+
+    /** 회원 탈퇴. 서버가 세션을 모두 끊으므로 기기에서도 바로 로그아웃시킨다 */
+    suspend fun withdraw(password: String?) {
+        api.withdraw(password)
+        clearLocal()
+    }
+
+    private suspend fun clearLocal() {
         session.clear()
         api.resetAuth()
         users.clear()
@@ -64,6 +76,10 @@ class UserRepository(private val api: LimeetApi) {
 }
 
 class TeamRepository(private val api: LimeetApi) {
+    private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    /** 팀을 나가거나 삭제하면 알린다 (팀 목록이 다시 불러오게) */
+    val changed: SharedFlow<Unit> = _changed
+
     suspend fun teams(): List<TeamSummary> = api.teams()
     suspend fun detail(teamId: Long): TeamDetail = api.team(teamId)
     suspend fun create(name: String, description: String?): TeamSummary = api.createTeam(name.trim(), description?.trim()?.ifEmpty { null })
@@ -71,6 +87,9 @@ class TeamRepository(private val api: LimeetApi) {
     suspend fun pendingInvitations(teamId: Long): List<Invitation> = api.teamInvitations(teamId)
     suspend fun cancelInvitation(teamId: Long, invitationId: Long) = api.cancelInvitation(teamId, invitationId)
     suspend fun changeRole(teamId: Long, userId: Long, role: TeamRole): TeamMember = api.changeTeamRole(teamId, userId, role)
+    suspend fun leave(teamId: Long) = api.leaveTeam(teamId).also { _changed.tryEmit(Unit) }
+    suspend fun removeMember(teamId: Long, userId: Long) = api.removeTeamMember(teamId, userId)
+    suspend fun delete(teamId: Long) = api.deleteTeam(teamId).also { _changed.tryEmit(Unit) }
     suspend fun myInvitations(): List<Invitation> = api.myInvitations()
     suspend fun accept(invitationId: Long) = api.acceptInvitation(invitationId)
     suspend fun decline(invitationId: Long) = api.declineInvitation(invitationId)

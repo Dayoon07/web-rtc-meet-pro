@@ -12,6 +12,13 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // admin (관리자 사이트 데이터 관리)
+    ADMIN_TABLE_NOT_FOUND(HttpStatus.NOT_FOUND, "테이블을 찾을 수 없습니다."),
+    ADMIN_ROW_NOT_FOUND(HttpStatus.NOT_FOUND, "행을 찾을 수 없습니다."),
+    ADMIN_READ_ONLY(HttpStatus.BAD_REQUEST, "고칠 수 없는 테이블이나 컬럼입니다."),
+    ADMIN_INVALID_VALUE(HttpStatus.BAD_REQUEST, "값이 올바르지 않습니다."),
+    ADMIN_DATA_CONSTRAINT(HttpStatus.CONFLICT, "DB 규칙(중복·참조·허용 값)에 맞지 않아 저장하지 못했습니다."),
+
     // auth / user
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
@@ -28,6 +35,9 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     INVALID_PHONE(HttpStatus.BAD_REQUEST, "전화번호 형식이 올바르지 않습니다."),
     INVALID_COUNTRY(HttpStatus.BAD_REQUEST, "국가 코드가 올바르지 않습니다."),
     UNDERAGE(HttpStatus.BAD_REQUEST, "만 14세 이상만 가입할 수 있습니다."),
+    INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "비밀번호가 올바르지 않습니다."),
+    OWNED_TEAMS_EXIST(HttpStatus.CONFLICT, "내가 만든 팀이 {{count}}개 있습니다. 팀을 먼저 삭제해 주세요."),
+    RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "비밀번호 재설정 링크가 만료되었거나 이미 사용되었습니다. 다시 요청해 주세요."),
 
     // plan
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다."),
@@ -47,6 +57,8 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     INVITATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 초대를 보낸 이메일입니다."),
     INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "초대를 찾을 수 없거나 만료되었습니다."),
     OWNER_ROLE_FIXED(HttpStatus.BAD_REQUEST, "팀을 만든 사람의 역할은 바꿀 수 없습니다."),
+    OWNER_CANNOT_LEAVE(HttpStatus.BAD_REQUEST, "팀을 만든 사람은 나갈 수 없습니다. 팀을 삭제해 주세요."),
+    CANNOT_REMOVE_MEMBER(HttpStatus.FORBIDDEN, "이 팀원을 내보낼 권한이 없습니다."),
     CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "자기 역할은 바꿀 수 없습니다."),
 
     // chat

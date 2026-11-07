@@ -50,4 +50,6 @@ interface SocialAccountRepository {
     fun save(account: SocialAccount): SocialAccount
     fun findByProviderAndProviderUserId(provider: SocialProvider, providerUserId: String): SocialAccount?
     fun findAllByUserId(userId: Long): List<SocialAccount>
+    /** 탈퇴하면 구글 연결을 지운다 (같은 구글 계정으로 새로 가입할 수 있게) */
+    fun delete(account: SocialAccount)
 }

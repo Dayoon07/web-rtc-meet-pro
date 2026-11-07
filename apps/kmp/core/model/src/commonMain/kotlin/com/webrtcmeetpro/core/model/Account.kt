@@ -30,6 +30,10 @@ data class Me(
     val plan: Plan,
 )
 
+/** POST /api/users/me/withdraw. 비밀번호가 있는 계정만 password 를 보낸다 */
+@Serializable
+data class WithdrawRequest(val password: String? = null)
+
 /** GET /api/subscriptions/me */
 @Serializable
 data class Subscription(

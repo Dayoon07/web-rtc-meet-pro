@@ -27,6 +27,8 @@ dependencies {
 	// 구글 로그인 (Authorization Code, 서버 리다이렉트 방식)
 	implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	// 메일 발송 (비밀번호 재설정·팀 초대). MAIL_HOST 가 없으면 보내지 않고 서버 로그에만 남긴다
+	implementation("org.springframework.boot:spring-boot-starter-mail")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")

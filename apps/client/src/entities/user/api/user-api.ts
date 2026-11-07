@@ -13,6 +13,8 @@ export const userApi = {
     return http<Me>('/users/me/profile-image', { method: 'POST', form })
   },
   removeProfileImage: () => http<Me>('/users/me/profile-image', { method: 'DELETE' }),
+  /** 회원 탈퇴. 비밀번호가 있는 계정은 비밀번호를 함께 보낸다 */
+  withdraw: (password?: string) => http<void>('/users/me/withdraw', { method: 'POST', json: { password: password ?? null } }),
 }
 
 export const useMeQuery = (enabled = true) => useQuery({ queryKey: userKeys.me, queryFn: userApi.me, enabled })

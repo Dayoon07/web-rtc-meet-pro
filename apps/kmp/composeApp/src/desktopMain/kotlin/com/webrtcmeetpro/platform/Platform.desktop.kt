@@ -51,7 +51,7 @@ class DesktopNotifier : SystemNotifier {
 }
 
 /** Windows: %APPDATA%\LimeetPro, 그 밖: ~/.limeetpro */
-private fun appDataDir(): File {
+fun appDataDir(): File {
     val appData = System.getenv("APPDATA")
     val dir = if (appData != null) File(appData, "LimeetPro") else File(System.getProperty("user.home"), ".limeetpro")
     return dir.apply { mkdirs() }
@@ -68,6 +68,9 @@ fun desktopPlatformModule() = module {
                 ?: BuildEnv.API_URL.ifEmpty { "http://localhost:8080" },
             webUrl = System.getProperty("limeet.web") ?: System.getenv("LIMEET_WEB_URL")
                 ?: BuildEnv.WEB_URL.ifEmpty { "http://localhost:5173" },
+            // 앱 언어를 바꾸면 LocalAppLocale 이 Locale.setDefault 를 바꾼다
+            language = { Locale.getDefault().language },
+            userAgent = "Limeet-App (${System.getProperty("os.name")} ${System.getProperty("os.version")}; Java ${System.getProperty("java.version")})",
         )
     }
     single { createPreferencesDataStore(File(appDataDir(), PREFERENCES_FILE_NAME).absolutePath) }

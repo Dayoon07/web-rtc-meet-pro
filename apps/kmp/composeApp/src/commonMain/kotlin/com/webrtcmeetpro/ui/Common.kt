@@ -3,6 +3,10 @@ package com.webrtcmeetpro.ui
 import com.webrtcmeetpro.resources.error_TOO_MANY_FILES
 import com.webrtcmeetpro.resources.error_FILE_TOO_LARGE
 import com.webrtcmeetpro.resources.error_EMPTY_FILE
+import com.webrtcmeetpro.resources.error_OWNER_CANNOT_LEAVE
+import com.webrtcmeetpro.resources.error_CANNOT_REMOVE_MEMBER
+import com.webrtcmeetpro.resources.error_INVALID_PASSWORD
+import com.webrtcmeetpro.resources.error_OWNED_TEAMS_EXIST
 import com.webrtcmeetpro.resources.error_BLOCKED_FILE_TYPE
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -99,6 +103,10 @@ fun errorMessage(code: String): String = stringResource(
         "FILE_TOO_LARGE" -> Res.string.error_FILE_TOO_LARGE
         "BLOCKED_FILE_TYPE" -> Res.string.error_BLOCKED_FILE_TYPE
         "EMPTY_FILE" -> Res.string.error_EMPTY_FILE
+        "OWNER_CANNOT_LEAVE" -> Res.string.error_OWNER_CANNOT_LEAVE
+        "CANNOT_REMOVE_MEMBER" -> Res.string.error_CANNOT_REMOVE_MEMBER
+        "INVALID_PASSWORD" -> Res.string.error_INVALID_PASSWORD
+        "OWNED_TEAMS_EXIST" -> Res.string.error_OWNED_TEAMS_EXIST
         "NETWORK" -> Res.string.error_NETWORK
         else -> Res.string.error_UNKNOWN
     },
@@ -106,6 +114,7 @@ fun errorMessage(code: String): String = stringResource(
 
 /** 서버의 예상하지 못한 에러(500) 코드. UnexpectedErrorHost 가 에러 코드와 함께 안내한다 */
 private const val SERVER_ERROR_CODE = "INTERNAL_ERROR"
+private const val UNKNOWN_ERROR_CODE = "UNKNOWN"
 
 /** MainScreen 의 Scaffold 스낵바. 하위 화면이 저장/실패 결과를 잠깐 보여 줄 때 쓴다 */
 val LocalSnackbar = staticCompositionLocalOf { SnackbarHostState() }
@@ -121,7 +130,8 @@ fun ErrorSnackbarEffect(code: String?, onShown: () -> Unit) {
         if (message != null) {
             onShown()
             // 서버 500 은 앱 루트의 에러 안내 창(에러 코드·문의 이메일)이 이미 보여 준다
-            if (code != SERVER_ERROR_CODE) scope.launch { snackbar.showSnackbar(message) }
+            // 알 수 없는 앱 오류(UNKNOWN)도 AppErrorReporter 가 에러 코드 안내 창을 띄운다
+            if (code != SERVER_ERROR_CODE && code != UNKNOWN_ERROR_CODE) scope.launch { snackbar.showSnackbar(message) }
         }
     }
 }

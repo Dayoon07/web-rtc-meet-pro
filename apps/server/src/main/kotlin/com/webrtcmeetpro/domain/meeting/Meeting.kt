@@ -124,6 +124,7 @@ interface MeetingRepository {
     fun findByRoomCode(roomCode: String): Meeting?
     fun findAllByIdInAndStatusIn(ids: Collection<Long>, statuses: Collection<MeetingStatus>): List<Meeting>
     fun findAllByStatus(status: MeetingStatus): List<Meeting>
+    fun findAllByTeamIdAndStatus(teamId: Long, status: MeetingStatus): List<Meeting>
     fun findAllByStatusAndReminderSentAtIsNullAndScheduledAtBetween(
         status: MeetingStatus,
         from: LocalDateTime,
