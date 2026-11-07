@@ -105,6 +105,8 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     AI_NOTES_QUOTA_EXCEEDED(HttpStatus.FORBIDDEN, "이번 달 AI 회의록 시간({{minutes}}분)을 다 썼습니다. 다음 달에 다시 쓰거나 플랜을 올려 주세요."),
     AI_NOTES_NOT_FOUND(HttpStatus.NOT_FOUND, "이 회의에는 AI 회의록이 없습니다."),
     AI_NOTES_NOT_READY(HttpStatus.CONFLICT, "회의록을 만드는 중입니다. 잠시 뒤에 다시 시도해 주세요."),
+    CAPTIONS_NOT_ALLOWED(HttpStatus.FORBIDDEN, "실시간 자막·번역은 Business 플랜에서 쓸 수 있습니다."),
+    CAPTIONS_QUOTA_EXCEEDED(HttpStatus.FORBIDDEN, "이번 달 실시간 자막 시간({{minutes}}분)을 다 썼습니다. 다음 달에 다시 쓸 수 있습니다."),
     NOT_IN_MEETING(HttpStatus.FORBIDDEN, "회의에 들어와 있는 사람만 할 수 있습니다."),
     MEETING_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "시작했거나 끝난 회의는 고칠 수 없습니다."),
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),

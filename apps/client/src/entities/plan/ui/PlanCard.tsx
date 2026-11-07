@@ -45,6 +45,10 @@ export function PlanCard({ plan, cycle = 'MONTHLY', current, highlighted, action
       on: plan.aiNotesMinutes > 0,
       text: plan.aiNotesMinutes > 0 ? t('plan.features.aiNotesDetail', { minutes: plan.aiNotesMinutes }) : t('plan.features.aiNotes'),
     },
+    {
+      on: plan.liveCaptionMinutes > 0,
+      text: plan.liveCaptionMinutes > 0 ? t('plan.features.captionsDetail', { minutes: plan.liveCaptionMinutes }) : t('plan.features.captions'),
+    },
   ]
 
   return (

@@ -87,6 +87,24 @@ export type MeetingRoomEvent =
   | { type: 'RECORDING'; meetingId: number; recording: boolean; by: string | null }
   /** AI 회의록 켜짐·꺼짐. reason QUOTA = 이번 달 시간을 다 써서 꺼짐 */
   | { type: 'AI_NOTES'; meetingId: number; on: boolean; by: string | null; reason: string | null }
+  /** 실시간 자막 켜짐·꺼짐 */
+  | { type: 'CAPTIONS'; meetingId: number; on: boolean; by: string | null; reason: string | null }
+  /** 자막 한 줄. 원문이 먼저(pending) 오고, 번역이 끝나면 같은 id 로 translations 가 채워져 다시 온다 */
+  | CaptionLine
+
+export type CaptionLine = {
+  type: 'CAPTION'
+  id: number
+  meetingId: number
+  speakerId: number
+  speaker: string
+  text: string
+  lang: string
+  translations: Record<string, string>
+  pending: boolean
+}
+
+export type CaptionState = { on: boolean; available: boolean; remainingMinutes: number; limitMinutes: number }
 
 export type JoinInfo = { meeting: Meeting; mediaUrl: string; token: string }
 
@@ -135,6 +153,14 @@ export const meetingApi = {
   sendNotesLine: (id: number, text: string, lang: string) =>
     http<{ on: boolean }>(`/meetings/${id}/notes/lines`, { method: 'POST', json: { text, lang } }),
   regenerateNotes: (id: number) => http<MeetingNotes>(`/meetings/${id}/notes/regenerate`, { method: 'POST' }),
+  captionsState: (id: number) => http<CaptionState>(`/meetings/${id}/captions/state`),
+  startCaptions: (id: number, lang: string) => http<CaptionState>(`/meetings/${id}/captions/start`, { method: 'POST', json: { lang } }),
+  stopCaptions: (id: number) => http<CaptionState>(`/meetings/${id}/captions/stop`, { method: 'POST' }),
+  /** 내가 볼 자막 언어 알리기 */
+  watchCaptions: (id: number, lang: string) => http<void>(`/meetings/${id}/captions/watch`, { method: 'POST', json: { lang } }),
+  /** 받아쓴 한 문장 (자막 + AI 회의록이 켜져 있으면 회의록에도). on=false 면 자막이 꺼짐 */
+  sendCaptionLine: (id: number, text: string, lang: string) =>
+    http<{ on: boolean }>(`/meetings/${id}/captions/lines`, { method: 'POST', json: { text, lang } }),
 }
 
 export const useMeetingsQuery = (scope: 'upcoming' | 'past') =>

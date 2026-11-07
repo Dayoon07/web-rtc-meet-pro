@@ -34,3 +34,17 @@ class FakeMeetingNotesAi : MeetingNotesAi {
         )
     }
 }
+
+/** 로컬 확인용 가짜 번역기: "[en] 원문" 처럼 언어 표시만 붙인다. "번역실패" 가 들어 있으면 실패 흉내 */
+@Primary
+@Component
+@ConditionalOnProperty("app.ai.fake", havingValue = "true")
+class FakeCaptionTranslator : com.webrtcmeetpro.domain.meeting.CaptionTranslator {
+    override val enabled = true
+
+    override fun translate(text: String, sourceLang: String, targetLangs: Collection<String>, context: List<String>): Map<String, String> {
+        check("번역실패" !in text) { "fake failure" }
+        Thread.sleep(200)
+        return targetLangs.associateWith { "[$it] $text (ctx ${context.size})" }
+    }
+}

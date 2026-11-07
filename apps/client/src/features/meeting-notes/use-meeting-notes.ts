@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { type Meeting, meetingApi, type MeetingRoomEvent } from '@/entities/meeting'
 import { realtime, toastError } from '@/shared/api'
-import { speechLang, useLiveTranscriber } from './use-live-transcriber'
+import { speechLang } from '@/shared/lib/speech'
 
 /**
- * 회의실의 AI 회의록: 켜고 끄기, "AI 회의록 작성 중" 표시(서버 이벤트로 모두에게),
- * 켜져 있고 내 마이크가 켜져 있으면 내 말을 받아써서 한 문장씩 서버로 보낸다.
+ * 회의실의 AI 회의록: 켜고 끄기, "AI 회의록 작성 중" 표시(서버 이벤트로 모두에게).
+ * 받아쓰기는 회의실이 한 번만 돌리고(자막과 같이 씀), 문장이 끝날 때마다 send 를 부른다.
  */
-export function useMeetingNotes(meeting: Meeting | null | undefined, micOn: boolean) {
+export function useMeetingNotes(meeting: Meeting | null | undefined) {
   const { t, i18n } = useTranslation()
   const meetingId = meeting?.id
   const [override, setOverride] = useState<boolean | null>(null)
@@ -31,9 +31,9 @@ export function useMeetingNotes(meeting: Meeting | null | undefined, micOn: bool
     [meetingId, t],
   )
 
+  /** 받아쓴 한 문장 (순서대로 하나씩 보낸다) */
   const send = (text: string) => {
     if (!meetingId) return
-    // 순서대로 하나씩 (빠르게 말해도 문장 순서가 섞이지 않게)
     queue.current = queue.current.then(async () => {
       try {
         const r = await meetingApi.sendNotesLine(meetingId, text, speechLang(i18n.language))
@@ -43,13 +43,6 @@ export function useMeetingNotes(meeting: Meeting | null | undefined, micOn: bool
       }
     })
   }
-
-  const transcriber = useLiveTranscriber({ enabled: on && micOn, lang: speechLang(i18n.language), onFinal: send })
-
-  useEffect(() => {
-    if (transcriber.error === 'unsupported') toast.warning(t('notes.unsupported'))
-    if (transcriber.error === 'denied') toast.warning(t('notes.micDenied'))
-  }, [transcriber.error, t])
 
   const toggle = async () => {
     if (!meeting || busy) return
@@ -68,5 +61,5 @@ export function useMeetingNotes(meeting: Meeting | null | undefined, micOn: bool
     }
   }
 
-  return { on, busy, toggle, listening: transcriber.listening, available: !!meeting?.aiNotesAvailable }
+  return { on, busy, toggle, send, available: !!meeting?.aiNotesAvailable }
 }

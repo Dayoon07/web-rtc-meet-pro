@@ -109,7 +109,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `S3_BUCKET` / `S3_REGION` / `S3_PREFIX` | 버킷 이름 / `ap-northeast-2` / 버킷 안 폴더(`dev`, `prod`) |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | IAM 사용자 키. 비우면 AWS 기본 방법(환경변수 `AWS_ACCESS_KEY_ID`, 서버 역할)으로 찾는다 |
 | `ANTHROPIC_API_KEY` | Claude API 키 (AI 회의록 요약). 비우면 AI 기능이 꺼진다 (회의실 버튼은 "준비 중") |
-| `AI_MODEL` / `AI_FALLBACKS` | 회의록 모델(기본 `claude-opus-5-5`) / 모델이 정책상 거절하면 추천 모델로 한 번 더(beta, 기본 `true`) |
+| `AI_MODEL` / `AI_CAPTION_MODEL` / `AI_FALLBACKS` | 회의록 모델 / 자막 번역 모델(둘 다 기본 `claude-opus-5-5`) / 모델이 정책상 거절하면 추천 모델로 한 번 더(beta, 기본 `true`) |
 | `BILLING_RENEW_INTERVAL` | `10m` (구독 기간 확인: 자동결제·만료·만료 3일 전 알림) |
 
 로컬에서는 비밀값을 **`apps/server/.env.local`** (git 에 안 올라감) 에 `이름=값` 으로 적어 두면 서버가 시작할 때 읽는다 (환경변수가 있으면 환경변수가 이긴다).
@@ -211,7 +211,14 @@ COMMIT;
 - 회의가 끝나면(모두 나감) 서버가 Claude 로 요약 3~7줄 · 결정 사항 · 할 일(담당자 = 참석자 이름, 기한 = 날짜)을 만든다. 채널 음성방이면 그 채널에 카드로 올리고, 참석한 사람에게 알림. 회의 상세(웹·앱)에서 요약·할 일·받아쓴 내용을 볼 수 있고, 주최자·관리자는 "다시 만들기".
 - 플랜: 워크스페이스 플랜의 한 달 시간(`plans.ai_notes_minutes`, Pro 120분 · Team 600분 · Business 3000분, Free 없음). 켜져 있던 시간만큼 쓴다(`ai_usages`). 다 쓰면 켜지지 않고, 켜 둔 채 넘으면 자동으로 꺼진다.
 - 받아쓰기는 Chrome·Edge·Safari 만 된다 (Firefox·Android 앱 회의 화면은 그 사람 말만 빠진다). Chrome 받아쓰기는 소리를 Google 음성 인식으로 보낸다.
-- 로컬에서 API 키 없이 확인: `APP_AI_FAKE=true ANTHROPIC_API_KEY=x` 로 `bootTestRun` 하면 테스트 전용 가짜 요약기(`FakeMeetingNotesAi`)를 쓴다.
+- 로컬에서 API 키 없이 확인: `APP_AI_FAKE=true ANTHROPIC_API_KEY=x` 로 `bootTestRun` 하면 테스트 전용 가짜 요약기·번역기(`FakeMeetingNotesAi`, `FakeCaptionTranslator`)를 쓴다.
+
+#### 실시간 자막 · 번역 (Business 전용)
+
+- 회의 중 자막(CC) 아이콘으로 켜고 끈다. 각 참여자 브라우저가 자기 말을 받아써서 보내면, 서버가 지금 회의에 있는 사람들의 언어(화면 언어 ko·en·ja·zh)로 Claude 번역을 해서 모두에게 보낸다. 화면 아래에 말한 사람 이름과 **내 언어로 옮긴 문장**이 뜬다 (같은 언어면 원문을 바로, 다른 언어면 원문이 흐리게 먼저 뜨고 번역이 오면 바뀐다).
+- 받아쓰기는 브라우저에서 한 번만 돈다. AI 회의록도 켜져 있으면 같은 문장이 회의록에도 들어간다.
+- 플랜: Business 만 (`plans.live_caption_minutes` 월 600분). 켜져 있던 시간만큼 쓰고(`ai_usages` CAPTIONS), 다 쓰면 자동으로 꺼진다. 켜짐 상태는 서버 메모리에만 둔다 (서버를 다시 켜면 꺼짐). 번역 모델은 `AI_CAPTION_MODEL` (기본 `claude-opus-5-5`, effort low).
+- 앱: Android 는 앱 안 회의 화면(웹)에서 자막을 볼 수 있다 (받아쓰기는 안 됨), Windows 는 브라우저로 열려서 다 된다.
 
 #### 요금제 · 결제 (토스페이먼츠 자동결제)
 
@@ -393,8 +400,9 @@ com/webrtcmeetpro/
 | GET | `/api/meetings?scope=upcoming\|past` · `/api/meetings/{id}` | 내 회의 / 상세 |
 | POST | `/api/meetings/{id}/join` · `/cancel` | 입장 토큰 발급 / 취소(주최자) |
 | GET · POST | `/api/meetings/{id}/notes` · `/state` · `/transcript` · `/start` · `/stop` · `/lines` · `/regenerate` | AI 회의록 보기 / 회의실 상태(남은 시간) / 받아쓴 내용 / 켜기·끄기(회의 안의 사람) / 받아쓴 문장 / 다시 만들기(주최자·관리자) |
+| GET · POST | `/api/meetings/{id}/captions/state` · `/start` · `/stop` · `/watch` · `/lines` | 실시간 자막(Business): 상태 / 켜기·끄기 / 내 자막 언어 / 받아쓴 문장 → `/user/queue/meeting` 으로 `CAPTION` (원문 먼저, 번역 뒤에) |
 | GET · POST | `/api/notifications` · `/unread-count` · `/{id}/read` · `/read-all` | 알림 |
-| STOMP | `/ws` → `/user/queue/chat`, `/user/queue/notifications`, `/user/queue/meeting`(녹화·AI 회의록 켜짐) | 실시간 수신 (CONNECT 헤더 `Authorization: Bearer`) |
+| STOMP | `/ws` → `/user/queue/chat`, `/user/queue/notifications`, `/user/queue/meeting`(녹화·AI 회의록·자막 켜짐, 자막 줄) | 실시간 수신 (CONNECT 헤더 `Authorization: Bearer`) |
 | POST | `/internal/media/events` | 사이드카 전용 (`X-Internal-Secret`) — 외부에 노출하지 말 것 |
 
 ## 클라이언트 구조 (FSD)

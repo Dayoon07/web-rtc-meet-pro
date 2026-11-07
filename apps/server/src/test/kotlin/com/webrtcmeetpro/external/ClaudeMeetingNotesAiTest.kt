@@ -6,6 +6,7 @@ import com.webrtcmeetpro.domain.meeting.NotesInput
 import com.webrtcmeetpro.domain.meeting.NotesLine
 import com.webrtcmeetpro.domain.meeting.NotesRejectedException
 import com.webrtcmeetpro.domain.meeting.NotesSpeaker
+import com.webrtcmeetpro.external.anthropic.ClaudeCaptionTranslator
 import com.webrtcmeetpro.external.anthropic.ClaudeClients
 import com.webrtcmeetpro.external.anthropic.ClaudeMeetingNotesAi
 import org.junit.jupiter.api.AfterEach
@@ -31,6 +32,11 @@ class ClaudeMeetingNotesAiTest {
     }
 
     private fun fakeClaude(text: String, stopReason: String = "end_turn"): ClaudeMeetingNotesAi {
+        val props = fakeServer(text, stopReason)
+        return ClaudeMeetingNotesAi(ClaudeClients(props), props, json)
+    }
+
+    private fun fakeServer(text: String, stopReason: String = "end_turn"): AiProperties {
         val reply = json.writeValueAsString(
             mapOf(
                 "id" to "msg_test", "type" to "message", "role" to "assistant", "model" to "claude-opus-5-5",
@@ -49,8 +55,7 @@ class ClaudeMeetingNotesAiTest {
             }
             start()
         }
-        val props = AiProperties(apiKey = "test-key", baseUrl = "http://127.0.0.1:${server!!.address.port}")
-        return ClaudeMeetingNotesAi(ClaudeClients(props), props, json)
+        return AiProperties(apiKey = "test-key", baseUrl = "http://127.0.0.1:${server!!.address.port}")
     }
 
     private val input = NotesInput(
@@ -98,5 +103,21 @@ class ClaudeMeetingNotesAiTest {
         assertThrows<NotesRejectedException> { fakeClaude("", stopReason = "refusal").summarize(input) }
         stop()
         assertThrows<NotesRejectedException> { fakeClaude("{\"title\":", stopReason = "max_tokens").summarize(input) }
+    }
+
+    @Test
+    fun `자막 번역 - 언어마다 칸이 있는 스키마, effort low, 문맥, 응답에서 요청한 언어만`() {
+        val props = fakeServer("""{"en":"Let's move the launch to Tuesday","ja":"リリースは火曜日にしましょう","xx":"무시"}""")
+        val translator = ClaudeCaptionTranslator(ClaudeClients(props), props, json)
+        val out = translator.translate("출시는 화요일로 미뤄요", "ko", listOf("ja", "en", "en", "EN"), listOf("민지: 일정 이야기해요"))
+
+        val body = lastBody!!
+        assertEquals("low", body["output_config"]["effort"].asString())
+        val schema = body["output_config"]["format"]["schema"]
+        assertEquals("[\"en\",\"ja\"]", schema["required"].toString(), "중복·잘못된 코드는 빼고 정렬")
+        val user = body["messages"][0]["content"].toString()
+        assertTrue("민지: 일정 이야기해요" in user && "lang=\\\"ko\\\"" in user, user)
+        assertEquals(mapOf("en" to "Let's move the launch to Tuesday", "ja" to "リリースは火曜日にしましょう"), out)
+        assertEquals(emptyMap(), translator.translate("hi", "en", listOf("??"), emptyList()), "옮길 언어가 없으면 부르지 않는다")
     }
 }

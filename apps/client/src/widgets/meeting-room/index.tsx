@@ -1,13 +1,15 @@
-import { Circle, Hand, Link2, NotebookPen, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Square, Users, Video, VideoOff, X } from 'lucide-react'
+import { Captions, Circle, Hand, Link2, NotebookPen, MessageSquare, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SendHorizonal, Sparkles, Square, Users, Video, VideoOff, X } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import type { MeetingRoomEvent } from '@/entities/meeting'
+import { CaptionOverlay, useLiveCaptions } from '@/features/live-captions'
 import { useMeetingNotes } from '@/features/meeting-notes'
 import { useMeetingRecorder } from '@/features/meeting-recorder'
 import { EffectsPanel, hasEffects } from '@/features/video-effects'
 import { errorMessage, realtime } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
+import { speechLang, useLiveTranscriber } from '@/shared/lib/speech'
 import { useFormat } from '@/shared/lib/format'
 import { Avatar, Button, Spinner } from '@/shared/ui'
 import { type RemotePeer, useMeetingRoom } from './model/use-meeting-room'
@@ -119,7 +121,7 @@ export function MeetingRoom({
   /** 채널 음성방: 카메라를 끈 채로 시작 */
   cameraOff?: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const fmt = useFormat()
   const room = useMeetingRoom(meetingId, selfName, cameraOff)
   const narrow = useNarrowScreen()
@@ -161,8 +163,21 @@ export function MeetingRoom({
     void recorder.start()
   }
   // 녹화할 수 있는 사람에게만. 플랜에 녹화가 없으면 관리자에게 잠긴 버튼(누르면 플랜 안내)
-  // AI 회의록: 켜져 있으면 내 마이크를 받아써서 보낸다 (마이크를 끄면 받아쓰기도 멈춤)
-  const notes = useMeetingNotes(room.meeting, room.local.mic)
+  // AI 회의록·실시간 자막: 둘 중 하나라도 켜져 있으면 내 마이크를 한 번만 받아써서 보낸다 (마이크를 끄면 멈춤).
+  // 자막이 켜져 있으면 자막으로 보내고(서버가 회의록에도 넣는다), 아니면 회의록으로
+  const notes = useMeetingNotes(room.meeting)
+  const captions = useLiveCaptions(room.meeting)
+  const [interim, setInterim] = useState('')
+  const transcriber = useLiveTranscriber({
+    enabled: (notes.on || captions.on) && room.local.mic,
+    lang: speechLang(i18n.language),
+    onFinal: (text) => (captions.on ? captions.send(text) : notes.send(text)),
+    onInterim: (text) => setInterim(captions.on ? text : ''),
+  })
+  useEffect(() => {
+    if (transcriber.error === 'unsupported') toast.warning(t('notes.unsupported'))
+    if (transcriber.error === 'denied') toast.warning(t('notes.micDenied'))
+  }, [transcriber.error, t])
   const showRecordButton = !!room.meeting && (!!room.meeting.canRecord || (!!room.meeting.canManage && !room.meeting.recordingAvailable))
 
   useEffect(() => {
@@ -292,7 +307,7 @@ export function MeetingRoom({
       </header>
 
       <div className="flex min-h-0 flex-1 gap-3 px-3 pb-3">
-        <main className="flex min-w-0 flex-1 flex-col gap-3">
+        <main className="relative flex min-w-0 flex-1 flex-col gap-3">
           {sharing ? (
             <div className="flex min-h-0 flex-1 gap-3">
               <div className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-black">
@@ -313,6 +328,7 @@ export function MeetingRoom({
             </div>
           )}
           {!room.peers.length && <p className="text-center text-sm text-gray-400">{t('room.alone')}</p>}
+          {captions.on && <CaptionOverlay lines={captions.lines} interim={interim} selfName={selfName} />}
         </main>
 
         {panel && (
@@ -386,6 +402,9 @@ export function MeetingRoom({
         )}
         <ControlButton label={t(notes.on ? 'notes.stop' : 'notes.start')} onClick={() => void notes.toggle()}>
           <NotebookPen className={cn(notes.on && 'text-brand-300', notes.busy && 'animate-pulse', !notes.available && !notes.on && 'opacity-50')} />
+        </ControlButton>
+        <ControlButton label={t(captions.on ? 'captions.stop' : 'captions.start')} onClick={() => void captions.toggle()}>
+          <Captions className={cn(captions.on && 'text-brand-300', captions.busy && 'animate-pulse', !captions.available && !captions.on && 'opacity-50')} />
         </ControlButton>
         <ControlButton label={t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand')} onClick={room.toggleHand}>
           <Hand className={cn(room.local.hand && 'text-amber-400')} />
