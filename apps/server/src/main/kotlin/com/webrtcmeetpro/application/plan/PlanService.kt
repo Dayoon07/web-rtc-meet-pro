@@ -38,6 +38,8 @@ data class PlanView(
     val aiNotesMinutes: Int,
     /** 한 달 실시간 자막·번역 시간(분). 0 = 없음 */
     val liveCaptionMinutes: Int,
+    /** 멤버 한도를 넘은 1명당 한 달 요금 (소유자가 허용했을 때) */
+    val overagePricePerMember: Long,
     /** 클수록 높은 플랜 */
     val rank: Int,
 ) {
@@ -56,6 +58,7 @@ data class PlanView(
             recordingRetentionDays = plan.recordingRetentionDays,
             aiNotesMinutes = plan.aiNotesMinutes,
             liveCaptionMinutes = plan.liveCaptionMinutes,
+            overagePricePerMember = plan.overagePricePerMember,
             rank = plan.sortOrder,
         )
     }
@@ -268,6 +271,12 @@ class PlanService(
     }
 
     fun planById(id: Long): Plan = planRepository.findPlanById(id) ?: freePlan()
+
+    /** 워크스페이스에 지금 적용 중인 (구독, 플랜). 유료 구독이 없으면 null */
+    fun inUseSubscription(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Pair<Subscription, Plan>? = inUse(liveOf(teamId), now)
+
+    /** 워크스페이스 멤버만 (요금제·초과 인원 화면) */
+    fun requireMemberTeamOf(teamId: Long, userId: Long): Team = requireMemberTeam(teamId, userId)
 
     fun cardView(key: BillingKey) = CardView(key.cardCompany, key.cardNumberMasked, key.createdDt)
 

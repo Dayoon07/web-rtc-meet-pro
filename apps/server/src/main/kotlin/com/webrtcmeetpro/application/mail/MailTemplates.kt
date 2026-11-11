@@ -172,6 +172,73 @@ object MailTemplates {
         return build(to, t, link)
     }
 
+    /**
+     * 멤버가 플랜 한도를 넘음 (소유자에게, 하루 한 번까지).
+     * @param chargeDate 초과 요금이 들어갈 결제일, perMember 1명당 한 달 요금
+     */
+    fun memberOverage(
+        to: String, lang: MailLanguage, teamName: String, members: Long, limit: Int, excess: Long, perMember: Long,
+        chargeDate: LocalDateTime?, link: String,
+    ): MailMessage {
+        val d = chargeDate?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) ?: "-"
+        val won = { v: Long -> "%,d".format(v) }
+        val extra = won(excess * perMember)
+        val t = when (lang) {
+            MailLanguage.KO -> Texts("[MQ] 「$teamName」 멤버가 플랜 한도를 넘었어요", "멤버가 플랜 한도를 넘었어요",
+                "「$teamName」 워크스페이스 멤버가 ${members}명으로, 플랜 한도(${limit}명)보다 ${excess}명 많아요. " +
+                    "동의하신 대로 다음 결제($d)에 초과 인원 요금 ${won(perMember)}원 × ${excess}명 = ${extra}원(부가세 포함)이 더해져요. " +
+                    "결제일의 멤버 수로 계산하니, 그 전에 멤버를 정리하면 청구되지 않아요.", "요금제 보기",
+                "결제 3일 전에 금액을 다시 알려 드려요. 초과 허용은 워크스페이스 요금제 화면에서 끌 수 있어요 (초과한 멤버가 없을 때).")
+            MailLanguage.EN -> Texts("[MQ] \"$teamName\" is over its member limit", "Your workspace is over its member limit",
+                "\"$teamName\" now has $members members, $excess more than the plan limit of $limit. " +
+                    "As you agreed, your next payment ($d) will include ${won(perMember)} KRW × $excess = $extra KRW (VAT included). " +
+                    "We count members on the payment date, so removing members before then means no extra charge.", "View billing",
+                "We'll remind you of the amount 3 days before the payment. You can turn this off on the billing page when no one is over the limit.")
+            MailLanguage.JA -> Texts("[MQ]「$teamName」のメンバーがプランの上限を超えました", "メンバーがプランの上限を超えました",
+                "「$teamName」のメンバーは${members}人で、プランの上限（${limit}人）より${excess}人多くなっています。" +
+                    "ご同意のとおり、次回のお支払い（$d）に超過料金 ${won(perMember)}ウォン × ${excess}人 = ${extra}ウォン（税込）が加算されます。" +
+                    "支払日のメンバー数で計算するため、それまでに整理すれば請求されません。", "料金プランを見る",
+                "お支払いの3日前に金額をもう一度お知らせします。")
+            MailLanguage.ZH -> Texts("[MQ]「$teamName」成员已超出套餐上限", "成员已超出套餐上限",
+                "「$teamName」现有 $members 名成员，比套餐上限（$limit 人）多 $excess 人。" +
+                    "按照你的同意，下次付款（$d）将加收超额费用 ${won(perMember)} 韩元 × $excess = $extra 韩元（含税）。" +
+                    "按付款当天的成员数计算，在此之前减少成员则不会收费。", "查看套餐",
+                "付款前 3 天会再次通知金额。")
+        }
+        return build(to, t, link)
+    }
+
+    /** 3일 뒤 결제에 초과 인원 요금이 들어감 (전자상거래: 증액 결제 전 고지) */
+    fun overageChargeSoon(
+        to: String, lang: MailLanguage, teamName: String, planLabel: String?, planAmount: Long, excess: Long, perMember: Long,
+        chargeDate: LocalDateTime, link: String,
+    ): MailMessage {
+        val d = chargeDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        val won = { v: Long -> "%,d".format(v) }
+        val total = won(planAmount + excess * perMember)
+        val t = when (lang) {
+            MailLanguage.KO -> Texts("[MQ] $d 결제 예정 금액 안내 (「$teamName」)", "3일 뒤 결제 예정이에요",
+                (if (planLabel != null) "$planLabel ${won(planAmount)}원 + " else "") +
+                    "초과 인원 ${excess}명 × ${won(perMember)}원 = 합계 ${total}원(부가세 포함)이 $d 에 등록된 카드로 결제돼요. " +
+                    "초과 인원은 결제일의 멤버 수로 다시 계산해요.", "결제 정보 확인",
+                "금액이 다르거나 결제를 원하지 않으면 결제일 전에 요금제 화면에서 자동결제를 끄거나 멤버를 정리해 주세요.")
+            MailLanguage.EN -> Texts("[MQ] Upcoming payment on $d (\"$teamName\")", "Payment in 3 days",
+                (if (planLabel != null) "$planLabel ${won(planAmount)} KRW + " else "") +
+                    "$excess extra members × ${won(perMember)} KRW = $total KRW (VAT included) will be charged to your card on $d. " +
+                    "Extra members are counted again on the payment date.", "Check billing",
+                "To avoid the charge, turn off auto-renewal or remove members before the payment date.")
+            MailLanguage.JA -> Texts("[MQ] $d のお支払い予定（「$teamName」）", "3日後にお支払いがあります",
+                (if (planLabel != null) "$planLabel ${won(planAmount)}ウォン + " else "") +
+                    "超過メンバー${excess}人 × ${won(perMember)}ウォン = 合計${total}ウォン（税込）が $d に登録カードで決済されます。", "お支払い情報を確認",
+                "決済を望まない場合は、支払日までに自動決済をオフにするかメンバーを整理してください。")
+            MailLanguage.ZH -> Texts("[MQ] $d 付款预告（「$teamName」）", "3 天后将付款",
+                (if (planLabel != null) "$planLabel ${won(planAmount)} 韩元 + " else "") +
+                    "超额成员 $excess 人 × ${won(perMember)} 韩元 = 合计 $total 韩元（含税）将于 $d 从已绑定的卡扣款。", "查看付款信息",
+                "如不希望扣款，请在付款日前关闭自动续费或减少成员。")
+        }
+        return build(to, t, link)
+    }
+
     private data class Texts(val subject: String, val title: String, val body: String, val button: String, val footer: String)
 
     private fun build(to: String, t: Texts, link: String): MailMessage {

@@ -1,6 +1,7 @@
 package com.webrtcmeetpro.presentation.plan
 
 import com.webrtcmeetpro.application.plan.BillingService
+import com.webrtcmeetpro.application.plan.MemberOverageService
 import com.webrtcmeetpro.application.plan.CardRegistrationView
 import com.webrtcmeetpro.application.plan.CardView
 import com.webrtcmeetpro.application.plan.ExpiryNoticeView
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -30,6 +32,9 @@ data class PurchaseRequest(@field:NotBlank val planCode: String, val cycle: Bill
 
 data class AutoRenewRequest(val autoRenew: Boolean)
 
+/** 한도 초과 허용. 켤 때는 안내(1명당 월 요금, 결제일 멤버 수 기준)에 동의(agree = true)해야 한다 */
+data class OverageRequest(val allowed: Boolean, val agree: Boolean = false)
+
 data class RegisterCardRequest(
     @field:NotBlank @field:Size(max = 50) val customerKey: String,
     @field:NotBlank @field:Size(max = 300) val authKey: String,
@@ -37,7 +42,20 @@ data class RegisterCardRequest(
 
 @RestController
 @RequestMapping("/api")
-class PlanController(private val planService: PlanService, private val billingService: BillingService) {
+class PlanController(
+    private val planService: PlanService,
+    private val billingService: BillingService,
+    private val overageService: MemberOverageService,
+) {
+
+    /** 멤버 한도 초과: 지금 인원·초과 인원·다음 결제 금액 (워크스페이스 멤버) */
+    @GetMapping("/teams/{teamId}/overage")
+    fun overage(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = overageService.view(teamId, jwt.userId)
+
+    /** 한도 초과 허용 켜기·끄기 (소유자) */
+    @PutMapping("/teams/{teamId}/overage")
+    fun setOverage(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @RequestBody body: OverageRequest) =
+        overageService.setAllowed(teamId, jwt.userId, body.allowed, body.agree)
 
     @GetMapping("/plans")
     fun plans(): List<PlanView> = planService.listPlans()

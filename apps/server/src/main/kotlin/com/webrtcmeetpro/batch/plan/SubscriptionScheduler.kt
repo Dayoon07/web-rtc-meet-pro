@@ -20,6 +20,10 @@ class SubscriptionScheduler(private val billingService: BillingService, private 
         runCatching { billingService.processRenewals() }
             .onSuccess { if (it > 0) log.info("구독 갱신·만료 {}건 처리", it) }
             .onFailure { log.error("구독 갱신 실패", it) }
+        // 월 자동결제가 아닌 워크스페이스의 멤버 초과 요금 (한 달마다 따로)
+        runCatching { billingService.processOverage() }
+            .onSuccess { if (it > 0) log.info("초과 인원 요금 {}건 결제 시도", it) }
+            .onFailure { log.error("초과 인원 요금 처리 실패", it) }
     }
 
     /** 플랜의 보관 일수가 지난 녹화를 지운다 (하루 한 번이면 충분) */

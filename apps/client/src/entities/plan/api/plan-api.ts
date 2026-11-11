@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { http } from '@/shared/api'
-import type { BillingCycle, Card, CardRegistration, ExpiryNotice, Payment, Plan, Subscription } from '../model/types'
+import type { BillingCycle, Card, CardRegistration, ExpiryNotice, OverageInfo, Payment, Plan, Subscription } from '../model/types'
 
 export const planKeys = {
   all: ['plans'] as const,
@@ -9,6 +9,7 @@ export const planKeys = {
   workspace: (teamId: number) => ['subscriptions', 'team', teamId] as const,
   notices: ['subscriptions', 'notices'] as const,
   payments: ['billing', 'payments'] as const,
+  overage: (teamId: number) => ['subscriptions', 'overage', teamId] as const,
 }
 
 export const planApi = {
@@ -27,6 +28,11 @@ export const planApi = {
   registerCard: (customerKey: string, authKey: string) => http<Card>('/billing/card', { method: 'POST', json: { customerKey, authKey } }),
   removeCard: () => http<void>('/billing/card', { method: 'DELETE' }),
   payments: () => http<Payment[]>('/billing/payments'),
+  /** 멤버 한도 초과: 인원·초과 인원·다음 결제 금액 */
+  overage: (teamId: number) => http<OverageInfo>(`/teams/${teamId}/overage`),
+  /** 한도 초과 허용 켜기(동의 필요)·끄기 (소유자) */
+  setOverage: (teamId: number, allowed: boolean, agree: boolean) =>
+    http<OverageInfo>(`/teams/${teamId}/overage`, { method: 'PUT', json: { allowed, agree } }),
 }
 
 export const usePlansQuery = () => useQuery({ queryKey: planKeys.all, queryFn: planApi.list })
@@ -37,3 +43,6 @@ export const useWorkspaceSubscriptionQuery = (teamId: number | undefined) =>
 export const useExpiryNoticesQuery = () => useQuery({ queryKey: planKeys.notices, queryFn: planApi.notices })
 
 export const usePaymentsQuery = () => useQuery({ queryKey: planKeys.payments, queryFn: planApi.payments })
+
+export const useOverageQuery = (teamId: number | undefined) =>
+  useQuery({ queryKey: planKeys.overage(teamId ?? 0), queryFn: () => planApi.overage(teamId!), enabled: !!teamId })

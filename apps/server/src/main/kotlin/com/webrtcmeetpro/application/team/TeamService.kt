@@ -12,6 +12,7 @@ import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.domain.notification.NotificationType
+import com.webrtcmeetpro.application.plan.MemberOverageService
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.domain.team.InvitationStatus
 import com.webrtcmeetpro.domain.team.Team
@@ -63,6 +64,9 @@ data class TeamLimitsView(
     val maxMeetingParticipants: Int = 0,
     val recordingEnabled: Boolean = false,
     val planCode: String = "",
+    /** 소유자가 한도 초과를 허용함 (넘게 초대할 수 있고, 1명당 월 overagePrice 원) */
+    val overageAllowed: Boolean = false,
+    val overagePrice: Long = 0,
 )
 
 data class TeamDetailView(val team: TeamSummaryView, val members: List<TeamMemberView>, val limits: TeamLimitsView)
@@ -93,6 +97,7 @@ class TeamService(
     private val meetingRepository: MeetingRepository,
     private val mail: MailService,
     private val web: WebProperties,
+    private val overage: MemberOverageService,
 ) {
     private val random = SecureRandom()
 
@@ -123,7 +128,10 @@ class TeamService(
             members = members
                 .mapNotNull { m -> users[m.userId]?.let { memberView(m, it, removable = me.canRemove(m)) } }
                 .sortedWith(compareBy({ it.role.ordinal }, { it.joinedAt })),
-            limits = TeamLimitsView(plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, pending, plan.maxMeetingParticipants, plan.recordingEnabled, plan.code),
+            limits = TeamLimitsView(
+                plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, pending, plan.maxMeetingParticipants, plan.recordingEnabled, plan.code,
+                overageAllowed = team.overageAllowed, overagePrice = plan.overagePricePerMember,
+            ),
         )
     }
 
@@ -142,12 +150,11 @@ class TeamService(
         val pending = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }
         if (pending.any { it.inviteeEmail == email }) throw BusinessException(ErrorCode.INVITATION_ALREADY_PENDING)
 
-        // 멤버 수 한도는 워크스페이스 플랜 기준. 대기 중인 초대도 자리를 차지한다
+        // 멤버 수 한도는 워크스페이스 플랜 기준. 대기 중인 초대도 자리를 차지한다.
+        // 넘으면 소유자가 "한도 초과 허용"(초과 요금 동의)을 켰을 때만
         val plan = planService.planOfTeam(teamId)
         val active = memberRepository.countByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)
-        if (!plan.canAddMember(active + pending.size)) {
-            throw BusinessException(ErrorCode.PLAN_MEMBER_LIMIT, mapOf("max" to plan.maxMembersPerTeam))
-        }
+        overage.requireSeat(team, plan, active + pending.size)
 
         val invitation = invitationRepository.save(
             TeamInvitation(
@@ -201,7 +208,7 @@ class TeamService(
 
         val plan = planService.planOfTeam(team.id!!)
         val active = memberRepository.countByTeamIdAndStatus(team.id!!, TeamMemberStatus.ACTIVE)
-        if (!plan.canAddMember(active)) throw BusinessException(ErrorCode.PLAN_MEMBER_LIMIT, mapOf("max" to plan.maxMembersPerTeam))
+        overage.requireSeat(team, plan, active)
 
         val existing = memberRepository.findByTeamIdAndUserId(team.id!!, userId)
         when {
@@ -209,6 +216,8 @@ class TeamService(
             existing.status != TeamMemberStatus.ACTIVE -> existing.rejoin()
         }
         invitation.accept()
+        // 한도를 넘었으면 결제일을 잡고 소유자에게 경고 메일
+        overage.onMemberJoined(team.id!!)
         notifications.notify(
             listOf(invitation.inviterId),
             NotificationType.TEAM_INVITATION_ACCEPTED,

@@ -18,6 +18,7 @@ import {
 } from '@/entities/plan'
 import { useTeamsQuery } from '@/entities/team'
 import { userKeys } from '@/entities/user'
+import { OverageCard } from '@/features/member-overage'
 import { AutoRenewSwitch, ManageCard } from '@/features/purchase-plan'
 import { errorMessage } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
@@ -101,6 +102,8 @@ export function BillingPage() {
           </Card>
         </div>
       )}
+
+      {sub && <OverageCard teamId={sub.team.id} />}
 
       {sub && <PricingTable subscription={sub} />}
 

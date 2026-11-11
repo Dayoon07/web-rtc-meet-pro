@@ -15,6 +15,9 @@ import java.time.LocalDateTime
 
 enum class PaymentStatus { READY, DONE, CANCELED, FAILED, ABORTED }
 
+/** PLAN = 플랜 결제 (월 자동결제면 초과 인원 요금이 같이 들어갈 수 있다), OVERAGE = 초과 인원 요금만 */
+enum class PaymentKind { PLAN, OVERAGE }
+
 /**
  * 결제 건 (토스페이먼츠).
  * order_id 는 결제창 호출 전에 우리가 발급하고, 승인 성공 시 payment_key / receipt_url 을 채운다.
@@ -44,6 +47,17 @@ class Payment(
 
     /** 요금제를 적용한 워크스페이스 */
     val teamId: Long? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    val paymentKind: PaymentKind = PaymentKind.PLAN,
+
+    /** 이 결제에 들어간 초과 인원과 그 금액 (영수증에 따로 보인다) */
+    @Column(nullable = false)
+    val overageMembers: Int = 0,
+
+    @Column(nullable = false)
+    val overageAmount: Long = 0,
 ) : BaseEntity() {
 
     @Id

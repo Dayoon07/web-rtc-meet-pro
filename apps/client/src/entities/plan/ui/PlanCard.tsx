@@ -46,6 +46,10 @@ export function PlanCard({ plan, cycle = 'MONTHLY', current, highlighted, action
       text: plan.aiNotesMinutes > 0 ? t('plan.features.aiNotesDetail', { minutes: plan.aiNotesMinutes }) : t('plan.features.aiNotes'),
     },
     {
+      on: true,
+      text: t('plan.features.overage', { price: formatPrice(plan.overagePricePerMember) }),
+    },
+    {
       on: plan.liveCaptionMinutes > 0,
       text: plan.liveCaptionMinutes > 0 ? t('plan.features.captionsDetail', { minutes: plan.liveCaptionMinutes }) : t('plan.features.captions'),
     },

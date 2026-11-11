@@ -98,6 +98,7 @@ class PlanFakes(val plans: List<Plan>) {
         override fun findTeamById(id: Long): Team? = teams.find { it.id == id }
         override fun countByOwnerIdAndStatus(ownerId: Long, status: TeamStatus) = teams.count { it.ownerId == ownerId && it.status == status }.toLong()
         override fun findAllByIdInAndStatus(ids: Collection<Long>, status: TeamStatus) = teams.filter { it.id in ids && it.status == status }
+        override fun findAllByOverageAllowedTrueAndStatus(status: TeamStatus) = teams.filter { it.overageAllowed && it.status == status }
     }
     val memberRepo = object : TeamMemberRepository {
         override fun save(member: TeamMember) = TestIds.assign(member).also { if (it !in members) members += it }

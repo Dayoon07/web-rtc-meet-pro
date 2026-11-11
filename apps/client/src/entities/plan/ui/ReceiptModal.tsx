@@ -33,6 +33,14 @@ export function ReceiptModal({ payment, open, onClose }: { payment: Payment | nu
   if (!payment) return null
   const p = payment
   const item = `${planName({ code: p.planCode, name: p.planName })} ${p.billingCycle ? t(`billing.cycle.${p.billingCycle}`) : ''}`.trim()
+  const overageAmount = p.overageAmount ?? 0
+  const overageMembers = p.overageMembers ?? 0
+  const onlyOverage = p.kind === 'OVERAGE'
+  // 품목: 플랜 (초과 인원만 결제한 건이면 없음) + 초과 인원
+  const rows: [string, number, number][] = [
+    ...(onlyOverage ? [] : [[item, 1, p.amount - overageAmount] as [string, number, number]]),
+    ...(overageMembers > 0 ? [[t('billing.receipt.overageItem'), overageMembers, overageAmount] as [string, number, number]] : []),
+  ]
   const done = p.status === 'DONE'
   const card = [p.cardCompany, p.cardNumberMasked].filter(Boolean).join(' ')
 
@@ -87,11 +95,13 @@ export function ReceiptModal({ payment, open, onClose }: { payment: Payment | nu
             <span className="text-right">{t('billing.receipt.qty')}</span>
             <span className="text-right">{t('billing.receipt.amount')}</span>
           </div>
-          <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-gray-900 dark:text-gray-100">
-            <span className="min-w-0 break-words">{item}</span>
-            <span className="text-right tabular-nums">1</span>
-            <span className="text-right tabular-nums">{formatPrice(p.amount)}</span>
-          </div>
+          {rows.map(([name, qty, amount]) => (
+            <div key={name} className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-gray-900 dark:text-gray-100">
+              <span className="min-w-0 break-words">{name}</span>
+              <span className="text-right tabular-nums">{qty}</span>
+              <span className="text-right tabular-nums">{formatPrice(amount)}</span>
+            </div>
+          ))}
           {p.periodEnd && <p className="text-xs text-gray-500">{t('billing.receipt.period', { date: fmt.date(p.periodEnd) })}</p>}
         </Block>
 

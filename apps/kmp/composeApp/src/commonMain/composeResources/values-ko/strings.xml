@@ -270,4 +270,6 @@
     <string name="notes_no_owner">담당자 없음</string>
     <string name="notes_disclaimer">AI 가 받아쓰고 요약해서 틀린 내용이 있을 수 있어요.</string>
     <string name="notes_card_counts">결정 %1$d · 할 일 %2$d · 자세히 보기</string>
+    <string name="notif_MEMBER_OVERAGE">「%1$s」 멤버가 플랜 한도(%2$s명)를 %3$s명 넘었어요. 다음 결제에 %4$s원이 더해져요</string>
+    <string name="notif_OVERAGE_CHARGE_SOON">「%1$s」 %2$s 결제 예정: 합계 %3$s원 (초과 %4$s명 포함)</string>
 </resources>

@@ -15,6 +15,8 @@ import com.webrtcmeetpro.domain.plan.BillingCycle
 import com.webrtcmeetpro.domain.plan.BillingKey
 import com.webrtcmeetpro.domain.plan.BillingKeyRepository
 import com.webrtcmeetpro.domain.plan.Payment
+import com.webrtcmeetpro.domain.plan.PaymentKind
+import com.webrtcmeetpro.domain.team.Team
 import com.webrtcmeetpro.domain.plan.PaymentRepository
 import com.webrtcmeetpro.domain.plan.PaymentStatus
 import com.webrtcmeetpro.domain.plan.Plan
@@ -59,6 +61,11 @@ data class PaymentView(
     val createdAt: LocalDateTime,
     val teamId: Long?,
     val teamName: String?,
+    /** PLAN = 플랜 (+ 초과 인원), OVERAGE = 초과 인원 요금만 */
+    val kind: PaymentKind = PaymentKind.PLAN,
+    /** 이 결제에 들어간 초과 인원과 그 금액 (영수증에 따로) */
+    val overageMembers: Int = 0,
+    val overageAmount: Long = 0,
 )
 
 /**
@@ -83,6 +90,7 @@ class BillingService(
     private val notifications: NotificationService,
     private val mail: MailService,
     private val web: WebProperties,
+    private val overage: MemberOverageService,
     transactionManager: PlatformTransactionManager,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -178,6 +186,9 @@ class BillingService(
                 createdAt = it.createdDt,
                 teamId = it.teamId,
                 teamName = it.teamId?.let { id -> teamNames.getOrPut(id) { teams.findTeamById(id)?.name } },
+                kind = it.paymentKind,
+                overageMembers = it.overageMembers,
+                overageAmount = it.overageAmount,
             )
         }
     }
@@ -202,6 +213,9 @@ class BillingService(
                         if (s.expiringNotifiedAt == null && !willRenew(s)) {
                             tx.executeWithoutResult { notifyExpiring(reload(s), now) }
                             handled++
+                        } else if (willRenew(s)) {
+                            // 갱신 결제에 초과 인원 요금이 들어가면 3일 전에 금액 안내
+                            tx.executeWithoutResult { noticeRenewalOverage(reload(s), now) }
                         }
                     }
                     s.status == SubscriptionStatus.PAST_DUE && s.nextRetryAt?.isAfter(now) == true -> Unit
@@ -224,10 +238,15 @@ class BillingService(
             tx.executeWithoutResult { expire(reload(s), plan, now) }
             return
         }
-        val payment = tx.execute { payments.save(newPayment(s.userId, team.id!!, team.name, plan, cycle, card)) }!!
+        // 월 자동결제이고 이 워크스페이스의 가장 높은 플랜이면 초과 인원 요금을 같이 (결제일의 멤버 수 기준)
+        val excess = if (combinesOverage(s, plan, team, now)) overage.billableExcess(team, plan) else 0
+        val payment = tx.execute { payments.save(newPayment(s.userId, team.id!!, team.name, plan, cycle, card, excess)) }!!
         try {
-            chargeAndApply(payment.orderId, card) { at -> reload(s).also { it.extend(cycle, at) } }
-            log.info("자동결제 성공 (subscriptionId={}, {} {})", s.id, plan.code, cycle)
+            chargeAndApply(payment.orderId, card) { at ->
+                if (excess > 0 || combinesOverage(s, plan, team, now)) teams.findTeamById(team.id!!)?.clearOverageSchedule()
+                reload(s).also { it.extend(cycle, at) }
+            }
+            log.info("자동결제 성공 (subscriptionId={}, {} {}, 초과 {}명)", s.id, plan.code, cycle, excess)
         } catch (e: TossException) {
             if (e.uncertain) {
                 // 결제됐는지 모름: 다음 주기에 같은 구독을 다시 시도하지 않도록 재시도 시각만 미룬다
@@ -246,6 +265,130 @@ class BillingService(
     }
 
     private fun willRenew(s: Subscription) = s.autoRenew && billingKeys.findByUserIdAndActiveTrue(s.userId) != null
+
+    /** 이 구독 갱신에 초과 인원 요금을 같이 넣는지: 월 결제이고, 이보다 높은 플랜이 따로 쓰이고 있지 않을 때 */
+    private fun combinesOverage(s: Subscription, plan: Plan, team: Team, now: LocalDateTime): Boolean {
+        if ((s.billingCycle ?: BillingCycle.MONTHLY) != BillingCycle.MONTHLY || !team.overageAllowed) return false
+        val other = planService.inUseSubscription(team.id!!, now)
+        return other == null || other.first.id == s.id || other.second.sortOrder <= plan.sortOrder
+    }
+
+    private fun noticeRenewalOverage(s: Subscription, now: LocalDateTime) {
+        val team = s.teamId?.let(teams::findTeamById)?.takeIf { it.status == TeamStatus.ACTIVE } ?: return
+        val plan = planService.planById(s.planId)
+        if (!combinesOverage(s, plan, team, now)) return
+        val excess = overage.billableExcess(team, plan)
+        overage.noticeCharge(team, plan, "${plan.name} (1개월)", plan.price(BillingCycle.MONTHLY), excess, s.currentPeriodEnd!!)
+    }
+
+    // ----------------------------------------------------------------- 초과 인원 요금 (따로 결제)
+
+    /**
+     * 월 자동결제 플랜이 아닌 워크스페이스(무료·연 결제·자동결제 꺼짐)의 초과 인원 요금을 한 달마다 따로 결제 (스케줄러).
+     * 결제일 3일 전에 안내, 결제일의 멤버 수로 계산. 초과 인원이 없으면 일정을 지운다.
+     * 실패하면 하루 뒤 다시, 3번 실패하면 한도 초과 허용을 끈다 (새 초대만 막힌다).
+     * @return 결제를 시도한 워크스페이스 수
+     */
+    fun processOverage(now: LocalDateTime = LocalDateTime.now()): Int {
+        var charged = 0
+        for (candidate in teams.findAllByOverageAllowedTrueAndStatus(TeamStatus.ACTIVE)) {
+            runCatching {
+                val due = tx.execute {
+                    val team = teams.findTeamById(candidate.id!!)!!
+                    val plan = planService.planOfTeam(team.id!!, now)
+                    val excess = overage.billableExcess(team, plan)
+                    val billing = overage.billing(team, now)
+                    when {
+                        billing.withRenewal || excess <= 0 -> {
+                            team.clearOverageSchedule()
+                            null
+                        }
+                        else -> {
+                            // 월 자동결제가 끝나 따로 내게 된 경우 등: 오늘부터 한 달 뒤
+                            team.scheduleOverage(now.plusMonths(1))
+                            val at = team.overageNextChargeAt!!
+                            if (at.isAfter(now)) {
+                                if (at.isBefore(now.plusDays(EXPIRING_NOTICE_DAYS))) overage.noticeCharge(team, plan, null, 0, excess, at)
+                                null
+                            } else {
+                                Triple(team.id!!, plan, excess)
+                            }
+                        }
+                    }
+                } ?: return@runCatching
+                chargeOverage(due.first, due.second, due.third, now)
+                charged++
+            }.onFailure { log.error("초과 인원 요금 처리 실패 (teamId={})", candidate.id, it) }
+        }
+        return charged
+    }
+
+    private fun chargeOverage(teamId: Long, plan: Plan, excess: Long, now: LocalDateTime) {
+        val team = teams.findTeamById(teamId)!!
+        val card = billingKeys.findByUserIdAndActiveTrue(team.ownerId)
+        if (card == null) {
+            tx.executeWithoutResult { overageFailed(teamId, plan, now, "등록된 카드가 없어요") }
+            return
+        }
+        val amount = excess * plan.overagePricePerMember
+        val payment = tx.execute {
+            payments.save(
+                Payment(
+                    userId = team.ownerId,
+                    planId = plan.id!!,
+                    orderId = "ORD-" + UUID.randomUUID().toString().replace("-", ""),
+                    orderName = "MQ 초과 인원 ${excess}명 (1개월) · ${team.name}".take(100),
+                    amount = amount,
+                    billingKeyId = card.id,
+                    billingCycle = BillingCycle.MONTHLY,
+                    teamId = teamId,
+                    paymentKind = PaymentKind.OVERAGE,
+                    overageMembers = excess.toInt(),
+                    overageAmount = amount,
+                ),
+            )
+        }!!
+        val user = users.findUserById(team.ownerId)
+        val result = try {
+            toss.charge(cipher.decrypt(card.billingKey), card.customerKey, amount, payment.orderId, payment.orderName, user?.email, user?.realName ?: user?.nickname)
+        } catch (e: TossException) {
+            tx.executeWithoutResult {
+                if (!e.uncertain) payments.findByOrderId(payment.orderId)!!.fail(e.code, e.message)
+                overageFailed(teamId, plan, now, e.message)
+            }
+            log.info("초과 인원 요금 결제 실패 (teamId={}, {}명, {}원): {}", teamId, excess, amount, e.message)
+            return
+        }
+        tx.executeWithoutResult {
+            payments.findByOrderId(payment.orderId)!!.approve(
+                result.paymentKey, result.method, result.receiptUrl, LocalDateTime.now(),
+                cardCompany = result.cardCompany ?: card.cardCompany,
+                cardNumberMasked = result.cardNumber ?: card.cardNumberMasked,
+                approveNo = result.approveNo,
+            )
+            teams.findTeamById(teamId)!!.overageCharged()
+        }
+        log.info("초과 인원 요금 결제 성공 (teamId={}, {}명, {}원)", teamId, excess, amount)
+    }
+
+    private fun overageFailed(teamId: Long, plan: Plan, now: LocalDateTime, reason: String?) {
+        val team = teams.findTeamById(teamId)!!
+        team.overageChargeFailed(now)
+        val gaveUp = team.overageFailedAttempts >= Team.MAX_OVERAGE_ATTEMPTS
+        if (gaveUp) team.disallowOverage()
+        val path = "$BILLING_PATH?team=$teamId"
+        val label = "초과 인원 요금 (${team.name})"
+        notifications.notify(
+            listOf(team.ownerId),
+            NotificationType.PAYMENT_FAILED,
+            mapOf("planCode" to "OVERAGE", "planName" to label, "teamName" to team.name, "date" to team.overageNextChargeAt?.let(JacksonConfig::toOffsetString), "reason" to reason),
+            path,
+        )
+        val owner = users.findUserById(team.ownerId) ?: return
+        if (owner.email.isNotBlank()) {
+            mail.sendAfterCommit(MailTemplates.planNotice(owner.email, MailLanguage.KO, PlanMailKind.PAYMENT_FAILED, label, team.overageNextChargeAt, reason, web.link(path)))
+        }
+    }
 
     private fun notifyExpiring(s: Subscription, now: LocalDateTime) {
         if (s.expiringNotifiedAt != null) return
@@ -284,16 +427,19 @@ class BillingService(
         }
     }
 
-    private fun newPayment(userId: Long, teamId: Long, teamName: String, plan: Plan, cycle: BillingCycle, card: BillingKey) = Payment(
+    private fun newPayment(userId: Long, teamId: Long, teamName: String, plan: Plan, cycle: BillingCycle, card: BillingKey, excess: Long = 0) = Payment(
         userId = userId,
         planId = plan.id!!,
         orderId = "ORD-" + UUID.randomUUID().toString().replace("-", ""),
         // 토스 주문명은 100자까지
-        orderName = "MQ ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"}) · $teamName".take(100),
-        amount = plan.price(cycle),
+        orderName = ("MQ ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"})" +
+            (if (excess > 0) " + 초과 ${excess}명" else "") + " · $teamName").take(100),
+        amount = plan.price(cycle) + excess * plan.overagePricePerMember,
         billingKeyId = card.id,
         billingCycle = cycle,
         teamId = teamId,
+        overageMembers = excess.toInt(),
+        overageAmount = excess * plan.overagePricePerMember,
     )
 
     private fun reload(s: Subscription) = subscriptions.findSubscriptionById(s.id!!)!!

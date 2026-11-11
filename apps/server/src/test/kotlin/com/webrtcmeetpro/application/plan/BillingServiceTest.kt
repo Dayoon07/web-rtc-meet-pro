@@ -14,6 +14,7 @@ import com.webrtcmeetpro.domain.notification.NotificationRepository
 import com.webrtcmeetpro.domain.notification.NotificationType
 import com.webrtcmeetpro.domain.plan.BillingCycle
 import com.webrtcmeetpro.domain.plan.BillingKey
+import com.webrtcmeetpro.domain.plan.PaymentKind
 import com.webrtcmeetpro.domain.plan.PaymentStatus
 import com.webrtcmeetpro.domain.plan.SubscriptionStatus
 import com.webrtcmeetpro.domain.user.User
@@ -91,11 +92,17 @@ class BillingServiceTest {
         override fun commit(status: TransactionStatus) {}
         override fun rollback(status: TransactionStatus) {}
     }
+    private val mailService = MailService(object : MailSender { override fun send(message: MailMessage) { mails += message } })
+    private val overage = MemberOverageService(
+        planService, fakes.teamRepo, fakes.memberRepo, fakes.billingKeyRepo, users, notifications, mailService, WebProperties("http://web.test"),
+    )
     private val billing = BillingService(
         tossClient, toss, cipher, planService, fakes.billingKeyRepo, fakes.paymentRepo, fakes.subscriptionRepo, users,
-        fakes.teamRepo, notifications, MailService(object : MailSender { override fun send(message: MailMessage) { mails += message } }),
-        WebProperties("http://web.test"), noTx,
+        fakes.teamRepo, notifications, mailService, WebProperties("http://web.test"), overage, noTx,
     )
+
+    /** 워크스페이스에 멤버를 n 명 더 (소유자 포함 1 + n 명) */
+    private fun addMembers(teamId: Long, n: Int) = repeat(n) { fakes.join(teamId, 10_000L + it) }
 
     private fun registerCard() {
         val prepared = billing.prepareCard(uid)
@@ -287,7 +294,7 @@ class BillingServiceTest {
     fun `토스 키가 없으면 결제 기능이 꺼져 있다`() {
         val off = BillingService(
             tossClient, TossProperties(), cipher, planService, fakes.billingKeyRepo, fakes.paymentRepo, fakes.subscriptionRepo, users,
-            fakes.teamRepo, notifications, MailService(object : MailSender { override fun send(message: MailMessage) {} }), WebProperties("http://web.test"), noTx,
+            fakes.teamRepo, notifications, MailService(object : MailSender { override fun send(message: MailMessage) {} }), WebProperties("http://web.test"), overage, noTx,
         )
         assertEquals(ErrorCode.PAYMENT_NOT_CONFIGURED, assertThrows<BusinessException> { off.prepareCard(uid) }.errorCode)
         assertFalse(fakes.planService().workspaceSubscription(ws, uid).paymentsEnabled)
@@ -295,4 +302,128 @@ class BillingServiceTest {
 
     @Suppress("unused")
     private fun card(): BillingKey = fakes.billingKeys.single { it.active }
+
+    // ------------------------------------------------------------- 멤버 초과 요금
+
+    @Test
+    fun `한도 초과 허용은 소유자가 카드 등록하고 동의해야 켜진다`() {
+        assertEquals(ErrorCode.BILLING_CARD_REQUIRED, assertThrows<BusinessException> { overage.setAllowed(ws, uid, allowed = true, agree = true) }.errorCode)
+        registerCard()
+        assertEquals(ErrorCode.OVERAGE_CONSENT_REQUIRED, assertThrows<BusinessException> { overage.setAllowed(ws, uid, allowed = true, agree = false) }.errorCode)
+        val view = overage.setAllowed(ws, uid, allowed = true, agree = true)
+        assertTrue(view.allowed)
+        assertNotNull(fakes.teams.single { it.id == ws }.overageAgreedAt)
+        assertEquals(9900, view.pricePerMember)
+    }
+
+    @Test
+    fun `허용하지 않으면 한도에서 막히고, 허용하면 넘게 들어올 수 있다`() {
+        val id = ws
+        val t = fakes.teams.single { it.id == id }
+        val e = assertThrows<BusinessException> { overage.requireSeat(t, free, 10) }
+        assertEquals(ErrorCode.PLAN_MEMBER_LIMIT, e.errorCode)
+        assertEquals(true, e.params["overage"])
+        registerCard()
+        overage.setAllowed(ws, uid, allowed = true, agree = true)
+        overage.requireSeat(t, free, 10)
+        assertEquals(ErrorCode.OVERAGE_MAX_MEMBERS, assertThrows<BusinessException> { overage.requireSeat(t, free, MemberOverageService.HARD_CAP.toLong()) }.errorCode)
+    }
+
+    @Test
+    fun `무료 워크스페이스가 넘으면 경고 메일, 한 달 뒤 초과분만 따로 결제, 3일 전 안내`() {
+        registerCard()
+        overage.setAllowed(ws, uid, allowed = true, agree = true)
+        val now = LocalDateTime.of(2026, 11, 11, 10, 0)
+        addMembers(ws, 11) // 1 + 11 = 12명, 무료 한도 10명 → 2명 초과
+        overage.onMemberJoined(ws, now)
+        overage.onMemberJoined(ws, now.plusHours(1))
+        val warn = mails.filter { "한도를 넘었어요" in it.subject }
+        assertEquals(1, warn.size, "경고 메일은 하루에 한 번")
+        assertTrue("9,900원 × 2명 = 19,800원" in warn.single().text, warn.single().text)
+        val team = fakes.teams.single { it.id == ws }
+        assertEquals(now.plusMonths(1), team.overageNextChargeAt)
+
+        billing.processOverage(now.plusMonths(1).minusDays(2))
+        billing.processOverage(now.plusMonths(1).minusDays(1))
+        assertEquals(1, mails.count { "결제 예정 금액 안내" in it.subject }, "3일 전 안내는 한 번")
+        assertTrue(charged.isEmpty())
+
+        billing.processOverage(now.plusMonths(1).plusMinutes(1))
+        assertEquals(listOf(19_800L), charged)
+        val p = fakes.payments.single()
+        assertEquals(PaymentKind.OVERAGE, p.paymentKind)
+        assertEquals(2, p.overageMembers)
+        assertEquals(PaymentStatus.DONE, p.status)
+        assertEquals(now.plusMonths(2), team.overageNextChargeAt, "다음 달 같은 날")
+    }
+
+    @Test
+    fun `결제일에 멤버가 한도 안이면 청구하지 않고 일정을 지운다`() {
+        registerCard()
+        overage.setAllowed(ws, uid, allowed = true, agree = true)
+        val now = LocalDateTime.of(2026, 11, 11, 10, 0)
+        addMembers(ws, 11)
+        overage.onMemberJoined(ws, now)
+        fakes.members.filter { it.teamId == ws && it.userId >= 10_000L }.take(2).forEach { it.leave() }
+        billing.processOverage(now.plusMonths(1).plusMinutes(1))
+        assertTrue(charged.isEmpty())
+        assertNull(fakes.teams.single { it.id == ws }.overageNextChargeAt)
+    }
+
+    @Test
+    fun `월 자동결제 플랜은 갱신 때 플랜 요금 + 초과 요금을 한 번에, 3일 전에 금액 안내`() {
+        registerCard()
+        billing.purchase(uid, ws, "PRO", BillingCycle.MONTHLY, autoRenew = true) // PRO 한도 20명
+        overage.setAllowed(ws, uid, allowed = true, agree = true)
+        addMembers(ws, 22) // 23명 → 3명 초과
+        overage.onMemberJoined(ws)
+        assertNull(fakes.teams.single { it.id == ws }.overageNextChargeAt, "따로 결제하지 않고 갱신 때 같이")
+
+        val end = fakes.subscriptions.single { it.planId == pro.id && it.teamId == ws }.currentPeriodEnd!!
+        billing.processRenewals(end.minusDays(2))
+        val notice = mails.single { "결제 예정 금액 안내" in it.subject }
+        assertTrue("합계 34,600원" in notice.text, notice.text) // 4,900 + 3 × 9,900
+
+        billing.processRenewals(end.plusMinutes(1))
+        assertEquals(listOf(4_900L, 34_600L), charged)
+        val renewal = fakes.payments.last()
+        assertEquals(PaymentKind.PLAN, renewal.paymentKind)
+        assertEquals(3, renewal.overageMembers)
+        assertEquals(29_700, renewal.overageAmount)
+        assertTrue("초과 3명" in renewal.orderName)
+        // 영수증(결제 내역)에 초과분이 따로
+        val view = billing.history(uid).first { it.orderId == renewal.orderId }
+        assertEquals(29_700, view.overageAmount)
+    }
+
+    @Test
+    fun `초과한 멤버가 있는 동안은 끌 수 없고, 정리하면 끌 수 있다`() {
+        registerCard()
+        overage.setAllowed(ws, uid, allowed = true, agree = true)
+        addMembers(ws, 11)
+        val e = assertThrows<BusinessException> { overage.setAllowed(ws, uid, allowed = false, agree = false) }
+        assertEquals(ErrorCode.OVERAGE_IN_USE, e.errorCode)
+        assertEquals(2L, e.params["count"])
+        fakes.members.filter { it.teamId == ws && it.userId >= 10_000L }.take(2).forEach { it.leave() }
+        assertFalse(overage.setAllowed(ws, uid, allowed = false, agree = false).allowed)
+    }
+
+    @Test
+    fun `초과 요금 결제가 3번 실패하면 한도 초과 허용이 꺼진다`() {
+        registerCard()
+        overage.setAllowed(ws, uid, allowed = true, agree = true)
+        val now = LocalDateTime.of(2026, 11, 11, 10, 0)
+        addMembers(ws, 11)
+        overage.onMemberJoined(ws, now)
+        var at = now.plusMonths(1).plusMinutes(1)
+        repeat(3) {
+            failNext = TossException("REJECT_CARD_COMPANY", "한도 초과", uncertain = false)
+            billing.processOverage(at)
+            at = at.plusDays(1).plusMinutes(1)
+        }
+        val team = fakes.teams.single { it.id == ws }
+        assertFalse(team.overageAllowed)
+        assertEquals(3, fakes.payments.count { it.status == PaymentStatus.FAILED })
+        assertTrue(sent.any { it.type == NotificationType.PAYMENT_FAILED })
+    }
 }

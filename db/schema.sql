@@ -1,5 +1,6 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v1.2  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v1.3  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+--   v1.3: 멤버 초과 요금(plans.overage_price_per_member, teams.overage_*, payments.payment_kind). 기존 DB 는 db/migrations/v1.3-member-overage.sql
 --   v1.2: AI 회의록(meeting_notes, meeting_transcripts, ai_usages), 플랜 AI 한도(ai_notes_minutes, live_caption_minutes).
 --         기존 DB 는 db/migrations/v1.2-ai-notes.sql
 --   v1.1: 채널 상시 음성방(meetings.chat_room_id). 기존 DB 는 db/migrations/v1.1-voice-rooms.sql
@@ -173,6 +174,7 @@ CREATE TABLE plans (
     recording_retention_days NUMBER(10)      DEFAULT 30 NOT NULL,  -- 녹화 보관 일수 (지나면 자동 삭제)
     ai_notes_minutes         NUMBER(10)      DEFAULT 0 NOT NULL,   -- 한 달 AI 회의록 시간(분). 0 = 없음
     live_caption_minutes     NUMBER(10)      DEFAULT 0 NOT NULL,   -- 한 달 실시간 자막·번역 시간(분). 0 = 없음
+    overage_price_per_member NUMBER(12)      DEFAULT 9900 NOT NULL, -- 멤버 한도를 넘은 1명당 한 달 요금
     sort_order               NUMBER(10)      DEFAULT 0 NOT NULL,
     active                   CHAR(1)         DEFAULT 'Y' NOT NULL,
     created_dt               TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
@@ -276,6 +278,9 @@ CREATE TABLE payments (
     card_company        VARCHAR2(30 CHAR),                -- 영수증: 카드사
     card_number_masked  VARCHAR2(30),                     -- 영수증: 가린 카드번호
     approve_no          VARCHAR2(30),                     -- 영수증: 카드 승인번호
+    payment_kind        VARCHAR2(20)    DEFAULT 'PLAN' NOT NULL,  -- PLAN(플랜 + 초과 요금) / OVERAGE(초과 요금만)
+    overage_members     NUMBER(10)      DEFAULT 0 NOT NULL,       -- 이 결제에 들어간 초과 인원
+    overage_amount      NUMBER(12)      DEFAULT 0 NOT NULL,       -- 그 금액
     created_dt          TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
     created_us          NUMBER(19),
     edited_dt           TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
@@ -291,6 +296,7 @@ CREATE TABLE payments (
     CONSTRAINT ck_payments_amount CHECK (amount >= 0),
     CONSTRAINT ck_payments_status CHECK (status IN ('READY', 'DONE', 'CANCELED', 'FAILED', 'ABORTED')),
     CONSTRAINT ck_payments_cycle CHECK (billing_cycle IN ('MONTHLY', 'YEARLY')),
+    CONSTRAINT ck_payments_kind CHECK (payment_kind IN ('PLAN', 'OVERAGE')),
     CONSTRAINT ck_payments_deleted_yn CHECK (deleted_yn IN ('Y', 'N'))
 );
 CREATE INDEX idx_payments_user ON payments (user_id, created_dt);
@@ -305,6 +311,13 @@ CREATE TABLE teams (
     name                VARCHAR2(100 CHAR) NOT NULL,
     description         VARCHAR2(500 CHAR),
     status              VARCHAR2(20)    DEFAULT 'ACTIVE' NOT NULL,
+    overage_allowed          CHAR(1)       DEFAULT 'N' NOT NULL,   -- 소유자가 한도 초과 초대를 허용 (= 초과 요금 동의)
+    overage_agreed_at        TIMESTAMP(6),                         -- 동의한 시각
+    overage_agreed_by        NUMBER(19),                           -- 동의한 사람 (소유자)
+    overage_warned_at        TIMESTAMP(6),                         -- 마지막 한도 초과 경고 메일
+    overage_next_charge_at   TIMESTAMP(6),                         -- 초과 요금을 따로 결제할 날 (월 자동결제 플랜이 아닐 때)
+    overage_notice_for       TIMESTAMP(6),                         -- "3일 뒤 결제" 메일을 보낸 결제일
+    overage_failed_attempts  NUMBER(5)     DEFAULT 0 NOT NULL,
     created_dt          TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
     created_us          NUMBER(19),
     edited_dt           TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
@@ -313,10 +326,12 @@ CREATE TABLE teams (
     CONSTRAINT pk_teams PRIMARY KEY (team_id),
     CONSTRAINT fk_teams_owner FOREIGN KEY (owner_id) REFERENCES users (user_id),
     CONSTRAINT ck_teams_status CHECK (status IN ('ACTIVE', 'DELETED')),
+    CONSTRAINT ck_teams_overage_allowed CHECK (overage_allowed IN ('Y', 'N')),
     CONSTRAINT ck_teams_deleted_yn CHECK (deleted_yn IN ('Y', 'N'))
 );
 -- 플랜 한도 체크: 소유 팀 수
 CREATE INDEX idx_teams_owner ON teams (owner_id, status);
+CREATE INDEX idx_teams_overage ON teams (overage_allowed, status);
 
 -- 요금제는 워크스페이스(팀)마다: subscriptions / payments 가 teams 를 가리킨다 (teams 가 위 2번 묶음보다 뒤에 만들어져서 여기서 연결)
 ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_team FOREIGN KEY (team_id) REFERENCES teams (team_id);
@@ -728,7 +743,8 @@ CREATE TABLE notifications (
         'CHAT_ROOM_INVITED',
         'MEETING_SCHEDULED', 'MEETING_REMINDER', 'MEETING_STARTED', 'MEETING_CANCELED', 'MEETING_UPDATED',
         'MEETING_NOTES_READY',
-        'PLAN_EXPIRING', 'PLAN_EXPIRED', 'PAYMENT_FAILED'
+        'PLAN_EXPIRING', 'PLAN_EXPIRED', 'PAYMENT_FAILED',
+        'MEMBER_OVERAGE', 'OVERAGE_CHARGE_SOON'
     )),
     CONSTRAINT ck_notifications_deleted_yn CHECK (deleted_yn IN ('Y', 'N'))
 );

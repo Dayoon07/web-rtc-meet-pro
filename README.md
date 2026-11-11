@@ -12,7 +12,7 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v1.2 (27 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v1.3 (27 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
@@ -66,6 +66,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.3-member-overage.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
@@ -247,7 +248,14 @@ COMMIT;
 | 회의당 인원 | 6 | 15 | 30 | 50 |
 | 채널 | 제한 없음 | 제한 없음 | 제한 없음 | 제한 없음 |
 | 녹화 | ✕ | ✕ | 50GB · 90일 | 200GB · 365일 |
+| 한도 초과 멤버 (소유자가 허용 시) | 1명당 월 9,900 | 1명당 월 9,900 | 1명당 월 9,900 | 1명당 월 9,900 |
 
+- **멤버 한도 초과** (어느 플랜이든): 소유자가 요금제 화면에서 안내를 읽고 동의하면(카드 필요, 동의 시각·사람을 `teams.overage_agreed_*` 에 기록) 한도를 넘게 초대할 수 있다 (최대 1,000명).
+  - 넘은 인원 × `plans.overage_price_per_member`(9,900원) 를 **결제일의 멤버 수**로 계산한다.
+  - 월 자동결제 플랜은 갱신 때 (플랜 요금 + 초과 요금) 한 번에, 무료·연 결제·자동결제 꺼짐은 처음 넘은 날부터 한 달마다 초과분만 따로 결제한다.
+  - 한도를 넘으면 소유자에게 경고 메일·알림 (하루 한 번까지), 초과 요금이 들어간 결제 3일 전에 금액 안내 메일.
+  - 초과한 멤버가 있는 동안은 끌 수 없다 (넘은 채로 꺼서 결제를 피하지 못하게). 따로 결제가 3번 실패하면 허용이 꺼진다 (새 초대만 막힌다).
+  - 영수증에 플랜과 초과 인원이 따로 찍힌다 (`payments.payment_kind`, `overage_members`, `overage_amount`).
 - 값은 전부 `plans` 테이블에 있다 (코드를 고치지 않고 바꿀 수 있음). 연 결제 금액은 `월 가격 × 12 × 0.9`. `max_owned_teams` 는 더 쓰지 않는다.
 - 구독(`subscriptions`)의 `user_id` = 결제한 사람, `team_id` = 적용되는 워크스페이스. 워크스페이스를 지우면 남은 구독은 CANCELED (자동결제 멈춤).
 - 결제: 웹에서 토스 카드 등록창 → `authKey` 로 빌링키 발급(AES-GCM 으로 암호화해 저장) → 그 카드로 바로 결제. 한 사람당 카드 하나.

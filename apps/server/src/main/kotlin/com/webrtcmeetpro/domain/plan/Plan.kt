@@ -62,6 +62,10 @@ class Plan(
     @Column(nullable = false)
     var liveCaptionMinutes: Int = 0,
 
+    /** 멤버 한도를 넘은 1명당 한 달 요금 (소유자가 한도 초과를 허용한 워크스페이스만) */
+    @Column(nullable = false)
+    var overagePricePerMember: Long = 9900,
+
     @Column(nullable = false)
     var sortOrder: Int = 0,
 

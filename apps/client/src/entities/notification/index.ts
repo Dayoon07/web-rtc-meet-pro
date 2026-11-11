@@ -46,5 +46,7 @@ export function notificationText(n: AppNotification, t: TFunction, formatTime: (
   const date = typeof p.date === 'string' ? formatTime(p.date) : ''
   // 플랜 이름은 코드로 번역 (없으면 서버가 보낸 이름)
   const plan = typeof p.planCode === 'string' ? translateDynamic(`plan.names.${p.planCode}`, undefined, String(p.planName ?? p.planCode)) : ''
-  return t(`notifications.types.${n.type}`, { ...p, time, date, plan })
+  // 금액은 1,000 단위 쉼표
+  const amount = typeof p.amount === 'number' ? p.amount.toLocaleString() : p.amount
+  return t(`notifications.types.${n.type}`, { ...p, time, date, plan, amount })
 }

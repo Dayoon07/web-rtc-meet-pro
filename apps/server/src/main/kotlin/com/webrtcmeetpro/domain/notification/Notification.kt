@@ -29,6 +29,10 @@ enum class NotificationType {
     PLAN_EXPIRED,
     /** 자동결제 실패 (하루 뒤 다시 시도) */
     PAYMENT_FAILED,
+    /** 워크스페이스 멤버가 플랜 한도를 넘음 (초과 요금 안내) */
+    MEMBER_OVERAGE,
+    /** 3일 뒤 초과 인원 요금이 들어간 결제 */
+    OVERAGE_CHARGE_SOON,
 }
 
 /** 문구는 저장하지 않는다. type + params(JSON) 를 클라이언트가 사용자 언어로 번역해 보여준다 */

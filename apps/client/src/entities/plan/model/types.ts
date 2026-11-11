@@ -17,6 +17,8 @@ export type Plan = {
   aiNotesMinutes: number
   /** 한 달 실시간 자막·번역 시간(분). 0 = 없음 */
   liveCaptionMinutes: number
+  /** 멤버 한도를 넘은 1명당 한 달 요금 (소유자가 허용했을 때) */
+  overagePricePerMember: number
   /** 클수록 높은 플랜 */
   rank: number
 }
@@ -97,4 +99,25 @@ export type Payment = {
   createdAt: string
   teamId: number | null
   teamName: string | null
+  /** PLAN = 플랜 (+ 초과 인원), OVERAGE = 초과 인원 요금만 */
+  kind?: 'PLAN' | 'OVERAGE'
+  overageMembers?: number
+  overageAmount?: number
+}
+
+/** 워크스페이스 멤버 한도 초과 (소유자가 허용하면 1명당 월 요금) */
+export type OverageInfo = {
+  teamId: number
+  allowed: boolean
+  agreedAt: string | null
+  members: number
+  limit: number
+  excess: number
+  pricePerMember: number
+  nextAmount: number
+  nextChargeAt: string | null
+  withRenewal: boolean
+  canManage: boolean
+  hasCard: boolean
+  hardCap: number
 }
