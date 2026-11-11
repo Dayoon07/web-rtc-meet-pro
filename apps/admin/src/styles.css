@@ -30,4 +30,38 @@
   ::selection {
     @apply bg-brand-200 text-brand-950 dark:bg-brand-800 dark:text-white;
   }
+
+  /* 스크롤바·기본 입력칸이 운영체제 테마를 따르게 + 얇은 스크롤바 */
+  html {
+    color-scheme: light dark;
+    scrollbar-color: var(--color-gray-300) transparent;
+  }
+  @media (prefers-color-scheme: dark) {
+    html {
+      scrollbar-color: var(--color-gray-700) transparent;
+    }
+  }
+  * {
+    scrollbar-width: thin;
+  }
+
+  /* 누를 수 있는 것은 손가락 모양 커서 (Tailwind v4 기본값은 화살표) */
+  button:not(:disabled),
+  [role='button'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'],
+  select:not(:disabled),
+  summary,
+  label[for],
+  label:has(input[type='checkbox'], input[type='radio']),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='file']:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
 }

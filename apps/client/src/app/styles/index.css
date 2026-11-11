@@ -32,4 +32,37 @@
   ::selection {
     @apply bg-brand-200 text-brand-950 dark:bg-brand-800 dark:text-white;
   }
+
+  /* 스크롤바·기본 입력칸이 화면 테마(밝게/어둡게)를 따르게 + 얇은 스크롤바 */
+  html {
+    color-scheme: light;
+    scrollbar-color: var(--color-gray-300) transparent;
+  }
+  html.dark {
+    color-scheme: dark;
+    scrollbar-color: var(--color-gray-700) transparent;
+  }
+  * {
+    scrollbar-width: thin;
+  }
+
+  /* Tailwind v4 는 버튼 커서를 기본 화살표로 둔다 → 누를 수 있는 것은 손가락 모양 */
+  button:not(:disabled),
+  [role='button'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'],
+  select:not(:disabled),
+  summary,
+  label[for],
+  label:has(input[type='checkbox'], input[type='radio']),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='file']:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
 }

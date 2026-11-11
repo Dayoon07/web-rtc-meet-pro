@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, UserCheck, Video, X } from 'lucide-react'
+import { Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, Sparkles, UserCheck, Users, Video, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -17,9 +17,12 @@ const ICONS: Record<NotificationType, typeof Bell> = {
   MEETING_STARTED: Video,
   MEETING_CANCELED: X,
   MEETING_UPDATED: CalendarClock,
+  MEETING_NOTES_READY: Sparkles,
   PLAN_EXPIRING: CreditCard,
   PLAN_EXPIRED: CreditCard,
   PAYMENT_FAILED: CreditCard,
+  MEMBER_OVERAGE: Users,
+  OVERAGE_CHARGE_SOON: CreditCard,
 }
 
 /** 상단 바 종 아이콘: 안 읽은 개수 + 최근 알림 드롭다운 + 브라우저 알림 권한 */
@@ -98,7 +101,8 @@ export function NotificationBell() {
               <p className="py-10 text-center text-sm text-gray-400">{t('notifications.empty')}</p>
             ) : (
               list.map((n) => {
-                const Icon = ICONS[n.type]
+                // 서버에 새 알림 종류가 생겨도 화면이 깨지지 않게 기본 아이콘
+                const Icon = ICONS[n.type] ?? Bell
                 return (
                   <button
                     key={n.id}

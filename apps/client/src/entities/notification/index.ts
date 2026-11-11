@@ -12,9 +12,12 @@ export type NotificationType =
   | 'MEETING_STARTED'
   | 'MEETING_CANCELED'
   | 'MEETING_UPDATED'
+  | 'MEETING_NOTES_READY'
   | 'PLAN_EXPIRING'
   | 'PLAN_EXPIRED'
   | 'PAYMENT_FAILED'
+  | 'MEMBER_OVERAGE'
+  | 'OVERAGE_CHARGE_SOON'
 
 export type AppNotification = {
   id: number

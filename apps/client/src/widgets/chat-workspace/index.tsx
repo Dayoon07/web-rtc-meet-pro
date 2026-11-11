@@ -35,7 +35,7 @@ import { useVoice, VoiceBar, voiceSession } from '@/features/voice-chat'
 import { realtime, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
-import { Avatar, Button, EmptyState, IconButton, LinkButton, Select, Spinner } from '@/shared/ui'
+import { Avatar, Button, EmptyState, IconButton, LinkButton, LinkifiedText, Select, Spinner } from '@/shared/ui'
 
 const PAGE = 50
 
@@ -428,7 +428,11 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canMo
                       ) : (
                         <>
                           {m.files.length > 0 && <MessageFiles files={m.files} mine={mine} onMediaLoad={followBottom} />}
-                          {m.content && <p className={bubbleClass(mine)}>{m.content}</p>}
+                          {m.content && (
+                            <p className={bubbleClass(mine)}>
+                              <LinkifiedText text={m.content} onDark={mine} />
+                            </p>
+                          )}
                         </>
                       )}
                     </div>

@@ -1,6 +1,7 @@
 import { CircleAlert } from 'lucide-react'
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 import { cn } from '@/shared/lib/cn'
+import { CustomSelect } from './select'
 
 const controlBase =
   'rounded-lg border bg-white text-gray-900 shadow-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15 disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800'
@@ -48,21 +49,15 @@ export function Input({ className, invalid, ...props }: InputHTMLAttributes<HTML
   return <input aria-invalid={invalid || undefined} className={cn(control, controlBorder(invalid), className)} {...props} />
 }
 
-export function Select({
-  className,
-  invalid,
-  compact,
-  children,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean; compact?: boolean }) {
+/** 선택 상자: 쓰는 법은 <select> 와 같고, 펼친 목록이 화면 테마(밝게/어둡게)를 따른다 (select.tsx) */
+export function Select({ invalid, compact, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean; compact?: boolean }) {
   return (
-    <select
-      aria-invalid={invalid || undefined}
-      className={cn(compact ? controlCompact : control, controlBorder(invalid), 'pr-8', className)}
+    <CustomSelect
+      invalid={invalid}
+      compact={compact}
+      controlClass={cn(compact ? controlCompact : control, controlBorder(invalid))}
       {...props}
-    >
-      {children}
-    </select>
+    />
   )
 }
 
