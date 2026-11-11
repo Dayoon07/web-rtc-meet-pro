@@ -3,6 +3,7 @@ import { AppHomePage } from '@/pages/app-home'
 import { BillingPage, CardReturnPage } from '@/pages/billing'
 import { ChatPage } from '@/pages/chat'
 import { HomePage } from '@/pages/home'
+import { LicensesPage, PrivacyPage, TermsPage } from '@/pages/legal'
 import { InvitationsPage } from '@/pages/invitations'
 import { LoginPage } from '@/pages/login'
 import { MeetingDetailPage } from '@/pages/meeting-detail'
@@ -33,6 +34,9 @@ export const router = createBrowserRouter([
         children: [
           { path: '/', element: <HomePage /> },
           { path: '/pricing', element: <PricingPage /> },
+          { path: '/terms', element: <TermsPage /> },
+          { path: '/privacy', element: <PrivacyPage /> },
+          { path: '/licenses', element: <LicensesPage /> },
         ],
       },
       {

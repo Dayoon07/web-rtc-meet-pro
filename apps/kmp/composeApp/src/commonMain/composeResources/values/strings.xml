@@ -273,4 +273,5 @@
     <string name="notes_card_counts">%1$d decisions · %2$d action items · Open</string>
     <string name="notif_MEMBER_OVERAGE">"%1$s" is %3$s over its member limit (%2$s). %4$s KRW will be added to the next payment</string>
     <string name="notif_OVERAGE_CHARGE_SOON">"%1$s" payment on %2$s: %3$s KRW (incl. %4$s extra members)</string>
+    <string name="signup_view_doc">View</string>
 </resources>

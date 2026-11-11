@@ -40,11 +40,15 @@ object AdminTablePolicy {
         "notifications" to TableInfo("알림", "알림"),
         "admin_error_logs" to TableInfo("관리자", "에러 기록", "자세히 보기는 왼쪽 메뉴의 에러 기록 화면이 편하다"),
         "admin_data_changes" to TableInfo("관리자", "데이터 변경 기록", "이 화면에서 고친 내용이 모두 남는다"),
+        "admin_access_logs" to TableInfo("관리자", "관리자 접속기록", "개인정보 안전성 확보조치: 2년 보관, 한 달에 한 번 이상 이상한 접근이 없는지 확인"),
+        "meeting_notes" to TableInfo("화상회의", "AI 회의록"),
+        "meeting_transcripts" to TableInfo("화상회의", "AI 회의록 받아쓴 내용", "1년 지나면 자동으로 지운다"),
+        "ai_usages" to TableInfo("플랜/결제", "AI 사용 시간"),
     )
 
     /** 보기만 하는 테이블: 기록·결제처럼 고치면 안 되거나, 서버만 쓰는 테이블 */
     val readOnlyTables = setOf(
-        "refresh_tokens", "login_histories", "billing_keys", "payments", "meeting_events", "admin_data_changes",
+        "refresh_tokens", "login_histories", "billing_keys", "payments", "meeting_events", "admin_data_changes", "admin_access_logs",
     )
 
     /** 행 추가를 허용하는 테이블 */

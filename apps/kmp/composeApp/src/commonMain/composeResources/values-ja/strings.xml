@@ -272,4 +272,5 @@
     <string name="notes_card_counts">決定 %1$d · タスク %2$d · 詳しく見る</string>
     <string name="notif_MEMBER_OVERAGE">「%1$s」のメンバーがプランの上限（%2$s人）を%3$s人超えました。次回のお支払いに%4$sウォンが加算されます</string>
     <string name="notif_OVERAGE_CHARGE_SOON">「%1$s」%2$sのお支払い予定: 合計%3$sウォン（超過%4$s人を含む）</string>
+    <string name="signup_view_doc">表示</string>
 </resources>

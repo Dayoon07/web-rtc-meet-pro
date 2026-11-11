@@ -12,12 +12,14 @@ web-rtc-meet-pro/
 │  ├─ media/         mediasoup 3 SFU 사이드카 (Node + socket.io) — 미디어 중계만
 │  └─ kmp/           Kotlin Multiplatform + Compose — Android 앱 · Windows 데스크톱 앱
 ├─ db/
-│  ├─ schema.sql       Oracle DDL v1.3 (27 테이블, 19c 이상)
+│  ├─ schema.sql       Oracle DDL v1.4 (28 테이블, 19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
 │  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
 │  └─ local-reset.sql  limeet 테이블을 지우고 다시 만들기 (스키마가 바뀌었을 때, SYSTEM 필요 없음)
-└─ deploy/             운영 배포 (Docker Compose · Caddy) — 도커는 배포에만 쓴다
+├─ deploy/             운영 배포 (Docker Compose · Caddy) — 도커는 배포에만 쓴다
+├─ docs/legal/         운영 전 법적 점검표 · 해킹/유출 대응 절차, docs/db-capacity.md (DB 용량 추정)
+└─ scripts/            oss-licenses.py — 오픈소스 라이선스 목록(/licenses 화면) 다시 만들기
 ```
 
 ```
@@ -67,6 +69,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sq
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.3-member-overage.sql'
+sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.4-privacy.sql'
 ```
 
 데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).

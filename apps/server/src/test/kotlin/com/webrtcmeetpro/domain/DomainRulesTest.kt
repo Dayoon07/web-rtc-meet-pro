@@ -68,6 +68,9 @@ class DomainRulesTest {
         assertThrows<BusinessException> { profile(phone = "010-1234-5678") }
         assertThrows<BusinessException> { profile(country = "ZZ") }
         assertThrows<BusinessException> { profile(birthYear = Year.now().value - 5) }
+        // 출생 연도만으로는 생일 전 만 13세일 수 있어서 (올해 - 14)년생은 받지 않는다
+        assertThrows<BusinessException> { profile(birthYear = Year.now().value - 14) }
+        profile(birthYear = Year.now().value - 15)
         assertEquals("+821012345678", UserProfile.normalizePhone("+82 10-1234-5678"))
     }
 

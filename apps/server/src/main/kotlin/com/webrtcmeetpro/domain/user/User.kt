@@ -43,7 +43,8 @@ data class UserProfile(
         check(realName.isNotBlank() && realName.length <= 50, ErrorCode.INVALID_NAME)
         check(PHONE.matches(phoneNumber), ErrorCode.INVALID_PHONE)
         check(countryCode in COUNTRIES, ErrorCode.INVALID_COUNTRY)
-        check(birthYear >= 1900 && birthYear <= Year.now().value - MIN_AGE, ErrorCode.UNDERAGE, mapOf("age" to MIN_AGE))
+        // 출생 연도만 받으므로, 생일이 지나지 않은 만 13세가 들어오지 않게 한 해 더 (만 14세 미만은 법정대리인 동의가 필요: 개인정보 보호법 제22조의2)
+        check(birthYear >= 1900 && birthYear <= Year.now().value - MIN_AGE - 1, ErrorCode.UNDERAGE, mapOf("age" to MIN_AGE))
     }
 
     companion object {
@@ -114,6 +115,13 @@ class User(
     var marketingAgreed: Boolean = false
         protected set
 
+
+    /** 광고성 정보 수신에 동의한 시각 (정보통신망법 제50조: 동의 일시를 남기고 2년마다 확인). 동의 안 하면 null */
+
+    var marketingAgreedAt: LocalDateTime? = null
+
+        protected set
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: UserStatus = UserStatus.ACTIVE
@@ -150,6 +158,8 @@ class User(
 
     fun agreeTerms(marketing: Boolean, at: LocalDateTime = LocalDateTime.now()) {
         if (termsAgreedAt == null) termsAgreedAt = at
+        if (marketing && !marketingAgreed) marketingAgreedAt = at
+        if (!marketing) marketingAgreedAt = null
         marketingAgreed = marketing
     }
 
@@ -178,6 +188,7 @@ class User(
         gender = null
         profileImageUrl = null
         marketingAgreed = false
+        marketingAgreedAt = null
         status = UserStatus.DELETED
         markDeleted()
     }

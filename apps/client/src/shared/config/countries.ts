@@ -36,7 +36,8 @@ export function toE164(dialCode: string, local: string) {
 
 const thisYear = new Date().getFullYear()
 export const MIN_AGE = 14
-export const BIRTH_YEARS = Array.from({ length: thisYear - MIN_AGE - 1900 + 1 }, (_, i) => thisYear - MIN_AGE - i)
+/** 출생 연도만 받으므로 생일 전 만 13세가 고를 수 없게 한 해 더 (서버 User 와 같은 규칙) */
+export const BIRTH_YEARS = Array.from({ length: thisYear - MIN_AGE - 1 - 1900 + 1 }, (_, i) => thisYear - MIN_AGE - 1 - i)
 
 /** 브라우저 언어 → 가입 기본 국가 */
 export function guessCountry(lang: string): string {

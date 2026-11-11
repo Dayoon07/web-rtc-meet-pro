@@ -3,9 +3,9 @@ import { Checkbox, FieldError } from '@/shared/ui'
 import type { Agreements } from '../model/types'
 
 const ITEMS = [
-  { key: 'termsAgreed', label: 'terms.terms', required: true },
-  { key: 'privacyAgreed', label: 'terms.privacy', required: true },
-  { key: 'marketingAgreed', label: 'terms.marketing', required: false },
+  { key: 'termsAgreed', label: 'terms.terms', required: true, doc: '/terms' },
+  { key: 'privacyAgreed', label: 'terms.privacy', required: true, doc: '/privacy' },
+  { key: 'marketingAgreed', label: 'terms.marketing', required: false, doc: null },
 ] as const
 
 export const emptyAgreements = (): Agreements => ({ termsAgreed: false, privacyAgreed: false, marketingAgreed: false })
@@ -32,12 +32,24 @@ export function TermsAgreement({ value, onChange, error }: { value: Agreements; 
                 ({t(item.required ? 'terms.required' : 'terms.optional')})
               </span>{' '}
               {t(item.label)}
+              {item.doc && (
+                <a
+                  href={item.doc}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="ml-1.5 text-xs font-medium text-gray-500 underline hover:text-gray-900 dark:hover:text-white"
+                >
+                  {t('terms.view')}
+                </a>
+              )}
             </>
           }
           checked={value[item.key]}
           onChange={(e) => onChange({ ...value, [item.key]: e.target.checked })}
         />
       ))}
+      <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">{t('terms.marketingNote')}</p>
       <FieldError>{error}</FieldError>
     </div>
   )

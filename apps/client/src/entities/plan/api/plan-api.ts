@@ -17,8 +17,9 @@ export const planApi = {
   /** 워크스페이스(팀)의 요금제 상태 */
   workspace: (teamId: number) => http<Subscription>(`/teams/${teamId}/subscription`),
   /** 워크스페이스 플랜 결제 (소유자, 등록한 카드로) */
-  purchase: (teamId: number, planCode: string, cycle: BillingCycle, autoRenew: boolean) =>
-    http<Subscription>(`/teams/${teamId}/subscription/purchase`, { method: 'POST', json: { planCode, cycle, autoRenew } }),
+  /** agree: 주문 내용·자동결제·환불 안내를 확인하고 동의 (서버가 확인) */
+  purchase: (teamId: number, planCode: string, cycle: BillingCycle, autoRenew: boolean, agree: boolean) =>
+    http<Subscription>(`/teams/${teamId}/subscription/purchase`, { method: 'POST', json: { planCode, cycle, autoRenew, agree } }),
   setAutoRenew: (subscriptionId: number, autoRenew: boolean) =>
     http<Subscription>(`/subscriptions/${subscriptionId}`, { method: 'PATCH', json: { autoRenew } }),
   /** 내가 결제한 구독 중 확인하지 않은 만료 */

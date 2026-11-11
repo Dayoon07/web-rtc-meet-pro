@@ -1,5 +1,10 @@
 package com.webrtcmeetpro.feature.auth
 
+import com.webrtcmeetpro.resources.signup_view_doc
+import com.webrtcmeetpro.core.network.ApiConfig
+import org.koin.compose.koinInject
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -190,7 +195,7 @@ fun SignupScreen(onBack: () -> Unit, languageTag: String, viewModel: SignupViewM
                     Picker(
                         label = stringResource(Res.string.signup_birth_year),
                         value = state.birthYear?.toString().orEmpty(),
-                        options = (thisYear - MIN_AGE downTo 1900).map { it.toString() to it.toString() },
+                        options = (thisYear - MIN_AGE - 1 downTo 1900).map { it.toString() to it.toString() },
                         onSelect = { y -> viewModel.update { copy(birthYear = y.toInt()) } },
                     )
 
@@ -206,8 +211,8 @@ fun SignupScreen(onBack: () -> Unit, languageTag: String, viewModel: SignupViewM
                             }
                     }
 
-                    Agree(state.terms, Res.string.signup_terms) { viewModel.update { copy(terms = it) } }
-                    Agree(state.privacy, Res.string.signup_privacy) { viewModel.update { copy(privacy = it) } }
+                    Agree(state.terms, Res.string.signup_terms, doc = "/terms") { viewModel.update { copy(terms = it) } }
+                    Agree(state.privacy, Res.string.signup_privacy, doc = "/privacy") { viewModel.update { copy(privacy = it) } }
                     Agree(state.marketing, Res.string.signup_marketing) { viewModel.update { copy(marketing = it) } }
 
                     state.errorCode?.let { Text(errorMessage(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -273,9 +278,15 @@ private fun Picker(label: String, value: String, options: List<Pair<String, Stri
 }
 
 @Composable
-private fun Agree(checked: Boolean, label: StringResource, onChange: (Boolean) -> Unit) {
+private fun Agree(checked: Boolean, label: StringResource, doc: String? = null, onChange: (Boolean) -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    val webUrl = koinInject<ApiConfig>().webUrl.trimEnd('/')
     Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         Checkbox(checked = checked, onCheckedChange = onChange)
-        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        // 이용약관·개인정보처리방침 전문 (웹 페이지)
+        if (doc != null) {
+            TextButton(onClick = { runCatching { uriHandler.openUri(webUrl + doc) } }) { Text(stringResource(Res.string.signup_view_doc)) }
+        }
     }
 }

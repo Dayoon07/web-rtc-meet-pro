@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { COMPANY } from '@/shared/config/company'
 import { Logo } from '@/shared/ui'
 
 export function MarketingFooter() {
@@ -39,7 +40,31 @@ export function MarketingFooter() {
           </div>
         ))}
       </div>
-      <div className="border-t border-gray-200 py-6 text-center text-xs text-gray-400 dark:border-gray-800">© {new Date().getFullYear()} MQ</div>
+      <div className="border-t border-gray-200 dark:border-gray-800">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-gray-500 sm:px-6 dark:text-gray-400">
+          <nav className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link to="/terms" className="hover:text-gray-900 dark:hover:text-white">
+              {t('legal.terms')}
+            </Link>
+            {/* 개인정보처리방침은 다른 링크보다 눈에 띄게 (개인정보보호위원회 작성지침) */}
+            <Link to="/privacy" className="font-bold text-gray-900 hover:underline dark:text-white">
+              {t('legal.privacy')}
+            </Link>
+            <Link to="/licenses" className="hover:text-gray-900 dark:hover:text-white">
+              {t('legal.licenses')}
+            </Link>
+          </nav>
+          {/* 사업자 정보 (전자상거래법 제10조) */}
+          <p className="leading-relaxed">
+            {t('legal.company.name')} {COMPANY.name} · {t('legal.company.ceo')} {COMPANY.ceo} · {t('legal.company.bizNo')} {COMPANY.bizNo} ·{' '}
+            {t('legal.company.mailOrderNo')} {COMPANY.mailOrderNo}
+            <br />
+            {t('legal.company.address')} {COMPANY.address} · {t('legal.company.phone')} {COMPANY.phone} · {COMPANY.email} · {t('legal.company.hosting')}{' '}
+            {COMPANY.hosting}
+          </p>
+          <p>© {new Date().getFullYear()} MQ</p>
+        </div>
+      </div>
     </footer>
   )
 }

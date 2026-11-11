@@ -9,6 +9,8 @@ import com.webrtcmeetpro.application.plan.PaymentView
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.plan.PlanView
 import com.webrtcmeetpro.application.plan.SubscriptionView
+import com.webrtcmeetpro.common.error.BusinessException
+import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.common.web.userId
 import com.webrtcmeetpro.domain.plan.BillingCycle
 import jakarta.validation.Valid
@@ -28,7 +30,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
-data class PurchaseRequest(@field:NotBlank val planCode: String, val cycle: BillingCycle, val autoRenew: Boolean)
+/** agree: 주문 내용·자동결제·환불 규정을 확인하고 결제에 동의 (전자상거래법 제8조) */
+data class PurchaseRequest(@field:NotBlank val planCode: String, val cycle: BillingCycle, val autoRenew: Boolean, val agree: Boolean = false)
 
 data class AutoRenewRequest(val autoRenew: Boolean)
 
@@ -67,8 +70,10 @@ class PlanController(
 
     /** 워크스페이스 플랜 결제 (소유자만, 등록한 카드로 월 / 연). 성공하면 바뀐 구독 상태 */
     @PostMapping("/teams/{teamId}/subscription/purchase")
-    fun purchase(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody request: PurchaseRequest): SubscriptionView =
-        billingService.purchase(jwt.userId, teamId, request.planCode, request.cycle, request.autoRenew)
+    fun purchase(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody request: PurchaseRequest): SubscriptionView {
+        if (!request.agree) throw BusinessException(ErrorCode.PAYMENT_CONSENT_REQUIRED)
+        return billingService.purchase(jwt.userId, teamId, request.planCode, request.cycle, request.autoRenew)
+    }
 
     /** 내가 결제한 구독 중 아직 확인하지 않은 만료 ("플랜이 만료됐어요" 창) */
     @GetMapping("/subscriptions/notices")

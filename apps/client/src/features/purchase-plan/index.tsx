@@ -147,12 +147,14 @@ export function PurchasePlanModal({
   const invalidate = useInvalidateBilling()
   const [cycle, setCycle] = useState<BillingCycle>(initialCycle)
   const [autoRenew, setAutoRenew] = useState(true)
+  // 결제 전 확인·동의 (전자상거래법 제8조)
+  const [agree, setAgree] = useState(false)
   const [opening, setOpening] = useState(false)
   const amount = planPrice(plan, cycle)
   const higher = subscription.subscriptions.find((s) => s.plan.rank > plan.rank)
 
   const purchase = useMutation({
-    mutationFn: () => planApi.purchase(subscription.team.id, plan.code, cycle, autoRenew),
+    mutationFn: () => planApi.purchase(subscription.team.id, plan.code, cycle, autoRenew, agree),
     onSuccess: (s) => {
       invalidate(s)
       toast.success(t('billing.purchased', { name: planName(plan) }))
@@ -183,11 +185,11 @@ export function PurchasePlanModal({
             {t('common.cancel')}
           </Button>
           {subscription.card ? (
-            <Button onClick={() => purchase.mutate()} loading={purchase.isPending} disabled={!subscription.paymentsEnabled}>
+            <Button onClick={() => purchase.mutate()} loading={purchase.isPending} disabled={!subscription.paymentsEnabled || !agree}>
               {t('billing.purchase.pay', { amount: formatPrice(amount) })}
             </Button>
           ) : (
-            <Button icon={<CreditCard className="size-4" />} onClick={registerAndPay} loading={opening} disabled={!subscription.paymentsEnabled}>
+            <Button icon={<CreditCard className="size-4" />} onClick={registerAndPay} loading={opening} disabled={!subscription.paymentsEnabled || !agree}>
               {t('billing.purchase.registerAndPay')}
             </Button>
           )}
@@ -247,6 +249,18 @@ export function PurchasePlanModal({
           )}
           {!subscription.paymentsEnabled && <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">{t('billing.paymentsDisabled')}</p>}
         </div>
+
+        <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+          <li>{t('billing.purchase.noticeRenew', { amount: formatPrice(amount), cycle: t(`billing.cycle.${cycle}`) })}</li>
+          <li>{t('billing.purchase.noticeCancel')}</li>
+          <li>
+            {t('billing.purchase.noticeRefund')}{' '}
+            <a href="/terms" target="_blank" rel="noreferrer" className="underline">
+              {t('legal.terms')}
+            </a>
+          </li>
+        </ul>
+        <Checkbox checked={agree} onChange={(e) => setAgree(e.target.checked)} label={t('billing.purchase.agree', { amount: formatPrice(amount) })} />
       </div>
     </Modal>
   )

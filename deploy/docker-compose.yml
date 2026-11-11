@@ -148,6 +148,19 @@ services:
     build:
       context: ..
       dockerfile: deploy/web.Dockerfile
+      # 사업자 정보 (전자상거래법 제10조) · 개인정보 보호책임자 (개인정보 보호법 제31조): 빌드할 때 화면에 들어간다
+      args:
+        VITE_COMPANY_NAME: ${VITE_COMPANY_NAME:-}
+        VITE_COMPANY_CEO: ${VITE_COMPANY_CEO:-}
+        VITE_COMPANY_BIZ_NO: ${VITE_COMPANY_BIZ_NO:-}
+        VITE_COMPANY_MAIL_ORDER_NO: ${VITE_COMPANY_MAIL_ORDER_NO:-}
+        VITE_COMPANY_ADDRESS: ${VITE_COMPANY_ADDRESS:-}
+        VITE_COMPANY_PHONE: ${VITE_COMPANY_PHONE:-}
+        VITE_COMPANY_HOSTING: ${VITE_COMPANY_HOSTING:-}
+        VITE_PRIVACY_OFFICER: ${VITE_PRIVACY_OFFICER:-}
+        VITE_PRIVACY_OFFICER_CONTACT: ${VITE_PRIVACY_OFFICER_CONTACT:-}
+        VITE_POLICY_DATE: ${VITE_POLICY_DATE:-}
+        VITE_SUPPORT_EMAIL: ${VITE_SUPPORT_EMAIL:-}
     restart: unless-stopped
     depends_on:
       - server

@@ -272,4 +272,5 @@
     <string name="notes_card_counts">决定 %1$d · 待办 %2$d · 查看详情</string>
     <string name="notif_MEMBER_OVERAGE">「%1$s」成员超出套餐上限（%2$s 人）%3$s 人，下次付款将加收 %4$s 韩元</string>
     <string name="notif_OVERAGE_CHARGE_SOON">「%1$s」%2$s 将付款：合计 %3$s 韩元（含超出 %4$s 人）</string>
+    <string name="signup_view_doc">查看</string>
 </resources>

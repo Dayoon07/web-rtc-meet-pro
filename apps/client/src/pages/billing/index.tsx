@@ -244,7 +244,8 @@ export function CardReturnPage() {
       const team = Number(params.get('team'))
       if (!plan || !team) return null
       const cycle = (params.get('cycle') === 'YEARLY' ? 'YEARLY' : 'MONTHLY') as BillingCycle
-      return planApi.purchase(team, plan, cycle, params.get('autoRenew') !== '0')
+      // 결제 창에서 동의하고 카드 등록 창을 열었다
+      return planApi.purchase(team, plan, cycle, params.get('autoRenew') !== '0', true)
     },
     onSuccess: (subscription) => {
       if (subscription) queryClient.setQueryData(planKeys.workspace(subscription.team.id), subscription)
