@@ -120,13 +120,12 @@ export function AppSidebar({
         )}
 
         <nav className={cn('flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-2', mini && 'md:px-2')} onClick={onClose}>
-          {/* 채팅 중심: 채팅을 맨 위에 */}
           <div className="flex flex-col gap-0.5">
-            <NavItem to="/app/chat" icon={<MessageSquare />} badge={chatUnread} mini={mini}>
-              {t('nav.chat')}
-            </NavItem>
             <NavItem to="/app" end icon={<House />} mini={mini}>
               {t('nav.home')}
+            </NavItem>
+            <NavItem to="/app/chat" icon={<MessageSquare />} badge={chatUnread} mini={mini}>
+              {t('nav.chat')}
             </NavItem>
             <NavItem to="/app/meetings" icon={<Video />} mini={mini}>
               {t('nav.meetings')}
