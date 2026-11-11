@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { Checkbox, FieldError } from '@/shared/ui'
 import type { Agreements } from '../model/types'
+import { ROUTES } from '@/shared/config/routes'
 
 const ITEMS = [
-  { key: 'termsAgreed', label: 'terms.terms', required: true, doc: '/terms' },
-  { key: 'privacyAgreed', label: 'terms.privacy', required: true, doc: '/privacy' },
+  { key: 'termsAgreed', label: 'terms.terms', required: true, doc: ROUTES.terms },
+  { key: 'privacyAgreed', label: 'terms.privacy', required: true, doc: ROUTES.privacy },
   { key: 'marketingAgreed', label: 'terms.marketing', required: false, doc: null },
 ] as const
 
@@ -12,7 +13,9 @@ export const emptyAgreements = (): Agreements => ({ termsAgreed: false, privacyA
 export const requiredAgreed = (a: Agreements) => a.termsAgreed && a.privacyAgreed
 
 /** 국내 서비스에서 익숙한 "전체 동의 + 필수/선택" 약관 체크 */
-export function TermsAgreement({ value, onChange, error }: { value: Agreements; onChange: (v: Agreements) => void; error?: string | null }) {
+/** field = 지금 동의 값 · 바꿀 때 · 오류 문장 */
+export function TermsAgreement({ field }: { field: { value: Agreements; onChange: (v: Agreements) => void; error?: string | null } }) {
+  const { value, onChange, error } = field
   const { t } = useTranslation()
   const all = ITEMS.every((i) => value[i.key])
   return (

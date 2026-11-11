@@ -12,7 +12,7 @@ import {
   type ProfileErrors,
   requiredAgreed,
   TermsAgreement,
-  toProfilePayload,
+  toProfileRequest,
   userApi,
   validateProfile,
 } from '@/entities/user'
@@ -21,6 +21,7 @@ import { cn } from '@/shared/lib/cn'
 import { AvatarPicker, Button, Divider, Field, FieldError, Input } from '@/shared/ui'
 import { authApi } from '../api/auth-api'
 import { GoogleButton } from './GoogleButton'
+import { ROUTES } from '@/shared/config/routes'
 
 function Stepper({ step, labels }: { step: number; labels: string[] }) {
   return (
@@ -78,7 +79,7 @@ export function SignupForm() {
 
   const signup = useMutation({
     mutationFn: async () => {
-      const tokens = await authApi.signup({ email: account.email.trim(), password: account.password, ...toProfilePayload(profile), ...agreements })
+      const tokens = await authApi.signup({ email: account.email.trim(), password: account.password, ...toProfileRequest(profile), ...agreements })
       queryClient.clear()
       setTokens(tokens)
       if (image) {
@@ -88,7 +89,7 @@ export function SignupForm() {
     },
     onSuccess: () => {
       toast.success(t('auth.signup.welcome'))
-      navigate('/app/chat', { replace: true })
+      navigate(ROUTES.chat(), { replace: true })
     },
   })
 
@@ -178,7 +179,7 @@ export function SignupForm() {
           </div>
 
           <ProfileFields value={profile} onChange={setProfile} errors={profileErrors} disabled={signup.isPending} />
-          <TermsAgreement value={agreements} onChange={setAgreements} error={agreementError} />
+          <TermsAgreement field={{ value: agreements, onChange: setAgreements, error: agreementError }} />
           <FieldError>{errorMessage(signup.error)}</FieldError>
 
           <div className="flex gap-3">

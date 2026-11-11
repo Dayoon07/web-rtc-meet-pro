@@ -1,0 +1,80 @@
+import { useQuery } from '@tanstack/react-query'
+import { API, request } from '@/shared/api'
+import type {
+  CategoryRequest,
+  ChatCategory,
+  ChatMessage,
+  ChatRoom,
+  CreateGroupRequest,
+  InviteMembersRequest,
+  MarkReadRequest,
+  NoticeRequest,
+  OpenDirectRequest,
+  SendMessageRequest,
+  UnreadCountResponse,
+  UpdateChannelRequest,
+} from '../model/types'
+
+export const chatKeys = {
+  unread: ['chat', 'unread'] as const,
+  rooms: (teamId: number) => ['chat', 'rooms', teamId] as const,
+  categories: (teamId: number) => ['chat', 'categories', teamId] as const,
+  room: (roomId: number) => ['chat', 'room', roomId] as const,
+  messages: (roomId: number) => ['chat', 'messages', roomId] as const,
+}
+
+export const chatApi = {
+  unreadCount: () => request<UnreadCountResponse>(API.chat.unreadCount),
+  rooms: (teamId: number) => request<ChatRoom[]>(API.teams.chatRooms(teamId)),
+  room: (roomId: number) => request<ChatRoom>(API.chat.room(roomId)),
+  openDirect: (teamId: number, userId: number) =>
+    request<ChatRoom>(API.teams.chatDirect(teamId), { method: 'POST', json: { userId } satisfies OpenDirectRequest }),
+  /** 채널 만들기 (OWNER·ADMIN). categoryId 가 있으면 그 카테고리 안에 */
+  createGroup: (teamId: number, name: string, memberIds: number[], categoryId?: number | null) =>
+    request<ChatRoom>(API.teams.chatGroup(teamId), {
+      method: 'POST',
+      json: { name, memberIds, categoryId: categoryId ?? null } satisfies CreateGroupRequest,
+    }),
+  /** 채널 이름 바꾸기 · 카테고리 옮기기 (categoryId null = 카테고리 밖) */
+  updateChannel: (roomId: number, body: UpdateChannelRequest) => request<ChatRoom>(API.chat.room(roomId), { method: 'PATCH', json: body }),
+  categories: (teamId: number) => request<ChatCategory[]>(API.teams.chatCategories(teamId)),
+  /** 채널 상시 음성방 들어가기 (진행 중인 음성방, 없으면 새로) */
+  joinVoice: (roomId: number) => request<{ id: number }>(API.chat.voice(roomId), { method: 'POST' }),
+  createCategory: (teamId: number, name: string) =>
+    request<ChatCategory>(API.teams.chatCategories(teamId), { method: 'POST', json: { name } satisfies CategoryRequest }),
+  renameCategory: (categoryId: number, name: string) =>
+    request<ChatCategory>(API.chat.category(categoryId), { method: 'PATCH', json: { name } satisfies CategoryRequest }),
+  /** 카테고리 지우기 (안의 채널은 카테고리 밖으로) */
+  deleteCategory: (categoryId: number) => request<void>(API.chat.category(categoryId), { method: 'DELETE' }),
+  invite: (roomId: number, userIds: number[]) =>
+    request<ChatRoom>(API.chat.members(roomId), { method: 'POST', json: { userIds } satisfies InviteMembersRequest }),
+  leave: (roomId: number) => request<void>(API.chat.leave(roomId), { method: 'POST' }),
+  /** 공지 올리기·고치기 (content 가 null 이면 내리기) */
+  setNotice: (roomId: number, content: string | null) =>
+    request<ChatRoom>(API.chat.notice(roomId), { method: 'PUT', json: { content } satisfies NoticeRequest }),
+  messages: (roomId: number, before?: number) => request<ChatMessage[]>(API.chat.messages(roomId, before)),
+  send: (roomId: number, content: string) =>
+    request<ChatMessage>(API.chat.messages(roomId), { method: 'POST', json: { content } satisfies SendMessageRequest }),
+  /** 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개 */
+  sendFiles: (roomId: number, files: File[], content?: string) => {
+    const form = new FormData()
+    files.forEach((f) => form.append('files', f, f.name))
+    if (content?.trim()) form.append('content', content.trim())
+    return request<ChatMessage>(API.chat.files(roomId), { method: 'POST', form })
+  },
+  /** 내가 보낸 글 메시지 고치기 */
+  edit: (messageId: number, content: string) =>
+    request<ChatMessage>(API.chat.message(messageId), { method: 'PATCH', json: { content } satisfies SendMessageRequest }),
+  /** 지우기 (보낸 사람, 또는 팀 OWNER·ADMIN) */
+  remove: (messageId: number) => request<ChatMessage>(API.chat.message(messageId), { method: 'DELETE' }),
+  read: (roomId: number, messageId: number) =>
+    request<void>(API.chat.read(roomId), { method: 'POST', json: { messageId } satisfies MarkReadRequest }),
+}
+
+export const useChatUnreadQuery = () => useQuery({ queryKey: chatKeys.unread, queryFn: chatApi.unreadCount, select: (d) => d.count })
+
+export const useChatRoomsQuery = (teamId: number) =>
+  useQuery({ queryKey: chatKeys.rooms(teamId), queryFn: () => chatApi.rooms(teamId), enabled: teamId > 0 })
+
+export const useChatCategoriesQuery = (teamId: number) =>
+  useQuery({ queryKey: chatKeys.categories(teamId), queryFn: () => chatApi.categories(teamId), enabled: teamId > 0 })

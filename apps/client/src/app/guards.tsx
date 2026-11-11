@@ -7,6 +7,7 @@ import { useMeQuery } from '@/entities/user'
 import { realtime } from '@/shared/api'
 import { FullPageSpinner } from '@/shared/ui'
 import { useNotificationSideEffects } from '@/widgets/notification-bell'
+import { ROUTES } from '@/shared/config/routes'
 
 /** 로그인 상태에서만 STOMP 연결을 유지하고, 실시간 이벤트로 캐시를 갱신한다 */
 function RealtimeBridge() {
@@ -26,7 +27,7 @@ function RealtimeBridge() {
 export function RequireAuth() {
   const isAuthenticated = useIsAuthenticated()
   const location = useLocation()
-  if (!isAuthenticated) return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
+  if (!isAuthenticated) return <Navigate to={`${ROUTES.login}?redirect=${encodeURIComponent(location.pathname)}`} replace />
   return (
     <>
       <RealtimeBridge />
@@ -39,8 +40,8 @@ export function RequireAuth() {
 export function RequireCompletedProfile() {
   const { data: me } = useMeQuery()
   if (!me) return <FullPageSpinner />
-  if (!me.profileCompleted) return <Navigate to="/onboarding" replace />
-  if (!me.emailVerified) return <Navigate to="/verify-email" replace />
+  if (!me.profileCompleted) return <Navigate to={ROUTES.onboarding} replace />
+  if (!me.emailVerified) return <Navigate to={ROUTES.verifyEmail} replace />
   return <Outlet />
 }
 
@@ -48,17 +49,17 @@ export function RequireCompletedProfile() {
 export function VerifyEmailOnly() {
   const { data: me } = useMeQuery()
   if (!me) return <FullPageSpinner />
-  if (me.emailVerified) return <Navigate to="/app/chat" replace />
+  if (me.emailVerified) return <Navigate to={ROUTES.chat()} replace />
   return <Outlet />
 }
 
 export function OnboardingOnly() {
   const { data: me } = useMeQuery()
   if (!me) return <FullPageSpinner />
-  if (me.profileCompleted) return <Navigate to="/app/chat" replace />
+  if (me.profileCompleted) return <Navigate to={ROUTES.chat()} replace />
   return <Outlet />
 }
 
 export function GuestOnly() {
-  return useIsAuthenticated() ? <Navigate to="/app/chat" replace /> : <Outlet />
+  return useIsAuthenticated() ? <Navigate to={ROUTES.chat()} replace /> : <Outlet />
 }

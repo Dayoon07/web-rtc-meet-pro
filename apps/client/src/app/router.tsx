@@ -22,6 +22,7 @@ import { ConfirmEmailPage, VerifyEmailPage } from '@/pages/verify-email'
 import { PlanExpiryGate } from '@/widgets/plan-expiry-notice'
 import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile, VerifyEmailOnly } from './guards'
 import { AppLayout, AuthLayout, MarketingLayout } from './layouts'
+import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
 
 /** handle.title 은 번역 키 (AppLayout 이 현재 언어로 표시) */
 export const router = createBrowserRouter([
@@ -32,11 +33,11 @@ export const router = createBrowserRouter([
       {
         element: <MarketingLayout />,
         children: [
-          { path: '/', element: <HomePage /> },
-          { path: '/pricing', element: <PricingPage /> },
-          { path: '/terms', element: <TermsPage /> },
-          { path: '/privacy', element: <PrivacyPage /> },
-          { path: '/licenses', element: <LicensesPage /> },
+          { path: ROUTES.home, element: <HomePage /> },
+          { path: ROUTES.pricing, element: <PricingPage /> },
+          { path: ROUTES.terms, element: <TermsPage /> },
+          { path: ROUTES.privacy, element: <PrivacyPage /> },
+          { path: ROUTES.licenses, element: <LicensesPage /> },
         ],
       },
       {
@@ -45,34 +46,34 @@ export const router = createBrowserRouter([
           {
             element: <GuestOnly />,
             children: [
-              { path: '/login', element: <LoginPage /> },
-              { path: '/signup', element: <SignupPage /> },
-              { path: '/forgot-password', element: <ForgotPasswordPage /> },
+              { path: ROUTES.login, element: <LoginPage /> },
+              { path: ROUTES.signup, element: <SignupPage /> },
+              { path: ROUTES.forgotPassword, element: <ForgotPasswordPage /> },
             ],
           },
           // 메일 링크로 들어온다. 다른 계정으로 로그인한 상태여도 열 수 있게 GuestOnly 밖에 둔다
-          { path: '/reset-password', element: <ResetPasswordPage /> },
-          { path: '/verify-email/confirm', element: <ConfirmEmailPage /> },
+          { path: ROUTES.resetPassword, element: <ResetPasswordPage /> },
+          { path: ROUTES.verifyEmailConfirm, element: <ConfirmEmailPage /> },
         ],
       },
-      { path: '/oauth/callback', element: <OAuthCallbackPage /> },
+      { path: ROUTES.oauthCallback, element: <OAuthCallbackPage /> },
       {
         element: <RequireAuth />,
         children: [
           {
             element: <AuthLayout />,
             children: [
-              { element: <OnboardingOnly />, children: [{ path: '/onboarding', element: <OnboardingPage /> }] },
-              { element: <VerifyEmailOnly />, children: [{ path: '/verify-email', element: <VerifyEmailPage /> }] },
+              { element: <OnboardingOnly />, children: [{ path: ROUTES.onboarding, element: <OnboardingPage /> }] },
+              { element: <VerifyEmailOnly />, children: [{ path: ROUTES.verifyEmail, element: <VerifyEmailPage /> }] },
             ],
           },
           {
             element: <RequireCompletedProfile />,
             children: [
               // 회의실(mediasoup-client, socket.io)은 들어갈 때만 내려받는다
-              { path: '/meet/:meetingId', lazy: async () => ({ Component: (await import('@/pages/meet')).MeetPage }) },
+              { path: ROUTES.meetPattern, lazy: async () => ({ Component: (await import('@/pages/meet')).MeetPage }) },
               {
-                path: '/app',
+                path: ROUTES.app,
                 element: <AppLayout />,
                 children: [
                   {
@@ -80,15 +81,15 @@ export const router = createBrowserRouter([
                     element: <PlanExpiryGate />,
                     children: [
                   { index: true, element: <AppHomePage />, handle: { title: 'nav.home' } },
-                  { path: 'chat/:teamId?/:roomId?', element: <ChatPage />, handle: { title: 'nav.chat' } },
-                  { path: 'meetings', element: <MeetingsPage />, handle: { title: 'nav.meetings' } },
-                  { path: 'meetings/:meetingId', element: <MeetingDetailPage />, handle: { title: 'nav.meetings' } },
-                  { path: 'teams', element: <TeamsPage />, handle: { title: 'nav.teams' } },
-                  { path: 'teams/:teamId', element: <TeamDetailPage />, handle: { title: 'nav.teams' } },
-                  { path: 'invitations', element: <InvitationsPage />, handle: { title: 'nav.invitations' } },
-                  { path: 'billing', element: <BillingPage />, handle: { title: 'nav.billing' } },
-                  { path: 'billing/card', element: <CardReturnPage />, handle: { title: 'nav.billing' } },
-                  { path: 'settings', element: <SettingsPage />, handle: { title: 'nav.settings' } },
+                  { path: APP_CHILD_ROUTES.chat, element: <ChatPage />, handle: { title: 'nav.chat' } },
+                  { path: APP_CHILD_ROUTES.meetings, element: <MeetingsPage />, handle: { title: 'nav.meetings' } },
+                  { path: APP_CHILD_ROUTES.meeting, element: <MeetingDetailPage />, handle: { title: 'nav.meetings' } },
+                  { path: APP_CHILD_ROUTES.teams, element: <TeamsPage />, handle: { title: 'nav.teams' } },
+                  { path: APP_CHILD_ROUTES.team, element: <TeamDetailPage />, handle: { title: 'nav.teams' } },
+                  { path: APP_CHILD_ROUTES.invitations, element: <InvitationsPage />, handle: { title: 'nav.invitations' } },
+                  { path: APP_CHILD_ROUTES.billing, element: <BillingPage />, handle: { title: 'nav.billing' } },
+                  { path: APP_CHILD_ROUTES.billingCard, element: <CardReturnPage />, handle: { title: 'nav.billing' } },
+                  { path: APP_CHILD_ROUTES.settings, element: <SettingsPage />, handle: { title: 'nav.settings' } },
                     ],
                   },
                 ],

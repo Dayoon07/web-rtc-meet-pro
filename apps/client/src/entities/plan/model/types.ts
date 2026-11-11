@@ -121,3 +121,10 @@ export type OverageInfo = {
   hasCard: boolean
   hardCap: number
 }
+
+// ---- 서버에 보내는 값 ----
+/** agree: 주문 내용·자동결제·환불 안내를 확인하고 동의 (서버가 확인) */
+export type PurchaseRequest = { planCode: string; cycle: BillingCycle; autoRenew: boolean; agree: boolean }
+export type AutoRenewRequest = { autoRenew: boolean }
+export type RegisterCardRequest = { customerKey: string; authKey: string }
+export type OverageRequest = { allowed: boolean; agree: boolean }

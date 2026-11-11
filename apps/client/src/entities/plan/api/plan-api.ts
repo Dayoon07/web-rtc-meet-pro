@@ -1,6 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
-import { http } from '@/shared/api'
-import type { BillingCycle, Card, CardRegistration, ExpiryNotice, OverageInfo, Payment, Plan, Subscription } from '../model/types'
+import { API, request } from '@/shared/api'
+import type {
+  AutoRenewRequest,
+  BillingCycle,
+  Card,
+  CardRegistration,
+  ExpiryNotice,
+  OverageInfo,
+  OverageRequest,
+  Payment,
+  Plan,
+  PurchaseRequest,
+  RegisterCardRequest,
+  Subscription,
+} from '../model/types'
 
 export const planKeys = {
   all: ['plans'] as const,
@@ -13,27 +26,27 @@ export const planKeys = {
 }
 
 export const planApi = {
-  list: () => http<Plan[]>('/plans', { auth: false }),
+  list: () => request<Plan[]>(API.plans.list, { auth: false }),
   /** 워크스페이스(팀)의 요금제 상태 */
-  workspace: (teamId: number) => http<Subscription>(`/teams/${teamId}/subscription`),
+  workspace: (teamId: number) => request<Subscription>(API.teams.subscription(teamId)),
   /** 워크스페이스 플랜 결제 (소유자, 등록한 카드로) */
   /** agree: 주문 내용·자동결제·환불 안내를 확인하고 동의 (서버가 확인) */
   purchase: (teamId: number, planCode: string, cycle: BillingCycle, autoRenew: boolean, agree: boolean) =>
-    http<Subscription>(`/teams/${teamId}/subscription/purchase`, { method: 'POST', json: { planCode, cycle, autoRenew, agree } }),
+    request<Subscription>(API.teams.purchase(teamId), { method: 'POST', json: { planCode, cycle, autoRenew, agree } satisfies PurchaseRequest }),
   setAutoRenew: (subscriptionId: number, autoRenew: boolean) =>
-    http<Subscription>(`/subscriptions/${subscriptionId}`, { method: 'PATCH', json: { autoRenew } }),
+    request<Subscription>(API.subscriptions.item(subscriptionId), { method: 'PATCH', json: { autoRenew } satisfies AutoRenewRequest }),
   /** 내가 결제한 구독 중 확인하지 않은 만료 */
-  notices: () => http<ExpiryNotice[]>('/subscriptions/notices'),
-  acknowledgeExpiry: (subscriptionId: number) => http<void>(`/subscriptions/${subscriptionId}/acknowledge-expiry`, { method: 'POST' }),
-  prepareCard: () => http<CardRegistration>('/billing/card/prepare', { method: 'POST' }),
-  registerCard: (customerKey: string, authKey: string) => http<Card>('/billing/card', { method: 'POST', json: { customerKey, authKey } }),
-  removeCard: () => http<void>('/billing/card', { method: 'DELETE' }),
-  payments: () => http<Payment[]>('/billing/payments'),
+  notices: () => request<ExpiryNotice[]>(API.subscriptions.notices),
+  acknowledgeExpiry: (subscriptionId: number) => request<void>(API.subscriptions.acknowledgeExpiry(subscriptionId), { method: 'POST' }),
+  prepareCard: () => request<CardRegistration>(API.billing.cardPrepare, { method: 'POST' }),
+  registerCard: (customerKey: string, authKey: string) => request<Card>(API.billing.card, { method: 'POST', json: { customerKey, authKey } satisfies RegisterCardRequest }),
+  removeCard: () => request<void>(API.billing.card, { method: 'DELETE' }),
+  payments: () => request<Payment[]>(API.billing.payments),
   /** 멤버 한도 초과: 인원·초과 인원·다음 결제 금액 */
-  overage: (teamId: number) => http<OverageInfo>(`/teams/${teamId}/overage`),
+  overage: (teamId: number) => request<OverageInfo>(API.teams.overage(teamId)),
   /** 한도 초과 허용 켜기(동의 필요)·끄기 (소유자) */
   setOverage: (teamId: number, allowed: boolean, agree: boolean) =>
-    http<OverageInfo>(`/teams/${teamId}/overage`, { method: 'PUT', json: { allowed, agree } }),
+    request<OverageInfo>(API.teams.overage(teamId), { method: 'PUT', json: { allowed, agree } satisfies OverageRequest }),
 }
 
 export const usePlansQuery = () => useQuery({ queryKey: planKeys.all, queryFn: planApi.list })

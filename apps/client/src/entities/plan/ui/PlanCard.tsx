@@ -14,17 +14,12 @@ export const formatPrice = (won: number) => new Intl.NumberFormat(intlLocale(), 
 
 export const planPrice = (plan: Plan, cycle: BillingCycle) => (cycle === 'YEARLY' ? plan.yearlyPrice : plan.monthlyPrice)
 
-type Props = {
-  plan: Plan
-  cycle?: BillingCycle
-  current?: boolean
-  /** "가장 인기" 강조 */
-  highlighted?: boolean
-  /** features/purchase-plan 의 버튼 등을 슬롯으로 받는다 (entities 는 features 를 import 하지 않음) */
-  action?: ReactNode
-}
+/** 카드에 그릴 플랜. current = 지금 쓰는 플랜, highlighted = "가장 인기" 강조 */
+export type PlanCardData = { plan: Plan; cycle?: BillingCycle; current?: boolean; highlighted?: boolean }
 
-export function PlanCard({ plan, cycle = 'MONTHLY', current, highlighted, action }: Props) {
+/** action: features/purchase-plan 의 버튼 등을 슬롯으로 받는다 (entities 는 features 를 import 하지 않음) */
+export function PlanCard({ card, action }: { card: PlanCardData; action?: ReactNode }) {
+  const { plan, cycle = 'MONTHLY', current, highlighted } = card
   const { t } = useTranslation()
   const yearly = cycle === 'YEARLY' && plan.monthlyPrice > 0
   const features = [

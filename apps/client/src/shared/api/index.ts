@@ -1,12 +1,14 @@
 export {
   ApiError,
   type ClientErrorReport,
-  configureHttp,
+  configureRequest,
   errorMessage,
   getAccessToken,
-  http,
+  request,
+  type RequestOptions,
   refreshAccessToken,
   reportClientError,
-} from './http'
+} from './request'
+export { API, SERVER_PATHS } from './endpoints'
 export { realtime } from './realtime'
 export { toastError } from './toast-error'

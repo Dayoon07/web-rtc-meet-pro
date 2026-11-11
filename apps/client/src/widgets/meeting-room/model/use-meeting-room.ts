@@ -3,7 +3,7 @@ import type { Consumer, Producer, Transport } from 'mediasoup-client/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { type Meeting, meetingApi } from '@/entities/meeting'
-import { ApiError } from '@/shared/api'
+import { ApiError, SERVER_PATHS } from '@/shared/api'
 import {
   type EffectSettings,
   type EffectsStatus,
@@ -194,7 +194,7 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
         setMeeting(join.meeting)
 
         const socket = io(join.mediaUrl || undefined, {
-          path: '/media/socket.io',
+          path: SERVER_PATHS.mediaSocket,
           auth: { token: join.token },
           transports: ['websocket'],
           reconnection: false,

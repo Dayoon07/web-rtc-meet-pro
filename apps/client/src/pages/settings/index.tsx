@@ -9,7 +9,9 @@ import { ThemeSelector } from '@/features/toggle-theme'
 import { WithdrawAccount } from '@/features/withdraw-account'
 import { Badge, Card, GoogleMark, Spinner } from '@/shared/ui'
 
-function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+/** heading = 묶음 제목 · 설명 */
+function Section({ heading, children }: { heading: { title: string; description: string }; children: ReactNode }) {
+  const { title, description } = heading
   return (
     <Card className="grid gap-6 md:grid-cols-[220px_1fr]">
       <div>
@@ -21,7 +23,9 @@ function Section({ title, description, children }: { title: string; description:
   )
 }
 
-function Row({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+/** row = 아이콘 · 이름 · 값 */
+function Row({ row }: { row: { icon: ReactNode; label: string; value: ReactNode } }) {
+  const { icon, label, value } = row
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <span className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 [&_svg]:size-4.5">
@@ -52,46 +56,36 @@ export function SettingsPage() {
         <p className="mt-1 text-gray-500 dark:text-gray-400">{t('settings.subtitle')}</p>
       </div>
 
-      <Section title={t('settings.photoTitle')} description={t('settings.photoDesc')}>
+      <Section heading={{ title: t('settings.photoTitle'), description: t('settings.photoDesc') }}>
         <ProfileImageSection me={me} />
       </Section>
 
-      <Section title={t('settings.infoTitle')} description={t('settings.infoDesc')}>
+      <Section heading={{ title: t('settings.infoTitle'), description: t('settings.infoDesc') }}>
         <EditProfileForm key={me.id} me={me} />
       </Section>
 
-      <Section title={t('settings.loginTitle')} description={t('settings.loginDesc')}>
+      <Section heading={{ title: t('settings.loginTitle'), description: t('settings.loginDesc') }}>
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          <Row icon={<Mail />} label={t('auth.fields.email')} value={me.email} />
-          <Row
-            icon={<KeyRound />}
-            label={t('settings.password')}
-            value={
-              <span className="flex items-center gap-2">
+          <Row row={{ icon: <Mail />, label: t('auth.fields.email'), value: me.email }} />
+          <Row row={{ icon: <KeyRound />, label: t('settings.password'), value: <span className="flex items-center gap-2">
                 {me.hasPassword ? ok(t('settings.passwordSet')) : <Badge tone="gray">{t('settings.passwordNone')}</Badge>}
                 <ChangePasswordButton me={me} />
-              </span>
-            }
-          />
-          <Row
-            icon={<GoogleMark className="size-4.5" />}
-            label="Google"
-            value={googleLinked ? ok(t('settings.linked')) : <Badge tone="gray">{t('settings.notLinked')}</Badge>}
-          />
+              </span> }} />
+          <Row row={{ icon: <GoogleMark className="size-4.5" />, label: 'Google', value: googleLinked ? ok(t('settings.linked')) : <Badge tone="gray">{t('settings.notLinked')}</Badge> }} />
         </div>
       </Section>
 
-      <Section title={t('settings.languageTitle')} description={t('settings.languageDesc')}>
+      <Section heading={{ title: t('settings.languageTitle'), description: t('settings.languageDesc') }}>
         <LanguageSelector />
       </Section>
 
-      <Section title={t('settings.displayTitle')} description={t('settings.displayDesc')}>
+      <Section heading={{ title: t('settings.displayTitle'), description: t('settings.displayDesc') }}>
         <div className="max-w-sm">
           <ThemeSelector />
         </div>
       </Section>
 
-      <Section title={t('settings.withdraw.title')} description={t('settings.withdraw.desc')}>
+      <Section heading={{ title: t('settings.withdraw.title'), description: t('settings.withdraw.desc') }}>
         <WithdrawAccount me={me} />
       </Section>
     </div>

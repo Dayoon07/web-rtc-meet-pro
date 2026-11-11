@@ -6,6 +6,7 @@ import { LanguageMenu } from '@/features/change-language'
 import { ThemeToggle } from '@/features/toggle-theme'
 import { cn } from '@/shared/lib/cn'
 import { Avatar, LinkButton, Logo } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -27,7 +28,7 @@ export function MarketingHeader() {
             <a href="/#features" className={navClass({ isActive: false })}>
               {t('nav.features')}
             </a>
-            <NavLink to="/pricing" className={navClass}>
+            <NavLink to={ROUTES.pricing} className={navClass}>
               {t('nav.pricing')}
             </NavLink>
           </nav>
@@ -37,17 +38,17 @@ export function MarketingHeader() {
           <ThemeToggle />
           {isAuthenticated ? (
             <>
-              <LinkButton to="/app/chat" size="sm">
+              <LinkButton to={ROUTES.chat()} size="sm">
                 {t('nav.goToApp')}
               </LinkButton>
               {me && <Avatar src={me.profileImageUrl} name={me.nickname} size="sm" className="hidden sm:inline-flex" />}
             </>
           ) : (
             <>
-              <LinkButton to="/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <LinkButton to={ROUTES.login} variant="ghost" size="sm" className="hidden sm:inline-flex">
                 {t('nav.login')}
               </LinkButton>
-              <LinkButton to="/signup" size="sm">
+              <LinkButton to={ROUTES.signup} size="sm">
                 {t('nav.startFree')}
               </LinkButton>
             </>

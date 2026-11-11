@@ -1,0 +1,66 @@
+// 워크스페이스(팀) 자료 모양. 서버가 돌려주는 값과 서버에 보내는 값(XxxRequest)
+
+export type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER'
+
+/** 팀 안에서 역할에 따라 할 수 있는 일. 어느 역할이 무엇을 할 수 있는지는 서버(TeamRole)만 안다 */
+export type TeamPermission =
+  | 'INVITE_MEMBER'
+  | 'CREATE_GROUP_ROOM'
+  | 'CANCEL_ANY_MEETING'
+  | 'MANAGE_ROLES'
+  | 'REMOVE_MEMBER'
+  | 'DELETE_TEAM'
+  | 'DELETE_ANY_MESSAGE'
+
+export type TeamSummary = {
+  id: number
+  name: string
+  description: string | null
+  ownerId: number
+  myRole: TeamRole
+  /** 내 역할로 이 팀에서 할 수 있는 일 (서버가 계산) */
+  myPermissions: TeamPermission[]
+  memberCount: number
+  createdAt: string
+}
+
+export type TeamMember = {
+  userId: number
+  nickname: string
+  email: string
+  profileImageUrl: string | null
+  role: TeamRole
+  joinedAt: string
+  /** 지금 보는 사람이 이 팀원을 내보낼 수 있는지 (서버가 계산) */
+  removable: boolean
+}
+
+export type TeamDetail = {
+  team: TeamSummary
+  members: TeamMember[]
+  limits: {
+    maxMembers: number
+    /** null = 제한 없음 */
+    maxGroupRooms: number | null
+    pendingInvitations: number
+    maxMeetingParticipants: number
+    recordingEnabled: boolean
+    planCode: string
+  }
+}
+
+export type Invitation = {
+  id: number
+  teamId: number
+  teamName: string
+  inviterName: string
+  inviteeEmail: string
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'CANCELED'
+  expiresAt: string
+  createdAt: string
+}
+
+// ---- 서버에 보내는 값 ----
+export type CreateTeamRequest = { name: string; description?: string }
+export type InviteRequest = { email: string }
+export type ChangeRoleRequest = { role: Exclude<TeamRole, 'OWNER'> }

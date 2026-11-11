@@ -8,14 +8,12 @@ import type { EffectsStatus } from '../model/processor'
 import { BACKGROUNDS, type BackgroundId, type EffectSettings, STICKERS, type StickerId } from '../model/presets'
 import { imageFileToDataUrl } from '../model/settings'
 
-type Props = {
-  settings: EffectSettings
-  status: EffectsStatus
-  cameraOn: boolean
-  onChange: (settings: EffectSettings) => void
-}
+/** 지금 효과 설정 · 불러오는 상태 · 카메라 켜짐 */
+type EffectsView = { settings: EffectSettings; status: EffectsStatus; cameraOn: boolean }
 
-function Choice({ selected, label, onClick, children }: { selected: boolean; label: string; onClick: () => void; children: ReactNode }) {
+/** choice = 이름 · 골라져 있는지 · 누를 때, children = 미리보기 */
+function Choice({ choice, children }: { choice: { label: string; selected: boolean; onClick: () => void }; children: ReactNode }) {
+  const { selected, label, onClick } = choice
   return (
     <button
       type="button"
@@ -34,7 +32,8 @@ function Choice({ selected, label, onClick, children }: { selected: boolean; lab
 }
 
 /** 회의 중 배경(흐림·그라데이션·사진)과 얼굴 스티커 고르기 */
-export function EffectsPanel({ settings, status, cameraOn, onChange }: Props) {
+export function EffectsPanel({ effects, onChange }: { effects: EffectsView; onChange: (settings: EffectSettings) => void }) {
+  const { settings, status, cameraOn } = effects
   const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -68,7 +67,7 @@ export function EffectsPanel({ settings, status, cameraOn, onChange }: Props) {
           {BACKGROUNDS.map((b) => {
             const label = t(`room.effects.bg.${b.id}`)
             return (
-              <Choice key={b.id} selected={settings.background === b.id} label={label} onClick={() => setBackground(b.id)}>
+              <Choice choice={{ selected: settings.background === b.id, label, onClick: () => setBackground(b.id) }} key={b.id}>
                 {b.kind === 'none' && <Ban className="size-5" />}
                 {b.kind === 'blur' && <Droplets className={cn('size-5', b.radius > 10 && 'size-6')} />}
                 {b.kind === 'gradient' && (
@@ -79,11 +78,7 @@ export function EffectsPanel({ settings, status, cameraOn, onChange }: Props) {
               </Choice>
             )
           })}
-          <Choice
-            selected={settings.background === 'custom'}
-            label={t('room.effects.bg.custom')}
-            onClick={() => (settings.customImage ? setBackground('custom') : fileRef.current?.click())}
-          >
+          <Choice choice={{ selected: settings.background === 'custom', label: t('room.effects.bg.custom'), onClick: () => (settings.customImage ? setBackground('custom') : fileRef.current?.click()) }}>
             {settings.customImage ? <img src={settings.customImage} alt="" className="size-full object-cover" /> : <ImagePlus className="size-5" />}
             <span className="absolute bottom-0 left-0 right-0 truncate bg-black/55 px-1 py-0.5 text-[10px] text-white">{t('room.effects.bg.custom')}</span>
           </Choice>
@@ -98,11 +93,11 @@ export function EffectsPanel({ settings, status, cameraOn, onChange }: Props) {
       <section className="space-y-2">
         <h3 className="text-sm font-semibold">{t('room.effects.sticker')}</h3>
         <div className="grid grid-cols-4 gap-2">
-          <Choice selected={settings.sticker === null} label={t('room.effects.none')} onClick={() => setSticker(null)}>
+          <Choice choice={{ selected: settings.sticker === null, label: t('room.effects.none'), onClick: () => setSticker(null) }}>
             <Ban className="size-5" />
           </Choice>
           {STICKERS.map((s) => (
-            <Choice key={s.id} selected={settings.sticker === s.id} label={t(`room.effects.stickers.${s.id}`)} onClick={() => setSticker(s.id)}>
+            <Choice choice={{ selected: settings.sticker === s.id, label: t(`room.effects.stickers.${s.id}`), onClick: () => setSticker(s.id) }} key={s.id}>
               <img src={s.thumb} alt="" className="max-h-[80%] max-w-[80%] object-contain" />
             </Choice>
           ))}

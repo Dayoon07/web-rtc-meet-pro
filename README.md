@@ -437,15 +437,31 @@ com/webrtcmeetpro/
 
 ```
 src/
-├─ app/        라우터(회의실은 lazy), 레이아웃, 가드, STOMP 연결, http 초기화
-├─ pages/      home, login, signup, oauth-callback, onboarding, pricing, app-home, chat, meetings, meeting-detail,
-│              meet(회의실), teams, team-detail, invitations, billing, settings, not-found
-├─ widgets/    app-sidebar, app-topbar, notification-bell, chat-workspace, meeting-room, pricing-table, marketing-*
-├─ features/   auth, complete-profile, edit-profile, change-plan, change-language, toggle-theme,
-│              create-team, invite-member, respond-invitation, chat-room-actions, schedule-meeting, meeting-actions
-├─ entities/   session, user, plan, team, chat, meeting, notification
-└─ shared/     api(http, realtime), i18n(ko/en/ja/zh), ui, lib(theme, format), config(countries)
+├─ app/        라우터(회의실은 lazy), 레이아웃, 가드, STOMP 연결, request 초기화
+├─ pages/      화면 하나 = 폴더 하나 (home, login, chat, meetings, billing, settings …)
+├─ widgets/    여러 기능을 묶은 큰 조각: chat-workspace, meeting-room, app-sidebar, notification-bell …
+│              큰 위젯은 model/(상태 훅·context) · ui/(화면 조각) · lib/(계산) 로 나눈다
+├─ features/   사용자가 하는 일 하나: chat-room-actions, schedule-meeting, purchase-plan …
+│              <기능>/api · model(훅·타입) · ui(컴포넌트) · lib(상수·계산) + index.ts(밖으로 내보낼 것만)
+├─ entities/   자료 하나: session, user, plan, team, chat, meeting, notification
+│              <자료>/model(타입: 응답 XxxResponse·요청 XxxRequest) · api(요청·조회 훅) · lib · ui
+└─ shared/
+   ├─ api/     request(서버 요청 함수), endpoints.ts(서버 주소 전부: API.xxx), realtime(STOMP)
+   ├─ config/  routes.ts(화면 경로 전부: ROUTES.xxx), env, countries, company
+   ├─ lib/     use-dialog(창 열고 닫기), format, theme …
+   ├─ i18n/    ko/en/ja/zh
+   └─ ui/      버튼·입력칸·선택 상자·모달 등 공통 UI
 ```
+
+코드 규칙 (`imtsoft-solum-signage` 와 같은 방식)
+
+- **서버 주소는 `shared/api/endpoints.ts` 의 `API` 로만** 쓴다. 주소 문자열을 API 호출 안에 직접 쓰지 않는다.
+- **화면 경로는 `shared/config/routes.ts` 의 `ROUTES` 로만** 쓴다 (`<Link to>`, `href`, `navigate`, 라우터 모두).
+- 서버 요청은 `request<T>(API.xxx, { method, json })`. 보내는 값의 타입 이름은 `XxxRequest`, 받는 값은 자료 이름(`ChatRoom`) 또는 `XxxResponse`.
+- 화면 조각의 props 는 1~2개. 더 필요하면 묶어서 하나로 넘기거나(`dialog`, `field`, `row` …), 데이터는 조각 안에서 조회 훅으로 직접 부르거나, 위젯 context 로 받는다.
+- 창(모달)은 `useDialog()` 가 만든 `dialog` 하나만 넘긴다 (`open` · `close` · `done(결과)` · `data`).
+- 상태·요청이 3~4개 넘게 얽히면 `model/use-xxx.ts` 훅으로 뺀다 (예: `use-message-composer`, `use-room-view`).
+- 예외: `shared/ui` 의 공통 부품(Button, Select, Field, Modal …)은 HTML 태그처럼 여러 속성을 받는다.
 
 UI 는 Tailwind CSS v4. 흰 배경 기본 + 다크 모드, 포인트 컬러는 보라(`brand-*`, `app/styles/index.css` 의 `@theme`).
 배치는 누구나 아는 패턴: 랜딩·회의실은 Google Meet/Zoom, 로그인은 Slack/Notion 분할 화면, 앱은 Slack/Teams 사이드바, 채팅은 카카오톡/Slack, 요금제는 "가장 인기" 카드.

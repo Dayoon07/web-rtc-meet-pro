@@ -15,7 +15,10 @@ import { Avatar, Button, Spinner } from '@/shared/ui'
 import { type RemotePeer, useMeetingRoom } from './model/use-meeting-room'
 
 /** srcObject 는 JSX 속성이 아니라서 ref 로 연결 */
-function MediaVideo({ track, stream, muted, mirror, contain }: { track?: MediaStreamTrack; stream?: MediaStream | null; muted?: boolean; mirror?: boolean; contain?: boolean }) {
+/** media = 보여 줄 트랙이나 스트림, look = 소리 끄기 · 거울처럼 뒤집기 · 잘리지 않게 */
+function MediaVideo({ media, look = {} }: { media: { track?: MediaStreamTrack; stream?: MediaStream | null }; look?: { muted?: boolean; mirror?: boolean; contain?: boolean } }) {
+  const { track, stream } = media
+  const { muted, mirror, contain } = look
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream ?? (track ? new MediaStream([track]) : null)
@@ -39,7 +42,8 @@ function RemoteAudio({ track }: { track?: MediaStreamTrack }) {
   return <audio ref={ref} autoPlay />
 }
 
-type TileProps = {
+/** 화면 한 칸에 그릴 사람: 이름·사진·영상·마이크·손들기·나인지 */
+type TileData = {
   name: string
   avatar: string | null
   video?: MediaStreamTrack
@@ -48,14 +52,15 @@ type TileProps = {
   micOn: boolean
   hand?: boolean
   self?: boolean
-  small?: boolean
 }
 
-function Tile({ name, avatar, video, stream, videoOn, micOn, hand, self, small }: TileProps) {
+/** small = 옆줄의 작은 칸 */
+function Tile({ tile, small }: { tile: TileData; small?: boolean }) {
+  const { name, avatar, video, stream, videoOn, micOn, hand, self } = tile
   return (
     <div className={cn('relative flex items-center justify-center overflow-hidden rounded-2xl bg-gray-800', small ? 'aspect-video w-full' : 'size-full min-h-0')}>
       {videoOn && (video || stream) ? (
-        <MediaVideo track={video} stream={stream} muted={self} mirror={self} />
+        <MediaVideo look={{ muted: self, mirror: self }} media={{ track: video, stream }} />
       ) : (
         <Avatar src={avatar} name={name} size={small ? 'lg' : 'xl'} className="shadow-lg" />
       )}
@@ -72,7 +77,9 @@ function Tile({ name, avatar, video, stream, videoOn, micOn, hand, self, small }
   )
 }
 
-function ControlButton({ on, danger, label, onClick, children, badge }: { on?: boolean; danger?: boolean; label: string; onClick: () => void; children: ReactNode; badge?: number }) {
+/** control = 이름 · 누를 때 · 켜짐/꺼짐 · 빨간 버튼 · 숫자 배지, children = 아이콘 */
+function ControlButton({ control, children }: { control: { label: string; onClick: () => void; on?: boolean; danger?: boolean; badge?: number }; children: ReactNode }) {
+  const { on, danger, label, onClick, badge } = control
   return (
     <button
       type="button"
@@ -107,20 +114,15 @@ function useNarrowScreen() {
 }
 
 /** Google Meet / Zoom 같은 회의 화면 */
+/** entry = 들어갈 회의 · 내 이름 · 내 사진 · (채널 음성방이면) 카메라를 끈 채로 시작, onExit = 나가기 */
 export function MeetingRoom({
-  meetingId,
-  selfName,
-  selfAvatar,
+  entry,
   onExit,
-  cameraOff = false,
 }: {
-  meetingId: number
-  selfName: string
-  selfAvatar: string | null
+  entry: { meetingId: number; selfName: string; selfAvatar: string | null; cameraOff?: boolean }
   onExit: () => void
-  /** 채널 음성방: 카메라를 끈 채로 시작 */
-  cameraOff?: boolean
 }) {
+  const { meetingId, selfName, selfAvatar, cameraOff = false } = entry
   const { t, i18n } = useTranslation()
   const fmt = useFormat()
   const room = useMeetingRoom(meetingId, selfName, cameraOff)
@@ -239,29 +241,10 @@ export function MeetingRoom({
   const cols = narrow ? (total <= 2 ? 1 : 2) : total <= 1 ? 1 : total <= 4 ? 2 : total <= 9 ? 3 : 4
 
   const selfTile = (small?: boolean) => (
-    <Tile
-      key="self"
-      name={t('room.you', { name: selfName })}
-      avatar={selfAvatar}
-      video={room.local.previewTrack ?? undefined}
-      videoOn={room.local.camera}
-      micOn={room.local.mic}
-      hand={room.local.hand}
-      self
-      small={small}
-    />
+    <Tile tile={{ name: t('room.you', { name: selfName }), avatar: selfAvatar, video: room.local.previewTrack ?? undefined, videoOn: room.local.camera, micOn: room.local.mic, hand: room.local.hand, self: true }} key="self" small={small} />
   )
   const peerTile = (p: RemotePeer, small?: boolean) => (
-    <Tile
-      key={p.peerId}
-      name={p.name}
-      avatar={p.avatar}
-      video={p.tracks.camera}
-      videoOn={!!p.tracks.camera && !p.paused.camera}
-      micOn={!!p.tracks.mic && !p.paused.mic}
-      hand={p.handRaised}
-      small={small}
-    />
+    <Tile tile={{ name: p.name, avatar: p.avatar, video: p.tracks.camera, videoOn: !!p.tracks.camera && !p.paused.camera, micOn: !!p.tracks.mic && !p.paused.mic, hand: p.handRaised }} key={p.peerId} small={small} />
   )
 
   const submitChat = (e: FormEvent) => {
@@ -311,7 +294,7 @@ export function MeetingRoom({
           {sharing ? (
             <div className="flex min-h-0 flex-1 gap-3">
               <div className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-black">
-                <MediaVideo track={sharer?.tracks.screen} stream={room.local.screen ? room.local.screenStream : undefined} muted contain />
+                <MediaVideo look={{ muted: true, contain: true }} media={{ track: sharer?.tracks.screen, stream: room.local.screen ? room.local.screenStream : undefined }} />
                 <span className="absolute top-3 left-3 rounded-md bg-black/60 px-2.5 py-1 text-xs">
                   {t('room.sharing', { name: sharer?.name ?? selfName })}
                 </span>
@@ -328,7 +311,7 @@ export function MeetingRoom({
             </div>
           )}
           {!room.peers.length && <p className="text-center text-sm text-gray-400">{t('room.alone')}</p>}
-          {captions.on && <CaptionOverlay lines={captions.lines} interim={interim} selfName={selfName} />}
+          {captions.on && <CaptionOverlay captions={{ lines: captions.lines, interim, selfName }} />}
         </main>
 
         {panel && (
@@ -342,7 +325,7 @@ export function MeetingRoom({
               </button>
             </div>
             {panel === 'effects' ? (
-              <EffectsPanel settings={room.effects} status={room.effectsStatus} cameraOn={room.local.camera} onChange={room.setEffects} />
+              <EffectsPanel effects={{ settings: room.effects, status: room.effectsStatus, cameraOn: room.local.camera }} onChange={room.setEffects} />
             ) : panel === 'people' ? (
               <ul className="flex-1 overflow-y-auto p-2">
                 {[{ peerId: 'self', name: t('room.you', { name: selfName }), avatar: selfAvatar, mic: room.local.mic, hand: room.local.hand, host: false }, ...room.peers.map((p) => ({ peerId: p.peerId, name: p.name, avatar: p.avatar, mic: !!p.tracks.mic && !p.paused.mic, hand: p.handRaised, host: p.isHost }))].map((p) => (
@@ -386,39 +369,39 @@ export function MeetingRoom({
       </div>
 
       <footer className="flex shrink-0 items-center justify-center gap-2 pb-5 sm:gap-3">
-        <ControlButton on={room.local.mic} label={t(room.local.mic ? 'room.micOff' : 'room.micOn')} onClick={() => void room.toggleMic()}>
+        <ControlButton control={{ on: room.local.mic, label: t(room.local.mic ? 'room.micOff' : 'room.micOn'), onClick: () => void room.toggleMic() }}>
           {room.local.mic ? <Mic /> : <MicOff />}
         </ControlButton>
-        <ControlButton on={room.local.camera} label={t(room.local.camera ? 'room.camOff' : 'room.camOn')} onClick={() => void room.toggleCamera()}>
+        <ControlButton control={{ on: room.local.camera, label: t(room.local.camera ? 'room.camOff' : 'room.camOn'), onClick: () => void room.toggleCamera() }}>
           {room.local.camera ? <Video /> : <VideoOff />}
         </ControlButton>
-        <ControlButton label={t(room.local.screen ? 'room.shareStop' : 'room.shareStart')} onClick={() => void room.toggleScreen()}>
+        <ControlButton control={{ label: t(room.local.screen ? 'room.shareStop' : 'room.shareStart'), onClick: () => void room.toggleScreen() }}>
           {room.local.screen ? <MonitorX className="text-brand-300" /> : <MonitorUp />}
         </ControlButton>
         {showRecordButton && (
-          <ControlButton label={t(recorder.recording ? 'room.recordStop' : 'room.recordStart')} onClick={toggleRecording}>
+          <ControlButton control={{ label: t(recorder.recording ? 'room.recordStop' : 'room.recordStart'), onClick: toggleRecording }}>
             {recorder.recording ? <Square className="fill-red-500 text-red-500" /> : <Circle className={cn(recorder.status === 'starting' && 'animate-pulse', 'text-red-400')} />}
           </ControlButton>
         )}
-        <ControlButton label={t(notes.on ? 'notes.stop' : 'notes.start')} onClick={() => void notes.toggle()}>
+        <ControlButton control={{ label: t(notes.on ? 'notes.stop' : 'notes.start'), onClick: () => void notes.toggle() }}>
           <NotebookPen className={cn(notes.on && 'text-brand-300', notes.busy && 'animate-pulse', !notes.available && !notes.on && 'opacity-50')} />
         </ControlButton>
-        <ControlButton label={t(captions.on ? 'captions.stop' : 'captions.start')} onClick={() => void captions.toggle()}>
+        <ControlButton control={{ label: t(captions.on ? 'captions.stop' : 'captions.start'), onClick: () => void captions.toggle() }}>
           <Captions className={cn(captions.on && 'text-brand-300', captions.busy && 'animate-pulse', !captions.available && !captions.on && 'opacity-50')} />
         </ControlButton>
-        <ControlButton label={t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand')} onClick={room.toggleHand}>
+        <ControlButton control={{ label: t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand'), onClick: room.toggleHand }}>
           <Hand className={cn(room.local.hand && 'text-amber-400')} />
         </ControlButton>
-        <ControlButton label={t('room.effects.title')} onClick={() => setPanel(panel === 'effects' ? null : 'effects')}>
+        <ControlButton control={{ label: t('room.effects.title'), onClick: () => setPanel(panel === 'effects' ? null : 'effects') }}>
           <Sparkles className={cn(hasEffects(room.effects) && 'text-brand-300')} />
         </ControlButton>
-        <ControlButton label={t('room.chat')} onClick={() => setPanel(panel === 'chat' ? null : 'chat')} badge={panel === 'chat' ? 0 : room.chat.length - seenChat}>
+        <ControlButton control={{ label: t('room.chat'), onClick: () => setPanel(panel === 'chat' ? null : 'chat'), badge: panel === 'chat' ? 0 : room.chat.length - seenChat }}>
           <MessageSquare />
         </ControlButton>
-        <ControlButton label={t('room.people')} onClick={() => setPanel(panel === 'people' ? null : 'people')} badge={total}>
+        <ControlButton control={{ label: t('room.people'), onClick: () => setPanel(panel === 'people' ? null : 'people'), badge: total }}>
           <Users />
         </ControlButton>
-        <ControlButton danger label={t('room.leave')} onClick={room.leave}>
+        <ControlButton control={{ danger: true, label: t('room.leave'), onClick: room.leave }}>
           <PhoneOff />
         </ControlButton>
       </footer>

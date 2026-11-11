@@ -7,6 +7,7 @@ import { userApi, userKeys } from '@/entities/user'
 import { authApi } from '@/features/auth'
 import { ApiError } from '@/shared/api'
 import { Spinner } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 /**
  * 앱(Android·Windows)이 넘긴 이동 경로. 같은 사이트 안의 경로만 허용한다 (open redirect 방지).
@@ -36,7 +37,7 @@ export function OAuthCallbackPage() {
     started.current = true
 
     const code = params.get('code')
-    if (!code) return void navigate('/login?error=OAUTH_FAILED', { replace: true })
+    if (!code) return void navigate(`${ROUTES.login}?error=OAUTH_FAILED`, { replace: true })
 
     ;(async () => {
       try {
@@ -44,10 +45,10 @@ export function OAuthCallbackPage() {
         setTokens(await authApi.exchangeOAuthCode(code))
         const me = await userApi.me()
         queryClient.setQueryData(userKeys.me, me)
-        navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? '/app/chat') : '/onboarding', { replace: true })
+        navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? ROUTES.chat()) : ROUTES.onboarding, { replace: true })
       } catch (e) {
         const error = e instanceof ApiError ? e.code : 'OAUTH_FAILED'
-        navigate(`/login?error=${error}`, { replace: true })
+        navigate(`${ROUTES.login}?error=${error}`, { replace: true })
       }
     })()
   }, [params, navigate, queryClient, setTokens])

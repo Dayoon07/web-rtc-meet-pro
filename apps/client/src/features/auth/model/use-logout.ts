@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { sessionApi, useSessionStore } from '@/entities/session'
+import { ROUTES } from '@/shared/config/routes'
 
 export function useLogout() {
   const { t } = useTranslation()
@@ -14,7 +15,7 @@ export function useLogout() {
     if (refreshToken) await sessionApi.logout(refreshToken).catch(() => undefined)
     clear()
     queryClient.clear()
-    navigate('/', { replace: true })
+    navigate(ROUTES.home, { replace: true })
     toast(t('auth.loggedOut'))
   }
 }

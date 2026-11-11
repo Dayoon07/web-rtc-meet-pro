@@ -7,6 +7,7 @@ import { useMeQuery } from '@/entities/user'
 import { voiceSession } from '@/features/voice-chat'
 import { FullPageSpinner } from '@/shared/ui'
 import { MeetingRoom } from '@/widgets/meeting-room'
+import { ROUTES } from '@/shared/config/routes'
 
 /** 회의실: 앱 셸 없이 전체 화면 */
 export function MeetPage() {
@@ -19,7 +20,7 @@ export function MeetPage() {
   // 채널 음성방: ?voice=1 이면 카메라를 끈 채로 들어가고, 나오면 그 채널로 (back 은 앱 안 주소만)
   const voice = params.get('voice') === '1'
   const back = params.get('back')
-  const backTo = back && back.startsWith('/app/') ? back : null
+  const backTo = back && back.startsWith(`${ROUTES.app}/`) ? back : null
   // 채팅에서 음성으로 들어가 있었으면 먼저 끊는다 (같은 사람이 두 번 들어가지 않게). 회의실이 접속하기 전에 한 번
   useState(() => voiceSession.leave())
 
@@ -27,9 +28,9 @@ export function MeetPage() {
     void queryClient.invalidateQueries({ queryKey: ['meetings'] })
     void queryClient.invalidateQueries({ queryKey: ['chat'] })
     toast(t(voice ? 'room.leftVoice' : 'room.ended'))
-    navigate(backTo ?? `/app/meetings/${id}`, { replace: true })
+    navigate(backTo ?? ROUTES.meeting(id), { replace: true })
   }, [queryClient, navigate, id, t, voice, backTo])
 
   if (!me) return <FullPageSpinner />
-  return <MeetingRoom meetingId={id} selfName={me.nickname} selfAvatar={me.profileImageUrl} onExit={exit} cameraOff={voice} />
+  return <MeetingRoom entry={{ meetingId: id, selfName: me.nickname, selfAvatar: me.profileImageUrl, cameraOff: voice }} onExit={exit} />
 }

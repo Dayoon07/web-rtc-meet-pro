@@ -5,11 +5,11 @@ import { Toaster } from 'sonner'
 import { useApplyTheme } from '@/shared/lib/theme'
 import { UnexpectedErrorDialog } from '@/shared/ui'
 import { initErrorReporting } from './init-error-reporting'
-import { initHttp } from './init-http'
+import { initRequest } from './init-request'
 import { router } from './router'
 import './styles/index.css'
 
-initHttp()
+initRequest()
 initErrorReporting()
 
 const queryClient = new QueryClient({

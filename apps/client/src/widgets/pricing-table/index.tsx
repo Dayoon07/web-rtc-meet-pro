@@ -51,14 +51,7 @@ export function PricingTable({ subscription }: { subscription?: Subscription }) 
         {plans.map((plan) => {
           const highlighted = plan.code === HIGHLIGHT
           return (
-            <PlanCard
-              key={plan.code}
-              plan={plan}
-              cycle={cycle}
-              current={subscription?.plan.code === plan.code}
-              highlighted={highlighted}
-              action={<PlanActionButton plan={plan} cycle={cycle} subscription={subscription} highlighted={highlighted} />}
-            />
+            <PlanCard card={{ plan, cycle, current: subscription?.plan.code === plan.code, highlighted }} key={plan.code} action={<PlanActionButton order={{ plan, cycle, subscription }} highlighted={highlighted} />} />
           )
         })}
       </div>

@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { ApiError, errorMessage } from './http'
+import { ApiError, errorMessage } from './request'
 
 /**
  * 오류 토스트. 예상하지 못한 에러(서버 500·연결 실패)는 이미 에러 코드와 함께 안내 창으로 보여 줬으므로

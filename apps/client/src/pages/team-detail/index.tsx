@@ -10,12 +10,14 @@ import { hasTeamPermission, teamApi, teamKeys, type TeamRole, useTeamQuery } fro
 import { useMeQuery } from '@/entities/user'
 import { InviteMemberPanel } from '@/features/invite-member'
 import { JoinMeetingButton } from '@/features/meeting-actions'
-import { ScheduleMeetingModal } from '@/features/schedule-meeting'
+import { ScheduleMeetingModal, type ScheduleTarget } from '@/features/schedule-meeting'
 import { RemoveMemberButton, TeamExitButton } from '@/features/team-membership'
 import { toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
 import { Avatar, Badge, Button, Card, EmptyState, Select, Spinner } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
+import { useDialog } from '@/shared/lib/use-dialog'
 
 export function TeamDetailPage() {
   const { t } = useTranslation()
@@ -26,7 +28,7 @@ export function TeamDetailPage() {
   const { data: detail, isPending, isError } = useTeamQuery(teamId)
   const { data: upcoming = [] } = useMeetingsQuery('upcoming')
   const [tab, setTab] = useState<'members' | 'meetings'>('members')
-  const [modal, setModal] = useState<'now' | 'schedule' | null>(null)
+  const scheduling = useDialog<ScheduleTarget>()
 
   const queryClient = useQueryClient()
   const changeRole = useMutation({
@@ -40,7 +42,7 @@ export function TeamDetailPage() {
 
   const openDirect = useMutation({
     mutationFn: (userId: number) => chatApi.openDirect(teamId, userId),
-    onSuccess: (room) => navigate(`/app/chat/${teamId}/${room.id}`),
+    onSuccess: (room) => navigate(ROUTES.chat(teamId, room.id)),
     onError: (e) => toastError(e),
   })
 
@@ -68,13 +70,13 @@ export function TeamDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <TeamExitButton team={team} />
-          <Button variant="outline" icon={<MessageSquare className="size-4" />} onClick={() => navigate(`/app/chat/${teamId}`)}>
+          <Button variant="outline" icon={<MessageSquare className="size-4" />} onClick={() => navigate(ROUTES.chat(teamId))}>
             {t('nav.chat')}
           </Button>
-          <Button variant="outline" icon={<CalendarPlus className="size-4" />} onClick={() => setModal('schedule')}>
+          <Button variant="outline" icon={<CalendarPlus className="size-4" />} onClick={() => scheduling.show({ mode: 'schedule', teamId })}>
             {t('meetings.schedule')}
           </Button>
-          <Button icon={<Video className="size-4" />} onClick={() => setModal('now')}>
+          <Button icon={<Video className="size-4" />} onClick={() => scheduling.show({ mode: 'now', teamId })}>
             {t('meetings.startNow')}
           </Button>
         </div>
@@ -157,11 +159,11 @@ export function TeamDetailPage() {
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{fmt.time(m.scheduledAt)}</p>
                 <p className="text-xs text-gray-500">{fmt.date(m.scheduledAt)}</p>
               </div>
-              <Link to={`/app/meetings/${m.id}`} className="min-w-0 flex-1 truncate font-medium text-gray-900 hover:underline dark:text-white">
+              <Link to={ROUTES.meeting(m.id)} className="min-w-0 flex-1 truncate font-medium text-gray-900 hover:underline dark:text-white">
                 {m.title}
               </Link>
               <MeetingStatusBadge status={m.status} />
-              <JoinMeetingButton meeting={m} myId={me?.id} />
+              <JoinMeetingButton meeting={m} />
             </li>
           ))}
         </ul>
@@ -169,8 +171,7 @@ export function TeamDetailPage() {
         <EmptyState icon={<CalendarPlus />} title={t('meetings.empty')} description={t('meetings.subtitle')} />
       )}
 
-      <ScheduleMeetingModal mode="now" open={modal === 'now'} onClose={() => setModal(null)} defaultTeamId={teamId} />
-      <ScheduleMeetingModal mode="schedule" open={modal === 'schedule'} onClose={() => setModal(null)} defaultTeamId={teamId} />
+            {scheduling.open && <ScheduleMeetingModal dialog={scheduling} />}
     </div>
   )
 }

@@ -1,0 +1,104 @@
+import { Megaphone, Pencil, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { type ChatMessage, meetingNotesCard, systemText } from '@/entities/chat'
+import { cn } from '@/shared/lib/cn'
+import { useFormat } from '@/shared/lib/format'
+import { Avatar, LinkifiedText } from '@/shared/ui'
+import { bubbleClass } from '../lib/sections'
+import { useRoom } from '../model/context'
+import { EditBubble, MessageFiles, NotesCard } from './MessageParts'
+
+/** 목록 안의 메시지 한 개와 그 앞 메시지와의 관계 */
+export type MessageListItem = {
+  message: ChatMessage
+  /** 같은 사람이 5분 안에 이어서 보냄 → 이름·사진을 다시 안 그린다 */
+  grouped: boolean
+}
+
+const actionClass = 'rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+
+/** 마우스를 올리면 나오는 버튼: 공지로 올리기 · 고치기 · 지우기 (터치 화면은 늘 보인다) */
+function MessageActions({ message }: { message: ChatMessage }) {
+  const { t } = useTranslation()
+  const { myId, canModerate, canNotice, makeNotice, messages } = useRoom()
+  const mine = message.sender?.id === myId
+  const noticeable = canNotice && message.type === 'TEXT' && !!message.content
+  if (message.deleted || messages.editingId === message.id || !(mine || canModerate || noticeable)) return null
+  return (
+    <span className="flex shrink-0 gap-0.5 pb-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+      {noticeable && (
+        <button type="button" title={t('chat.notice.fromMessage')} aria-label={t('chat.notice.fromMessage')} onClick={() => makeNotice(message)} className={cn(actionClass, 'hover:text-brand-700 dark:hover:text-brand-300')}>
+          <Megaphone className="size-3.5" />
+        </button>
+      )}
+      {mine && message.type === 'TEXT' && (
+        <button type="button" title={t('chat.edit')} aria-label={t('chat.edit')} onClick={() => messages.startEdit(message)} className={cn(actionClass, 'hover:text-gray-700 dark:hover:text-gray-200')}>
+          <Pencil className="size-3.5" />
+        </button>
+      )}
+      {(mine || canModerate) && (
+        <button type="button" title={t('chat.delete')} aria-label={t('chat.delete')} onClick={() => messages.remove(message)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
+          <Trash2 className="size-3.5" />
+        </button>
+      )}
+    </span>
+  )
+}
+
+/** 메시지 한 개: 고치는 중 / AI 회의록 카드 / 안내 문장 / 말풍선 */
+export function MessageItem({ item }: { item: MessageListItem }) {
+  const { t } = useTranslation()
+  const fmt = useFormat()
+  const { myId, messages } = useRoom()
+  const { message: m, grouped } = item
+  const mine = m.sender?.id === myId
+  const gap = grouped ? 'mt-1' : 'mt-4'
+
+  if (messages.editingId === m.id) {
+    // 고치는 중: 말풍선 대신 방 너비에 맞춘 입력칸 (좁은 화면에서도 잘리지 않게)
+    return (
+      <div className={cn('flex justify-end', gap)}>
+        <EditBubble message={m} />
+      </div>
+    )
+  }
+  const card = meetingNotesCard(m)
+  if (card) return <NotesCard card={card} />
+  if (m.type === 'SYSTEM') {
+    return (
+      <p className="my-3 text-center text-xs text-gray-500 dark:text-gray-400">
+        <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-gray-800">{systemText(m, t, fmt.list)}</span>
+      </p>
+    )
+  }
+
+  return (
+    <div className={cn('flex items-end gap-2', mine && 'flex-row-reverse', gap)}>
+      {!mine && (grouped ? <span className="w-8 shrink-0" /> : <Avatar src={m.sender?.profileImageUrl} name={m.sender?.nickname ?? '?'} size="sm" />)}
+      <div className={cn('flex max-w-[75%] flex-col', mine ? 'items-end' : 'items-start')}>
+        {!mine && !grouped && <span className="mb-1 ml-1 text-xs font-medium text-gray-600 dark:text-gray-400">{m.sender?.nickname ?? t('chat.unknown')}</span>}
+        <div className={cn('group flex items-end gap-1.5', mine && 'flex-row-reverse')}>
+          <div className={cn('flex min-w-0 flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
+            {m.deleted ? (
+              <p className="rounded-2xl border border-dashed border-gray-300 px-3.5 py-2 text-sm text-gray-400 italic dark:border-gray-700">{t('chat.deletedMessage')}</p>
+            ) : (
+              <>
+                {m.files.length > 0 && <MessageFiles message={m} />}
+                {m.content && (
+                  <p className={bubbleClass(mine)}>
+                    <LinkifiedText text={m.content} onDark={mine} />
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
+            {m.edited && !m.deleted && <span className="mr-1">{t('chat.edited')}</span>}
+            {fmt.time(m.createdAt)}
+          </span>
+          <MessageActions message={m} />
+        </div>
+      </div>
+    </div>
+  )
+}

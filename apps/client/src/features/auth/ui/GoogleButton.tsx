@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { SERVER_PATHS } from '@/shared/api'
 import { buttonClass, GoogleMark } from '@/shared/ui'
 import { useAuthProviders } from '../api/auth-api'
 
@@ -24,7 +25,7 @@ export function GoogleButton({ mode = 'login' }: { mode?: 'login' | 'signup' }) 
   }
 
   return (
-    <a href="/oauth2/authorization/google" className={buttonClass('outline', 'lg', 'w-full')}>
+    <a href={SERVER_PATHS.googleLogin} className={buttonClass('outline', 'lg', 'w-full')}>
       <GoogleMark />
       {label}
     </a>

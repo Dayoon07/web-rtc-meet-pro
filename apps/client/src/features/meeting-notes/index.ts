@@ -1,2 +1,2 @@
-export { MeetingNotesCard } from './MeetingNotesCard'
-export { useMeetingNotes } from './use-meeting-notes'
+export { useMeetingNotes } from './model/use-meeting-notes'
+export { MeetingNotesCard } from './ui/MeetingNotesCard'

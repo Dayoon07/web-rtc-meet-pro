@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SERVER_PATHS } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { Spinner } from '@/shared/ui'
 
@@ -12,7 +13,7 @@ export function LicensesPage() {
   const [tab, setTab] = useState<'web' | 'app'>('web')
   const { data, isPending } = useQuery({
     queryKey: ['oss-licenses'],
-    queryFn: async () => (await fetch('/oss-licenses.json')).json() as Promise<{ web: License[]; app: License[] }>,
+    queryFn: async () => (await fetch(SERVER_PATHS.ossLicenses)).json() as Promise<{ web: License[]; app: License[] }>,
     staleTime: Infinity,
   })
   const items = data?.[tab] ?? []

@@ -8,6 +8,7 @@ import { LanguageMenu } from '@/features/change-language'
 import { ThemeToggle } from '@/features/toggle-theme'
 import { Avatar, Badge, IconButton, Menu, MenuItem, MenuSeparator } from '@/shared/ui'
 import { NotificationBell } from '@/widgets/notification-bell'
+import { ROUTES } from '@/shared/config/routes'
 
 function UserMenu() {
   const { t } = useTranslation()
@@ -50,10 +51,10 @@ function UserMenu() {
               </div>
             </div>
             <MenuSeparator />
-            <MenuItem icon={<UserRound />} onClick={go('/app/settings')}>
+            <MenuItem icon={<UserRound />} onClick={go(ROUTES.settings)}>
               {t('userMenu.profile')}
             </MenuItem>
-            <MenuItem icon={<CreditCard />} onClick={go('/app/billing')}>
+            <MenuItem icon={<CreditCard />} onClick={go(ROUTES.billing)}>
               {t('userMenu.billing')}
             </MenuItem>
             <MenuSeparator />

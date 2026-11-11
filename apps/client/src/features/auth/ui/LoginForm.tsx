@@ -8,8 +8,9 @@ import { errorMessage } from '@/shared/api'
 import { Button, Divider, Field, FieldError, Input } from '@/shared/ui'
 import { authApi } from '../api/auth-api'
 import { GoogleButton } from './GoogleButton'
+import { ROUTES } from '@/shared/config/routes'
 
-export function LoginForm({ redirectTo = '/app/chat' }: { redirectTo?: string }) {
+export function LoginForm({ redirectTo = ROUTES.chat() }: { redirectTo?: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -70,7 +71,7 @@ export function LoginForm({ redirectTo = '/app/chat' }: { redirectTo?: string })
             </button>
           </div>
         </Field>
-        <Link to="/forgot-password" className="-mt-2 self-end text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
+        <Link to={ROUTES.forgotPassword} className="-mt-2 self-end text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
           {t('auth.login.forgot')}
         </Link>
         <FieldError>{errorMessage(login.error)}</FieldError>

@@ -5,6 +5,7 @@ import { isRouteErrorResponse, useRouteError } from 'react-router'
 import { reportClientError } from '@/shared/api'
 import { newErrorCode } from '@/shared/lib/unexpected-error'
 import { Button, ErrorDetails, FullPageSpinner, LinkButton } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 /**
  * 화면 파일(lazy route)을 못 불러온 에러. 새로 배포한 뒤 예전 탭에서 옛날 파일 이름을 찾을 때,
@@ -73,7 +74,7 @@ export function RouteErrorPage() {
         <Button icon={<RotateCw className="size-4" />} onClick={() => window.location.reload()}>
           {t('routeError.reload')}
         </Button>
-        <LinkButton to="/" variant="outline">
+        <LinkButton to={ROUTES.home} variant="outline">
           {t('routeError.home')}
         </LinkButton>
       </div>

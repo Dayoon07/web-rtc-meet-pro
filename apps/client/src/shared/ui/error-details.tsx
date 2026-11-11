@@ -70,7 +70,7 @@ export function ErrorDetails({ errorCode, reason }: { errorCode: string; reason:
   )
 }
 
-/** 화면 전체에 하나: 서버 500 이나 서버 연결 실패 때 http() 가 띄운다 */
+/** 화면 전체에 하나: 서버 500 이나 서버 연결 실패 때 request() 가 띄운다 */
 export function UnexpectedErrorDialog() {
   const { t } = useTranslation()
   const current = useUnexpectedErrorStore((s) => s.current)

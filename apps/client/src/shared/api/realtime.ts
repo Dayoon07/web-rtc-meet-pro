@@ -1,5 +1,6 @@
 import { Client, type IMessage } from '@stomp/stompjs'
-import { getAccessToken, refreshAccessToken } from './http'
+import { SERVER_PATHS } from './endpoints'
+import { getAccessToken, refreshAccessToken } from './request'
 
 type Listener = (payload: unknown) => void
 type Channel = 'chat' | 'notifications' | 'meeting'
@@ -16,7 +17,7 @@ class Realtime {
     if (this.client) return
     const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
     const client = new Client({
-      brokerURL: `${scheme}://${location.host}/ws`,
+      brokerURL: `${scheme}://${location.host}${SERVER_PATHS.websocket}`,
       reconnectDelay: 3000,
       heartbeatIncoming: 20000,
       heartbeatOutgoing: 20000,

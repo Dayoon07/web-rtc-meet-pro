@@ -10,6 +10,7 @@ import { AppSidebar } from '@/widgets/app-sidebar'
 import { AppTopbar } from '@/widgets/app-topbar'
 import { MarketingFooter } from '@/widgets/marketing-footer'
 import { MarketingHeader } from '@/widgets/marketing-header'
+import { ROUTES } from '@/shared/config/routes'
 
 export function MarketingLayout() {
   return (
@@ -105,16 +106,10 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-dvh">
-      <AppSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        chatUnread={chatUnread}
-        collapsed={collapsed}
-        onToggleCollapsed={toggleCollapsed}
-      />
+      <AppSidebar state={{ open: sidebarOpen, onClose: () => setSidebarOpen(false), chatUnread, collapsed, onToggleCollapsed: toggleCollapsed }} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar onOpenSidebar={() => setSidebarOpen(true)} />
-        <main key={location.pathname.startsWith('/app/chat') ? 'chat' : location.pathname} className="flex-1 px-4 py-8 sm:px-6 lg:px-10">
+        <main key={location.pathname.startsWith(ROUTES.chat()) ? 'chat' : location.pathname} className="flex-1 px-4 py-8 sm:px-6 lg:px-10">
           <Outlet />
         </main>
       </div>

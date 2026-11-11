@@ -7,9 +7,12 @@ import { useFormat } from '@/shared/lib/format'
 import { Button, Modal } from '@/shared/ui'
 import type { Payment } from '../model/types'
 import { formatPrice, planName } from './PlanCard'
+import type { Dialog } from '@/shared/lib/use-dialog'
 
 /** 영수증 한 줄: 왼쪽 이름, 오른쪽 값 */
-function Line({ label, value, strong }: { label: ReactNode; value: ReactNode; strong?: boolean }) {
+/** line = 이름 · 값 · 굵게 */
+function Line({ line }: { line: { label: ReactNode; value: ReactNode; strong?: boolean } }) {
+  const { label, value, strong } = line
   return (
     <div className={cn('flex items-baseline justify-between gap-4', strong ? 'text-base font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300')}>
       <span className="shrink-0">{label}</span>
@@ -27,7 +30,8 @@ function Block({ children }: { children: ReactNode }) {
  * 결제 영수증 (POS 영수증처럼): 판매처, 결제 일시·주문번호, 품목, 금액(공급가액·부가세), 결제 수단.
  * 공식 매출전표는 토스 영수증 링크로.
  */
-export function ReceiptModal({ payment, open, onClose }: { payment: Payment | null; open: boolean; onClose: () => void }) {
+export function ReceiptModal({ dialog }: { /** data = 보여 줄 결제 */ dialog: Dialog<Payment> }) {
+  const { open, close: onClose, data: payment } = dialog
   const { t } = useTranslation()
   const fmt = useFormat()
   if (!payment) return null
@@ -84,9 +88,9 @@ export function ReceiptModal({ payment, open, onClose }: { payment: Payment | nu
         </Block>
 
         <Block>
-          <Line label={t('billing.receipt.paidAt')} value={fmt.dateTime(p.approvedAt ?? p.createdAt)} />
-          <Line label={t('billing.receipt.orderId')} value={<span className="text-xs">{p.orderId}</span>} />
-          {p.teamName && <Line label={t('billing.receipt.workspace')} value={p.teamName} />}
+          <Line line={{ label: t('billing.receipt.paidAt'), value: fmt.dateTime(p.approvedAt ?? p.createdAt) }} />
+          <Line line={{ label: t('billing.receipt.orderId'), value: <span className="text-xs">{p.orderId}</span> }} />
+          {p.teamName && <Line line={{ label: t('billing.receipt.workspace'), value: p.teamName }} />}
         </Block>
 
         <Block>
@@ -106,25 +110,22 @@ export function ReceiptModal({ payment, open, onClose }: { payment: Payment | nu
         </Block>
 
         <Block>
-          <Line label={t('billing.receipt.total')} value={formatPrice(p.amount)} />
-          <Line label={t('billing.receipt.supply')} value={formatPrice(p.supplyAmount)} />
-          <Line label={t('billing.receipt.vat')} value={formatPrice(p.vat)} />
+          <Line line={{ label: t('billing.receipt.total'), value: formatPrice(p.amount) }} />
+          <Line line={{ label: t('billing.receipt.supply'), value: formatPrice(p.supplyAmount) }} />
+          <Line line={{ label: t('billing.receipt.vat'), value: formatPrice(p.vat) }} />
         </Block>
 
         <Block>
-          <Line label={t('billing.receipt.method')} value={p.method ?? '-'} />
-          {card && <Line label={t('billing.receipt.card')} value={card} />}
-          <Line label={t('billing.receipt.installment')} value={t('billing.receipt.lumpSum')} />
-          {p.approveNo && <Line label={t('billing.receipt.approveNo')} value={p.approveNo} />}
-          <Line
-            label={t('billing.receipt.status')}
-            value={<span className={done ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{t(`billing.history.statuses.${p.status}`)}</span>}
-          />
+          <Line line={{ label: t('billing.receipt.method'), value: p.method ?? '-' }} />
+          {card && <Line line={{ label: t('billing.receipt.card'), value: card }} />}
+          <Line line={{ label: t('billing.receipt.installment'), value: t('billing.receipt.lumpSum') }} />
+          {p.approveNo && <Line line={{ label: t('billing.receipt.approveNo'), value: p.approveNo }} />}
+          <Line line={{ label: t('billing.receipt.status'), value: <span className={done ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{t(`billing.history.statuses.${p.status}`)}</span> }} />
           {p.failureMessage && <p className="text-xs text-red-600 dark:text-red-400">{p.failureMessage}</p>}
         </Block>
 
         <Block>
-          <Line label={t('billing.receipt.sum')} value={formatPrice(done ? p.amount : 0)} strong />
+          <Line line={{ label: t('billing.receipt.sum'), value: formatPrice(done ? p.amount : 0), strong: true }} />
         </Block>
       </div>
     </Modal>

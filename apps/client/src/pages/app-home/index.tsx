@@ -8,13 +8,17 @@ import { useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { CreateTeamModal } from '@/features/create-team'
 import { JoinMeetingButton } from '@/features/meeting-actions'
-import { ScheduleMeetingModal } from '@/features/schedule-meeting'
+import { ScheduleMeetingModal, type ScheduleTarget } from '@/features/schedule-meeting'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
 import { Card, EmptyState } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
+import { useDialog } from '@/shared/lib/use-dialog'
 
 /** Zoom 홈 화면처럼 큰 아이콘 타일로 주요 동작을 바로 보이게 */
-function ActionTile({ icon, label, hint, tone, onClick }: { icon: ReactNode; label: string; hint: string; tone: 'brand' | 'blue' | 'gray'; onClick: () => void }) {
+/** tile = 아이콘 · 이름 · 설명 · 색 */
+function ActionTile({ tile, onClick }: { tile: { icon: ReactNode; label: string; hint: string; tone: 'brand' | 'blue' | 'gray' }; onClick: () => void }) {
+  const { icon, label, hint, tone } = tile
   return (
     <button
       type="button"
@@ -67,7 +71,8 @@ export function AppHomePage() {
   const { data: teams } = useTeamsQuery()
   const plan = me?.plan
   const { data: upcoming = [] } = useMeetingsQuery('upcoming')
-  const [modal, setModal] = useState<'now' | 'schedule' | 'team' | null>(null)
+  const [creatingTeam, setCreatingTeam] = useState(false)
+  const scheduling = useDialog<ScheduleTarget>()
   const today = upcoming.filter((m) => isSameDay(new Date(m.scheduledAt), new Date())).length
 
   return (
@@ -80,16 +85,10 @@ export function AppHomePage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {/* 채팅 중심: 채팅 → 워크스페이스 → 회의 */}
-          <ActionTile icon={<MessageSquare />} label={t('dashboard.actions.chat')} hint={t('dashboard.actions.chatHint')} tone="brand" onClick={() => navigate('/app/chat')} />
-          <ActionTile
-            icon={<Users />}
-            label={t('dashboard.actions.createTeam')}
-            hint={t('dashboard.actions.createTeamHint', { count: teams?.length ?? 0 })}
-            tone="blue"
-            onClick={() => setModal('team')}
-          />
-          <ActionTile icon={<Video />} label={t('dashboard.actions.newMeeting')} hint={t('dashboard.actions.newMeetingHint')} tone="gray" onClick={() => setModal('now')} />
-          <ActionTile icon={<CalendarPlus />} label={t('dashboard.actions.schedule')} hint={t('dashboard.actions.scheduleHint')} tone="gray" onClick={() => setModal('schedule')} />
+          <ActionTile tile={{ icon: <MessageSquare />, label: t('dashboard.actions.chat'), hint: t('dashboard.actions.chatHint'), tone: 'brand' }} onClick={() => navigate(ROUTES.chat())} />
+          <ActionTile tile={{ icon: <Users />, label: t('dashboard.actions.createTeam'), hint: t('dashboard.actions.createTeamHint', { count: teams?.length ?? 0 }), tone: 'blue' }} onClick={() => setCreatingTeam(true)} />
+          <ActionTile tile={{ icon: <Video />, label: t('dashboard.actions.newMeeting'), hint: t('dashboard.actions.newMeetingHint'), tone: 'gray' }} onClick={() => scheduling.show({ mode: 'now' })} />
+          <ActionTile tile={{ icon: <CalendarPlus />, label: t('dashboard.actions.schedule'), hint: t('dashboard.actions.scheduleHint'), tone: 'gray' }} onClick={() => scheduling.show({ mode: 'schedule' })} />
         </div>
         <Clock todayCount={today} />
       </div>
@@ -98,7 +97,7 @@ export function AppHomePage() {
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900 dark:text-white">{t('dashboard.upcoming')}</h3>
-            <Link to="/app/meetings" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
+            <Link to={ROUTES.meetings} className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
               {t('dashboard.seeAll')}
             </Link>
           </div>
@@ -110,12 +109,12 @@ export function AppHomePage() {
                     <p className="text-sm font-bold text-gray-900 tabular-nums dark:text-white">{fmt.time(m.scheduledAt)}</p>
                     <p className="text-[11px] text-gray-500">{fmt.monthDay(m.scheduledAt)}</p>
                   </div>
-                  <Link to={`/app/meetings/${m.id}`} className="min-w-0 flex-1">
+                  <Link to={ROUTES.meeting(m.id)} className="min-w-0 flex-1">
                     <p className="truncate font-medium text-gray-900 hover:underline dark:text-white">{m.title}</p>
                     <p className="truncate text-xs text-gray-500">{m.teamName}</p>
                   </Link>
                   <MeetingStatusBadge status={m.status} />
-                  <JoinMeetingButton meeting={m} myId={me?.id} />
+                  <JoinMeetingButton meeting={m} />
                 </li>
               ))}
             </ul>
@@ -131,7 +130,7 @@ export function AppHomePage() {
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.currentPlan')}</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-white">{planName(plan)}</p>
               </div>
-              <Link to="/app/billing" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
+              <Link to={ROUTES.billing} className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
                 {t('dashboard.change')}
               </Link>
             </div>
@@ -150,9 +149,8 @@ export function AppHomePage() {
         )}
       </div>
 
-      <ScheduleMeetingModal mode="now" open={modal === 'now'} onClose={() => setModal(null)} />
-      <ScheduleMeetingModal mode="schedule" open={modal === 'schedule'} onClose={() => setModal(null)} />
-      <CreateTeamModal open={modal === 'team'} onClose={() => setModal(null)} />
+            {scheduling.open && <ScheduleMeetingModal dialog={scheduling} />}
+      <CreateTeamModal open={creatingTeam} onClose={() => setCreatingTeam(false)} />
     </div>
   )
 }

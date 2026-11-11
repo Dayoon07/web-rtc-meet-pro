@@ -3,15 +3,16 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { type Meeting, MeetingStatusBadge, useMeetingsQuery } from '@/entities/meeting'
-import { useMeQuery } from '@/entities/user'
 import { CancelMeetingButton, JoinMeetingButton } from '@/features/meeting-actions'
-import { ScheduleMeetingModal } from '@/features/schedule-meeting'
+import { ScheduleMeetingModal, type ScheduleTarget } from '@/features/schedule-meeting'
 import { cn } from '@/shared/lib/cn'
 import { intlLocale } from '@/shared/i18n'
 import { useFormat } from '@/shared/lib/format'
 import { Avatar, Button, EmptyState, Spinner } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
+import { useDialog } from '@/shared/lib/use-dialog'
 
-function MeetingRow({ meeting, myId }: { meeting: Meeting; myId?: number }) {
+function MeetingRow({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation()
   const fmt = useFormat()
   const start = new Date(meeting.scheduledAt)
@@ -26,7 +27,7 @@ function MeetingRow({ meeting, myId }: { meeting: Meeting; myId?: number }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Link to={`/app/meetings/${meeting.id}`} className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
+          <Link to={ROUTES.meeting(meeting.id)} className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
             {meeting.title}
           </Link>
           <MeetingStatusBadge status={meeting.status} />
@@ -47,7 +48,7 @@ function MeetingRow({ meeting, myId }: { meeting: Meeting; myId?: number }) {
       </div>
       <div className="flex items-center gap-2">
         {meeting.canCancel && <CancelMeetingButton meeting={meeting} />}
-        <JoinMeetingButton meeting={meeting} myId={myId} size="md" />
+        <JoinMeetingButton meeting={meeting} size="md" />
       </div>
     </li>
   )
@@ -55,10 +56,9 @@ function MeetingRow({ meeting, myId }: { meeting: Meeting; myId?: number }) {
 
 export function MeetingsPage() {
   const { t } = useTranslation()
-  const { data: me } = useMeQuery()
   const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming')
   const { data: meetings, isPending } = useMeetingsQuery(scope)
-  const [modal, setModal] = useState<'now' | 'schedule' | null>(null)
+  const scheduling = useDialog<ScheduleTarget>()
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -68,10 +68,10 @@ export function MeetingsPage() {
           <p className="mt-1 text-gray-500 dark:text-gray-400">{t('meetings.subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" icon={<CalendarPlus className="size-4" />} onClick={() => setModal('schedule')}>
+          <Button variant="outline" icon={<CalendarPlus className="size-4" />} onClick={() => scheduling.show({ mode: 'schedule' })}>
             {t('meetings.schedule')}
           </Button>
-          <Button icon={<Video className="size-4" />} onClick={() => setModal('now')}>
+          <Button icon={<Video className="size-4" />} onClick={() => scheduling.show({ mode: 'now' })}>
             {t('meetings.startNow')}
           </Button>
         </div>
@@ -101,18 +101,17 @@ export function MeetingsPage() {
         <EmptyState
           icon={<CalendarClock />}
           title={t(scope === 'upcoming' ? 'meetings.empty' : 'meetings.pastEmpty')}
-          action={scope === 'upcoming' ? <Button onClick={() => setModal('schedule')}>{t('meetings.schedule')}</Button> : undefined}
+          action={scope === 'upcoming' ? <Button onClick={() => scheduling.show({ mode: 'schedule' })}>{t('meetings.schedule')}</Button> : undefined}
         />
       ) : (
         <ul className="flex flex-col gap-3">
           {meetings.map((m) => (
-            <MeetingRow key={m.id} meeting={m} myId={me?.id} />
+            <MeetingRow key={m.id} meeting={m} />
           ))}
         </ul>
       )}
 
-      <ScheduleMeetingModal mode="now" open={modal === 'now'} onClose={() => setModal(null)} />
-      <ScheduleMeetingModal mode="schedule" open={modal === 'schedule'} onClose={() => setModal(null)} />
+            {scheduling.open && <ScheduleMeetingModal dialog={scheduling} />}
     </div>
   )
 }

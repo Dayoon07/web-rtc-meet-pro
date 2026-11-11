@@ -8,6 +8,7 @@ import { useMeQuery } from '@/entities/user'
 import { CreateTeamModal } from '@/features/create-team'
 import { cn } from '@/shared/lib/cn'
 import { IconButton, Logo, MqMark } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
   cn(
@@ -19,7 +20,9 @@ const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white',
   )
 
-function NavItem({ to, icon, children, end, badge, mini }: { to: string; icon: ReactNode; children: ReactNode; end?: boolean; badge?: number; mini?: boolean }) {
+/** item = 주소 · 아이콘 · 정확히 같은 주소일 때만 · 숫자 배지 · 접힌 사이드바, children = 이름 */
+function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?: boolean; badge?: number; mini?: boolean }; children: ReactNode }) {
+  const { to, icon, end, badge, mini } = item
   return (
     <NavLink to={to} end={end} className={(s) => itemClass(s, mini)} title={mini && typeof children === 'string' ? children : undefined}>
       {icon}
@@ -51,7 +54,7 @@ function PlanUsage() {
         <span className="truncate font-semibold text-gray-900 dark:text-white">{t('sidebar.planName', { name: planName(me.plan) })}</span>
         <span className="shrink-0 text-xs text-gray-500">{t('sidebar.workspaces', { count: teams?.length ?? 0 })}</span>
       </div>
-      <Link to="/app/billing" className="mt-3 inline-block text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300">
+      <Link to={ROUTES.billing} className="mt-3 inline-block text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300">
         {t('sidebar.upgrade')}
       </Link>
     </div>
@@ -62,19 +65,11 @@ function PlanUsage() {
  * 앱 왼쪽 메뉴. 데스크톱에서는 접을 수 있다 (collapsed: 아이콘만, 마우스를 올리면 이름).
  * 휴대폰에서는 늘 펼친 서랍 (open 으로 열고 닫음).
  */
-export function AppSidebar({
-  open,
-  onClose,
-  chatUnread,
-  collapsed = false,
-  onToggleCollapsed,
-}: {
-  open: boolean
-  onClose: () => void
-  chatUnread?: number
-  collapsed?: boolean
-  onToggleCollapsed?: () => void
-}) {
+/** 앱 사이드바의 상태: 휴대폰에서 열림 · 닫기 · 채팅 안 읽은 수 · 접힘 · 접기/펴기 */
+export type AppSidebarState = { open: boolean; onClose: () => void; chatUnread?: number; collapsed?: boolean; onToggleCollapsed?: () => void }
+
+export function AppSidebar({ state }: { state: AppSidebarState }) {
+  const { open, onClose, chatUnread, collapsed = false, onToggleCollapsed } = state
   const mini = collapsed
   const { t } = useTranslation()
   const { data: teams } = useTeamsQuery()
@@ -96,9 +91,9 @@ export function AppSidebar({
         )}
       >
         <div className={cn('flex h-16 items-center justify-between px-5', mini && 'md:justify-center md:px-0')}>
-          <Logo to="/app/chat" className={cn(mini && 'md:hidden')} />
+          <Logo to={ROUTES.chat()} className={cn(mini && 'md:hidden')} />
           {mini && (
-            <NavLink to="/app/chat" className="hidden md:flex" aria-label={t('nav.logoHome')}>
+            <NavLink to={ROUTES.chat()} className="hidden md:flex" aria-label={t('nav.logoHome')}>
               <MqMark className="h-7 w-8" />
             </NavLink>
           )}
@@ -121,16 +116,16 @@ export function AppSidebar({
 
         <nav className={cn('flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-2', mini && 'md:px-2')} onClick={onClose}>
           <div className="flex flex-col gap-0.5">
-            <NavItem to="/app" end icon={<House />} mini={mini}>
+            <NavItem item={{ to: ROUTES.app, end: true, icon: <House />, mini }}>
               {t('nav.home')}
             </NavItem>
-            <NavItem to="/app/chat" icon={<MessageSquare />} badge={chatUnread} mini={mini}>
+            <NavItem item={{ to: ROUTES.chat(), icon: <MessageSquare />, badge: chatUnread, mini }}>
               {t('nav.chat')}
             </NavItem>
-            <NavItem to="/app/meetings" icon={<Video />} mini={mini}>
+            <NavItem item={{ to: ROUTES.meetings, icon: <Video />, mini }}>
               {t('nav.meetings')}
             </NavItem>
-            <NavItem to="/app/invitations" icon={<Mail />} badge={invitations?.length} mini={mini}>
+            <NavItem item={{ to: ROUTES.invitations, icon: <Mail />, badge: invitations?.length, mini }}>
               {t('nav.invitations')}
             </NavItem>
           </div>
@@ -138,7 +133,7 @@ export function AppSidebar({
           <div className="flex flex-col gap-0.5">
             {mini && <div className="mx-3 mb-1 hidden border-t border-gray-200 md:block dark:border-gray-800" />}
             <div className={cn('flex items-center justify-between px-3 pb-1', mini && 'md:hidden')}>
-              <NavLink to="/app/teams" end className="text-xs font-semibold tracking-wide text-gray-400 uppercase hover:text-gray-600">
+              <NavLink to={ROUTES.teams} end className="text-xs font-semibold tracking-wide text-gray-400 uppercase hover:text-gray-600">
                 {t('sidebar.myTeams')}
               </NavLink>
               <button
@@ -156,7 +151,7 @@ export function AppSidebar({
             </div>
             {teams?.length ? (
               teams.map((team) => (
-                <NavLink key={team.id} to={`/app/teams/${team.id}`} className={(st) => itemClass(st, mini)} title={mini ? team.name : undefined}>
+                <NavLink key={team.id} to={ROUTES.team(team.id)} className={(st) => itemClass(st, mini)} title={mini ? team.name : undefined}>
                   <span
                     className={cn(
                       'flex size-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-[11px] font-bold text-white',
@@ -174,10 +169,10 @@ export function AppSidebar({
           </div>
 
           <div className="mt-auto flex flex-col gap-0.5">
-            <NavItem to="/app/billing" icon={<CreditCard />} mini={mini}>
+            <NavItem item={{ to: ROUTES.billing, icon: <CreditCard />, mini }}>
               {t('nav.billing')}
             </NavItem>
-            <NavItem to="/app/settings" icon={<Settings />} mini={mini}>
+            <NavItem item={{ to: ROUTES.settings, icon: <Settings />, mini }}>
               {t('nav.settings')}
             </NavItem>
           </div>

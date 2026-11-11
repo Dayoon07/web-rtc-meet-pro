@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import { type ExpiryNotice, planApi, planKeys, planName, useExpiryNoticesQuery } from '@/entities/plan'
 import { useFormat } from '@/shared/lib/format'
 import { Button, Modal } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 /**
  * 앱 화면(/app) 위에 "플랜이 만료됐어요" 창을 띄운다.
@@ -35,7 +36,7 @@ function PlanExpiryNotice() {
   })
 
   // 카드 등록에서 돌아오는 중에는 띄우지 않는다
-  if (!notice || location.pathname.startsWith('/app/billing/card')) return null
+  if (!notice || location.pathname.startsWith(ROUTES.billingCard)) return null
 
   const close = () => {
     queryClient.setQueryData<ExpiryNotice[]>(planKeys.notices, (cur) => cur?.filter((n) => n.subscriptionId !== notice.subscriptionId))
@@ -43,7 +44,7 @@ function PlanExpiryNotice() {
   }
   const renew = () => {
     close()
-    navigate(notice.teamId ? `/app/billing?team=${notice.teamId}` : '/app/billing')
+    navigate(notice.teamId ? `${ROUTES.billing}?team=${notice.teamId}` : ROUTES.billing)
   }
   const onFree = notice.currentPlan.monthlyPrice === 0
   const name = planName(notice.plan)

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { COMPANY } from '@/shared/config/company'
 import { Logo } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 export function MarketingFooter() {
   const { t } = useTranslation()
@@ -10,14 +11,14 @@ export function MarketingFooter() {
       title: t('footer.product'),
       links: [
         { label: t('nav.features'), to: '/#features' },
-        { label: t('nav.pricing'), to: '/pricing' },
+        { label: t('nav.pricing'), to: ROUTES.pricing },
       ],
     },
     {
       title: t('footer.getStarted'),
       links: [
-        { label: t('footer.signup'), to: '/signup' },
-        { label: t('footer.login'), to: '/login' },
+        { label: t('footer.signup'), to: ROUTES.signup },
+        { label: t('footer.login'), to: ROUTES.login },
       ],
     },
   ]
@@ -43,14 +44,14 @@ export function MarketingFooter() {
       <div className="border-t border-gray-200 dark:border-gray-800">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-gray-500 sm:px-6 dark:text-gray-400">
           <nav className="flex flex-wrap gap-x-4 gap-y-1">
-            <Link to="/terms" className="hover:text-gray-900 dark:hover:text-white">
+            <Link to={ROUTES.terms} className="hover:text-gray-900 dark:hover:text-white">
               {t('legal.terms')}
             </Link>
             {/* 개인정보처리방침은 다른 링크보다 눈에 띄게 (개인정보보호위원회 작성지침) */}
-            <Link to="/privacy" className="font-bold text-gray-900 hover:underline dark:text-white">
+            <Link to={ROUTES.privacy} className="font-bold text-gray-900 hover:underline dark:text-white">
               {t('legal.privacy')}
             </Link>
-            <Link to="/licenses" className="hover:text-gray-900 dark:hover:text-white">
+            <Link to={ROUTES.licenses} className="hover:text-gray-900 dark:hover:text-white">
               {t('legal.licenses')}
             </Link>
           </nav>

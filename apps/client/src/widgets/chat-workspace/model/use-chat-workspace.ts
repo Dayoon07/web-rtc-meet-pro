@@ -1,0 +1,71 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router'
+import { chatApi, chatKeys, type ChatCategory, type ChatRoom, useChatCategoriesQuery, useChatRoomsQuery } from '@/entities/chat'
+import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
+import { useMeQuery } from '@/entities/user'
+import { toastError } from '@/shared/api'
+import { ROUTES } from '@/shared/config/routes'
+import { useDialog } from '@/shared/lib/use-dialog'
+import { useChatRealtime } from './use-chat-realtime'
+
+/**
+ * 채팅 화면 전체의 상태: 주소의 워크스페이스·방, 방 목록·카테고리, 만들기 창들, 실시간 이벤트.
+ * 화면 조각들은 이 값을 WorkspaceContext 로 받아 쓴다 (props 로 줄줄이 넘기지 않게)
+ */
+export function useChatWorkspace() {
+  const { t } = useTranslation()
+  const params = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { data: me } = useMeQuery()
+  const { data: teams, isPending: teamsPending } = useTeamsQuery()
+  const activeTeamId = (params.teamId ? Number(params.teamId) : undefined) ?? teams?.[0]?.id ?? 0
+  const activeRoomId = params.roomId ? Number(params.roomId) : undefined
+  const { data: team } = useTeamQuery(activeTeamId)
+  const { data: rooms = [], isPending: roomsPending } = useChatRoomsQuery(activeTeamId)
+  const { data: categories = [] } = useChatCategoriesQuery(activeTeamId)
+  useChatRealtime()
+
+  const goTeam = (teamId: number) => navigate(ROUTES.chat(teamId))
+  const openRoom = (room: ChatRoom) => navigate(ROUTES.chat(room.teamId, room.id))
+  const backToList = () => goTeam(activeTeamId)
+
+  const deleteCategory = (category: ChatCategory) => {
+    if (!window.confirm(t('chat.deleteCategoryConfirm', { name: category.name }))) return
+    chatApi.deleteCategory(category.id).then(() => {
+      void queryClient.invalidateQueries({ queryKey: chatKeys.categories(activeTeamId) })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(activeTeamId) })
+    }, toastError)
+  }
+
+  return {
+    myId: me?.id,
+    me,
+    teams: teams ?? [],
+    teamsPending,
+    activeTeamId,
+    team,
+    rooms,
+    roomsPending,
+    categories,
+    activeRoom: rooms.find((r) => r.id === activeRoomId),
+    activeRoomId,
+    /** 채널·카테고리를 만들고 고칠 수 있는지 (워크스페이스 OWNER·ADMIN) */
+    canManage: hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM'),
+    goTeam,
+    openRoom,
+    backToList,
+    deleteCategory,
+    dialogs: {
+      /** 새 1:1 채팅 → 열린 방으로 */
+      direct: useDialog<undefined, ChatRoom>(openRoom),
+      /** 새 채널 (data = 미리 고를 카테고리) → 만든 방으로 */
+      channel: useDialog<number | null, ChatRoom>(openRoom),
+      /** 카테고리 만들기·이름 바꾸기 (data = 고칠 카테고리) */
+      category: useDialog<ChatCategory | null>(),
+    },
+  }
+}
+
+export type ChatWorkspaceModel = ReturnType<typeof useChatWorkspace>

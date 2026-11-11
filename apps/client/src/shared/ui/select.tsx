@@ -138,7 +138,9 @@ export function CustomSelect({ className, controlClass, invalid, compact, childr
       const now = Date.now()
       typed.current = { text: (now - typed.current.at < 700 ? typed.current.text : '') + key.toLowerCase(), at: now }
       const hit = options.findIndex((o) => !o.disabled && o.text.toLowerCase().startsWith(typed.current.text))
-      if (hit >= 0) (open ? setActive(hit) : openList(hit))
+      if (hit < 0) return
+      if (open) setActive(hit)
+      else openList(hit)
       return
     }
     if (!open) {

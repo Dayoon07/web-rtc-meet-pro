@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { cn } from '@/shared/lib/cn'
+import { ROUTES } from '@/shared/config/routes'
 
 /** MQ 마크: 겹친 말풍선 두 개 (서로 주고받는 대화). 기본은 브랜드 보라, mono 면 글자색(currentColor) */
 export function MqMark({ className, mono }: { className?: string; mono?: boolean }) {
@@ -17,7 +18,7 @@ export function MqMark({ className, mono }: { className?: string; mono?: boolean
 /** 서비스 이름 (화면에 보이는 이름은 여기 한 곳) */
 export const BRAND_NAME = 'MQ'
 
-export function Logo({ to = '/', className, compact }: { to?: string; className?: string; compact?: boolean }) {
+export function Logo({ to = ROUTES.home, className, compact }: { to?: string; className?: string; compact?: boolean }) {
   const { t } = useTranslation()
   return (
     <Link to={to} className={cn('inline-flex items-center gap-2', className)} aria-label={t('nav.logoHome')}>

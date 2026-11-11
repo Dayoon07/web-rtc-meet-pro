@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next'
 import { findCountry, guessCountry, splitPhone, toE164 } from '@/shared/config/countries'
 import { currentLanguage } from '@/shared/i18n'
-import type { Gender, Me, ProfilePayload } from './types'
+import type { Gender, Me, ProfileRequest } from './types'
 
 /** 폼 입력 상태 (문자열 위주) */
 export type ProfileDraft = {
@@ -48,7 +48,7 @@ export function validateProfile(d: ProfileDraft, t: TFunction): ProfileErrors {
   return errors
 }
 
-export function toProfilePayload(d: ProfileDraft): ProfilePayload {
+export function toProfileRequest(d: ProfileDraft): ProfileRequest {
   const dial = findCountry(d.countryCode)?.dialCode ?? '82'
   return {
     nickname: d.nickname.trim(),

@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { LoginForm } from '@/features/auth'
 import { translateDynamic } from '@/shared/i18n'
+import { ROUTES } from '@/shared/config/routes'
 
 /** 오픈 리다이렉트 방지: 내부 경로만 허용 */
-const safeRedirect = (value: string | null) => (value && value.startsWith('/') && !value.startsWith('//') ? value : '/app/chat')
+const safeRedirect = (value: string | null) => (value && value.startsWith('/') && !value.startsWith('//') ? value : ROUTES.chat())
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -27,7 +28,7 @@ export function LoginPage() {
       <LoginForm redirectTo={safeRedirect(params.get('redirect'))} />
       <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         {t('auth.login.noAccount')}{' '}
-        <Link to="/signup" className="font-semibold text-brand-700 hover:underline dark:text-brand-300">
+        <Link to={ROUTES.signup} className="font-semibold text-brand-700 hover:underline dark:text-brand-300">
           {t('auth.login.signupLink')}
         </Link>
       </p>

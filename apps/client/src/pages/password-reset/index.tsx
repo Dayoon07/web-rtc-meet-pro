@@ -6,6 +6,7 @@ import { Link, useSearchParams } from 'react-router'
 import { authApi } from '@/features/auth'
 import { errorMessage } from '@/shared/api'
 import { Button, Field, FieldError, Input, LinkButton } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -13,7 +14,7 @@ function BackToLogin() {
   const { t } = useTranslation()
   return (
     <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-      <Link to="/login" className="font-semibold text-brand-700 hover:underline dark:text-brand-300">
+      <Link to={ROUTES.login} className="font-semibold text-brand-700 hover:underline dark:text-brand-300">
         {t('auth.reset.backToLogin')}
       </Link>
     </p>
@@ -104,7 +105,7 @@ export function ResetPasswordPage() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('auth.reset.doneTitle')}</h1>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('auth.reset.doneBody')}</p>
         </div>
-        <LinkButton to="/login" size="lg">
+        <LinkButton to={ROUTES.login} size="lg">
           {t('auth.login.submit')}
         </LinkButton>
       </div>
@@ -116,7 +117,7 @@ export function ResetPasswordPage() {
       <div className="flex flex-col gap-6">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('auth.reset.newTitle')}</h1>
         <p className="text-sm text-red-600 dark:text-red-400">{t('errors.RESET_TOKEN_INVALID')}</p>
-        <LinkButton to="/forgot-password" variant="outline">
+        <LinkButton to={ROUTES.forgotPassword} variant="outline">
           {t('auth.reset.again')}
         </LinkButton>
       </div>
@@ -146,7 +147,7 @@ export function ResetPasswordPage() {
         </Field>
         <FieldError>{error ?? errorMessage(reset.error)}</FieldError>
         {reset.error && (
-          <Link to="/forgot-password" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
+          <Link to={ROUTES.forgotPassword} className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
             {t('auth.reset.again')}
           </Link>
         )}

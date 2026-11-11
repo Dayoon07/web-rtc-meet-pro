@@ -24,6 +24,8 @@ import { errorMessage } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Badge, Card, EmptyState, FullPageSpinner, LinkButton, Select, Spinner } from '@/shared/ui'
 import { PricingTable } from '@/widgets/pricing-table'
+import { ROUTES } from '@/shared/config/routes'
+import { useDialog } from '@/shared/lib/use-dialog'
 
 /**
  * 요금제 화면. 요금제는 워크스페이스마다 → 위에서 워크스페이스를 고르고 그 워크스페이스의 플랜을 결제한다.
@@ -67,7 +69,7 @@ export function BillingPage() {
           icon={<Building2 />}
           title={t('billing.noWorkspace')}
           description={t('billing.noWorkspaceHint')}
-          action={<LinkButton to="/app/teams">{t('billing.createWorkspace')}</LinkButton>}
+          action={<LinkButton to={ROUTES.teams}>{t('billing.createWorkspace')}</LinkButton>}
         />
       )}
 
@@ -147,7 +149,7 @@ function PaymentHistory() {
   const { t } = useTranslation()
   const fmt = useFormat()
   const { data, isPending } = usePaymentsQuery()
-  const [receipt, setReceipt] = useState<Payment | null>(null)
+  const receipt = useDialog<Payment>()
   return (
     <Card className="p-6">
       <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">{t('billing.history.title')}</h3>
@@ -191,7 +193,7 @@ function PaymentHistory() {
                   <td className="py-2.5 pl-4 text-right">
                     <button
                       type="button"
-                      onClick={() => setReceipt(p)}
+                      onClick={() => receipt.show(p)}
                       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold whitespace-nowrap text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/15"
                     >
                       <Receipt className="size-3.5" />
@@ -204,7 +206,7 @@ function PaymentHistory() {
           </table>
         </div>
       )}
-      <ReceiptModal payment={receipt} open={!!receipt} onClose={() => setReceipt(null)} />
+      <ReceiptModal dialog={receipt} />
     </Card>
   )
 }
@@ -253,7 +255,7 @@ export function CardReturnPage() {
       void queryClient.invalidateQueries({ queryKey: planKeys.payments })
       void queryClient.invalidateQueries({ queryKey: userKeys.me })
       toast.success(subscription ? t('billing.purchased', { name: planName(subscription.plan) }) : t('billing.card.registered'))
-      navigate(subscription ? `/app/billing?team=${subscription.team.id}` : '/app/billing', { replace: true })
+      navigate(subscription ? `${ROUTES.billing}?team=${subscription.team.id}` : ROUTES.billing, { replace: true })
     },
     // 카드는 등록됐는데 결제가 실패했을 수도 있다 → 요금제 화면에서 다시 결제할 수 있게 안내
     onError: (e) => setError(errorMessage(e)),
@@ -274,7 +276,7 @@ export function CardReturnPage() {
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('billing.card.failedTitle')}</h2>
       <p className="text-sm text-gray-600 dark:text-gray-400">{error}</p>
-      <Link to="/app/billing" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
+      <Link to={ROUTES.billing} className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
         {t('billing.backToBilling')}
       </Link>
     </div>

@@ -1,26 +1,32 @@
 import { useQuery } from '@tanstack/react-query'
 import type { AuthTokens } from '@/entities/session'
-import type { Agreements, ProfilePayload } from '@/entities/user'
-import { http } from '@/shared/api'
+import type { Agreements, ProfileRequest } from '@/entities/user'
+import { API, request } from '@/shared/api'
 
-export type LoginBody = { email: string; password: string }
-export type SignupBody = LoginBody & ProfilePayload & Agreements
+export type LoginRequest = { email: string; password: string }
+export type SignupRequest = LoginRequest & ProfileRequest & Agreements
+export type EmailRequest = { email: string }
+export type TokenRequest = { token: string }
+export type ResetPasswordRequest = { token: string; password: string }
+export type OAuthExchangeRequest = { code: string }
+export type EmailAvailabilityResponse = { available: boolean }
+export type ProvidersResponse = { google: boolean }
 
 export const authApi = {
-  login: (body: LoginBody) => http<AuthTokens>('/auth/login', { method: 'POST', json: body, auth: false }),
-  signup: (body: SignupBody) => http<AuthTokens>('/auth/signup', { method: 'POST', json: body, auth: false }),
+  login: (body: LoginRequest) => request<AuthTokens>(API.auth.login, { method: 'POST', json: body, auth: false }),
+  signup: (body: SignupRequest) => request<AuthTokens>(API.auth.signup, { method: 'POST', json: body, auth: false }),
   emailAvailable: (email: string) =>
-    http<{ available: boolean }>(`/auth/email-availability?email=${encodeURIComponent(email)}`, { auth: false }),
+    request<EmailAvailabilityResponse>(API.auth.emailAvailability(email), { auth: false }),
   /** 가입하지 않은 이메일이어도 성공(204)으로 응답한다 */
   requestPasswordReset: (email: string) =>
-    http<void>('/auth/password-reset/request', { method: 'POST', json: { email }, auth: false }),
+    request<void>(API.auth.passwordResetRequest, { method: 'POST', json: { email } satisfies EmailRequest, auth: false }),
   confirmPasswordReset: (token: string, password: string) =>
-    http<void>('/auth/password-reset/confirm', { method: 'POST', json: { token, password }, auth: false }),
+    request<void>(API.auth.passwordResetConfirm, { method: 'POST', json: { token, password } satisfies ResetPasswordRequest, auth: false }),
   /** 가입 인증 메일의 링크 (로그인 없이) */
-  confirmEmail: (token: string) => http<void>('/auth/email-verification/confirm', { method: 'POST', json: { token }, auth: false }),
-  providers: () => http<{ google: boolean }>('/auth/providers', { auth: false }),
+  confirmEmail: (token: string) => request<void>(API.auth.emailVerificationConfirm, { method: 'POST', json: { token } satisfies TokenRequest, auth: false }),
+  providers: () => request<ProvidersResponse>(API.auth.providers, { auth: false }),
   exchangeOAuthCode: (code: string) =>
-    http<AuthTokens>('/auth/oauth/exchange', { method: 'POST', json: { code }, auth: false }),
+    request<AuthTokens>(API.auth.oauthExchange, { method: 'POST', json: { code } satisfies OAuthExchangeRequest, auth: false }),
 }
 
 export const useAuthProviders = () =>

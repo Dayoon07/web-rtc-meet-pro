@@ -23,7 +23,7 @@ export type Me = {
 }
 
 /** 서버로 보내는 프로필 */
-export type ProfilePayload = {
+export type ProfileRequest = {
   nickname: string
   realName: string
   phoneNumber: string
@@ -33,3 +33,6 @@ export type ProfilePayload = {
 }
 
 export type Agreements = { termsAgreed: boolean; privacyAgreed: boolean; marketingAgreed: boolean }
+
+export type ChangePasswordRequest = { currentPassword: string | null; newPassword: string }
+export type WithdrawRequest = { password: string | null }

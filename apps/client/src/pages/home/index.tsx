@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsAuthenticated } from '@/entities/session'
 import { cn } from '@/shared/lib/cn'
 import { Avatar, LinkButton } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 /** 채팅 화면 미리보기: 채널 목록 · 대화 · 채팅 속 음성 막대 · AI 회의록 카드 (실제 앱과 같은 배치) */
 function ChatPreview() {
@@ -90,7 +91,7 @@ function ChatPreview() {
 export function HomePage() {
   const { t } = useTranslation()
   const isAuthenticated = useIsAuthenticated()
-  const primary = isAuthenticated ? { to: '/app/chat', label: t('home.ctaWorkspace') } : { to: '/signup', label: t('home.ctaStart') }
+  const primary = isAuthenticated ? { to: ROUTES.chat(), label: t('home.ctaWorkspace') } : { to: ROUTES.signup, label: t('home.ctaStart') }
   const features = [
     { icon: <MessageSquare />, ...t('home.features.chat', { returnObjects: true }) },
     { icon: <Video />, ...t('home.features.video', { returnObjects: true }) },
@@ -120,7 +121,7 @@ export function HomePage() {
               {primary.label}
               <ArrowRight className="size-4" />
             </LinkButton>
-            <LinkButton to="/pricing" variant="outline" size="lg">
+            <LinkButton to={ROUTES.pricing} variant="outline" size="lg">
               {t('home.ctaPricing')}
             </LinkButton>
           </div>
@@ -169,7 +170,7 @@ export function HomePage() {
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 px-6 py-14 text-center text-white">
             <h2 className="text-3xl font-bold tracking-tight">{t('home.ctaBandTitle')}</h2>
             <p className="text-brand-100">{t('home.ctaBandBody')}</p>
-            <LinkButton to="/signup" size="lg" variant="inverse">
+            <LinkButton to={ROUTES.signup} size="lg" variant="inverse">
               {t('home.ctaStart')}
             </LinkButton>
           </div>

@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import { useTeamsQuery } from '@/entities/team'
 import { CreateTeamModal } from '@/features/create-team'
 import { Badge, Button, EmptyState, LinkButton, Spinner } from '@/shared/ui'
+import { ROUTES } from '@/shared/config/routes'
 
 export function TeamsPage() {
   const { t } = useTranslation()
@@ -33,7 +34,7 @@ export function TeamsPage() {
           action={
             <div className="flex gap-2">
               <Button onClick={() => setCreating(true)}>{t('teams.create.button')}</Button>
-              <LinkButton to="/app/invitations" variant="outline">
+              <LinkButton to={ROUTES.invitations} variant="outline">
                 {t('nav.invitations')}
               </LinkButton>
             </div>
@@ -44,7 +45,7 @@ export function TeamsPage() {
           {teams.map((team) => (
             <Link
               key={team.id}
-              to={`/app/teams/${team.id}`}
+              to={ROUTES.team(team.id)}
               className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
             >
               <div className="flex items-center gap-3">
