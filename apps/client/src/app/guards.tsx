@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect } from 'react'
-import { Navigate, Outlet, useLocation } from 'react-router'
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 import { chatKeys } from '@/entities/chat'
 import { useAwayTracker, usePresenceRealtime } from '@/entities/presence'
+import { onPushNavigate, syncPush } from '@/entities/push'
 import { useIsAuthenticated } from '@/entities/session'
 import { useMeQuery } from '@/entities/user'
 import { realtime } from '@/shared/api'
@@ -28,6 +29,11 @@ function RealtimeBridge() {
   useNotificationSideEffects(useCallback((cb) => realtime.on('notifications', cb), []))
   usePresenceRealtime()
   useAwayTracker(true)
+  const navigate = useNavigate()
+  useEffect(() => {
+    void syncPush()
+    return onPushNavigate((link) => navigate(link))
+  }, [navigate])
   return null
 }
 

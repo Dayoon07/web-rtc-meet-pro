@@ -24,7 +24,7 @@ export function LeaveRoomButton({ room, onLeft }: { room: ChatRoom; onLeft: () =
       loading={leave.isPending}
       onClick={() => window.confirm(t('chat.leaveConfirm')) && leave.mutate()}
     >
-      <span className="hidden lg:inline">{t('chat.leave')}</span>
+      <span className="hidden xl:inline">{t('chat.leave')}</span>
     </Button>
   )
 }

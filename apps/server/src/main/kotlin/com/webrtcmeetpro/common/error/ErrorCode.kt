@@ -60,6 +60,8 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
 
     // billing (토스페이먼츠 자동결제)
     PAYMENT_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "결제 기능이 아직 준비되지 않았습니다."),
+    PUSH_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "브라우저 알림이 아직 준비되지 않았습니다."),
+    INVALID_QUIET_HOURS(HttpStatus.BAD_REQUEST, "방해 금지 시간을 확인해 주세요."),
     BILLING_CARD_REQUIRED(HttpStatus.BAD_REQUEST, "결제할 카드를 먼저 등록해 주세요."),
     BILLING_CARD_INVALID(HttpStatus.BAD_REQUEST, "카드 등록 정보가 올바르지 않습니다. 다시 등록해 주세요."),
     BILLING_CARD_FAILED(HttpStatus.BAD_REQUEST, "카드를 등록하지 못했습니다: {{reason}}"),

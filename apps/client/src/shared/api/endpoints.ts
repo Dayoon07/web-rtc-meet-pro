@@ -39,6 +39,7 @@ export const API = {
     password: `${USERS_ME}/password`,
     emailVerification: `${USERS_ME}/email-verification`,
     withdraw: `${USERS_ME}/withdraw`,
+    quietHours: `${USERS_ME}/quiet-hours`,
   },
 
   // ---- 워크스페이스(팀) ----
@@ -81,6 +82,7 @@ export const API = {
     files: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/files`,
     messages: (roomId: number, before?: number) => `${CHAT}/rooms/${part(roomId)}/messages${before ? `?before=${part(before)}` : ''}`,
     message: (messageId: number) => `${CHAT}/messages/${part(messageId)}`,
+    mute: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/mute`,
     typing: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/typing`,
     reactions: (messageId: number) => `${CHAT}/messages/${part(messageId)}/reactions`,
     category: (categoryId: number) => `${CHAT}/categories/${part(categoryId)}`,
@@ -131,6 +133,9 @@ export const API = {
     card: `${BILLING}/card`,
     payments: `${BILLING}/payments`,
   },
+
+  // ---- 브라우저 푸시 ----
+  push: { config: '/push/config', subscriptions: '/push/subscriptions' },
 
   /** 내 접속 상태 (자리 비움 / 돌아옴) */
   presence: '/presence',

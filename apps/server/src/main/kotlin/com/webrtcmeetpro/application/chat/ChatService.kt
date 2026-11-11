@@ -38,6 +38,8 @@ import tools.jackson.databind.json.JsonMapper
 import java.io.InputStream
 import java.nio.file.Path
 import java.time.LocalDateTime
+import com.webrtcmeetpro.application.push.PushService
+import com.webrtcmeetpro.application.push.PushTexts
 
 data class ChatUserView(val id: Long, val nickname: String, val profileImageUrl: String?)
 
@@ -103,6 +105,8 @@ data class ChatRoomView(
     val notice: ChatNoticeView? = null,
     /** 방 사람마다 마지막으로 읽은 메시지 (메시지 옆 안 읽은 사람 수) */
     val reads: List<ReadStateView> = emptyList(),
+    /** 내가 이 방 알림을 껐는지 */
+    val muted: Boolean = false,
 )
 
 data class ChatNoticeView(val content: String, val by: ChatUserView?, val at: LocalDateTime?)
@@ -150,6 +154,7 @@ class ChatService(
     private val meetingRepository: MeetingRepository,
     private val participantRepository: MeetingParticipantRepository,
     private val notifications: NotificationService,
+    private val push: PushService,
     private val realtime: RealtimePublisher,
     private val json: JsonMapper,
 ) {
@@ -391,6 +396,14 @@ class ChatService(
         realtime.push(others, RealtimePublisher.CHAT, ChatEvent("TYPING", room.teamId, roomId, typing = userView(me)))
     }
 
+    /** 이 방 알림 끄기·켜기 (나만) */
+    @Transactional
+    fun setMuted(roomId: Long, userId: Long, muted: Boolean): ChatRoomView {
+        val (room, me) = requireRoomMember(roomId, userId)
+        me.mute(muted)
+        return view(room, me)
+    }
+
     /** 이모지 반응 달기·떼기 (방 사람 누구나). 다시 누르면 떼어진다 */
     @Transactional
     fun react(messageId: Long, userId: Long, rawEmoji: String): ChatMessageView {
@@ -499,9 +512,28 @@ class ChatService(
         room.touch(saved.createdDt)
         me.markRead(saved.id!!)
         val view = views(listOf(saved)).single()
-        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!).map { it.userId }
+        val roomMembers = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!)
+        val members = roomMembers.map { it.userId }
         realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, room.id!!, view))
+        pushNewMessage(room, saved, view, roomMembers)
         return view
+    }
+
+    /**
+     * 새 메시지 브라우저 푸시: 보낸 사람·알림 끈 사람은 빼고, 멘션된 사람도 뺀다 (멘션 알림이 따로 간다).
+     * 제목 = 채널 이름(#) 또는 1:1 상대, 내용 = (채널이면 "보낸 사람: ") 글 또는 "파일을 보냈어요"
+     */
+    private fun pushNewMessage(room: ChatRoom, saved: ChatMessage, view: ChatMessageView, roomMembers: List<ChatRoomMember>) {
+        val mentioned = if (saved.mentionAll) roomMembers.map { it.userId }.toSet() else saved.mentionUserIds.toSet()
+        val recipients = roomMembers.filter { it.userId != saved.senderId && !it.muted && it.userId !in mentioned }.map { it.userId }
+        if (recipients.isEmpty()) return
+        val senderName = view.sender?.nickname.orEmpty()
+        val title = if (room.isGroup) "# ${room.name}" else senderName
+        val text = saved.content?.replace(Regex("\\s+"), " ")?.take(140)
+        push.chatMessage(recipients, title, "/app/chat/${room.teamId}/${room.id}", "room-${room.id}") { lang ->
+            val body = text ?: PushTexts.text(lang, "file")
+            if (room.isGroup) "$senderName: $body" else body
+        }
     }
 
     /** 크기·확장자 확인, 파일 이름 정리, 형식 판별. 이미지라고 해도 실제 내용(매직 바이트)이 이미지일 때만 이미지로 저장 */
@@ -651,6 +683,7 @@ class ChatService(
             members = members.mapNotNull { users[it.userId] }.map(::userView),
             lastMessage = last?.let { messageView(it, users, filesByMessage(listOf(it))[it.id!!].orEmpty()) },
             reads = members.map { ReadStateView(it.userId, it.lastReadMessageId) },
+            muted = me.muted,
             unreadCount = messageRepository.countByRoomIdAndIdGreaterThan(room.id!!, me.lastReadMessageId ?: 0),
             lastMessageAt = room.lastMessageAt,
             createdAt = room.createdDt,

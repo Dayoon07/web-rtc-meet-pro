@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { AuthTokens } from '@/entities/session'
 import { API, request } from '@/shared/api'
-import type { Agreements, ChangePasswordRequest, Me, ProfileRequest, WithdrawRequest } from '../model/types'
+import type { Agreements, ChangePasswordRequest, Me, ProfileRequest, QuietHoursRequest, WithdrawRequest } from '../model/types'
 
 export const userKeys = { me: ['users', 'me'] as const }
 
@@ -19,6 +19,8 @@ export const userApi = {
     request<AuthTokens>(API.me.password, { method: 'POST', json: { currentPassword, newPassword } satisfies ChangePasswordRequest }),
   /** 가입 인증 메일 다시 보내기 (60초에 한 번) */
   resendVerification: () => request<void>(API.me.emailVerification, { method: 'POST' }),
+  /** 방해 금지 시간 (이 시간에는 브라우저 푸시를 보내지 않는다) */
+  updateQuietHours: (body: QuietHoursRequest) => request<Me>(API.me.quietHours, { method: 'PUT', json: body }),
   /** 회원 탈퇴. 비밀번호가 있는 계정은 비밀번호를 함께 보낸다 */
   withdraw: (password?: string) => request<void>(API.me.withdraw, { method: 'POST', json: { password: password ?? null } satisfies WithdrawRequest }),
 }

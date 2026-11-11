@@ -52,6 +52,13 @@ data class ChangePasswordRequest(
 /** 회원 탈퇴 확인용 비밀번호 (구글로만 가입한 계정은 비워 둔다) */
 data class WithdrawRequest(val password: String? = null)
 
+/** 방해 금지 시간: "HH:mm" 둘 다 비우면 끄기, timeZone 예: Asia/Seoul */
+data class QuietHoursRequest(
+    @field:Size(max = 5) val start: String? = null,
+    @field:Size(max = 5) val end: String? = null,
+    @field:Size(max = 50) val timeZone: String? = null,
+)
+
 @RestController
 @RequestMapping("/api/users/me")
 class UserController(
@@ -63,6 +70,11 @@ class UserController(
     fun me(@AuthenticationPrincipal jwt: Jwt): MeView = userService.me(jwt.userId)
 
     /** 온보딩(구글 가입 후 추가 정보)과 프로필 수정에 함께 사용 */
+    /** 방해 금지 시간 (이 시간에는 브라우저 푸시를 보내지 않는다). start·end 를 비우면 끄기 */
+    @PutMapping("/quiet-hours")
+    fun quietHours(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: QuietHoursRequest): MeView =
+        userService.updateQuietHours(jwt.userId, request.start, request.end, request.timeZone)
+
     @PutMapping("/profile")
     fun updateProfile(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: UpdateProfileRequest): MeView {
         val profile = UserProfile(

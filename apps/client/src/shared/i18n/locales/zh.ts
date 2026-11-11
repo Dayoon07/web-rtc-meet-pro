@@ -587,6 +587,30 @@ const zh: Messages = {
     AWAY: '离开',
     OFFLINE: '离线',
   },
+  notifySettings: {
+    title: '通知',
+    desc: '设置关闭浏览器也能收到的通知和免打扰时间。',
+    push: {
+      title: '关闭浏览器也接收通知',
+      turnedOn: '将向此浏览器发送通知',
+      turnedOff: '已关闭此浏览器的通知',
+      blocked: '浏览器已阻止通知。请在地址栏左侧的锁形图标中允许',
+      state: {
+        on: '已开启 · 仅限此浏览器(设备)',
+        off: '已关闭 · 开启后即使关闭也能收到消息、提及和会议通知',
+        blocked: '已被浏览器阻止 (在地址栏左侧的锁形图标中允许)',
+        unsupported: '此浏览器不支持通知',
+        unavailable: '服务器尚未准备好浏览器通知',
+      },
+    },
+    quiet: {
+      title: '免打扰时间',
+      desc: '在此时间内不发送浏览器通知 (仍会显示在通知列表中)',
+      start: '开始',
+      end: '结束',
+      saved: '已保存免打扰时间',
+    },
+  },
   chat: {
     deleteOthersConfirm: '要删除别人发送的消息吗？你将以管理员身份删除。',
     deleteConfirm: '要删除这条消息吗？所有人都会看到“此消息已删除”。',
@@ -639,6 +663,9 @@ const zh: Messages = {
     sendFailed: '消息发送失败。',
     attach: '添加附件',
     attachShort: '文件',
+    mute: '关闭此聊天室通知',
+    unmute: '开启此聊天室通知',
+    muted: '已静音',
     typing: {
       one: '{{name}} 正在输入...',
       many: '{{name}} 等 {{count}} 人正在输入...',

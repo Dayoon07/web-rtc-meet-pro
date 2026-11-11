@@ -1,4 +1,4 @@
-import { Hash, Users, Volume2 } from 'lucide-react'
+import { BellOff, Hash, Users, Volume2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { type ChatRoom, previewText, roomPeer, roomTitle } from '@/entities/chat'
 import { PresenceDot, usePresence } from '@/entities/presence'
@@ -75,6 +75,7 @@ export function RoomRow({ room }: { room: ChatRoom }) {
           <span className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold text-gray-900 dark:text-white">{roomTitle(room, ws.myId)}</span>
             {room.type === 'GROUP' && <span className="text-xs text-gray-400">{room.members.length}</span>}
+            {room.muted && <BellOff aria-label={t('chat.muted')} className="size-3 shrink-0 text-gray-400" />}
             {when && <span className="ml-auto shrink-0 text-[11px] text-gray-400">{today ? fmt.time(when) : fmt.date(when)}</span>}
           </span>
           <span className="mt-0.5 flex items-center gap-2">
@@ -82,7 +83,12 @@ export function RoomRow({ room }: { room: ChatRoom }) {
               {typingUsers.length ? <span className="text-brand-600 dark:text-brand-300">{t('chat.typing.short')}</span> : previewText(room.lastMessage, t, fmt.list)}
             </span>
             {room.unreadCount > 0 && (
-              <span className="ml-auto min-w-5 shrink-0 rounded-full bg-brand-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white">
+              <span
+                className={cn(
+                  'ml-auto min-w-5 shrink-0 rounded-full px-1.5 text-center text-[11px] leading-5 font-bold text-white',
+                  room.muted ? 'bg-gray-400 dark:bg-gray-600' : 'bg-brand-600',
+                )}
+              >
                 {room.unreadCount > 99 ? '99+' : room.unreadCount}
               </span>
             )}

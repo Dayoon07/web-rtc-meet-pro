@@ -585,6 +585,30 @@ const ko = {
     AWAY: '자리 비움',
     OFFLINE: '접속 안 함',
   },
+  notifySettings: {
+    title: '알림',
+    desc: '브라우저를 닫아도 받는 알림과 방해 금지 시간을 정해요.',
+    push: {
+      title: '브라우저를 닫아도 알림 받기',
+      turnedOn: '이 브라우저로 알림을 보내 드릴게요',
+      turnedOff: '이 브라우저 알림을 껐어요',
+      blocked: '브라우저에서 알림이 막혀 있어요. 주소창 왼쪽 자물쇠에서 알림을 허용해 주세요',
+      state: {
+        on: '켜짐 · 이 브라우저(기기)에서만',
+        off: '꺼짐 · 켜면 창을 닫아도 새 메시지·멘션·회의 알림이 와요',
+        blocked: '브라우저에서 알림이 막혀 있어요 (주소창 왼쪽 자물쇠에서 허용)',
+        unsupported: '이 브라우저는 알림을 지원하지 않아요',
+        unavailable: '아직 서버에서 브라우저 알림을 준비하지 않았어요',
+      },
+    },
+    quiet: {
+      title: '방해 금지 시간',
+      desc: '이 시간에는 브라우저 알림을 보내지 않아요 (알림 목록에는 쌓여요)',
+      start: '시작',
+      end: '끝',
+      saved: '방해 금지 시간을 저장했어요',
+    },
+  },
   chat: {
     deleteOthersConfirm: '다른 사람이 보낸 메시지를 지울까요? 관리 권한으로 지우는 거예요.',
     deleteConfirm: '이 메시지를 지울까요? 모든 참여자에게 "삭제된 메시지"로 보여요.',
@@ -637,6 +661,9 @@ const ko = {
     sendFailed: '메시지를 보내지 못했어요.',
     attach: '파일 첨부',
     attachShort: '파일',
+    mute: '이 방 알림 끄기',
+    unmute: '이 방 알림 켜기',
+    muted: '알림 꺼짐',
     typing: {
       one: '{{name}}님이 입력 중...',
       many: '{{name}}님 외 {{count}}명이 입력 중...',

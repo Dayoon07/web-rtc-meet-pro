@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { forgetPushOnLogout } from '@/entities/push'
 import { sessionApi, useSessionStore } from '@/entities/session'
 import { ROUTES } from '@/shared/config/routes'
 
@@ -12,6 +13,7 @@ export function useLogout() {
 
   return async () => {
     const { refreshToken, clear } = useSessionStore.getState()
+    await forgetPushOnLogout()
     if (refreshToken) await sessionApi.logout(refreshToken).catch(() => undefined)
     clear()
     queryClient.clear()

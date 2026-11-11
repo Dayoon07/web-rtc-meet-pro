@@ -1,9 +1,11 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { type ChatMessage, type ChatRoom, useChatCategoriesQuery } from '@/entities/chat'
+import { chatApi, chatKeys, type ChatMessage, type ChatRoom, useChatCategoriesQuery } from '@/entities/chat'
 import { hasTeamPermission, useTeamQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { useSetNotice } from '@/features/chat-room-actions'
 import { useVoice, voiceSession } from '@/features/voice-chat'
+import { toastError } from '@/shared/api'
 import { useDialog } from '@/shared/lib/use-dialog'
 import { useRoomMessages } from './use-room-messages'
 
@@ -13,6 +15,7 @@ import { useRoomMessages } from './use-room-messages'
  */
 export function useRoomView(room: ChatRoom) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const { data: me } = useMeQuery()
   const { data: team } = useTeamQuery(room.teamId)
   const { data: categories = [] } = useChatCategoriesQuery(room.teamId)
@@ -39,6 +42,9 @@ export function useRoomView(room: ChatRoom) {
       connecting: voice.status === 'connecting' && voice.roomId === room.id,
       toggle: () => (inThisVoice ? voiceSession.leave() : void voiceSession.join(room)),
     },
+    /** 이 방 알림 끄기·켜기 (나만) */
+    toggleMute: () =>
+      chatApi.setMuted(room.id, !room.muted).then(() => queryClient.invalidateQueries({ queryKey: chatKeys.rooms(room.teamId) }), toastError),
     /** 글 메시지를 공지로 (지금 공지가 있으면 바꿀지 묻는다) */
     makeNotice: (m: ChatMessage) => {
       if (!m.content) return

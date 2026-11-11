@@ -586,6 +586,30 @@ const en: Messages = {
     AWAY: 'Away',
     OFFLINE: 'Offline',
   },
+  notifySettings: {
+    title: 'Notifications',
+    desc: 'Get notified even when the browser is closed, and set quiet hours.',
+    push: {
+      title: 'Notify me even when the browser is closed',
+      turnedOn: 'Notifications are on for this browser',
+      turnedOff: 'Notifications are off for this browser',
+      blocked: 'Notifications are blocked. Allow them from the lock icon in the address bar',
+      state: {
+        on: 'On · this browser (device) only',
+        off: 'Off · turn on to get messages, mentions and meetings even when closed',
+        blocked: 'Blocked by the browser (allow from the lock icon in the address bar)',
+        unsupported: 'This browser does not support notifications',
+        unavailable: 'Browser notifications are not set up on the server yet',
+      },
+    },
+    quiet: {
+      title: 'Quiet hours',
+      desc: 'No browser notifications during these hours (they still appear in your list)',
+      start: 'Start',
+      end: 'End',
+      saved: 'Quiet hours saved',
+    },
+  },
   chat: {
     deleteOthersConfirm: "Delete someone else's message? You're deleting it as a workspace admin.",
     deleteConfirm: 'Delete this message? Everyone will see “This message was deleted”.',
@@ -638,6 +662,9 @@ const en: Messages = {
     sendFailed: "Couldn't send the message.",
     attach: 'Attach files',
     attachShort: 'File',
+    mute: 'Mute this room',
+    unmute: 'Unmute this room',
+    muted: 'Muted',
     typing: {
       one: '{{name}} is typing...',
       many: '{{name}} and {{count}} more are typing...',

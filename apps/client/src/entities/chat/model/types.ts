@@ -60,6 +60,8 @@ export type ChatRoom = {
   notice?: ChatNotice | null
   /** 방 사람마다 마지막으로 읽은 메시지 (메시지 옆 안 읽은 사람 수) */
   reads?: ReadState[]
+  /** 내가 이 방 알림을 껐는지 */
+  muted?: boolean
 }
 
 /** 채널을 묶는 카테고리 = 부서 (예: 개발 연구소 → #백오피스, #프론트오피스) */
@@ -96,5 +98,6 @@ export type SendMessageRequest = { content: string; replyToId?: number | null; m
 /** 보낼 때 함께: 답장할 메시지 · @멘션한 사람 · @모두 */
 export type SendOptions = Omit<SendMessageRequest, 'content'>
 export type ReactionRequest = { emoji: string }
+export type MuteRequest = { muted: boolean }
 export type MarkReadRequest = { messageId: number }
 export type UnreadCountResponse = { count: number }

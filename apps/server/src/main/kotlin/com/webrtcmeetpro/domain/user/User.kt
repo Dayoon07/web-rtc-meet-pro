@@ -135,7 +135,41 @@ class User(
     var systemRole: SystemRole = SystemRole.USER
         protected set
 
+    /** 방해 금지 시간 (HH:mm, 사용자 시간대). 둘 다 null = 안 씀. 끝이 시작보다 이르면 다음 날까지 */
+    var dndStart: String? = null
+        protected set
+    var dndEnd: String? = null
+        protected set
+    var dndTimeZone: String? = null
+        protected set
+
     val isActive: Boolean get() = status == UserStatus.ACTIVE
+
+    /** 방해 금지 시간 정하기 (start·end 가 비면 끄기). 모양이 틀리면 false */
+    fun setQuietHours(start: String?, end: String?, timeZone: String?): Boolean {
+        if (start.isNullOrBlank() || end.isNullOrBlank()) {
+            dndStart = null
+            dndEnd = null
+            dndTimeZone = null
+            return true
+        }
+        val hhmm = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
+        if (!hhmm.matches(start) || !hhmm.matches(end) || start == end) return false
+        val zone = timeZone?.takeIf { runCatching { java.time.ZoneId.of(it) }.isSuccess } ?: "Asia/Seoul"
+        dndStart = start
+        dndEnd = end
+        dndTimeZone = zone
+        return true
+    }
+
+    /** 지금이 방해 금지 시간인지 (사용자 시간대 기준) */
+    fun inQuietHours(now: java.time.Instant = java.time.Instant.now()): Boolean {
+        val start = dndStart?.let(java.time.LocalTime::parse) ?: return false
+        val end = dndEnd?.let(java.time.LocalTime::parse) ?: return false
+        val zone = runCatching { java.time.ZoneId.of(dndTimeZone ?: "Asia/Seoul") }.getOrDefault(java.time.ZoneId.of("Asia/Seoul"))
+        val t = now.atZone(zone).toLocalTime()
+        return if (start < end) t >= start && t < end else t >= start || t < end
+    }
 
     /** 활동 중인 시스템 관리자 (정지·탈퇴하면 관리자 권한도 쓸 수 없다) */
     val isSystemAdmin: Boolean get() = isActive && systemRole == SystemRole.ADMIN

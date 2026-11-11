@@ -8,6 +8,7 @@ import com.webrtcmeetpro.domain.notification.NotificationRepository
 import com.webrtcmeetpro.domain.notification.NotificationType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import com.webrtcmeetpro.application.push.PushNotifier
 import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 
@@ -26,6 +27,7 @@ class NotificationService(
     private val repository: NotificationRepository,
     private val realtime: RealtimePublisher,
     private val json: JsonMapper,
+    private val push: PushNotifier,
 ) {
     /** 여러 사용자에게 같은 알림. 저장 후(커밋 뒤) 접속 중인 사용자에게 실시간 전송 */
     @Transactional
@@ -35,6 +37,8 @@ class NotificationService(
             val saved = repository.save(Notification(userId, type, raw, link))
             realtime.push(listOf(userId), RealtimePublisher.NOTIFICATIONS, toView(saved))
         }
+        // 접속하지 않은 사람에게는 브라우저 푸시로도
+        push.notification(userIds, type, params, link)
     }
 
     fun recent(userId: Long): List<NotificationView> = repository.findTop30ByUserIdOrderByIdDesc(userId).map(::toView)

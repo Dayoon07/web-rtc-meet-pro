@@ -1,4 +1,4 @@
-import { ArrowLeft, Headphones, Megaphone, PhoneOff, Settings2, UserPlus } from 'lucide-react'
+import { ArrowLeft, Bell, BellOff, Headphones, Megaphone, PhoneOff, Settings2, UserPlus } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
@@ -24,7 +24,7 @@ import { RoomAvatar } from './RoomRow'
 function RoomHeader() {
   const { t } = useTranslation()
   const ws = useWorkspace()
-  const { room, category, voice, canManageChannel, dialogs } = useRoom()
+  const { room, category, voice, canManageChannel, dialogs, toggleMute } = useRoom()
   const live = room.voice?.participants.length ?? 0
   return (
     <div className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-200 px-4 dark:border-gray-800">
@@ -38,6 +38,9 @@ function RoomHeader() {
           {room.type === 'GROUP' ? [category?.name, t('chat.participants', { count: room.members.length })].filter(Boolean).join(' · ') : t('chat.direct')}
         </p>
       </div>
+      <IconButton label={t(room.muted ? 'chat.unmute' : 'chat.mute')} title={t(room.muted ? 'chat.unmute' : 'chat.mute')} onClick={() => void toggleMute()}>
+        {room.muted ? <BellOff className="size-5 text-gray-400" /> : <Bell className="size-5" />}
+      </IconButton>
       {room.type === 'GROUP' && (
         <>
           <Button
@@ -48,7 +51,7 @@ function RoomHeader() {
             loading={voice.connecting}
             title={t(voice.inThisVoice ? 'voice.leave' : 'chat.voiceHint')}
           >
-            <span className="hidden sm:inline">
+            <span className="hidden xl:inline">
               {voice.inThisVoice ? t('voice.leave') : room.voice ? t('chat.voiceJoinLive', { count: live }) : t('chat.voiceJoin')}
             </span>
           </Button>
@@ -58,7 +61,7 @@ function RoomHeader() {
             </IconButton>
           )}
           <Button variant="outline" size="sm" icon={<UserPlus className="size-4" />} onClick={() => dialogs.invite.show()}>
-            <span className="hidden lg:inline">{t('chat.inviteMembers')}</span>
+            <span className="hidden xl:inline">{t('chat.inviteMembers')}</span>
           </Button>
           <LeaveRoomButton room={room} onLeft={ws.backToList} />
         </>

@@ -38,6 +38,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.webrtcmeetpro.application.push.PushNotifier
 
 /** 요금제 적용 규칙과 토스 자동결제 흐름 (DB·토스 없이 메모리 구현으로) */
 class BillingServiceTest {
@@ -73,6 +74,7 @@ class BillingServiceTest {
         },
         RealtimePublisher { },
         JsonMapper.builder().build(),
+        PushNotifier { _, _, _, _ -> },
     )
     private val mails = mutableListOf<MailMessage>()
 

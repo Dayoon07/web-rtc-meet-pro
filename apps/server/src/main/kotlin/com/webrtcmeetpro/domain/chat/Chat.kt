@@ -179,7 +179,17 @@ class ChatRoomMember(
     var leftAt: LocalDateTime? = null
         protected set
 
+    /** 이 방 알림 끔 (새 메시지 푸시를 보내지 않는다. @멘션은 보낸다) */
+    @Convert(converter = YesNoConverter::class)
+    @Column(name = "muted_yn", nullable = false)
+    var muted: Boolean = false
+        protected set
+
     val isActive: Boolean get() = leftAt == null
+
+    fun mute(on: Boolean) {
+        muted = on
+    }
 
     fun markRead(messageId: Long) {
         if ((lastReadMessageId ?: 0) < messageId) lastReadMessageId = messageId

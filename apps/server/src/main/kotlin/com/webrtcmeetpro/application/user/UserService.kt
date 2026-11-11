@@ -41,6 +41,10 @@ data class MeView(
     val emailVerified: Boolean,
     val linkedProviders: List<String>,
     val plan: PlanView,
+    /** 방해 금지 시간 (HH:mm) · 시간대. 안 쓰면 null */
+    val dndStart: String? = null,
+    val dndEnd: String? = null,
+    val dndTimeZone: String? = null,
 )
 
 data class UpdateProfileCommand(
@@ -148,7 +152,18 @@ class UserService(
         linkedProviders = socialAccountRepository.findAllByUserId(user.id!!).map { it.provider.name },
         // 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다)
         plan = PlanView.from(planService.bestOwnedPlan(user.id!!)),
+        dndStart = user.dndStart,
+        dndEnd = user.dndEnd,
+        dndTimeZone = user.dndTimeZone,
     )
+
+    /** 방해 금지 시간 (이 시간에는 브라우저 푸시를 보내지 않는다). start·end 가 비면 끄기 */
+    @Transactional
+    fun updateQuietHours(userId: Long, start: String?, end: String?, timeZone: String?): MeView {
+        val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        if (!user.setQuietHours(start, end, timeZone)) throw BusinessException(ErrorCode.INVALID_QUIET_HOURS)
+        return toView(user)
+    }
 
     companion object {
         const val MAX_IMAGE_BYTES = 5 * 1024 * 1024

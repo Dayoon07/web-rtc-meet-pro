@@ -54,6 +54,9 @@ services:
       MEDIA_INTERNAL_SECRET: ${MEDIA_INTERNAL_SECRET:?MEDIA_INTERNAL_SECRET 를 .env 에 넣어 주세요}
       # 메일 안의 링크 주소. MAIL_HOST 를 비우면 메일은 보내지 않고 로그에만 남는다
       WEB_URL: https://${DOMAIN}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@localhost}
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}

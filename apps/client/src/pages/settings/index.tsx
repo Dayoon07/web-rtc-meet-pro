@@ -8,6 +8,7 @@ import { EditProfileForm, ProfileImageSection } from '@/features/edit-profile'
 import { ThemeSelector } from '@/features/toggle-theme'
 import { WithdrawAccount } from '@/features/withdraw-account'
 import { Badge, Card, GoogleMark, Spinner } from '@/shared/ui'
+import { NotificationSettings } from '@/features/notification-settings'
 
 /** heading = 묶음 제목 · 설명 */
 function Section({ heading, children }: { heading: { title: string; description: string }; children: ReactNode }) {
@@ -73,6 +74,10 @@ export function SettingsPage() {
               </span> }} />
           <Row row={{ icon: <GoogleMark className="size-4.5" />, label: 'Google', value: googleLinked ? ok(t('settings.linked')) : <Badge tone="gray">{t('settings.notLinked')}</Badge> }} />
         </div>
+      </Section>
+
+      <Section heading={{ title: t('notifySettings.title'), description: t('notifySettings.desc') }}>
+        <NotificationSettings key={me.id} me={me} />
       </Section>
 
       <Section heading={{ title: t('settings.languageTitle'), description: t('settings.languageDesc') }}>

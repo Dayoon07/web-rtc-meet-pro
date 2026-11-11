@@ -58,6 +58,7 @@ data class SendMessageRequest(
     @field:Size(max = 100) val mentionIds: List<Long> = emptyList(),
     val mentionAll: Boolean = false,
 )
+data class MuteRequest(@field:NotNull val muted: Boolean?)
 data class ReactionRequest(@field:NotBlank @field:Size(max = 32) val emoji: String)
 data class MarkReadRequest(@field:NotNull val messageId: Long?)
 /** 방 공지. content 가 비었거나 null 이면 내리기 */
@@ -127,6 +128,11 @@ class ChatController(private val chat: ChatService) {
     @ResponseStatus(HttpStatus.CREATED)
     fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageRequest) =
         chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll)
+
+    /** 이 방 알림 끄기·켜기 (나만) */
+    @PutMapping("/chat/rooms/{roomId}/mute")
+    fun mute(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: MuteRequest) =
+        chat.setMuted(roomId, jwt.userId, req.muted!!)
 
     /** "입력 중..." (다른 방 사람들 화면에 몇 초 동안 보인다) */
     @PostMapping("/chat/rooms/{roomId}/typing")
