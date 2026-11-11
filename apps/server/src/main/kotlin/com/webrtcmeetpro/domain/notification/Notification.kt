@@ -15,6 +15,8 @@ enum class NotificationType {
     TEAM_INVITATION,
     TEAM_INVITATION_ACCEPTED,
     CHAT_ROOM_INVITED,
+    /** 채팅에서 @멘션됨 (@모두 포함) */
+    CHAT_MENTION,
     MEETING_SCHEDULED,
     MEETING_REMINDER,
     MEETING_STARTED,

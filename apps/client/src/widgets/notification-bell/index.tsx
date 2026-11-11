@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, Sparkles, UserCheck, Users, Video, X } from 'lucide-react'
+import { AtSign, Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, Sparkles, UserCheck, Users, Video, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -12,6 +12,7 @@ const ICONS: Record<NotificationType, typeof Bell> = {
   TEAM_INVITATION: Mail,
   TEAM_INVITATION_ACCEPTED: UserCheck,
   CHAT_ROOM_INVITED: MessageSquare,
+  CHAT_MENTION: AtSign,
   MEETING_SCHEDULED: CalendarClock,
   MEETING_REMINDER: BellRing,
   MEETING_STARTED: Video,

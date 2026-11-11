@@ -17,7 +17,8 @@ export type DialogControl<D = undefined, R = void> = Dialog<D, R> & {
   show: (data?: D) => void
 }
 
-export function useDialog<D = undefined, R = void>(onDone?: (result: R) => void): DialogControl<D, R> {
+/** onDone(결과, 열 때 준 data) */
+export function useDialog<D = undefined, R = void>(onDone?: (result: R, data: D | undefined) => void): DialogControl<D, R> {
   const [state, setState] = useState<{ open: boolean; data: D | undefined }>({ open: false, data: undefined })
   const close = () => setState((s) => ({ ...s, open: false }))
   return {
@@ -27,7 +28,7 @@ export function useDialog<D = undefined, R = void>(onDone?: (result: R) => void)
     close,
     done: (result) => {
       close()
-      onDone?.(result)
+      onDone?.(result, state.data)
     },
   }
 }

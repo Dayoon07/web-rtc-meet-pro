@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
-import { chatApi, chatKeys, type ChatCategory, type ChatRoom, useChatCategoriesQuery, useChatRoomsQuery } from '@/entities/chat'
+import { chatApi, chatKeys, type ChatCategory, type ChatMessage, type ChatRoom, useChatCategoriesQuery, useChatRoomsQuery } from '@/entities/chat'
 import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { toastError } from '@/shared/api'
@@ -64,6 +64,8 @@ export function useChatWorkspace() {
       channel: useDialog<number | null, ChatRoom>(openRoom),
       /** 카테고리 만들기·이름 바꾸기 (data = 고칠 카테고리) */
       category: useDialog<ChatCategory | null>(),
+      /** 메시지 검색 → 고른 메시지가 있는 방으로 가서 그 메시지로 */
+      search: useDialog<undefined, ChatMessage>((m) => navigate(`${ROUTES.chat(activeTeamId, m.roomId)}?msg=${m.id}`)),
     },
   }
 }

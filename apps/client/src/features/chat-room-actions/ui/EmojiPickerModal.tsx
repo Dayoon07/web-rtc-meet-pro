@@ -6,7 +6,7 @@ import type { Dialog } from '@/shared/lib/use-dialog'
 import { CATEGORIES, type EmojiCategory, loadRecent, saveRecent, TAB_ICON } from '../lib/emoji'
 
 /** 이모지 고르기 창: 분류 탭 + 최근 쓴 것. 고르면 dialog.done(이모지) 으로 넘기고 닫힌다 */
-export function EmojiPickerModal({ dialog }: { dialog: Dialog<undefined, string> }) {
+export function EmojiPickerModal({ dialog }: { dialog: Dialog<unknown, string> }) {
   const { t } = useTranslation()
   const [recent, setRecent] = useState(loadRecent)
   const [tab, setTab] = useState<EmojiCategory>(() => (loadRecent().length ? 'recent' : 'smileys'))

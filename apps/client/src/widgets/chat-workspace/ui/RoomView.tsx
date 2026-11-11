@@ -1,8 +1,11 @@
 import { ArrowLeft, Headphones, Megaphone, PhoneOff, Settings2, UserPlus } from 'lucide-react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { type ChatRoom, roomTitle } from '@/entities/chat'
 import {
   ChannelSettingsModal,
+  EmojiPickerModal,
   InviteToRoomModal,
   LeaveRoomButton,
   MessageComposer,
@@ -12,7 +15,7 @@ import {
 } from '@/features/chat-room-actions'
 import { Button, IconButton, Spinner } from '@/shared/ui'
 import { RoomContext, useRoom, useWorkspace } from '../model/context'
-import { useRoomView } from '../model/use-room-view'
+import { type RoomViewModel, useRoomView } from '../model/use-room-view'
 import { MessageList } from './MessageList'
 import { RoomAvatar } from './RoomRow'
 
@@ -76,9 +79,27 @@ function NoticeTool() {
   )
 }
 
+/** 주소에 ?msg=메시지 가 있으면 (검색 결과에서 왔을 때) 메시지를 다 불러온 뒤 그 메시지로 간다 */
+function useJumpFromAddress(view: RoomViewModel) {
+  const [params, setParams] = useSearchParams()
+  const target = Number(params.get('msg')) || null
+  const ready = !view.messages.isPending
+  const { jumpTo } = view.messages
+  useEffect(() => {
+    if (!target || !ready) return
+    void jumpTo(target).finally(() => {
+      params.delete('msg')
+      setParams(params, { replace: true })
+    })
+    // 주소의 msg 가 바뀔 때만 (jumpTo 는 렌더마다 새로 만들어진다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, ready])
+}
+
 /** 열린 방 하나: 머리 · 공지 · 메시지 · 입력창 + 창들 */
 export function RoomView({ room }: { room: ChatRoom }) {
   const view = useRoomView(room)
+  useJumpFromAddress(view)
   const { dialogs, canNotice, canManageChannel } = view
   return (
     <RoomContext value={view}>
@@ -93,11 +114,12 @@ export function RoomView({ room }: { room: ChatRoom }) {
           <MessageList />
         )}
         <div className="shrink-0 border-t border-gray-200 p-3 sm:p-4 dark:border-gray-800">
-          <MessageComposer key={room.id} roomId={room.id} tools={<NoticeTool />} />
+          <MessageComposer key={room.id} room={room} tools={<NoticeTool />} />
         </div>
         <InviteToRoomModal room={room} dialog={dialogs.invite} />
         {canNotice && <NoticeModal room={room} dialog={dialogs.notice} />}
         {canManageChannel && <ChannelSettingsModal room={room} dialog={dialogs.settings} />}
+        <EmojiPickerModal dialog={dialogs.reaction} />
       </div>
     </RoomContext>
   )

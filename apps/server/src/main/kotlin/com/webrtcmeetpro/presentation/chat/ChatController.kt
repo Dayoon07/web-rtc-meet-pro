@@ -51,7 +51,14 @@ data class UpdateChannelRequest(
 
 data class CategoryRequest(@field:NotBlank @field:Size(max = 50) val name: String)
 data class InviteMembersRequest(@field:Size(min = 1, max = 200) val userIds: List<Long>)
-data class SendMessageRequest(@field:NotBlank @field:Size(max = 4000) val content: String)
+/** 글 보내기·고치기. 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두 */
+data class SendMessageRequest(
+    @field:NotBlank @field:Size(max = 4000) val content: String,
+    val replyToId: Long? = null,
+    @field:Size(max = 100) val mentionIds: List<Long> = emptyList(),
+    val mentionAll: Boolean = false,
+)
+data class ReactionRequest(@field:NotBlank @field:Size(max = 32) val emoji: String)
 data class MarkReadRequest(@field:NotNull val messageId: Long?)
 /** 방 공지. content 가 비었거나 null 이면 내리기 */
 data class NoticeRequest(@field:Size(max = 1000) val content: String? = null)
@@ -119,7 +126,16 @@ class ChatController(private val chat: ChatService) {
     @PostMapping("/chat/rooms/{roomId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageRequest) =
-        chat.send(roomId, jwt.userId, req.content)
+        chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll)
+
+    /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
+    @PostMapping("/chat/messages/{messageId}/reactions")
+    fun react(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: ReactionRequest) =
+        chat.react(messageId, jwt.userId, req.emoji)
+
+    /** 워크스페이스에서 내가 들어간 방들의 메시지 검색 (글·첨부파일 이름) */
+    @GetMapping("/teams/{teamId}/chat/search")
+    fun search(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @RequestParam q: String) = chat.search(teamId, jwt.userId, q)
 
     /** 내가 보낸 글 메시지 고치기 */
     @PatchMapping("/chat/messages/{messageId}")

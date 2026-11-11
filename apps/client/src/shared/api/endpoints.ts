@@ -58,6 +58,7 @@ export const API = {
     chatDirect: (teamId: number) => `${TEAMS}/${part(teamId)}/chat/rooms/direct`,
     chatGroup: (teamId: number) => `${TEAMS}/${part(teamId)}/chat/rooms/group`,
     chatCategories: (teamId: number) => `${TEAMS}/${part(teamId)}/chat/categories`,
+    chatSearch: (teamId: number, q: string) => `${TEAMS}/${part(teamId)}/chat/search?q=${part(q)}`,
   },
 
   // ---- 받은 초대 ----
@@ -79,6 +80,7 @@ export const API = {
     files: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/files`,
     messages: (roomId: number, before?: number) => `${CHAT}/rooms/${part(roomId)}/messages${before ? `?before=${part(before)}` : ''}`,
     message: (messageId: number) => `${CHAT}/messages/${part(messageId)}`,
+    reactions: (messageId: number) => `${CHAT}/messages/${part(messageId)}/reactions`,
     category: (categoryId: number) => `${CHAT}/categories/${part(categoryId)}`,
   },
 

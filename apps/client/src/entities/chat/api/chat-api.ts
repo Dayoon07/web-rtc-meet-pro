@@ -10,6 +10,8 @@ import type {
   MarkReadRequest,
   NoticeRequest,
   OpenDirectRequest,
+  ReactionRequest,
+  SendOptions,
   SendMessageRequest,
   UnreadCountResponse,
   UpdateChannelRequest,
@@ -53,8 +55,14 @@ export const chatApi = {
   setNotice: (roomId: number, content: string | null) =>
     request<ChatRoom>(API.chat.notice(roomId), { method: 'PUT', json: { content } satisfies NoticeRequest }),
   messages: (roomId: number, before?: number) => request<ChatMessage[]>(API.chat.messages(roomId, before)),
-  send: (roomId: number, content: string) =>
-    request<ChatMessage>(API.chat.messages(roomId), { method: 'POST', json: { content } satisfies SendMessageRequest }),
+  /** 글 보내기. options = 답장할 메시지 · @멘션한 사람 · @모두 */
+  send: (roomId: number, content: string, options: SendOptions = {}) =>
+    request<ChatMessage>(API.chat.messages(roomId), { method: 'POST', json: { content, ...options } satisfies SendMessageRequest }),
+  /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
+  react: (messageId: number, emoji: string) =>
+    request<ChatMessage>(API.chat.reactions(messageId), { method: 'POST', json: { emoji } satisfies ReactionRequest }),
+  /** 워크스페이스에서 내가 들어간 방들의 메시지 검색 (최신 50개) */
+  search: (teamId: number, q: string) => request<ChatMessage[]>(API.teams.chatSearch(teamId, q)),
   /** 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개 */
   sendFiles: (roomId: number, files: File[], content?: string) => {
     const form = new FormData()

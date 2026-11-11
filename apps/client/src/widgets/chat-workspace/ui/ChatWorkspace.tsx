@@ -1,6 +1,7 @@
-import { FolderPlus, MessageSquarePlus, MessagesSquare, Plus } from 'lucide-react'
+import { FolderPlus, MessageSquarePlus, MessagesSquare, Plus, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CategoryModal, CreateGroupRoomModal, StartDirectChatModal } from '@/features/chat-room-actions'
+import { MessageSearchModal } from '@/features/search-messages'
 import { VoiceBar } from '@/features/voice-chat'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
@@ -45,6 +46,9 @@ function SidebarToolbar() {
             <FolderPlus className="size-5" />
           </IconButton>
         )}
+        <IconButton label={t('chat.search.open')} title={t('chat.search.open')} onClick={() => ws.dialogs.search.show()}>
+          <Search className="size-5" />
+        </IconButton>
       </div>
     </div>
   )
@@ -73,6 +77,7 @@ function WorkspaceDialogs() {
       <StartDirectChatModal teamId={ws.activeTeamId} dialog={ws.dialogs.direct} />
       <CreateGroupRoomModal teamId={ws.activeTeamId} dialog={ws.dialogs.channel} />
       <CategoryModal teamId={ws.activeTeamId} dialog={ws.dialogs.category} />
+      <MessageSearchModal teamId={ws.activeTeamId} dialog={ws.dialogs.search} />
     </>
   )
 }

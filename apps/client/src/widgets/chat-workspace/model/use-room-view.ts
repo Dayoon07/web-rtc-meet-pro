@@ -25,6 +25,7 @@ export function useRoomView(room: ChatRoom) {
   // 공지: 채널은 워크스페이스 OWNER·ADMIN, 1:1 방은 두 사람 모두
   const canNotice = room.type === 'DIRECT' || can('CREATE_GROUP_ROOM')
   const setNotice = useSetNotice(room)
+  const messages = useRoomMessages(room, me?.id)
 
   return {
     room,
@@ -44,8 +45,14 @@ export function useRoomView(room: ChatRoom) {
       if (room.notice && !window.confirm(t('chat.notice.replaceConfirm'))) return
       setNotice.mutate(m.content.slice(0, 1000))
     },
-    dialogs: { invite: useDialog(), settings: useDialog(), notice: useDialog() },
-    messages: useRoomMessages(room, me?.id),
+    dialogs: {
+      invite: useDialog(),
+      settings: useDialog(),
+      notice: useDialog(),
+      /** 다른 이모지로 반응 (data = 반응할 메시지) */
+      reaction: useDialog<ChatMessage, string>((emoji, message) => message && messages.react(message, emoji)),
+    },
+    messages,
   }
 }
 

@@ -2,9 +2,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { chatApi, chatKeys, type ChatMessage, type ChatRoom } from '@/entities/chat'
+import { toast } from 'sonner'
 import { toastError } from '@/shared/api'
 
 const PAGE = 50
+/** 메시지로 갈 때 이전 메시지를 최대 몇 번 더 불러올지 */
+const JUMP_PAGES = 20
 
 /**
  * 한 방의 메시지: 처음 50개 + "이전 메시지 더 보기", 읽음 처리, 고치기·지우기, 맨 아래 따라가기.
@@ -16,6 +19,8 @@ export function useRoomMessages(room: ChatRoom, myId: number | undefined) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  /** 잠깐 반짝이는 메시지 (검색·답장 원문으로 갔을 때) */
+  const [highlightId, setHighlightId] = useState<number | null>(null)
 
   const { data: messages = [], isPending } = useQuery({
     queryKey: chatKeys.messages(room.id),
@@ -50,8 +55,43 @@ export function useRoomMessages(room: ChatRoom, myId: number | undefined) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(room.teamId) })
   }
 
+  /** 그 메시지를 화면 가운데로 + 잠깐 반짝 */
+  const reveal = (id: number) => {
+    setHighlightId(id)
+    requestAnimationFrame(() => scroller.current?.querySelector(`[data-message-id="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+    window.setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 2500)
+  }
+
   return {
     messages,
+    highlightId,
+    /**
+     * 메시지로 가기 (검색 결과·답장 원문). 아직 안 불러온 옛 메시지면 이전 메시지를 이어서 불러온다 (최대 20번 = 1,000개).
+     * 찾으면 true
+     */
+    jumpTo: async (id: number) => {
+      let list = queryClient.getQueryData<ChatMessage[]>(chatKeys.messages(room.id)) ?? messages
+      for (let i = 0; i < JUMP_PAGES && !list.some((m) => m.id === id); i++) {
+        const first = list[0]
+        if (!first || first.id < id) break
+        const older = await chatApi.messages(room.id, first.id)
+        setHasMore(older.length === PAGE)
+        if (!older.length) break
+        list = [...older, ...list]
+        queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(room.id), list)
+      }
+      if (!list.some((m) => m.id === id)) {
+        toast.message(t('chat.search.tooOld'))
+        return false
+      }
+      stickToBottom.current = false
+      reveal(id)
+      return true
+    },
+    /** 이모지 반응 달기·떼기 */
+    react: (m: ChatMessage, emoji: string) => {
+      chatApi.react(m.id, emoji).then(replace, toastError)
+    },
     isPending,
     hasMore,
     loadingOlder,

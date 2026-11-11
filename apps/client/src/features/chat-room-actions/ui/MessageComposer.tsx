@@ -1,22 +1,24 @@
-import { Paperclip, SendHorizonal, Smile } from 'lucide-react'
+import { CornerUpLeft, Paperclip, SendHorizonal, Smile, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CHAT_FILE_LIMITS } from '@/entities/chat'
+import { CHAT_FILE_LIMITS, type ChatRoom, filesSummary } from '@/entities/chat'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui'
 import { toolClass } from '../lib/styles'
 import { useMessageComposer } from '../model/use-message-composer'
 import { EmojiPickerModal } from './EmojiPickerModal'
+import { MentionPopup } from './MentionPopup'
 import { PendingFile } from './PendingFile'
 
 /**
  * 메시지 입력창. Enter 보내기, Shift+Enter 줄바꿈, 한글 조합 중 Enter 무시.
  * 파일은 클립 버튼 · 붙여넣기(스크린샷) · 끌어다 놓기로 첨부하고, 함께 쓴 글과 한 메시지로 보낸다.
+ * "@" 를 치면 방 사람 목록(멘션), 메시지의 답장 버튼을 누르면 입력칸 위에 "○○님에게 답장".
  * tools: 입력칸 아래 버튼 줄에 더 붙일 버튼 (예: 공지)
  */
-export function MessageComposer({ roomId, tools }: { roomId: number; tools?: ReactNode }) {
+export function MessageComposer({ room, tools }: { room: ChatRoom; tools?: ReactNode }) {
   const { t } = useTranslation()
-  const c = useMessageComposer(roomId)
+  const c = useMessageComposer(room)
   const { maxFiles, maxFileMb } = CHAT_FILE_LIMITS
   const attachTitle = t('chat.attach') + ' · ' + t('chat.attachHint', { max: maxFiles, size: maxFileMb })
 
@@ -37,6 +39,19 @@ export function MessageComposer({ roomId, tools }: { roomId: number; tools?: Rea
           {t('chat.dropHere')}
         </div>
       )}
+      {c.replyTo && (
+        <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-xs dark:bg-gray-800">
+          <CornerUpLeft className="size-3.5 shrink-0 text-brand-600 dark:text-brand-300" />
+          <span className="min-w-0 flex-1 truncate text-gray-600 dark:text-gray-300">
+            <span className="font-semibold text-gray-900 dark:text-white">{t('chat.replyTo', { name: c.replyTo.sender?.nickname ?? t('chat.unknown') })}</span>
+            {' · '}
+            {c.replyTo.content || filesSummary(c.replyTo.files, t)}
+          </span>
+          <button type="button" onClick={c.cancelReply} aria-label={t('chat.cancelReply')} title={t('chat.cancelReply')} className="rounded p-0.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
       {c.files.length > 0 && (
         <ul className="flex flex-wrap gap-2 px-1 pt-1">
           {c.files.map((f, i) => (
@@ -44,7 +59,8 @@ export function MessageComposer({ roomId, tools }: { roomId: number; tools?: Rea
           ))}
         </ul>
       )}
-      <div className="flex items-end gap-2">
+      <div className="relative flex items-end gap-2">
+        <MentionPopup picker={c.mention} onPick={c.pickMention} />
         <input
           ref={c.picker}
           type="file"

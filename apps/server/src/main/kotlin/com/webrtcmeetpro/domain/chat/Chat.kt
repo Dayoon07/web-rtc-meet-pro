@@ -2,6 +2,7 @@ package com.webrtcmeetpro.domain.chat
 
 import com.webrtcmeetpro.domain.common.BaseEntity
 import jakarta.persistence.Column
+import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -10,6 +11,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Lob
 import jakarta.persistence.Table
+import org.hibernate.type.YesNoConverter
 import java.io.InputStream
 import java.nio.file.Path
 import java.time.LocalDateTime
@@ -229,12 +231,33 @@ class ChatMessage(
     val messageType: MessageType = MessageType.TEXT,
 
     val meetingId: Long? = null,
+
+    /** 답장한 원래 메시지 (같은 방) */
+    val replyToId: Long? = null,
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "message_id")
     var id: Long? = null
         protected set
+
+    /** @멘션한 사람 user_id (쉼표로 이음). 화면 강조·알림에 쓴다 */
+    @Column(name = "mention_user_ids")
+    var mentionUserIdsText: String? = null
+        protected set
+
+    /** @모두 */
+    @Convert(converter = YesNoConverter::class)
+    @Column(name = "mention_all", nullable = false)
+    var mentionAll: Boolean = false
+        protected set
+
+    val mentionUserIds: List<Long> get() = mentionUserIdsText?.split(',')?.mapNotNull { it.trim().toLongOrNull() }.orEmpty()
+
+    fun mention(userIds: Collection<Long>, all: Boolean) {
+        mentionUserIdsText = userIds.distinct().take(MAX_MENTIONS).joinToString(",").ifEmpty { null }
+        mentionAll = all
+    }
 
     /** 보낸 사람이 글을 고친 시각 (화면에 "수정됨"). 공통 컬럼 edited_dt 는 삭제 표시에도 바뀌어서 따로 둔다 */
     var contentEditedAt: LocalDateTime? = null
@@ -253,6 +276,49 @@ class ChatMessage(
 
     /** 지우기: 행은 남기고(답장·읽음 위치가 가리킨다) 화면에는 "삭제된 메시지"로 보인다 */
     fun delete() = markDeleted()
+
+    companion object {
+        const val MAX_MENTIONS = 100
+    }
+}
+
+/** 메시지 하나에 단 이모지 반응. 한 사람이 같은 이모지는 하나만, 다시 누르면 꺼졌다 켜졌다 (행은 남긴다) */
+@Entity
+@Table(name = "chat_message_reactions")
+class ChatMessageReaction(
+    @Column(nullable = false)
+    val messageId: Long,
+
+    @Column(nullable = false)
+    val roomId: Long,
+
+    @Column(nullable = false)
+    val userId: Long,
+
+    @Column(nullable = false)
+    val emoji: String,
+) : BaseEntity() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "reaction_id")
+    var id: Long? = null
+        protected set
+
+    /** 켜져 있으면 끄고, 꺼져 있으면 다시 켠다 */
+    fun toggle() {
+        deleted = !deleted
+    }
+
+    companion object {
+        /** 이모지 하나 (국기·피부색·가족 같은 조합 글자도 들어가게 넉넉히) */
+        const val MAX_LENGTH = 32
+    }
+}
+
+interface ChatMessageReactionRepository {
+    fun save(reaction: ChatMessageReaction): ChatMessageReaction
+    fun findByMessageIdAndUserIdAndEmoji(messageId: Long, userId: Long, emoji: String): ChatMessageReaction?
+    fun findAllByMessageIdInAndDeletedFalse(messageIds: Collection<Long>): List<ChatMessageReaction>
 }
 
 interface ChatMessageRepository {
@@ -263,6 +329,9 @@ interface ChatMessageRepository {
     fun findTopByRoomIdOrderByIdDesc(roomId: Long): ChatMessage?
     fun findMessageById(id: Long): ChatMessage?
     fun countByRoomIdAndIdGreaterThan(roomId: Long, afterId: Long): Long
+    fun findAllByIdIn(ids: Collection<Long>): List<ChatMessage>
+    /** 검색: 여러 방에서 글이나 첨부파일 이름에 단어가 들어간 메시지 (최신순, limit 개) */
+    fun search(roomIds: Collection<Long>, pattern: String, limit: Int): List<ChatMessage>
 }
 
 /**

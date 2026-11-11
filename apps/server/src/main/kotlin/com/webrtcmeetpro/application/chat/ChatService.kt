@@ -4,6 +4,8 @@ import com.webrtcmeetpro.domain.chat.ChatFileStorage
 import com.webrtcmeetpro.domain.chat.ChatMessage
 import com.webrtcmeetpro.domain.chat.ChatMessageFile
 import com.webrtcmeetpro.domain.chat.ChatMessageFileRepository
+import com.webrtcmeetpro.domain.chat.ChatMessageReactionRepository
+import com.webrtcmeetpro.domain.chat.ChatMessageReaction
 import com.webrtcmeetpro.domain.chat.ChatMessageRepository
 import com.webrtcmeetpro.domain.chat.ChatCategory
 import com.webrtcmeetpro.domain.meeting.MeetingParticipantRepository
@@ -62,7 +64,24 @@ data class ChatMessageView(
     val edited: Boolean = false,
     /** 지운 메시지: content 는 null, files 는 비어 있다 ("삭제된 메시지예요") */
     val deleted: Boolean = false,
+    /** 답장이면 원래 메시지 미리보기 */
+    val replyTo: ReplyPreviewView? = null,
+    /** 이모지 반응 (먼저 단 이모지부터) */
+    val reactions: List<ReactionView> = emptyList(),
+    /** @멘션한 사람 user_id */
+    val mentions: List<Long> = emptyList(),
+    /** @모두 */
+    val mentionAll: Boolean = false,
 )
+
+/** 답장한 원래 메시지 미리보기 (지운 메시지면 content 없이 deleted) */
+data class ReplyPreviewView(val id: Long, val sender: ChatUserView?, val content: String?, val type: MessageType, val fileCount: Int, val deleted: Boolean)
+
+/** 이모지 하나에 단 사람들 */
+data class ReactionView(val emoji: String, val count: Int, val userIds: List<Long>)
+
+/** 방 사람이 어디까지 읽었는지 (안 읽은 사람 수 계산) */
+data class ReadStateView(val userId: Long, val lastReadMessageId: Long?)
 
 data class ChatRoomView(
     val id: Long,
@@ -82,6 +101,8 @@ data class ChatRoomView(
     val createdAt: LocalDateTime,
     /** 방 공지 (없으면 null) */
     val notice: ChatNoticeView? = null,
+    /** 방 사람마다 마지막으로 읽은 메시지 (메시지 옆 안 읽은 사람 수) */
+    val reads: List<ReadStateView> = emptyList(),
 )
 
 data class ChatNoticeView(val content: String, val by: ChatUserView?, val at: LocalDateTime?)
@@ -95,8 +116,8 @@ data class VoicePresenceView(val meetingId: Long, val participants: List<ChatUse
 
 data class ChatCategoryView(val id: Long, val name: String, val sortOrder: Int)
 
-/** type: MESSAGE, MESSAGE_UPDATED, ROOM(방 목록 다시), CATEGORIES(카테고리 다시) */
-data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessageView? = null)
+/** type: MESSAGE, MESSAGE_UPDATED, ROOM(방 목록 다시), CATEGORIES(카테고리 다시), READ(누가 어디까지 읽음) */
+data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessageView? = null, val read: ReadStateView? = null)
 
 /** 올린 파일 1개. presentation 의 MultipartFile 에 의존하지 않도록 열기 함수로 받는다 (여러 번 열 수 있어야 함) */
 data class FileUpload(val name: String?, val contentType: String?, val size: Long, val open: () -> InputStream)
@@ -111,6 +132,7 @@ class ChatService(
     private val memberRepository: ChatRoomMemberRepository,
     private val messageRepository: ChatMessageRepository,
     private val fileRepository: ChatMessageFileRepository,
+    private val reactionRepository: ChatMessageReactionRepository,
     private val fileStorage: ChatFileStorage,
     private val fileUrls: ChatFileUrlSigner,
     private val userRepository: UserRepository,
@@ -304,20 +326,69 @@ class ChatService(
         requireRoomMember(roomId, userId)
         val page = if (beforeId == null) messageRepository.findTop50ByRoomIdOrderByIdDesc(roomId)
         else messageRepository.findTop50ByRoomIdAndIdLessThanOrderByIdDesc(roomId, beforeId)
-        val users = usersById(page.mapNotNull { it.senderId })
-        val files = filesByMessage(page)
-        return page.reversed().map { messageView(it, users, files[it.id!!].orEmpty()) }
+        return views(page.reversed())
     }
 
+    /** 워크스페이스에서 내가 들어가 있는 방들의 메시지 검색 (글·첨부파일 이름, 최신 50개) */
+    fun search(teamId: Long, userId: Long, rawQuery: String): List<ChatMessageView> {
+        teamAccess.requireMember(teamId, userId)
+        val query = rawQuery.trim().lowercase()
+        if (query.isEmpty() || query.length > 100) throw BusinessException(ErrorCode.INVALID_INPUT)
+        val mine = memberRepository.findAllByUserIdAndLeftAtIsNull(userId).map { it.roomId }
+        val roomIds = roomRepository.findAllByIdInAndDeletedFalse(mine).filter { it.teamId == teamId }.map { it.id!! }
+        if (roomIds.isEmpty()) return emptyList()
+        val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return views(messageRepository.search(roomIds, "%$escaped%", SEARCH_LIMIT))
+    }
+
+    /**
+     * 글 보내기. replyToId = 답장할 메시지(같은 방), mentionIds = @멘션한 방 사람, mentionAll = @모두.
+     * 멘션된 사람(나 빼고)에게 CHAT_MENTION 알림
+     */
     @Transactional
-    fun send(roomId: Long, userId: Long, rawContent: String): ChatMessageView {
+    fun send(roomId: Long, userId: Long, rawContent: String, replyToId: Long? = null, mentionIds: Collection<Long> = emptyList(), mentionAll: Boolean = false): ChatMessageView {
         val (room, me) = requireRoomMember(roomId, userId)
         val content = rawContent.trim()
         if (content.isEmpty()) throw BusinessException(ErrorCode.EMPTY_MESSAGE)
         if (content.length > MAX_LENGTH) throw BusinessException(ErrorCode.INVALID_INPUT)
+        if (replyToId != null) {
+            val original = messageRepository.findMessageById(replyToId)
+            if (original == null || original.roomId != roomId || original.messageType == MessageType.SYSTEM) throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        }
+        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }.toSet()
+        val mentioned = mentionIds.filter { it in members && it != userId }
 
-        val saved = messageRepository.save(ChatMessage(roomId, userId, content))
-        return publish(room, me, saved, emptyList())
+        val message = ChatMessage(roomId, userId, content, replyToId = replyToId)
+        message.mention(mentioned, mentionAll)
+        val saved = messageRepository.save(message)
+        val view = publish(room, me, saved, emptyList())
+
+        val targets = if (mentionAll) members - userId else mentioned.toSet()
+        if (targets.isNotEmpty()) {
+            notifications.notify(
+                targets,
+                NotificationType.CHAT_MENTION,
+                mapOf("roomName" to room.name, "senderName" to view.sender?.nickname, "preview" to content.take(80)),
+                "/app/chat/${room.teamId}/${room.id}",
+            )
+        }
+        return view
+    }
+
+    /** 이모지 반응 달기·떼기 (방 사람 누구나). 다시 누르면 떼어진다 */
+    @Transactional
+    fun react(messageId: Long, userId: Long, rawEmoji: String): ChatMessageView {
+        val emoji = rawEmoji.trim()
+        // 이모지만 받는다: 비었거나 길거나 영문·숫자가 섞이면 거절
+        if (emoji.isEmpty() || emoji.length > ChatMessageReaction.MAX_LENGTH || emoji.any { it.code < 128 && it.isLetterOrDigit() }) {
+            throw BusinessException(ErrorCode.INVALID_INPUT)
+        }
+        val message = messageRepository.findMessageById(messageId)?.takeIf { !it.deleted && it.messageType != MessageType.SYSTEM }
+            ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        val (room, _) = requireRoomMember(message.roomId, userId)
+        val existing = reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
+        if (existing == null) reactionRepository.save(ChatMessageReaction(messageId, message.roomId, userId, emoji)) else existing.toggle()
+        return publishUpdate(room, message)
     }
 
     /**
@@ -391,14 +462,19 @@ class ChatService(
         val content = json.writeValueAsString(mapOf("key" to "meetingNotes", "meetingId" to meetingId) + params)
         val saved = messageRepository.save(ChatMessage(roomId, null, content, MessageType.SYSTEM, meetingId = meetingId))
         room.touch(saved.createdDt)
-        val view = messageView(saved, emptyMap(), emptyList())
+        val view = views(listOf(saved)).single()
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
         realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, roomId, view))
     }
 
     @Transactional
     fun markRead(roomId: Long, userId: Long, messageId: Long) {
-        requireRoomMember(roomId, userId).second.markRead(messageId)
+        val (room, me) = requireRoomMember(roomId, userId)
+        val before = me.lastReadMessageId
+        me.markRead(messageId)
+        if (me.lastReadMessageId == before) return
+        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
+        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("READ", room.teamId, roomId, read = ReadStateView(userId, me.lastReadMessageId)))
     }
 
     // ---------------------------------------------------------------
@@ -406,7 +482,7 @@ class ChatService(
     private fun publish(room: ChatRoom, me: ChatRoomMember, saved: ChatMessage, files: List<ChatMessageFile>): ChatMessageView {
         room.touch(saved.createdDt)
         me.markRead(saved.id!!)
-        val view = messageView(saved, usersById(listOfNotNull(saved.senderId)), files)
+        val view = views(listOf(saved)).single()
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!).map { it.userId }
         realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, room.id!!, view))
         return view
@@ -434,7 +510,7 @@ class ChatService(
 
     /** 고치거나 지운 메시지를 방 사람들에게 다시 보낸다 (화면이 같은 id 를 바꿔 끼운다) */
     private fun publishUpdate(room: ChatRoom, message: ChatMessage): ChatMessageView {
-        val view = messageView(message, usersById(listOfNotNull(message.senderId)), filesByMessage(listOf(message))[message.id!!].orEmpty())
+        val view = views(listOf(message)).single()
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!).map { it.userId }
         realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE_UPDATED", room.teamId, room.id!!, view))
         return view
@@ -475,7 +551,7 @@ class ChatService(
         val content = json.writeValueAsString(mapOf("key" to key, "actor" to actor, "targets" to targets))
         val saved = messageRepository.save(ChatMessage(room.id!!, null, content, MessageType.SYSTEM))
         room.touch(saved.createdDt)
-        return messageView(saved, emptyMap(), emptyList())
+        return views(listOf(saved)).single()
     }
 
     private fun notifyInvited(room: ChatRoom, inviter: User, invitees: Collection<Long>) {
@@ -491,6 +567,34 @@ class ChatService(
         if (ids.isEmpty()) emptyMap() else userRepository.findAllByIdIn(ids.toSet()).associateBy { it.id!! }
 
     private fun userView(u: User) = ChatUserView(u.id!!, u.nickname, u.profileImageUrl)
+
+    /** 메시지 여러 개를 화면 모양으로. 보낸 사람·첨부파일·이모지 반응·답장 원문을 한 번에 불러온다 */
+    private fun views(messages: List<ChatMessage>): List<ChatMessageView> {
+        if (messages.isEmpty()) return emptyList()
+        val replyIds = messages.mapNotNull { it.replyToId }
+        val replies = if (replyIds.isEmpty()) emptyMap() else messageRepository.findAllByIdIn(replyIds).associateBy { it.id!! }
+        val users = usersById(messages.mapNotNull { it.senderId } + replies.values.mapNotNull { it.senderId })
+        val files = filesByMessage(messages + replies.values)
+        val reactions = reactionRepository.findAllByMessageIdInAndDeletedFalse(messages.map { it.id!! }).groupBy { it.messageId }
+        return messages.map { m ->
+            messageView(m, users, files[m.id!!].orEmpty()).copy(
+                replyTo = m.replyToId?.let(replies::get)?.let { r ->
+                    ReplyPreviewView(
+                        id = r.id!!,
+                        sender = r.senderId?.let(users::get)?.let(::userView),
+                        content = if (r.deleted) null else r.content?.take(200),
+                        type = r.messageType,
+                        fileCount = if (r.deleted) 0 else files[r.id!!].orEmpty().size,
+                        deleted = r.deleted,
+                    )
+                },
+                reactions = if (m.deleted) emptyList() else reactions[m.id!!].orEmpty().sortedBy { it.id }.groupBy { it.emoji }
+                    .map { (emoji, list) -> ReactionView(emoji, list.size, list.map { it.userId }) },
+                mentions = if (m.deleted) emptyList() else m.mentionUserIds,
+                mentionAll = !m.deleted && m.mentionAll,
+            )
+        }
+    }
 
     private fun messageView(m: ChatMessage, users: Map<Long, User>, files: List<ChatMessageFile>) = ChatMessageView(
         id = m.id!!,
@@ -530,6 +634,7 @@ class ChatService(
             createdBy = room.createdBy,
             members = members.mapNotNull { users[it.userId] }.map(::userView),
             lastMessage = last?.let { messageView(it, users, filesByMessage(listOf(it))[it.id!!].orEmpty()) },
+            reads = members.map { ReadStateView(it.userId, it.lastReadMessageId) },
             unreadCount = messageRepository.countByRoomIdAndIdGreaterThan(room.id!!, me.lastReadMessageId ?: 0),
             lastMessageAt = room.lastMessageAt,
             createdAt = room.createdDt,
@@ -539,6 +644,7 @@ class ChatService(
 
     companion object {
         const val MAX_LENGTH = 4000
+        const val SEARCH_LIMIT = 50
         const val MAX_FILES = 10
         const val MAX_FILE_MB = 20
         const val MAX_FILE_BYTES = MAX_FILE_MB * 1024L * 1024L
