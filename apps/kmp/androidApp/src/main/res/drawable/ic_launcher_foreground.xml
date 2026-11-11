@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 보라 배경 위 흰 카메라 (Material "videocam" 아이콘을 108dp 아이콘 안전 영역에 맞춤) -->
+<!-- MQ 마크 (겹친 말풍선 두 개, 흰색). 108dp 아이콘의 안전 영역(가운데 66dp) 안에 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:scaleX="2"
-        android:scaleY="2"
-        android:translateX="30"
-        android:translateY="30">
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="29"
+        android:translateY="31">
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M17,10.5V7c0,-0.55 -0.45,-1 -1,-1H4c-0.55,0 -1,0.45 -1,1v10c0,0.55 0.45,1 1,1h12c0.55,0 1,-0.45 1,-1v-3.5l4,4v-11l-4,4z" />
+            android:pathData="M4,24C4,11 14,1 28,1H66A12,12 0,0 1,75 21L54,41 38,30 19,48 4,56 6,43 4,42Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M26,52 L38,43 54,53 80,30C86,25 98,28 98,40V56C98,64 93,70 86,74L87,90 68,77H35C18,77 14,64 20,57Z" />
     </group>
 </vector>

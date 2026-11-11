@@ -1,6 +1,6 @@
-# web-rtc-meet-pro (Limeet Pro)
+# web-rtc-meet-pro (MQ)
 
-limeet-app(P2P, DB 없음)을 서비스형으로 확장한 모노레포. 회원 / 팀·초대 / 1:1·그룹 채팅 / mediasoup SFU 화상회의 / 회의 예약·알림 / 플랜을 Oracle 에 기록한다.
+**MQ** — 채팅 중심 팀 협업 서비스 (워크스페이스 → 부서 채널 → 채팅, 필요하면 채팅 속 음성·화상, AI 회의록). limeet-app(P2P, DB 없음)을 서비스형으로 확장한 모노레포. 회원 / 팀·초대 / 1:1·그룹 채팅 / mediasoup SFU 화상회의 / 회의 예약·알림 / 플랜을 Oracle 에 기록한다.
 화면은 한국어 · English · 日本語 · 简体中文 4개 언어를 지원한다.
 
 ```

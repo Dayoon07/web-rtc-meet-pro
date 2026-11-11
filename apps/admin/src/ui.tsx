@@ -1,4 +1,4 @@
-import { LoaderCircle, ShieldCheck } from 'lucide-react'
+import { LoaderCircle } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 /** 클래스 이어 붙이기 (겹치는 색은 variant 로만 바꾼다) */
@@ -66,10 +66,13 @@ export function Card({ className, children }: { className?: string; children: Re
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex shrink-0 items-center gap-2.5">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-        <ShieldCheck className="size-5" />
-      </span>
-      <span className={cx('font-bold tracking-tight whitespace-nowrap', compact && 'hidden sm:inline')}>Limeet Pro</span>
+      <svg viewBox="0 0 100 92" aria-hidden className="h-7 w-8 text-[#7C1FFF] dark:text-brand-400">
+        <g fill="currentColor">
+          <path d="M4 24C4 11 14 1 28 1H66A12 12 0 0 1 75 21L54 41 38 30 19 48 4 56 6 43 4 42Z" />
+          <path d="M26 52 38 43 54 53 80 30C86 25 98 28 98 40V56C98 64 93 70 86 74L87 90 68 77H35C18 77 14 64 20 57Z" />
+        </g>
+      </svg>
+      <span className={cx('text-lg font-black tracking-tight whitespace-nowrap', compact && 'hidden sm:inline')}>MQ</span>
       <Badge className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">관리자</Badge>
     </span>
   )

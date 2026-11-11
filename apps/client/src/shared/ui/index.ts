@@ -1,6 +1,6 @@
 export { Avatar } from './avatar'
 export { AvatarPicker } from './avatar-picker'
-export { GoogleMark, Logo } from './brand'
+export { BRAND_NAME, GoogleMark, Logo, MqMark } from './brand'
 export { Button, buttonClass, IconButton, LinkButton } from './button'
 export { ErrorDetails, UnexpectedErrorDialog } from './error-details'
 export { Checkbox, Field, FieldError, Input, Segmented, Select } from './field'

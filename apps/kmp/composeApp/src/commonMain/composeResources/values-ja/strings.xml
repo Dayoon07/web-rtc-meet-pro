@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Limeet Pro</string>
+    <string name="app_name">MQ</string>
     <string name="common_retry">再試行</string>
     <string name="common_see_all">すべて表示</string>
 
@@ -175,7 +175,7 @@
     <string name="error_dialog_email">お問い合わせメール</string>
     <string name="error_dialog_code">エラーコード</string>
     <string name="error_dialog_hint">お問い合わせの際にエラーコードをお知らせいただくと、迅速に確認できます。コードは選択してコピーできます。</string>
-    <string name="error_dialog_mail_subject">[Limeet Pro] エラーのお問い合わせ %1$s</string>
+    <string name="error_dialog_mail_subject">[MQ] エラーのお問い合わせ %1$s</string>
     <string name="error_dialog_ok">OK</string>
     <string name="team_role_change">役割を変更</string>
     <string name="team_role_changed">%1$sさんを%2$sに変更しました</string>

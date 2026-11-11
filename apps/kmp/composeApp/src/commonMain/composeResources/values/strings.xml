@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 기본(영어). 기기 언어가 ko/ja/zh 가 아니면 이 파일을 쓴다. 키는 values-ko 와 똑같이 유지 -->
 <resources>
-    <string name="app_name">Limeet Pro</string>
+    <string name="app_name">MQ</string>
     <string name="common_retry">Retry</string>
     <string name="common_see_all">See all</string>
 
@@ -176,7 +176,7 @@
     <string name="error_dialog_email">Support email</string>
     <string name="error_dialog_code">Error code</string>
     <string name="error_dialog_hint">Including the error code when you contact us helps us look into it quickly. You can select the code to copy it.</string>
-    <string name="error_dialog_mail_subject">[Limeet Pro] Error report %1$s</string>
+    <string name="error_dialog_mail_subject">[MQ] Error report %1$s</string>
     <string name="error_dialog_ok">OK</string>
     <string name="team_role_change">Change role</string>
     <string name="team_role_changed">%1$s is now %2$s</string>

@@ -101,7 +101,7 @@ compose.desktop {
         mainClass = "com.webrtcmeetpro.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
-            packageName = "Limeet Pro"
+            packageName = "MQ"
             packageVersion = "1.0.0"
             windows {
                 menu = true

@@ -94,8 +94,9 @@ import kotlin.reflect.KClass
 @Serializable data object NotificationsRoute
 
 private enum class Tab(val route: Any, val routeClass: KClass<*>, val label: StringResource, val icon: ImageVector) {
-    HOME(HomeRoute, HomeRoute::class, Res.string.nav_home, Icons.Outlined.Home),
+    // 채팅 중심: 채팅이 첫 탭이자 첫 화면
     CHAT(ChatRoute, ChatRoute::class, Res.string.nav_chat, Icons.Outlined.ChatBubbleOutline),
+    HOME(HomeRoute, HomeRoute::class, Res.string.nav_home, Icons.Outlined.Home),
     MEETINGS(MeetingsRoute, MeetingsRoute::class, Res.string.nav_meetings, Icons.Outlined.CalendarMonth),
     TEAMS(TeamsRoute, TeamsRoute::class, Res.string.nav_teams, Icons.Outlined.Groups),
     SETTINGS(SettingsRoute, SettingsRoute::class, Res.string.nav_settings, Icons.Outlined.Settings),
@@ -120,7 +121,7 @@ fun MainScreen() {
     val backStack by navController.currentBackStackEntryAsState()
     val currentTab = backStack?.destination.tab()
     // 하위 화면(채팅방 등)에 있을 때는 들어오기 전 탭을 계속 강조
-    var lastTab by remember { mutableStateOf(Tab.HOME) }
+    var lastTab by remember { mutableStateOf(Tab.CHAT) }
     if (currentTab != null) lastTab = currentTab
     val selected = currentTab ?: lastTab
     val badges = koinInject<BadgeRepository>()
@@ -189,7 +190,7 @@ private fun TabIcon(tab: Tab, count: Long) {
 @Composable
 private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
     val back: () -> Unit = { nav.popBackStack() }
-    NavHost(nav, startDestination = HomeRoute, modifier = modifier) {
+    NavHost(nav, startDestination = ChatRoute, modifier = modifier) {
         composable<HomeRoute> {
             HomeScreen(
                 onOpenMeetings = { nav.openTab(Tab.MEETINGS) },

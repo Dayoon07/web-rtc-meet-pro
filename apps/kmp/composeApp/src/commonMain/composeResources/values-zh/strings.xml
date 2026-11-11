@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Limeet Pro</string>
+    <string name="app_name">MQ</string>
     <string name="common_retry">重试</string>
     <string name="common_see_all">查看全部</string>
 
@@ -175,7 +175,7 @@
     <string name="error_dialog_email">咨询邮箱</string>
     <string name="error_dialog_code">错误代码</string>
     <string name="error_dialog_hint">联系我们时请一并提供错误代码，以便我们快速排查。可以选中代码进行复制。</string>
-    <string name="error_dialog_mail_subject">[Limeet Pro] 错误咨询 %1$s</string>
+    <string name="error_dialog_mail_subject">[MQ] 错误咨询 %1$s</string>
     <string name="error_dialog_ok">确定</string>
     <string name="team_role_change">更改角色</string>
     <string name="team_role_changed">已将%1$s改为%2$s</string>

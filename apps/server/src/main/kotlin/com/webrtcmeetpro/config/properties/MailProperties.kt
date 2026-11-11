@@ -12,8 +12,8 @@ data class MailProperties(
     val port: Int = 587,
     val username: String = "",
     val password: String = "",
-    /** 보내는 사람. 예: "Limeet <no-reply@example.com>" (SMTP 계정이 보낼 수 있는 주소여야 한다) */
-    val from: String = "Limeet <no-reply@localhost>",
+    /** 보내는 사람. 예: "MQ <no-reply@example.com>" (SMTP 계정이 보낼 수 있는 주소여야 한다) */
+    val from: String = "MQ <no-reply@localhost>",
     val starttls: Boolean = true,
 ) {
     val enabled: Boolean get() = host.isNotBlank()

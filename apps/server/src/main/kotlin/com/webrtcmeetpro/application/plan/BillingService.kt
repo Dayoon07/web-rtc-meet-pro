@@ -289,7 +289,7 @@ class BillingService(
         planId = plan.id!!,
         orderId = "ORD-" + UUID.randomUUID().toString().replace("-", ""),
         // 토스 주문명은 100자까지
-        orderName = "Limeet ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"}) · $teamName".take(100),
+        orderName = "MQ ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"}) · $teamName".take(100),
         amount = plan.price(cycle),
         billingKeyId = card.id,
         billingCycle = cycle,

@@ -129,7 +129,7 @@ export function ConfirmEmailPage() {
           {failed ? (confirm.error ? errorMessage(confirm.error) : t('errors.EMAIL_VERIFY_TOKEN_INVALID')) : t('auth.verify.successBody')}
         </p>
       </div>
-      <LinkButton to={loggedIn ? (failed ? '/verify-email' : '/app') : '/login'} size="lg">
+      <LinkButton to={loggedIn ? (failed ? '/verify-email' : '/app/chat') : '/login'} size="lg">
         {loggedIn ? (failed ? t('auth.verify.again') : t('auth.verify.goApp')) : t('auth.login.submit')}
       </LinkButton>
     </div>

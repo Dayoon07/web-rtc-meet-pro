@@ -58,7 +58,7 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:-Limeet <no-reply@localhost>}
+      MAIL_FROM: ${MAIL_FROM:-MQ <no-reply@localhost>}
       # 토스페이먼츠 자동결제 (비우면 결제 기능 꺼짐)
       TOSS_CLIENT_KEY: ${TOSS_CLIENT_KEY:-}
       TOSS_SECRET_KEY: ${TOSS_SECRET_KEY:-}

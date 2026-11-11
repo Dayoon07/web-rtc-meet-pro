@@ -49,7 +49,7 @@ class AndroidNotifier(private val context: Context) : SystemNotifier {
     private val ids = AtomicInteger(1)
 
     init {
-        val channel = NotificationChannel(CHANNEL, "Limeet Pro", NotificationManager.IMPORTANCE_DEFAULT)
+        val channel = NotificationChannel(CHANNEL, "MQ", NotificationManager.IMPORTANCE_DEFAULT)
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 

@@ -37,7 +37,7 @@ export function MarketingHeader() {
           <ThemeToggle />
           {isAuthenticated ? (
             <>
-              <LinkButton to="/app" size="sm">
+              <LinkButton to="/app/chat" size="sm">
                 {t('nav.goToApp')}
               </LinkButton>
               {me && <Avatar src={me.profileImageUrl} name={me.nickname} size="sm" className="hidden sm:inline-flex" />}

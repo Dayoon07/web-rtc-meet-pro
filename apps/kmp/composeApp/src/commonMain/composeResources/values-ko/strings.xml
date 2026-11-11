@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Limeet Pro</string>
+    <string name="app_name">MQ</string>
     <string name="common_retry">다시 시도</string>
     <string name="common_see_all">전체 보기</string>
 
@@ -175,7 +175,7 @@
     <string name="error_dialog_email">문의 이메일</string>
     <string name="error_dialog_code">에러 코드</string>
     <string name="error_dialog_hint">문의하실 때 에러 코드를 함께 알려 주시면 빠르게 확인할 수 있어요. 코드는 선택해서 복사할 수 있어요.</string>
-    <string name="error_dialog_mail_subject">[Limeet Pro] 오류 문의 %1$s</string>
+    <string name="error_dialog_mail_subject">[MQ] 오류 문의 %1$s</string>
     <string name="error_dialog_ok">확인</string>
     <string name="team_role_change">역할 바꾸기</string>
     <string name="team_role_changed">%1$s 님을 %2$s(으)로 바꿨어요</string>

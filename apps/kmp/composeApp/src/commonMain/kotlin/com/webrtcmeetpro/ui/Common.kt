@@ -1,5 +1,8 @@
 package com.webrtcmeetpro.ui
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.graphics.SolidColor
 import com.webrtcmeetpro.resources.error_MEETING_NOT_EDITABLE
 import com.webrtcmeetpro.resources.error_TOO_MANY_FILES
 import com.webrtcmeetpro.resources.error_FILE_TOO_LARGE
@@ -153,19 +156,24 @@ fun ErrorState(code: String, onRetry: () -> Unit, modifier: Modifier = Modifier)
     )
 }
 
-/** 보라 사각형 + 카메라 아이콘 + "Limeet Pro" (웹 헤더 로고와 같은 모양) */
+/** MQ 마크: 겹친 말풍선 두 개 (웹 MqMark 와 같은 모양, viewBox 100×92) */
+val MqMark: ImageVector by lazy {
+    ImageVector.Builder("MqMark", defaultWidth = 100.dp, defaultHeight = 92.dp, viewportWidth = 100f, viewportHeight = 92f).apply {
+        listOf(
+            "M4 24C4 11 14 1 28 1H66A12 12 0 0 1 75 21L54 41 38 30 19 48 4 56 6 43 4 42Z",
+            "M26 52 38 43 54 53 80 30C86 25 98 28 98 40V56C98 64 93 70 86 74L87 90 68 77H35C18 77 14 64 20 57Z",
+        ).forEach { addPath(PathParser().parsePathString(it).toNodes(), fill = SolidColor(Color.Black)) }
+    }.build()
+}
+
+/** 보라 말풍선 마크 + "MQ" (웹 헤더 로고와 같은 모양) */
 @Composable
 fun BrandLogo(modifier: Modifier = Modifier, size: Dp = 32.dp, showName: Boolean = true) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(size).clip(RoundedCornerShape(size / 4)).background(MaterialTheme.colorScheme.primary),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Rounded.Videocam, contentDescription = null, tint = Color.White, modifier = Modifier.size(size * 0.6f))
-        }
+        Icon(MqMark, contentDescription = null, tint = Color(0xFF7C1FFF), modifier = Modifier.size(size))
         if (showName) {
-            Spacer(Modifier.width(10.dp))
-            Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
         }
     }
 }

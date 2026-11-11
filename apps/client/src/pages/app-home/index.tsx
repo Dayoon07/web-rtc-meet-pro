@@ -79,8 +79,8 @@ export function AppHomePage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <ActionTile icon={<Video />} label={t('dashboard.actions.newMeeting')} hint={t('dashboard.actions.newMeetingHint')} tone="brand" onClick={() => setModal('now')} />
-          <ActionTile icon={<CalendarPlus />} label={t('dashboard.actions.schedule')} hint={t('dashboard.actions.scheduleHint')} tone="blue" onClick={() => setModal('schedule')} />
+          {/* 채팅 중심: 채팅 → 워크스페이스 → 회의 */}
+          <ActionTile icon={<MessageSquare />} label={t('dashboard.actions.chat')} hint={t('dashboard.actions.chatHint')} tone="brand" onClick={() => navigate('/app/chat')} />
           <ActionTile
             icon={<Users />}
             label={t('dashboard.actions.createTeam')}
@@ -88,7 +88,8 @@ export function AppHomePage() {
             tone="blue"
             onClick={() => setModal('team')}
           />
-          <ActionTile icon={<MessageSquare />} label={t('dashboard.actions.chat')} hint={t('dashboard.actions.chatHint')} tone="gray" onClick={() => navigate('/app/chat')} />
+          <ActionTile icon={<Video />} label={t('dashboard.actions.newMeeting')} hint={t('dashboard.actions.newMeetingHint')} tone="gray" onClick={() => setModal('now')} />
+          <ActionTile icon={<CalendarPlus />} label={t('dashboard.actions.schedule')} hint={t('dashboard.actions.scheduleHint')} tone="gray" onClick={() => setModal('schedule')} />
         </div>
         <Clock todayCount={today} />
       </div>

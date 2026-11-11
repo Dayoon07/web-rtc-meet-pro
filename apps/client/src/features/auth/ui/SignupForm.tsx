@@ -88,7 +88,7 @@ export function SignupForm() {
     },
     onSuccess: () => {
       toast.success(t('auth.signup.welcome'))
-      navigate('/app', { replace: true })
+      navigate('/app/chat', { replace: true })
     },
   })
 

@@ -34,7 +34,7 @@ export function OnboardingForm({ me }: { me: Me }) {
     onSuccess: (updated) => {
       queryClient.setQueryData(userKeys.me, updated)
       toast.success(t('auth.onboarding.done'))
-      navigate('/app', { replace: true })
+      navigate('/app/chat', { replace: true })
     },
   })
 

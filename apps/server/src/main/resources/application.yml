@@ -85,7 +85,7 @@ app:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
-    from: ${MAIL_FROM:Limeet <no-reply@localhost>}
+    from: ${MAIL_FROM:MQ <no-reply@localhost>}
     starttls: ${MAIL_STARTTLS:true}
   toss:
     # 토스페이먼츠 개발자센터 → API 키 → "API 개별 연동 키" (자동결제). 둘 중 하나라도 비면 결제 기능이 꺼진다

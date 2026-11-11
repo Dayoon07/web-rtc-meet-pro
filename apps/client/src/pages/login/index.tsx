@@ -5,7 +5,7 @@ import { LoginForm } from '@/features/auth'
 import { translateDynamic } from '@/shared/i18n'
 
 /** 오픈 리다이렉트 방지: 내부 경로만 허용 */
-const safeRedirect = (value: string | null) => (value && value.startsWith('/') && !value.startsWith('//') ? value : '/app')
+const safeRedirect = (value: string | null) => (value && value.startsWith('/') && !value.startsWith('//') ? value : '/app/chat')
 
 export function LoginPage() {
   const { t } = useTranslation()

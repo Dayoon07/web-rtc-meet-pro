@@ -39,7 +39,7 @@ export function MarketingFooter() {
           </div>
         ))}
       </div>
-      <div className="border-t border-gray-200 py-6 text-center text-xs text-gray-400 dark:border-gray-800">© {new Date().getFullYear()} Limeet Pro</div>
+      <div className="border-t border-gray-200 py-6 text-center text-xs text-gray-400 dark:border-gray-800">© {new Date().getFullYear()} MQ</div>
     </footer>
   )
 }

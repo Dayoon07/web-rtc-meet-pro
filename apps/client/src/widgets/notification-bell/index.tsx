@@ -167,7 +167,7 @@ export function useNotificationSideEffects(subscribe: (cb: (payload: unknown) =>
 
         const text = notificationText(n, t, fmt.dateTime)
         if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-          const os = new Notification('Limeet Pro', { body: text, tag: `wrmp-${n.id}`, icon: '/favicon.ico' })
+          const os = new Notification('MQ', { body: text, tag: `wrmp-${n.id}`, icon: '/favicon.svg' })
           os.onclick = () => {
             window.focus()
             if (n.link) navigate(n.link)

@@ -21,7 +21,7 @@ fun main() {
     application {
         Window(
             onCloseRequest = ::exitApplication,
-            title = "Limeet Pro",
+            title = "MQ",
             state = rememberWindowState(size = DpSize(1180.dp, 780.dp), position = WindowPosition.Aligned(androidx.compose.ui.Alignment.Center)),
         ) {
             window.minimumSize = Dimension(400, 600)

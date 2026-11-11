@@ -1,20 +1,28 @@
-import { Video } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { cn } from '@/shared/lib/cn'
 
+/** MQ 마크: 겹친 말풍선 두 개 (서로 주고받는 대화). 기본은 브랜드 보라, mono 면 글자색(currentColor) */
+export function MqMark({ className, mono }: { className?: string; mono?: boolean }) {
+  return (
+    <svg viewBox="0 0 100 92" aria-hidden className={cn('size-8', mono ? 'text-current' : 'text-[#7C1FFF] dark:text-brand-400', className)}>
+      <g fill="currentColor">
+        <path d="M4 24C4 11 14 1 28 1H66A12 12 0 0 1 75 21L54 41 38 30 19 48 4 56 6 43 4 42Z" />
+        <path d="M26 52 38 43 54 53 80 30C86 25 98 28 98 40V56C98 64 93 70 86 74L87 90 68 77H35C18 77 14 64 20 57Z" />
+      </g>
+    </svg>
+  )
+}
+
+/** 서비스 이름 (화면에 보이는 이름은 여기 한 곳) */
+export const BRAND_NAME = 'MQ'
+
 export function Logo({ to = '/', className, compact }: { to?: string; className?: string; compact?: boolean }) {
   const { t } = useTranslation()
   return (
-    <Link to={to} className={cn('inline-flex items-center gap-2.5', className)} aria-label={t('nav.logoHome')}>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm shadow-brand-600/30">
-        <Video className="size-4.5" strokeWidth={2.5} />
-      </span>
-      {!compact && (
-        <span className="text-[17px] font-bold tracking-tight text-gray-900 dark:text-white">
-          Limeet <span className="text-brand-600 dark:text-brand-400">Pro</span>
-        </span>
-      )}
+    <Link to={to} className={cn('inline-flex items-center gap-2', className)} aria-label={t('nav.logoHome')}>
+      <MqMark className="h-7 w-8" />
+      {!compact && <span className="text-xl font-black tracking-tight text-gray-950 dark:text-white">{BRAND_NAME}</span>}
     </Link>
   )
 }

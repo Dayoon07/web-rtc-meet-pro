@@ -41,7 +41,7 @@ class DesktopNotifier : SystemNotifier {
                     // 리소스가 없으면 보라색 사각형
                     for (x in 0 until 16) for (y in 0 until 16) setRGB(x, y, 0xFF7C3AED.toInt())
                 }
-            TrayIcon(image, "Limeet Pro").apply { isImageAutoSize = true }.also { SystemTray.getSystemTray().add(it) }
+            TrayIcon(image, "MQ").apply { isImageAutoSize = true }.also { SystemTray.getSystemTray().add(it) }
         }.getOrNull()
     }
 

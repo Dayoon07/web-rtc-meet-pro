@@ -44,7 +44,7 @@ export function OAuthCallbackPage() {
         setTokens(await authApi.exchangeOAuthCode(code))
         const me = await userApi.me()
         queryClient.setQueryData(userKeys.me, me)
-        navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? '/app') : '/onboarding', { replace: true })
+        navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? '/app/chat') : '/onboarding', { replace: true })
       } catch (e) {
         const error = e instanceof ApiError ? e.code : 'OAUTH_FAILED'
         navigate(`/login?error=${error}`, { replace: true })

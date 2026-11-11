@@ -1,12 +1,11 @@
 import { Quote } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet, useLocation, useMatches } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
 import { useChatUnreadQuery } from '@/entities/chat'
 import { LanguageMenu } from '@/features/change-language'
 import { ThemeToggle } from '@/features/toggle-theme'
-import { translateDynamic } from '@/shared/i18n'
-import { Avatar, Logo } from '@/shared/ui'
+import { Avatar, Logo, MqMark } from '@/shared/ui'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { AppTopbar } from '@/widgets/app-topbar'
 import { MarketingFooter } from '@/widgets/marketing-footer'
@@ -47,7 +46,10 @@ export function AuthLayout() {
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -top-24 -right-24 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full bg-fuchsia-400/20 blur-3xl" />
-        <p className="relative text-sm font-medium text-brand-100">Limeet Pro</p>
+        <p className="relative flex items-center gap-2 text-sm font-bold text-white">
+          <MqMark mono className="h-5 w-6" />
+          MQ
+        </p>
         <div className="relative flex flex-col gap-6">
           <Quote className="size-10 text-brand-300" />
           <p className="text-2xl leading-relaxed font-semibold">{t('authLayout.quote')}</p>
@@ -72,23 +74,46 @@ export function AuthLayout() {
   )
 }
 
-type Handle = { title?: string }
 
 /** 로그인 후 앱: 왼쪽 사이드바 + 상단 바 (Slack·Teams 와 같은 배치) */
+/** 데스크톱 사이드바 접힘 (이 브라우저에 기억) */
+const COLLAPSED_KEY = 'mq.sidebarCollapsed'
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const matches = useMatches()
-  const titleKey = [...matches].reverse().map((m) => (m.handle as Handle | undefined)?.title).find(Boolean)
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1')
+      } catch {
+        // 저장이 안 돼도 이번 화면에서는 접힌다
+      }
+      return !c
+    })
   const location = useLocation()
   const { data: chatUnread } = useChatUnreadQuery()
   // 언어 변경 시 제목도 다시 그리도록 구독
   useTranslation()
 
   return (
-    <div className="flex min-h-dvh bg-gray-50 dark:bg-gray-950">
-      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} chatUnread={chatUnread} />
+    <div className="flex min-h-dvh">
+      <AppSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        chatUnread={chatUnread}
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <AppTopbar title={titleKey ? translateDynamic(titleKey) : ''} onOpenSidebar={() => setSidebarOpen(true)} />
+        <AppTopbar onOpenSidebar={() => setSidebarOpen(true)} />
         <main key={location.pathname.startsWith('/app/chat') ? 'chat' : location.pathname} className="flex-1 px-4 py-8 sm:px-6 lg:px-10">
           <Outlet />
         </main>

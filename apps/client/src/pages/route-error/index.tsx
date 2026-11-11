@@ -66,7 +66,7 @@ export function RouteErrorPage() {
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-white px-4 py-24 text-center dark:bg-gray-950">
-      <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Limeet Pro</p>
+      <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">MQ</p>
       <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">{t('routeError.title')}</h1>
       <p className="max-w-md text-gray-500 dark:text-gray-400">{t('routeError.body')}</p>
       <div className="mt-2 flex gap-3">

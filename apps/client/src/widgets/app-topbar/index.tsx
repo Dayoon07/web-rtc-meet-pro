@@ -74,15 +74,14 @@ function UserMenu() {
   )
 }
 
-export function AppTopbar({ title, onOpenSidebar }: { title: string; onOpenSidebar: () => void }) {
+export function AppTopbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const { t } = useTranslation()
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md sm:px-6 dark:border-gray-800 dark:bg-gray-950/80">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 bg-white/80 px-4 backdrop-blur-md sm:px-6 dark:border-gray-800 dark:bg-gray-950/80">
       <div className="flex min-w-0 items-center gap-2">
         <IconButton label={t('nav.openMenu')} className="md:hidden" onClick={onOpenSidebar}>
           <MenuIcon className="size-5" />
         </IconButton>
-        <h1 className="truncate text-base font-semibold text-gray-900 dark:text-white">{title}</h1>
       </div>
       <div className="flex items-center gap-1">
         <LanguageMenu />

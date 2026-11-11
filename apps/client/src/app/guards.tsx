@@ -48,17 +48,17 @@ export function RequireCompletedProfile() {
 export function VerifyEmailOnly() {
   const { data: me } = useMeQuery()
   if (!me) return <FullPageSpinner />
-  if (me.emailVerified) return <Navigate to="/app" replace />
+  if (me.emailVerified) return <Navigate to="/app/chat" replace />
   return <Outlet />
 }
 
 export function OnboardingOnly() {
   const { data: me } = useMeQuery()
   if (!me) return <FullPageSpinner />
-  if (me.profileCompleted) return <Navigate to="/app" replace />
+  if (me.profileCompleted) return <Navigate to="/app/chat" replace />
   return <Outlet />
 }
 
 export function GuestOnly() {
-  return useIsAuthenticated() ? <Navigate to="/app" replace /> : <Outlet />
+  return useIsAuthenticated() ? <Navigate to="/app/chat" replace /> : <Outlet />
 }

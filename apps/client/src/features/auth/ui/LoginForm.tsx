@@ -9,7 +9,7 @@ import { Button, Divider, Field, FieldError, Input } from '@/shared/ui'
 import { authApi } from '../api/auth-api'
 import { GoogleButton } from './GoogleButton'
 
-export function LoginForm({ redirectTo = '/app' }: { redirectTo?: string }) {
+export function LoginForm({ redirectTo = '/app/chat' }: { redirectTo?: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

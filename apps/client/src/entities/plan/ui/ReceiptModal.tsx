@@ -67,7 +67,7 @@ export function ReceiptModal({ payment, open, onClose }: { payment: Payment | nu
             <div>
               <p className="flex items-center gap-1.5 font-sans text-sm font-bold text-gray-900 dark:text-white">
                 <Receipt className="size-4 text-brand-600" />
-                Limeet Pro
+                MQ
               </p>
               <p className="text-gray-500">{t('billing.receipt.seller')}</p>
             </div>
