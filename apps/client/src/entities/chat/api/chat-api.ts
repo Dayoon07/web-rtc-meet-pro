@@ -58,6 +58,8 @@ export const chatApi = {
   /** 글 보내기. options = 답장할 메시지 · @멘션한 사람 · @모두 */
   send: (roomId: number, content: string, options: SendOptions = {}) =>
     request<ChatMessage>(API.chat.messages(roomId), { method: 'POST', json: { content, ...options } satisfies SendMessageRequest }),
+  /** "입력 중..." 알리기 (몇 초마다) */
+  typing: (roomId: number) => request<void>(API.chat.typing(roomId), { method: 'POST' }),
   /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
   react: (messageId: number, emoji: string) =>
     request<ChatMessage>(API.chat.reactions(messageId), { method: 'POST', json: { emoji } satisfies ReactionRequest }),

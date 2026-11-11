@@ -3,15 +3,17 @@ import { SERVER_PATHS } from './endpoints'
 import { getAccessToken, refreshAccessToken } from './request'
 
 type Listener = (payload: unknown) => void
-type Channel = 'chat' | 'notifications' | 'meeting'
+type Channel = 'chat' | 'notifications' | 'meeting' | 'presence'
 
 /**
  * 서버 STOMP(/ws) 연결. 로그인 동안 하나만 유지(싱글톤).
- * 내 큐(/user/queue/chat, /user/queue/notifications, /user/queue/meeting)만 구독하고, 보내기는 REST 로 한다.
+ * 내 큐(/user/queue/chat, notifications, meeting, presence)만 구독하고, 보내기는 REST 로 한다.
  */
 class Realtime {
   private client: Client | null = null
-  private listeners: Record<Channel, Set<Listener>> = { chat: new Set(), notifications: new Set(), meeting: new Set() }
+  /** (다시) 연결됐을 때 — 연결이 끊긴 동안 놓친 상태를 다시 불러오는 데 쓴다 */
+  private connectedListeners = new Set<() => void>()
+  private listeners: Record<Channel, Set<Listener>> = { chat: new Set(), notifications: new Set(), meeting: new Set(), presence: new Set() }
 
   start() {
     if (this.client) return
@@ -26,12 +28,13 @@ class Realtime {
         client.connectHeaders = { Authorization: `Bearer ${getAccessToken() ?? ''}` }
       },
       onConnect: () => {
-        ;(['chat', 'notifications', 'meeting'] as Channel[]).forEach((channel) =>
+        ;(['chat', 'notifications', 'meeting', 'presence'] as Channel[]).forEach((channel) =>
           client.subscribe(`/user/queue/${channel}`, (msg: IMessage) => {
             const payload = JSON.parse(msg.body) as unknown
             this.listeners[channel].forEach((l) => l(payload))
           }),
         )
+        this.connectedListeners.forEach((l) => l())
       },
       // 토큰 만료로 CONNECT 가 거절되면 갱신 후 자동 재연결
       onStompError: () => void refreshAccessToken(),
@@ -43,6 +46,13 @@ class Realtime {
   stop() {
     void this.client?.deactivate()
     this.client = null
+  }
+
+  onConnected(listener: () => void) {
+    this.connectedListeners.add(listener)
+    return () => {
+      this.connectedListeners.delete(listener)
+    }
   }
 
   on(channel: Channel, listener: Listener) {

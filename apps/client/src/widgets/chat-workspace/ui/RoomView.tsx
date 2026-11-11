@@ -15,6 +15,7 @@ import {
 } from '@/features/chat-room-actions'
 import { Button, IconButton, Spinner } from '@/shared/ui'
 import { RoomContext, useRoom, useWorkspace } from '../model/context'
+import { useTypingUsers } from '../model/typing-store'
 import { type RoomViewModel, useRoomView } from '../model/use-room-view'
 import { MessageList } from './MessageList'
 import { RoomAvatar } from './RoomRow'
@@ -66,6 +67,27 @@ function RoomHeader() {
   )
 }
 
+/** 입력창 위 "○○님이 입력 중..." (점 세 개가 움직인다) */
+function TypingIndicator() {
+  const { t } = useTranslation()
+  const { room } = useRoom()
+  const users = useTypingUsers(room.id)
+  return (
+    <p aria-live="polite" className="h-5 shrink-0 px-5 text-xs text-gray-500 dark:text-gray-400">
+      {users.length > 0 && (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="flex gap-0.5">
+            {[0, 150, 300].map((d) => (
+              <span key={d} className="size-1 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: `${d}ms` }} />
+            ))}
+          </span>
+          {users.length === 1 ? t('chat.typing.one', { name: users[0].nickname }) : t('chat.typing.many', { name: users[0].nickname, count: users.length - 1 })}
+        </span>
+      )}
+    </p>
+  )
+}
+
 /** 입력칸 아래 "공지" 버튼 (공지를 올릴 수 있는 사람만) */
 function NoticeTool() {
   const { t } = useTranslation()
@@ -113,6 +135,7 @@ export function RoomView({ room }: { room: ChatRoom }) {
         ) : (
           <MessageList />
         )}
+        <TypingIndicator />
         <div className="shrink-0 border-t border-gray-200 p-3 sm:p-4 dark:border-gray-800">
           <MessageComposer key={room.id} room={room} tools={<NoticeTool />} />
         </div>

@@ -26,6 +26,8 @@ class RealtimePublisher(private val events: ApplicationEventPublisher) {
         const val NOTIFICATIONS = "/queue/notifications"
         /** 회의실 안 상태 (녹화 시작·끝) */
         const val MEETING = "/queue/meeting"
+        /** 접속 상태 (같은 워크스페이스 사람의 접속·자리 비움·나감) */
+        const val PRESENCE = "/queue/presence"
     }
 }
 

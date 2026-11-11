@@ -580,6 +580,11 @@ const ko = {
     accepted: '「{{teamName}}」 워크스페이스에 참여했어요.',
     declined: '초대를 거절했어요.',
   },
+  presence: {
+    ONLINE: '접속 중',
+    AWAY: '자리 비움',
+    OFFLINE: '접속 안 함',
+  },
   chat: {
     deleteOthersConfirm: '다른 사람이 보낸 메시지를 지울까요? 관리 권한으로 지우는 거예요.',
     deleteConfirm: '이 메시지를 지울까요? 모든 참여자에게 "삭제된 메시지"로 보여요.',
@@ -632,6 +637,11 @@ const ko = {
     sendFailed: '메시지를 보내지 못했어요.',
     attach: '파일 첨부',
     attachShort: '파일',
+    typing: {
+      one: '{{name}}님이 입력 중...',
+      many: '{{name}}님 외 {{count}}명이 입력 중...',
+      short: '입력 중...',
+    },
     reply: '답장',
     replyTo: '{{name}}님에게 답장',
     cancelReply: '답장 취소',

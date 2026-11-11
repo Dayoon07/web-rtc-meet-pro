@@ -581,6 +581,11 @@ const ja: Messages = {
     accepted: '「{{teamName}}」に参加しました。',
     declined: '招待を辞退しました。',
   },
+  presence: {
+    ONLINE: 'オンライン',
+    AWAY: '離席中',
+    OFFLINE: 'オフライン',
+  },
   chat: {
     deleteOthersConfirm: '他の人のメッセージを削除しますか？管理者権限で削除します。',
     deleteConfirm: 'このメッセージを削除しますか？全員に「削除されたメッセージ」と表示されます。',
@@ -633,6 +638,11 @@ const ja: Messages = {
     sendFailed: 'メッセージを送信できませんでした。',
     attach: 'ファイルを添付',
     attachShort: 'ファイル',
+    typing: {
+      one: '{{name}}さんが入力中...',
+      many: '{{name}}さんほか{{count}}人が入力中...',
+      short: '入力中...',
+    },
     reply: '返信',
     replyTo: '{{name}}さんに返信',
     cancelReply: '返信をやめる',

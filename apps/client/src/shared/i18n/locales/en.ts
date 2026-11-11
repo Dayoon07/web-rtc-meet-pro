@@ -581,6 +581,11 @@ const en: Messages = {
     accepted: 'You joined “{{teamName}}”.',
     declined: 'Invitation declined.',
   },
+  presence: {
+    ONLINE: 'Online',
+    AWAY: 'Away',
+    OFFLINE: 'Offline',
+  },
   chat: {
     deleteOthersConfirm: "Delete someone else's message? You're deleting it as a workspace admin.",
     deleteConfirm: 'Delete this message? Everyone will see “This message was deleted”.',
@@ -633,6 +638,11 @@ const en: Messages = {
     sendFailed: "Couldn't send the message.",
     attach: 'Attach files',
     attachShort: 'File',
+    typing: {
+      one: '{{name}} is typing...',
+      many: '{{name}} and {{count}} more are typing...',
+      short: 'typing...',
+    },
     reply: 'Reply',
     replyTo: 'Replying to {{name}}',
     cancelReply: 'Cancel reply',

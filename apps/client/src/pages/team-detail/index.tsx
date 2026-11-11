@@ -18,6 +18,7 @@ import { useFormat } from '@/shared/lib/format'
 import { Avatar, Badge, Button, Card, EmptyState, Select, Spinner } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
+import { PresenceDot, usePresence } from '@/entities/presence'
 
 export function TeamDetailPage() {
   const { t } = useTranslation()
@@ -26,6 +27,7 @@ export function TeamDetailPage() {
   const teamId = Number(useParams().teamId)
   const { data: me } = useMeQuery()
   const { data: detail, isPending, isError } = useTeamQuery(teamId)
+  const statusOf = usePresence(teamId)
   const { data: upcoming = [] } = useMeetingsQuery('upcoming')
   const [tab, setTab] = useState<'members' | 'meetings'>('members')
   const scheduling = useDialog<ScheduleTarget>()
@@ -107,7 +109,10 @@ export function TeamDetailPage() {
             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
               {members.map((m) => (
                 <li key={m.userId} className="flex items-center gap-3 px-5 py-3.5">
-                  <Avatar src={m.profileImageUrl} name={m.nickname} size="md" />
+                  <span className="relative shrink-0">
+                    <Avatar src={m.profileImageUrl} name={m.nickname} size="md" />
+                    <PresenceDot status={statusOf(m.userId)} />
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-gray-900 dark:text-white">
                       {m.nickname}

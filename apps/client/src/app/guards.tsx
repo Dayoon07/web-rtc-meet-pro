@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { chatKeys } from '@/entities/chat'
+import { useAwayTracker, usePresenceRealtime } from '@/entities/presence'
 import { useIsAuthenticated } from '@/entities/session'
 import { useMeQuery } from '@/entities/user'
 import { realtime } from '@/shared/api'
@@ -14,13 +15,19 @@ function RealtimeBridge() {
   const queryClient = useQueryClient()
   useEffect(() => {
     realtime.start()
-    const off = realtime.on('chat', () => void queryClient.invalidateQueries({ queryKey: chatKeys.unread }))
+    // 새 메시지·방 변화 때만 안 읽은 수를 다시 (입력 중·읽음 이벤트는 자주 와서 제외)
+    const off = realtime.on('chat', (payload) => {
+      const type = (payload as { type?: string }).type
+      if (type === 'MESSAGE' || type === 'ROOM') void queryClient.invalidateQueries({ queryKey: chatKeys.unread })
+    })
     return () => {
       off()
       realtime.stop()
     }
   }, [queryClient])
   useNotificationSideEffects(useCallback((cb) => realtime.on('notifications', cb), []))
+  usePresenceRealtime()
+  useAwayTracker(true)
   return null
 }
 

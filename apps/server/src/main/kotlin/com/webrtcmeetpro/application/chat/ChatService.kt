@@ -117,7 +117,15 @@ data class VoicePresenceView(val meetingId: Long, val participants: List<ChatUse
 data class ChatCategoryView(val id: Long, val name: String, val sortOrder: Int)
 
 /** type: MESSAGE, MESSAGE_UPDATED, ROOM(방 목록 다시), CATEGORIES(카테고리 다시), READ(누가 어디까지 읽음) */
-data class ChatEvent(val type: String, val teamId: Long, val roomId: Long, val message: ChatMessageView? = null, val read: ReadStateView? = null)
+data class ChatEvent(
+    val type: String,
+    val teamId: Long,
+    val roomId: Long,
+    val message: ChatMessageView? = null,
+    val read: ReadStateView? = null,
+    /** TYPING: 입력 중인 사람 */
+    val typing: ChatUserView? = null,
+)
 
 /** 올린 파일 1개. presentation 의 MultipartFile 에 의존하지 않도록 열기 함수로 받는다 (여러 번 열 수 있어야 함) */
 data class FileUpload(val name: String?, val contentType: String?, val size: Long, val open: () -> InputStream)
@@ -373,6 +381,14 @@ class ChatService(
             )
         }
         return view
+    }
+
+    /** "입력 중..." 알리기: 방의 다른 사람들에게만 (저장하지 않는다. 화면이 몇 초마다 다시 보낸다) */
+    fun typing(roomId: Long, userId: Long) {
+        val (room, _) = requireRoomMember(roomId, userId)
+        val me = usersById(listOf(userId)).getValue(userId)
+        val others = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId } - userId
+        realtime.push(others, RealtimePublisher.CHAT, ChatEvent("TYPING", room.teamId, roomId, typing = userView(me)))
     }
 
     /** 이모지 반응 달기·떼기 (방 사람 누구나). 다시 누르면 떼어진다 */

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect } from 'react'
 import { chatKeys, type ChatEvent, type ChatMessage, type ChatRoom } from '@/entities/chat'
 import { realtime } from '@/shared/api'
+import { typingStore } from './typing-store'
 
 /** 서버 /user/queue/chat 이벤트를 받아 방 목록·카테고리·메시지 캐시를 고친다 */
 export function useChatRealtime() {
@@ -11,6 +12,10 @@ export function useChatRealtime() {
       const ev = payload as ChatEvent
       if (ev.type === 'CATEGORIES') {
         void queryClient.invalidateQueries({ queryKey: chatKeys.categories(ev.teamId) })
+        return
+      }
+      if (ev.type === 'TYPING') {
+        if (ev.typing) typingStore.add(ev.roomId, ev.typing)
         return
       }
       if (ev.type === 'READ') {
@@ -26,6 +31,8 @@ export function useChatRealtime() {
       }
       void queryClient.invalidateQueries({ queryKey: chatKeys.rooms(ev.teamId) })
       const msg = ev.message
+      // 메시지를 보낸 사람은 더 이상 입력 중이 아니다
+      if (msg?.sender && ev.type === 'MESSAGE') typingStore.remove(ev.roomId, msg.sender.id)
       if (msg && ev.type === 'MESSAGE_UPDATED') {
         // 누가 고치거나 지운 메시지: 같은 id 를 바꿔 끼운다
         queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(ev.roomId), (cur) => cur?.map((m) => (m.id === msg.id ? msg : m)))

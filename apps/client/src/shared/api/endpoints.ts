@@ -58,6 +58,7 @@ export const API = {
     chatDirect: (teamId: number) => `${TEAMS}/${part(teamId)}/chat/rooms/direct`,
     chatGroup: (teamId: number) => `${TEAMS}/${part(teamId)}/chat/rooms/group`,
     chatCategories: (teamId: number) => `${TEAMS}/${part(teamId)}/chat/categories`,
+    presence: (teamId: number) => `${TEAMS}/${part(teamId)}/presence`,
     chatSearch: (teamId: number, q: string) => `${TEAMS}/${part(teamId)}/chat/search?q=${part(q)}`,
   },
 
@@ -80,6 +81,7 @@ export const API = {
     files: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/files`,
     messages: (roomId: number, before?: number) => `${CHAT}/rooms/${part(roomId)}/messages${before ? `?before=${part(before)}` : ''}`,
     message: (messageId: number) => `${CHAT}/messages/${part(messageId)}`,
+    typing: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/typing`,
     reactions: (messageId: number) => `${CHAT}/messages/${part(messageId)}/reactions`,
     category: (categoryId: number) => `${CHAT}/categories/${part(categoryId)}`,
   },
@@ -129,6 +131,9 @@ export const API = {
     card: `${BILLING}/card`,
     payments: `${BILLING}/payments`,
   },
+
+  /** 내 접속 상태 (자리 비움 / 돌아옴) */
+  presence: '/presence',
 
   // ---- 화면 오류 신고 ----
   clientErrors: '/client-errors',

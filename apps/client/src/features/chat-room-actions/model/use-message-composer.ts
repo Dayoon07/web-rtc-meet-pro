@@ -34,8 +34,14 @@ export function useMessageComposer(room: ChatRoom) {
       input.current?.setSelectionRange(pos, pos)
     })
 
+  // "입력 중..." 알리기: 글을 쓰는 동안 3초에 한 번
+  const lastTyping = useRef(0)
   const setText = (value: string) => {
     setTextState(value)
+    if (value.trim() && Date.now() - lastTyping.current > 3000) {
+      lastTyping.current = Date.now()
+      chatApi.typing(roomId).catch(() => undefined)
+    }
     const el = input.current
     mention.track(value, el?.selectionStart ?? value.length)
   }

@@ -128,6 +128,11 @@ class ChatController(private val chat: ChatService) {
     fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageRequest) =
         chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll)
 
+    /** "입력 중..." (다른 방 사람들 화면에 몇 초 동안 보인다) */
+    @PostMapping("/chat/rooms/{roomId}/typing")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun typing(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long) = chat.typing(roomId, jwt.userId)
+
     /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
     @PostMapping("/chat/messages/{messageId}/reactions")
     fun react(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: ReactionRequest) =

@@ -70,12 +70,14 @@ export type ChatCategory = { id: number; name: string; sortOrder: number }
  * ROOM = 방 목록 다시, CATEGORIES = 카테고리 다시
  */
 export type ChatEvent = {
-  type: 'MESSAGE' | 'MESSAGE_UPDATED' | 'ROOM' | 'CATEGORIES' | 'READ'
+  type: 'MESSAGE' | 'MESSAGE_UPDATED' | 'ROOM' | 'CATEGORIES' | 'READ' | 'TYPING'
   teamId: number
   roomId: number
   message: ChatMessage | null
   /** READ: 누가 어디까지 읽었는지 */
   read?: ReadState | null
+  /** TYPING: 입력 중인 사람 */
+  typing?: ChatUser | null
 }
 
 /** 채널에 올라온 AI 회의록 카드 (SYSTEM 메시지, key = meetingNotes) */

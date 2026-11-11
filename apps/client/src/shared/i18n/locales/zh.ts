@@ -582,6 +582,11 @@ const zh: Messages = {
     accepted: '已加入「{{teamName}}」。',
     declined: '已拒绝邀请。',
   },
+  presence: {
+    ONLINE: '在线',
+    AWAY: '离开',
+    OFFLINE: '离线',
+  },
   chat: {
     deleteOthersConfirm: '要删除别人发送的消息吗？你将以管理员身份删除。',
     deleteConfirm: '要删除这条消息吗？所有人都会看到“此消息已删除”。',
@@ -634,6 +639,11 @@ const zh: Messages = {
     sendFailed: '消息发送失败。',
     attach: '添加附件',
     attachShort: '文件',
+    typing: {
+      one: '{{name}} 正在输入...',
+      many: '{{name}} 等 {{count}} 人正在输入...',
+      short: '正在输入...',
+    },
     reply: '回复',
     replyTo: '回复 {{name}}',
     cancelReply: '取消回复',
