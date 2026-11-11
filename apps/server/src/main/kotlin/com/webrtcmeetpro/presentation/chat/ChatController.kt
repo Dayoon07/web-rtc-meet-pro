@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -52,6 +53,8 @@ data class CategoryRequest(@field:NotBlank @field:Size(max = 50) val name: Strin
 data class InviteMembersRequest(@field:Size(min = 1, max = 200) val userIds: List<Long>)
 data class SendMessageRequest(@field:NotBlank @field:Size(max = 4000) val content: String)
 data class MarkReadRequest(@field:NotNull val messageId: Long?)
+/** 방 공지. content 가 비었거나 null 이면 내리기 */
+data class NoticeRequest(@field:Size(max = 1000) val content: String? = null)
 
 @RestController
 @RequestMapping("/api")
@@ -100,6 +103,10 @@ class ChatController(private val chat: ChatService) {
     @PostMapping("/chat/rooms/{roomId}/members")
     fun invite(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: InviteMembersRequest) =
         chat.invite(roomId, jwt.userId, req.userIds)
+
+    @PutMapping("/chat/rooms/{roomId}/notice")
+    fun setNotice(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: NoticeRequest) =
+        chat.setNotice(roomId, jwt.userId, req.content)
 
     @PostMapping("/chat/rooms/{roomId}/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)

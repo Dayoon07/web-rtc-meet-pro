@@ -1,5 +1,6 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v1.4  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v1.5  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+--   v1.5: 채팅방 공지(chat_rooms.notice_content, notice_by, notice_at). 기존 DB 는 db/migrations/v1.5-chat-notice.sql
 --   v1.4: 개인정보 보호(users.marketing_agreed_at, admin_access_logs). 기존 DB 는 db/migrations/v1.4-privacy.sql
 --   v1.3: 멤버 초과 요금(plans.overage_price_per_member, teams.overage_*, payments.payment_kind). 기존 DB 는 db/migrations/v1.3-member-overage.sql
 --   v1.2: AI 회의록(meeting_notes, meeting_transcripts, ai_usages), 플랜 AI 한도(ai_notes_minutes, live_caption_minutes).
@@ -423,6 +424,9 @@ CREATE TABLE chat_rooms (
     last_message_at     TIMESTAMP(6),
     category_id         NUMBER(19),                       -- 채널의 카테고리 (NULL = 카테고리 없음)
     sort_order          NUMBER(10)      DEFAULT 0 NOT NULL,
+    notice_content      VARCHAR2(1000 CHAR),              -- 방 공지 (NULL = 없음)
+    notice_by           NUMBER(19),                       -- 공지를 올린 사람
+    notice_at           TIMESTAMP(6),                     -- 공지를 올린 시각
     created_dt          TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
     created_us          NUMBER(19),
     edited_dt           TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,

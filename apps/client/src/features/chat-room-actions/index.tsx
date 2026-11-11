@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, FileText, LogOut, Paperclip, SendHorizonal, X } from 'lucide-react'
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { Check, FileText, LogOut, Paperclip, SendHorizonal, Smile, X } from 'lucide-react'
+import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { CHAT_FILE_LIMITS, chatApi, chatKeys, checkChatFiles, type ChatCategory, type ChatMessage, type ChatRoom } from '@/entities/chat'
@@ -9,6 +9,9 @@ import { errorMessage, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
 import { Avatar, Button, Field, FieldError, Input, Modal, Select } from '@/shared/ui'
+import { EmojiPickerModal } from './emoji-picker'
+
+export { NoticeBar, NoticeModal, useSetNotice } from './notice'
 
 /** 팀원 목록 (단일 선택: onPick / 다중 선택: selected+onToggle) */
 function MemberList({
@@ -309,16 +312,49 @@ function PendingFile({ file, disabled, onRemove }: { file: File; disabled: boole
   )
 }
 
+/** 입력칸 아래 기능 버튼 모양 (공지 버튼처럼 밖에서 붙이는 버튼도 같은 모양) */
+export const toolClass =
+  'flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
+
 /**
  * 메시지 입력창. Enter 보내기, Shift+Enter 줄바꿈, 한글 조합 중 Enter 무시.
  * 파일은 클립 버튼 · 붙여넣기(스크린샷) · 끌어다 놓기로 첨부하고, 함께 쓴 글과 한 메시지로 보낸다.
  */
-export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m: ChatMessage) => void }) {
+export function MessageComposer({
+  roomId,
+  onSent,
+  tools,
+}: {
+  roomId: number
+  onSent: (m: ChatMessage) => void
+  /** 입력칸 아래 버튼 줄에 더 붙일 버튼 (예: 공지) */
+  tools?: ReactNode
+}) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [dragging, setDragging] = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
+  // 이모지 창을 열면 입력칸 포커스가 빠지므로, 마지막 커서 위치를 기억해 그 자리에 넣는다
+  const caret = useRef<{ start: number; end: number } | null>(null)
+  const rememberCaret = () => {
+    const el = input.current
+    if (el) caret.current = { start: el.selectionStart, end: el.selectionEnd }
+  }
+  const insertEmoji = (emoji: string) => {
+    const at = caret.current ?? { start: text.length, end: text.length }
+    const next = (text.slice(0, at.start) + emoji + text.slice(at.end)).slice(0, 4000)
+    const pos = Math.min(at.start + emoji.length, next.length)
+    setText(next)
+    caret.current = { start: pos, end: pos }
+    setEmojiOpen(false)
+    requestAnimationFrame(() => {
+      input.current?.focus()
+      input.current?.setSelectionRange(pos, pos)
+    })
+  }
 
   const send = useMutation({
     mutationFn: (v: { content: string; files: File[] }) =>
@@ -414,17 +450,8 @@ export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m
             e.target.value = ''
           }}
         />
-        <button
-          type="button"
-          disabled={send.isPending}
-          onClick={() => picker.current?.click()}
-          aria-label={t('chat.attach')}
-          title={attachTitle}
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-        >
-          <Paperclip className="size-4.5" />
-        </button>
         <textarea
+          ref={input}
           rows={1}
           value={text}
           maxLength={4000}
@@ -433,13 +460,15 @@ export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m
           title={t('chat.sendHint')}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
+          onSelect={rememberCaret}
+          onBlur={rememberCaret}
           onPaste={(e) => {
             const pasted = Array.from(e.clipboardData.files)
             if (!pasted.length) return
             e.preventDefault()
             addFiles(pasted)
           }}
-          className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-1 py-1.5 text-[15px] text-gray-900 outline-none field-sizing-content placeholder:text-gray-400 dark:text-gray-100"
+          className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-gray-900 outline-none field-sizing-content placeholder:text-gray-400 dark:text-gray-100"
         />
         <Button
           type="submit"
@@ -452,6 +481,20 @@ export function MessageComposer({ roomId, onSent }: { roomId: number; onSent: (m
           {!send.isPending && <SendHorizonal className="size-4.5" />}
         </Button>
       </div>
+      {/* 기능 버튼 줄: 첨부 · 이모지 · (방에 따라) 공지 */}
+      <div className="flex items-center gap-0.5 border-t border-gray-100 px-0.5 pt-1.5 dark:border-gray-800">
+        <button type="button" disabled={send.isPending} onClick={() => picker.current?.click()} aria-label={t('chat.attach')} title={attachTitle} className={toolClass}>
+          <Paperclip className="size-4" />
+          <span className="hidden sm:inline">{t('chat.attachShort')}</span>
+        </button>
+        <button type="button" onClick={() => setEmojiOpen(true)} aria-label={t('chat.emoji.open')} title={t('chat.emoji.open')} className={toolClass}>
+          <Smile className="size-4" />
+          <span className="hidden sm:inline">{t('chat.emoji.short')}</span>
+        </button>
+        {tools}
+        <span className="ml-auto hidden pr-1 text-[11px] text-gray-400 md:inline">{t('chat.sendHint')}</span>
+      </div>
+      <EmojiPickerModal open={emojiOpen} onClose={() => setEmojiOpen(false)} onPick={insertEmoji} />
     </form>
   )
 }

@@ -38,7 +38,11 @@ export type ChatRoom = {
   unreadCount: number
   lastMessageAt: string | null
   createdAt: string
+  /** 방 공지 (방 위쪽에 고정). 없으면 null */
+  notice?: ChatNotice | null
 }
+
+export type ChatNotice = { content: string; by: ChatUser | null; at: string | null }
 
 /** 채널을 묶는 카테고리 = 부서 (예: 개발 연구소 → #백오피스, #프론트오피스) */
 export type ChatCategory = { id: number; name: string; sortOrder: number }
@@ -78,6 +82,9 @@ export const chatApi = {
   deleteCategory: (categoryId: number) => http<void>(`/chat/categories/${categoryId}`, { method: 'DELETE' }),
   invite: (roomId: number, userIds: number[]) => http<ChatRoom>(`/chat/rooms/${roomId}/members`, { method: 'POST', json: { userIds } }),
   leave: (roomId: number) => http<void>(`/chat/rooms/${roomId}/leave`, { method: 'POST' }),
+  /** 공지 올리기·고치기 (content 가 null 이면 내리기) */
+  setNotice: (roomId: number, content: string | null) =>
+    http<ChatRoom>(`/chat/rooms/${roomId}/notice`, { method: 'PUT', json: { content } }),
   messages: (roomId: number, before?: number) =>
     http<ChatMessage[]>(`/chat/rooms/${roomId}/messages${before ? `?before=${before}` : ''}`),
   send: (roomId: number, content: string) => http<ChatMessage>(`/chat/rooms/${roomId}/messages`, { method: 'POST', json: { content } }),
@@ -168,6 +175,10 @@ export function systemText(message: ChatMessage, t: TFunction, list: (items: str
         return t('chat.system.invited', { actor, targets: joined })
       case 'left':
         return t('chat.system.left', { actor })
+      case 'noticeSet':
+        return t('chat.system.noticeSet', { actor })
+      case 'noticeCleared':
+        return t('chat.system.noticeCleared', { actor })
       case 'meetingNotes':
         return t('chat.system.meetingNotes', { title: meetingNotesCard(message)?.title ?? '' })
       default:

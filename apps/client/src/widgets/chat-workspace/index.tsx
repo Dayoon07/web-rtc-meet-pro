@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, MessageSquarePlus, MessagesSquare, NotebookPen, Pencil, PhoneOff, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, Megaphone, MessageSquarePlus, MessagesSquare, NotebookPen, Pencil, PhoneOff, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
@@ -29,7 +29,11 @@ import {
   InviteToRoomModal,
   LeaveRoomButton,
   MessageComposer,
+  NoticeBar,
+  NoticeModal,
   StartDirectChatModal,
+  toolClass,
+  useSetNotice,
 } from '@/features/chat-room-actions'
 import { useVoice, VoiceBar, voiceSession } from '@/features/voice-chat'
 import { realtime, toastError } from '@/shared/api'
@@ -337,7 +341,7 @@ function EditBubble({ message, onSave, onCancel }: { message: ChatMessage; onSav
   )
 }
 
-function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canModerate, onEdit, onDelete }: {
+function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canModerate, onEdit, onDelete, onMakeNotice }: {
   messages: ChatMessage[]
   myId?: number
   hasMore: boolean
@@ -347,6 +351,8 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canMo
   canModerate: boolean
   onEdit: (message: ChatMessage, content: string) => Promise<void>
   onDelete: (message: ChatMessage) => void
+  /** 글 메시지를 방 공지로 (공지를 올릴 수 있는 사람만) */
+  onMakeNotice?: (message: ChatMessage) => void
 }) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const { t } = useTranslation()
@@ -441,16 +447,23 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canMo
                       {fmt.time(m.createdAt)}
                     </span>
                     {/* 마우스를 올리면 고치기·지우기 (터치 화면은 늘 보인다) */}
-                    {!m.deleted && editingId !== m.id && (mine || canModerate) && (
+                    {!m.deleted && editingId !== m.id && (mine || canModerate || (onMakeNotice && m.type === 'TEXT')) && (
                       <span className="flex shrink-0 gap-0.5 pb-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+                        {onMakeNotice && m.type === 'TEXT' && m.content && (
+                          <button type="button" title={t('chat.notice.fromMessage')} aria-label={t('chat.notice.fromMessage')} onClick={() => onMakeNotice(m)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-brand-700 dark:hover:bg-gray-800 dark:hover:text-brand-300">
+                            <Megaphone className="size-3.5" />
+                          </button>
+                        )}
                         {mine && m.type === 'TEXT' && (
                           <button type="button" title={t('chat.edit')} aria-label={t('chat.edit')} onClick={() => setEditingId(m.id)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
                             <Pencil className="size-3.5" />
                           </button>
                         )}
-                        <button type="button" title={t('chat.delete')} aria-label={t('chat.delete')} onClick={() => onDelete(m)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
-                          <Trash2 className="size-3.5" />
-                        </button>
+                        {(mine || canModerate) && (
+                          <button type="button" title={t('chat.delete')} aria-label={t('chat.delete')} onClick={() => onDelete(m)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
                       </span>
                     )}
                   </div>
@@ -475,6 +488,15 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
   const { data: team } = useTeamQuery(room.teamId)
   const [inviting, setInviting] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [noticeOpen, setNoticeOpen] = useState(false)
+  // 공지: 채널은 워크스페이스 OWNER·ADMIN, 1:1 방은 두 사람 모두
+  const canNotice = room.type === 'DIRECT' || hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM')
+  const setNotice = useSetNotice(room)
+  const makeNotice = (m: ChatMessage) => {
+    if (!m.content) return
+    if (room.notice && !window.confirm(t('chat.notice.replaceConfirm'))) return
+    setNotice.mutate(m.content.slice(0, 1000))
+  }
   const { data: categories = [] } = useChatCategoriesQuery(room.teamId)
   const canManageChannel = room.type === 'GROUP' && hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM')
   const category = categories.find((c) => c.id === room.categoryId)
@@ -577,6 +599,8 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
         )}
       </div>
 
+      <NoticeBar key={room.id} room={room} canEdit={canNotice} onEdit={() => setNoticeOpen(true)} />
+
       {isPending ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner className="size-6 text-gray-400" />
@@ -591,14 +615,28 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
           canModerate={canModerate}
           onEdit={editMessage}
           onDelete={deleteMessage}
+          onMakeNotice={canNotice ? makeNotice : undefined}
         />
       )}
 
       <div className="shrink-0 border-t border-gray-200 p-3 sm:p-4 dark:border-gray-800">
-        <MessageComposer roomId={room.id} onSent={appendMine} />
+        <MessageComposer
+          key={room.id}
+          roomId={room.id}
+          onSent={appendMine}
+          tools={
+            canNotice && (
+              <button type="button" onClick={() => setNoticeOpen(true)} aria-label={t('chat.notice.title')} title={t('chat.notice.title')} className={toolClass}>
+                <Megaphone className="size-4" />
+                <span className="hidden sm:inline">{t('chat.notice.button')}</span>
+              </button>
+            )
+          }
+        />
       </div>
 
       {team && <InviteToRoomModal room={room} teamMembers={team.members} open={inviting} onClose={() => setInviting(false)} />}
+      {canNotice && <NoticeModal room={room} open={noticeOpen} onClose={() => setNoticeOpen(false)} />}
       {canManageChannel && <ChannelSettingsModal room={room} categories={categories} open={settings} onClose={() => setSettings(false)} />}
     </div>
   )

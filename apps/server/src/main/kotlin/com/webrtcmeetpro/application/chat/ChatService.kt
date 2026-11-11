@@ -80,7 +80,11 @@ data class ChatRoomView(
     val unreadCount: Long,
     val lastMessageAt: LocalDateTime?,
     val createdAt: LocalDateTime,
+    /** 방 공지 (없으면 null) */
+    val notice: ChatNoticeView? = null,
 )
+
+data class ChatNoticeView(val content: String, val by: ChatUserView?, val at: LocalDateTime?)
 
 /**
  * /user/queue/chat 으로 가는 이벤트. ROOM = 방 목록 갱신 필요(새 방, 초대, 퇴장), MESSAGE = 새 메시지,
@@ -216,6 +220,25 @@ class ChatService(
             room.moveTo(categoryId)
         }
         pushTeam(room.teamId, ChatEvent("ROOM", room.teamId, roomId))
+        return view(room, me)
+    }
+
+    /**
+     * 방 공지 올리기·고치기·내리기 (content 가 비면 내리기).
+     * 채널은 워크스페이스 OWNER·ADMIN, 1:1 방은 두 사람 모두. 방에 "공지를 올렸어요" 안내가 남는다
+     */
+    @Transactional
+    fun setNotice(roomId: Long, userId: Long, content: String?): ChatRoomView {
+        val (room, me) = requireRoomMember(roomId, userId)
+        if (room.isGroup) teamAccess.requirePermission(room.teamId, userId, TeamPermission.CREATE_GROUP_ROOM)
+        val text = content?.trim().orEmpty()
+        if (text.isEmpty() && room.noticeContent == null) return view(room, me)
+        if (text.isEmpty()) room.clearNotice() else room.postNotice(text, userId)
+        val actor = usersById(listOf(userId)).getValue(userId).nickname
+        val msg = systemMessage(room, if (text.isEmpty()) "noticeCleared" else "noticeSet", actor, emptyList())
+        me.markRead(msg.id)
+        val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
+        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("ROOM", room.teamId, roomId, msg))
         return view(room, me)
     }
 
@@ -496,7 +519,7 @@ class ChatService(
     private fun view(room: ChatRoom, me: ChatRoomMember, voice: VoicePresenceView? = if (room.isGroup) voicePresence(listOf(room.id!!))[room.id!!] else null): ChatRoomView {
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!)
         val last = messageRepository.findTopByRoomIdOrderByIdDesc(room.id!!)
-        val users = usersById(members.map { it.userId } + listOfNotNull(last?.senderId))
+        val users = usersById(members.map { it.userId } + listOfNotNull(last?.senderId, room.noticeBy))
         return ChatRoomView(
             id = room.id!!,
             teamId = room.teamId,
@@ -510,6 +533,7 @@ class ChatService(
             unreadCount = messageRepository.countByRoomIdAndIdGreaterThan(room.id!!, me.lastReadMessageId ?: 0),
             lastMessageAt = room.lastMessageAt,
             createdAt = room.createdDt,
+            notice = room.noticeContent?.let { ChatNoticeView(it, room.noticeBy?.let(users::get)?.let(::userView), room.noticeAt) },
         )
     }
 

@@ -55,7 +55,27 @@ class ChatRoom protected constructor(
     var sortOrder: Int = 0
         protected set
 
+    /** 방 공지: 방 위쪽에 고정되는 글 하나 (null = 없음) */
+    var noticeContent: String? = null
+        protected set
+    var noticeBy: Long? = null
+        protected set
+    var noticeAt: LocalDateTime? = null
+        protected set
+
     val isGroup: Boolean get() = roomType == ChatRoomType.GROUP
+
+    fun postNotice(content: String, by: Long) {
+        noticeContent = content.trim().take(NOTICE_MAX)
+        noticeBy = by
+        noticeAt = LocalDateTime.now()
+    }
+
+    fun clearNotice() {
+        noticeContent = null
+        noticeBy = null
+        noticeAt = null
+    }
 
     fun rename(name: String) {
         check(isGroup) { "1:1 방은 이름이 없습니다." }
@@ -75,6 +95,8 @@ class ChatRoom protected constructor(
     fun delete() = markDeleted()
 
     companion object {
+        const val NOTICE_MAX = 1000
+
         fun directKeyOf(a: Long, b: Long) = "${minOf(a, b)}_${maxOf(a, b)}"
 
         fun direct(teamId: Long, creatorId: Long, otherId: Long) =
