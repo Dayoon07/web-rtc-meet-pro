@@ -2,9 +2,11 @@
 #   cp deploy/.env.example deploy/.env  →  값 채우기  →  docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 name: limeet
 
+# 켜고 끄는 묶음 (.env 의 COMPOSE_PROFILES): oracle = DB 도 컨테이너로 (서버에 Oracle 을 직접 설치했으면 빼기), ollama = 무료 AI
 services:
   oracle:
     image: gvenzl/oracle-free:23-slim
+    profiles: ["oracle"]
     restart: unless-stopped
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:?ORACLE_PASSWORD 를 .env 에 넣어 주세요}
@@ -33,8 +35,13 @@ services:
     depends_on:
       oracle:
         condition: service_healthy
+        # Oracle 을 서버에 직접 설치했으면(profile 에 oracle 없음) 기다리지 않는다
+        required: false
+    extra_hosts:
+      # 서버에 직접 설치한 Oracle 에 닿기 위해 (DB_URL=jdbc:oracle:thin:@//host.docker.internal:1521/FREEPDB1)
+      - "host.docker.internal:host-gateway"
     environment:
-      DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      DB_URL: ${DB_URL:-jdbc:oracle:thin:@//oracle:1521/FREEPDB1}
       DB_USERNAME: limeet
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 를 .env 에 넣어 주세요}
@@ -63,6 +70,15 @@ services:
       S3_PREFIX: ${S3_PREFIX:-prod}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      # AI 회의록·실시간 자막: auto = Claude 키가 있으면 Claude, 없으면 Ollama(profile 에 ollama)
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+      AI_CAPTION_PROVIDER: ${AI_CAPTION_PROVIDER:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_URL: ${OLLAMA_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      OLLAMA_CAPTION_MODEL: ${OLLAMA_CAPTION_MODEL:-}
+      OLLAMA_MAX_CONTEXT: ${OLLAMA_MAX_CONTEXT:-8192}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
       TZ: Asia/Seoul
     volumes:
       - uploads:/data/uploads
@@ -93,6 +109,33 @@ services:
       RTC_MIN_PORT: "40000"
       RTC_MAX_PORT: "40200"
       MEDIASOUP_WORKERS: ${MEDIASOUP_WORKERS:-2}
+
+  # 무료 AI (Ollama, CPU). 밖으로 포트를 열지 않고 server 만 http://ollama:11434 로 부른다.
+  # 모델은 처음 쓸 때 메모리에 올라가고(qwen2.5:7b ≈ 5GB, 3b ≈ 2.3GB) keep_alive 가 지나면 내려간다.
+  # CPU 를 1개만 쓰게 해서 회의(mediasoup)·서버가 느려지지 않게 한다
+  ollama:
+    image: ollama/ollama:0.21.1
+    profiles: ["ollama"]
+    restart: unless-stopped
+    mem_limit: ${OLLAMA_MEM_LIMIT:-5g}
+    cpus: ${OLLAMA_CPUS:-1.0}
+    environment:
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+    volumes:
+      - ollama-data:/root/.ollama
+
+  # 처음 한 번 모델 받기 (끝나면 멈춘다)
+  ollama-pull:
+    image: ollama/ollama:0.21.1
+    profiles: ["ollama"]
+    restart: "no"
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["sh", "-c", "sleep 5 && ollama pull ${OLLAMA_MODEL:-qwen2.5:7b} && ( [ -z \"${OLLAMA_CAPTION_MODEL:-}\" ] || ollama pull ${OLLAMA_CAPTION_MODEL:-} )"]
 
   # 관리자 사이트 (admin.<도메인>). 포트를 밖으로 열지 않고, web(Caddy)이 관리자 도메인 요청을 이쪽으로 넘긴다
   admin:
@@ -126,6 +169,7 @@ services:
 
 volumes:
   oracle-data:
+  ollama-data:
   uploads:
   chat-files:
   recordings:

@@ -94,7 +94,20 @@ app:
     # 카드 빌링키를 DB 에 암호화해 넣는 비밀값. 운영에서는 반드시 따로 정하고 바꾸지 말 것 (바꾸면 등록된 카드를 못 씀)
     billing-key-secret: ${BILLING_KEY_SECRET:}
   ai:
-    # Claude API (AI 회의록 요약·실시간 자막 번역). https://platform.claude.com → API Keys. 비우면 AI 기능이 꺼진다
+    # 누가 할지: auto(키가 있으면 claude, 없고 OLLAMA_URL 이 있으면 ollama) / claude / ollama / none
+    provider: ${AI_PROVIDER:auto}
+    # 자막만 다르게 (비우면 provider 와 같음)
+    caption-provider: ${AI_CAPTION_PROVIDER:}
+    # 무료: 내 서버의 Ollama. 로컬은 http://localhost:11434, 도커는 http://ollama:11434
+    ollama:
+      url: ${OLLAMA_URL:}
+      model: ${OLLAMA_MODEL:qwen2.5:7b}
+      caption-model: ${OLLAMA_CAPTION_MODEL:}
+      # 한 번에 넣는 최대 토큰 (클수록 메모리를 더 쓴다. 넘으면 나눠서 요약)
+      max-context: ${OLLAMA_MAX_CONTEXT:8192}
+      # 마지막으로 쓴 뒤 모델을 메모리에 남겨 둘 시간 (지나면 내려서 메모리를 돌려준다)
+      keep-alive: ${OLLAMA_KEEP_ALIVE:10m}
+    # 유료: Claude API. https://platform.claude.com → API Keys
     api-key: ${ANTHROPIC_API_KEY:}
     model: ${AI_MODEL:claude-opus-5-5}
     caption-model: ${AI_CAPTION_MODEL:claude-opus-5-5}

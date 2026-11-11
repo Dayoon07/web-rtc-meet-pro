@@ -305,7 +305,9 @@ class MeetingService(
             "ROOM_CLOSED" -> {
                 val meeting = findMeeting(cmd.meetingId!!)
                 participantRepository.findAllByMeetingIdAndLeftAtIsNull(meeting.id!!).forEach { it.leave(LeaveReason.MEETING_ENDED) }
-                if (meeting.status == MeetingStatus.LIVE) {
+                // 채널 음성방은 바로 끝내지 않는다: 새로고침·잠깐 끊김·"화상 화면으로" 전환 때 같은 방으로 돌아오게.
+                // 아무도 없이 VOICE_IDLE 이 지나면 endAbandoned 가 끝낸다
+                if (meeting.status == MeetingStatus.LIVE && !meeting.isVoice) {
                     meeting.end()
                     eventRepository.save(MeetingEvent(meeting.id!!, null, MeetingEventType.MEETING_ENDED))
                     events.publishEvent(MeetingEndedEvent(meeting.id!!))
@@ -339,8 +341,8 @@ class MeetingService(
     @Transactional
     fun endAbandoned(now: LocalDateTime = LocalDateTime.now()): Int {
         val stale = meetingRepository.findAllByStatus(MeetingStatus.LIVE).filter {
-            // 음성방은 아무도 없으면 2분 뒤에 끝낸다 (예정 시간이 따로 없다)
-            val due = if (it.isVoice) now.isAfter((it.startedAt ?: it.scheduledAt).plus(VOICE_IDLE)) else now.isAfter(it.scheduledAt.plusMinutes(it.durationMinutes.toLong()))
+            // 음성방은 마지막 사람이 나가고 VOICE_IDLE 이 지나면 끝낸다 (예정 시간이 따로 없다)
+            val due = if (it.isVoice) now.isAfter(lastActivity(it).plus(VOICE_IDLE)) else now.isAfter(it.scheduledAt.plusMinutes(it.durationMinutes.toLong()))
             due && participantRepository.countByMeetingIdAndLeftAtIsNull(it.id!!) == 0L
         }
         stale.forEach {
@@ -351,6 +353,11 @@ class MeetingService(
         }
         return stale.size
     }
+
+    /** 음성방에서 마지막으로 누가 나간 시각 (아무도 안 들어왔으면 시작 시각) */
+    private fun lastActivity(meeting: Meeting): LocalDateTime =
+        participantRepository.findAllByMeetingId(meeting.id!!).mapNotNull { it.leftAt }.maxOrNull()
+            ?: meeting.startedAt ?: meeting.scheduledAt
 
     private fun ensureInvitee(meeting: Meeting, userId: Long) {
         if (inviteeRepository.findAllByMeetingId(meeting.id!!).none { it.userId == userId }) {
@@ -437,7 +444,7 @@ class MeetingService(
     companion object {
         /** 음성방은 길이 제한 없이 (DB 규칙 최대 24시간) */
         const val VOICE_MINUTES = 1440
-        /** 아무도 없는 음성방을 정리하는 시간 */
-        val VOICE_IDLE: java.time.Duration = java.time.Duration.ofMinutes(2)
+        /** 아무도 없는 음성방을 정리하는 시간 (이 안에 다시 들어오면 같은 방) */
+        val VOICE_IDLE: java.time.Duration = java.time.Duration.ofMinutes(1)
     }
 }

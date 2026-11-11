@@ -1,8 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, MessageSquarePlus, MessagesSquare, NotebookPen, Pencil, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Download, FileText, FolderPlus, Hash, Headphones, MessageSquarePlus, MessagesSquare, NotebookPen, Pencil, PhoneOff, Plus, Settings2, Trash2, UserPlus, Users, Volume2 } from 'lucide-react'
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import {
   chatApi,
   chatKeys,
@@ -31,6 +31,7 @@ import {
   MessageComposer,
   StartDirectChatModal,
 } from '@/features/chat-room-actions'
+import { useVoice, VoiceBar, voiceSession } from '@/features/voice-chat'
 import { realtime, toastError } from '@/shared/api'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
@@ -78,7 +79,7 @@ function RoomRow({ room, active, myId, onSelect }: { room: ChatRoom; active: boo
               </span>
             )}
           </span>
-          {room.voice && room.voice.participants.length > 0 && <VoicePresence participants={room.voice.participants} />}
+          {room.voice && room.voice.participants.length > 0 && <VoicePresence roomId={room.id} participants={room.voice.participants} />}
         </span>
       </button>
     </li>
@@ -86,15 +87,18 @@ function RoomRow({ room, active, myId, onSelect }: { room: ChatRoom; active: boo
 }
 
 /** 채널 음성방에 들어와 있는 사람 (디스코드처럼 채널 아래에) */
-function VoicePresence({ participants }: { participants: { id: number; nickname: string; profileImageUrl: string | null }[] }) {
+function VoicePresence({ roomId, participants }: { roomId: number; participants: { id: number; nickname: string; profileImageUrl: string | null }[] }) {
   const { t } = useTranslation()
   const shown = participants.slice(0, 4)
+  // 내가 이 채널 음성에 들어가 있으면 지금 말하는 사람에게 초록 테두리
+  const voice = useVoice()
+  const speaking = new Set(voice.roomId === roomId ? voice.peers.filter((p) => p.speaking).map((p) => p.userId) : [])
   return (
     <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
       <Volume2 className="size-3.5 shrink-0" />
       <span className="flex -space-x-1.5">
         {shown.map((p) => (
-          <Avatar key={p.id} src={p.profileImageUrl} name={p.nickname} size="xs" ring className="ring-white dark:ring-gray-950" />
+          <Avatar key={p.id} src={p.profileImageUrl} name={p.nickname} size="xs" ring className={speaking.has(p.id) ? 'ring-green-500' : 'ring-white dark:ring-gray-950'} />
         ))}
       </span>
       <span className="truncate">{t('chat.voiceNow', { count: participants.length })}</span>
@@ -458,19 +462,10 @@ function MessageList({ messages, myId, hasMore, onLoadOlder, loadingOlder, canMo
 
 function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void; onLeft: () => void }) {
   const { t } = useTranslation()
-  const navigateTo = useNavigate()
-  const [joiningVoice, setJoiningVoice] = useState(false)
-  const joinVoice = async () => {
-    setJoiningVoice(true)
-    try {
-      const meeting = await chatApi.joinVoice(room.id)
-      navigateTo(`/meet/${meeting.id}?voice=1&back=${encodeURIComponent(`/app/chat/${room.teamId}/${room.id}`)}`)
-    } catch (e) {
-      toastError(e)
-    } finally {
-      setJoiningVoice(false)
-    }
-  }
+  // 채널 음성: 화면을 옮기지 않고 여기서 바로 말한다 (사이드바 아래 "음성 연결됨" 막대)
+  const voice = useVoice()
+  const inThisVoice = voice.roomId === room.id && (voice.status === 'connected' || voice.status === 'connecting')
+  const joinVoice = () => (inThisVoice ? voiceSession.leave() : void voiceSession.join(room))
   const queryClient = useQueryClient()
   const { data: me } = useMeQuery()
   const { data: team } = useTeamQuery(room.teamId)
@@ -555,13 +550,15 @@ function RoomView({ room, onBack, onLeft }: { room: ChatRoom; onBack: () => void
           <>
             <Button
               size="sm"
-              variant={room.voice ? 'primary' : 'secondary'}
-              icon={<Headphones className="size-4" />}
+              variant={inThisVoice ? 'outline' : room.voice ? 'primary' : 'secondary'}
+              icon={inThisVoice ? <PhoneOff className="size-4" /> : <Headphones className="size-4" />}
               onClick={joinVoice}
-              loading={joiningVoice}
-              title={t('chat.voiceHint')}
+              loading={voice.status === 'connecting' && voice.roomId === room.id}
+              title={t(inThisVoice ? 'voice.leave' : 'chat.voiceHint')}
             >
-              <span className="hidden sm:inline">{room.voice ? t('chat.voiceJoinLive', { count: room.voice.participants.length }) : t('chat.voiceJoin')}</span>
+              <span className="hidden sm:inline">
+                {inThisVoice ? t('voice.leave') : room.voice ? t('chat.voiceJoinLive', { count: room.voice.participants.length }) : t('chat.voiceJoin')}
+              </span>
             </Button>
             {canManageChannel && (
               <IconButton label={t('chat.channelSettings')} onClick={() => setSettings(true)}>
@@ -742,6 +739,7 @@ export function ChatWorkspace({
             />
           )}
         </div>
+        <VoiceBar me={me} />
       </aside>
 
       <section className={cn('flex min-w-0 flex-1 flex-col', !activeRoom && 'hidden md:flex')}>

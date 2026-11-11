@@ -1,11 +1,10 @@
 package com.webrtcmeetpro.external.anthropic
 
-import com.anthropic.core.JsonValue
 import com.anthropic.models.messages.JsonOutputFormat
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.OutputConfig
 import com.webrtcmeetpro.config.properties.AiProperties
-import com.webrtcmeetpro.domain.meeting.CaptionTranslator
+import com.webrtcmeetpro.external.ai.CaptionPrompt
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
@@ -19,58 +18,26 @@ class ClaudeCaptionTranslator(
     private val claude: ClaudeClients,
     private val props: AiProperties,
     private val json: JsonMapper,
-) : CaptionTranslator {
-
-    override val enabled: Boolean get() = claude.enabled
-
-    override fun translate(text: String, sourceLang: String, targetLangs: Collection<String>, context: List<String>): Map<String, String> {
-        val targets = targetLangs.filter { it.matches(LANG) }.distinct().sorted()
+) {
+    fun translate(text: String, sourceLang: String, targetLangs: Collection<String>, context: List<String>): Map<String, String> {
+        val targets = CaptionPrompt.targets(targetLangs)
         if (targets.isEmpty()) return emptyMap()
         val params = with(claude) {
             MessageCreateParams.builder()
                 .model(props.captionModel)
                 .maxTokens(2000L)
-                .system(SYSTEM)
+                .system(CaptionPrompt.SYSTEM)
                 .outputConfig(
                     OutputConfig.builder()
                         .effort(OutputConfig.Effort.LOW)
-                        .format(JsonOutputFormat.builder().schema(schema(targets)).build())
+                        .format(JsonOutputFormat.builder().schema(ClaudeClients.schema(CaptionPrompt.schema(targets))).build())
                         .build(),
                 )
-                .addUserMessage(
-                    buildString {
-                        if (context.isNotEmpty()) {
-                            appendLine("<previous_lines>")
-                            context.forEach { appendLine(it) }
-                            appendLine("</previous_lines>")
-                        }
-                        appendLine("<line lang=\"$sourceLang\">$text</line>")
-                        append("Translate the line into: ${targets.joinToString(", ")}")
-                    },
-                )
+                .addUserMessage(CaptionPrompt.render(text, sourceLang, targets, context))
                 .withFallbacks()
                 .build()
         }
         val out: Map<String, String> = json.readValue(ClaudeClients.text(claude.require().messages().create(params)))
-        return out.filterKeys { it in targets }.mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
-    }
-
-    private fun schema(targets: List<String>): JsonOutputFormat.Schema = JsonOutputFormat.Schema.builder()
-        .putAdditionalProperty("type", JsonValue.from("object"))
-        .putAdditionalProperty("properties", JsonValue.from(targets.associateWith { mapOf("type" to "string") }))
-        .putAdditionalProperty("required", JsonValue.from(targets))
-        .putAdditionalProperty("additionalProperties", JsonValue.from(false))
-        .build()
-
-    companion object {
-        private val LANG = Regex("[a-z]{2}")
-
-        private val SYSTEM = """
-            You translate live captions in a video meeting. Each line is one sentence a participant just said, produced by
-            speech recognition, so it may lack punctuation or contain small recognition errors; translate the intended meaning.
-            Return a natural, concise spoken-style translation for each requested language code (ko = Korean, en = English,
-            ja = Japanese, zh = Simplified Chinese). Keep names, product names and numbers as they are. The previous lines are
-            context only; translate just the line. If the line is already in a target language, return it unchanged for that language.
-        """.trimIndent()
+        return CaptionPrompt.clean(out, targets)
     }
 }

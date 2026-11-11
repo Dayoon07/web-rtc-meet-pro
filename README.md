@@ -108,7 +108,9 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | `STORAGE_TYPE` | `local` (서버 디스크, 기본) / `s3` (프로필 이미지·채팅 첨부·녹화를 S3 에) |
 | `S3_BUCKET` / `S3_REGION` / `S3_PREFIX` | 버킷 이름 / `ap-northeast-2` / 버킷 안 폴더(`dev`, `prod`) |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | IAM 사용자 키. 비우면 AWS 기본 방법(환경변수 `AWS_ACCESS_KEY_ID`, 서버 역할)으로 찾는다 |
-| `ANTHROPIC_API_KEY` | Claude API 키 (AI 회의록 요약). 비우면 AI 기능이 꺼진다 (회의실 버튼은 "준비 중") |
+| `AI_PROVIDER` / `AI_CAPTION_PROVIDER` | AI 를 누가 할지 (`auto` / `ollama` / `claude` / `none`). 아래 "AI 고르기" |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | 무료 AI Ollama 주소(`http://localhost:11434`) / 모델(`qwen2.5:7b`) |
+| `ANTHROPIC_API_KEY` | Claude API 키. Ollama 도 키도 없으면 AI 기능이 꺼진다 (회의실 버튼은 "준비 중") |
 | `AI_MODEL` / `AI_CAPTION_MODEL` / `AI_FALLBACKS` | 회의록 모델 / 자막 번역 모델(둘 다 기본 `claude-opus-5-5`) / 모델이 정책상 거절하면 추천 모델로 한 번 더(beta, 기본 `true`) |
 | `BILLING_RENEW_INTERVAL` | `10m` (구독 기간 확인: 자동결제·만료·만료 3일 전 알림) |
 
@@ -203,15 +205,29 @@ COMMIT;
 - 코드·DB 이름은 그대로 `team` 이고 화면 이름만 "워크스페이스" 다.
 - 카테고리·채널은 OWNER·ADMIN 이 만들고 이름을 바꾸고 옮긴다. 카테고리를 지우면 안의 채널은 카테고리 밖으로 나온다. (웹과 Android·Windows 앱 모두: 앱은 채팅 목록의 폴더 아이콘·카테고리 옆 연필/휴지통, 채널 화면의 설정 아이콘)
 - 채널 개수 제한 없음.
-- **채널 상시 음성방** (디스코드처럼): 채널 상단 "음성 참여" 를 누르면 그 채널의 진행 중인 음성방(`meetings.chat_room_id`)으로, 없으면 새로 연다. 카메라는 꺼진 채로 시작하고, 사이드바 채널 아래에 지금 들어와 있는 사람이 실시간으로 보인다. 알림은 보내지 않는다. 모두 나가면 끝나고(아무도 없으면 2분 뒤 정리) 다음에 누가 누르면 새로 열린다. 채널 참여자만 들어갈 수 있다. 앱은 채널 화면의 헤드폰 아이콘.
+- **채널 상시 음성방** (디스코드처럼): 웹은 채널 상단 "음성 참여" 를 누르면 **채팅 화면 그대로** 음성으로 연결된다 (회의 화면으로 가지 않음). 사이드바 아래 "음성 연결됨" 막대에서 마이크 끄기·소리 끄기·나가기, 말하는 사람은 초록 테두리. 다른 채널·다른 메뉴로 옮겨도 끊기지 않는다 (`features/voice-chat`, 화면 밖에 연결 하나). 카메라·화면 공유가 필요하면 막대의 "화상 화면으로" (같은 방으로 들어간다).
+  - 그 채널의 진행 중인 음성방(`meetings.chat_room_id`)으로, 없으면 새로 연다. 사이드바 채널 아래에 들어와 있는 사람이 실시간으로 보인다. 알림은 보내지 않는다. 채널 참여자만 들어갈 수 있다.
+  - 모두 나가도 1분 동안은 방이 남는다 (새로고침·잠깐 끊김·화상 화면 전환 때 같은 방으로). 1분이 지나면 끝나고 다음에 누가 누르면 새로 열린다.
+  - 앱(Android·Windows)은 채널 화면의 헤드폰 아이콘 → 회의 화면 (앱에는 아직 WebRTC 가 없어서).
 
 #### AI 회의록 (받아쓰기 → 요약 → 결정 사항·할 일 → 채널에 올리기)
 
 - 회의 중 아무나 아래 메모 아이콘으로 켜고 끈다. 켜지면 모두의 화면에 "AI 회의록 작성 중" 이 뜨고, **각 참여자 브라우저가 자기 마이크를 받아써서**(Web Speech API) 한 문장씩 보낸다 → 누가 말했는지 정확하다. 마이크를 끄면 받아쓰기도 멈춘다.
-- 회의가 끝나면(모두 나감) 서버가 Claude 로 요약 3~7줄 · 결정 사항 · 할 일(담당자 = 참석자 이름, 기한 = 날짜)을 만든다. 채널 음성방이면 그 채널에 카드로 올리고, 참석한 사람에게 알림. 회의 상세(웹·앱)에서 요약·할 일·받아쓴 내용을 볼 수 있고, 주최자·관리자는 "다시 만들기".
+- 회의가 끝나면(모두 나감, 채널 음성방은 1분 뒤) 서버가 AI(무료 Ollama 또는 Claude)로 요약 3~7줄 · 결정 사항 · 할 일(담당자 = 참석자 이름, 기한 = 날짜)을 만든다. "금요일까지" 같은 기한은 AI 가 요일만 고르고 날짜는 서버가 계산한다. 채널 음성방이면 그 채널에 카드로 올리고, 참석한 사람에게 알림. 회의 상세(웹·앱)에서 요약·할 일·받아쓴 내용을 볼 수 있고, 주최자·관리자는 "다시 만들기".
 - 플랜: 워크스페이스 플랜의 한 달 시간(`plans.ai_notes_minutes`, Pro 120분 · Team 600분 · Business 3000분, Free 없음). 켜져 있던 시간만큼 쓴다(`ai_usages`). 다 쓰면 켜지지 않고, 켜 둔 채 넘으면 자동으로 꺼진다.
 - 받아쓰기는 Chrome·Edge·Safari 만 된다 (Firefox·Android 앱 회의 화면은 그 사람 말만 빠진다). Chrome 받아쓰기는 소리를 Google 음성 인식으로 보낸다.
 - 로컬에서 API 키 없이 확인: `APP_AI_FAKE=true ANTHROPIC_API_KEY=x` 로 `bootTestRun` 하면 테스트 전용 가짜 요약기·번역기(`FakeMeetingNotesAi`, `FakeCaptionTranslator`)를 쓴다.
+
+#### AI 고르기: Ollama(무료) / Claude(유료)
+
+| | Ollama (내 PC·서버에서, 무료) | Claude API (유료) |
+|---|---|---|
+| 설정 | `OLLAMA_URL=http://localhost:11434` + `ollama pull qwen2.5:7b` | `ANTHROPIC_API_KEY` |
+| 회의록 | 됨. 10분 회의 요약이 노트북 CPU 로 3b 약 1분 · 7b 약 3~4분. 요약·결정은 쓸 만하고 할 일·기한은 가끔 빠짐 | 빠르고 정확 |
+| 실시간 자막 | 노트북 CPU 로도 한 문장에 8~40초 → **실시간으로는 못 씀** | 1~3초 |
+| 메모리 | qwen2.5:3b 약 2GB · 7b 약 4.5GB (쓴 뒤 `OLLAMA_KEEP_ALIVE` 가 지나면 내려간다) | 없음 |
+
+`AI_PROVIDER` = `auto`(기본: 키가 있으면 Claude, 없고 `OLLAMA_URL` 이 있으면 Ollama) / `ollama` / `claude` / `none`. `AI_CAPTION_PROVIDER` 로 자막만 따로 (예: 회의록 ollama, 자막 claude 또는 none). 모델은 `OLLAMA_MODEL`(기본 `qwen2.5:7b`), `OLLAMA_CAPTION_MODEL`. 긴 회의는 `OLLAMA_MAX_CONTEXT`(기본 8192 토큰)씩 나눠 요약한 뒤 합친다.
 
 #### 실시간 자막 · 번역 (Business 전용)
 

@@ -36,6 +36,27 @@ DB 서버를 따로 두지 않는다.
 - 받는 쪽(인바운드) 대역폭이 50Mbps 를 넘으면 iwinv 가 별도 계약을 요구할 수 있다 (동시에 영상을 보내는 사람 20~30명 수준).
 - 메모리 배분 (8GB): Oracle 약 2.5GB, 서버 최대 1.5GB, 사이드카 최대 1GB, Caddy·관리자 사이트 약 0.1GB, 나머지는 OS·디스크 캐시.
   서버·사이드카는 `docker-compose.yml` 의 `mem_limit` 로 막아 둬서 Oracle 메모리를 뺏지 않는다.
+- Oracle 을 컨테이너 대신 서버에 직접 설치해도 된다: `.env` 에서 `COMPOSE_PROFILES` 의 `oracle` 을 빼고
+  `DB_URL=jdbc:oracle:thin:@//host.docker.internal:1521/FREEPDB1` (Oracle 리스너가 도커 쪽에서도 접속을 받게 열어 둔다). 메모리는 그대로 약 2GB 다 (Oracle Free 한도).
+
+### 무료 AI(Ollama)를 같은 서버에 올릴 때 (2 vCPU · 8GB)
+
+| 무엇 | 메모리 (실제 쓰는 양) |
+|---|---|
+| Oracle (컨테이너든 직접 설치든) | 약 2GB (Free 한도) |
+| Spring 서버 | 0.8~1.5GB |
+| mediasoup 사이드카 | 0.2~0.5GB (회의가 많으면 늘어남) |
+| 웹·관리자(Caddy) | 약 0.1GB |
+| OS·도커 | 약 0.7GB |
+| **소계** | **약 4~5GB → AI 에 남는 것 3~4GB** |
+| Ollama qwen2.5:7b | 약 4.5~5GB → **8GB 에서는 모자란다** (스왑·강제 종료 위험) |
+| Ollama qwen2.5:3b | 약 2~2.3GB → 들어간다 |
+
+- 8GB 서버에서는 `OLLAMA_MODEL=qwen2.5:3b`, `OLLAMA_MEM_LIMIT=3g`, `OLLAMA_CPUS=1.0` (CPU 1개만 써서 회의 중계가 느려지지 않게).
+  모델은 쓸 때만 메모리에 올라가고 `OLLAMA_KEEP_ALIVE`(10분)가 지나면 내려간다.
+- CPU 1개로는 회의록이 회의가 끝나고 몇 분~10분 넘게 걸린다 (뒤에서 만들어지니 기다리면 된다).
+- **실시간 자막은 Ollama(CPU)로는 못 쓴다** (한 문장에 수십 초). `AI_CAPTION_PROVIDER=none` 으로 끄거나, 자막만 Claude(`claude` + `ANTHROPIC_API_KEY`).
+- 7b 를 쓰려면 16GB 서버(또는 AI 를 다른 서버로)가 필요하다.
 
 가격은 바뀔 수 있으니 신청 전에 [iwinv 서버 요금표](https://www.iwinv.kr/server/server)를 한 번 확인한다.
 

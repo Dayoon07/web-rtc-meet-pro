@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useMeQuery } from '@/entities/user'
+import { voiceSession } from '@/features/voice-chat'
 import { FullPageSpinner } from '@/shared/ui'
 import { MeetingRoom } from '@/widgets/meeting-room'
 
@@ -19,6 +20,8 @@ export function MeetPage() {
   const voice = params.get('voice') === '1'
   const back = params.get('back')
   const backTo = back && back.startsWith('/app/') ? back : null
+  // 채팅에서 음성으로 들어가 있었으면 먼저 끊는다 (같은 사람이 두 번 들어가지 않게). 회의실이 접속하기 전에 한 번
+  useState(() => voiceSession.leave())
 
   const exit = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['meetings'] })
