@@ -48,6 +48,8 @@ export const API = {
     item: (teamId: number) => `${TEAMS}/${part(teamId)}`,
     invitations: (teamId: number) => `${TEAMS}/${part(teamId)}/invitations`,
     invitation: (teamId: number, invitationId: number) => `${TEAMS}/${part(teamId)}/invitations/${part(invitationId)}`,
+    inviteLinks: (teamId: number) => `${TEAMS}/${part(teamId)}/invite-links`,
+    inviteLink: (teamId: number, linkId: number) => `${TEAMS}/${part(teamId)}/invite-links/${part(linkId)}`,
     member: (teamId: number, userId: number) => `${TEAMS}/${part(teamId)}/members/${part(userId)}`,
     memberRole: (teamId: number, userId: number) => `${TEAMS}/${part(teamId)}/members/${part(userId)}/role`,
     leave: (teamId: number) => `${TEAMS}/${part(teamId)}/leave`,
@@ -64,6 +66,11 @@ export const API = {
   },
 
   // ---- 받은 초대 ----
+  /** 팀 초대 링크로 들어온 사람: 팀 소개 · 들어가기 */
+  inviteLinks: {
+    item: (token: string) => `/invite-links/${part(token)}`,
+    join: (token: string) => `/invite-links/${part(token)}/join`,
+  },
   invitations: {
     mine: INVITATIONS,
     accept: (id: number) => `${INVITATIONS}/${part(id)}/accept`,

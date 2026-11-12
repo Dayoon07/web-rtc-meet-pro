@@ -1,12 +1,27 @@
 import { useQuery } from '@tanstack/react-query'
 import { API, request } from '@/shared/api'
-import type { ChangeRoleRequest, CreateTeamRequest, Invitation, InviteRequest, TeamDetail, TeamMember, TeamRole, TeamSummary } from '../model/types'
+import type {
+  ChangeRoleRequest,
+  CreateTeamRequest,
+  Invitation,
+  InviteLink,
+  InviteLinkJoined,
+  InviteLinkPasswordRequest,
+  InviteLinkPreview,
+  InviteRequest,
+  TeamDetail,
+  TeamMember,
+  TeamRole,
+  TeamSummary,
+} from '../model/types'
 
 export const teamKeys = {
   all: ['teams'] as const,
   detail: (id: number) => ['teams', id] as const,
   invitations: (id: number) => ['teams', id, 'invitations'] as const,
   myInvitations: ['invitations'] as const,
+  inviteLinks: (id: number) => ['teams', id, 'invite-links'] as const,
+  inviteLinkPreview: (token: string) => ['invite-links', token] as const,
 }
 
 export const teamApi = {
@@ -29,6 +44,16 @@ export const teamApi = {
   remove: (teamId: number) => request<void>(API.teams.item(teamId), { method: 'DELETE' }),
   accept: (id: number) => request<TeamSummary>(API.invitations.accept(id), { method: 'POST' }),
   decline: (id: number) => request<void>(API.invitations.decline(id), { method: 'POST' }),
+  /** 초대 링크 (INVITE_MEMBER 권한: 팀 소유자·관리자) */
+  inviteLinks: (teamId: number) => request<InviteLink[]>(API.teams.inviteLinks(teamId)),
+  createInviteLink: (teamId: number, password?: string) =>
+    request<InviteLink>(API.teams.inviteLinks(teamId), { method: 'POST', json: { password } satisfies InviteLinkPasswordRequest }),
+  deleteInviteLink: (teamId: number, linkId: number) => request<void>(API.teams.inviteLink(teamId, linkId), { method: 'DELETE' }),
+  /** 링크를 연 사람: 어떤 팀인지 · 비밀번호가 필요한지 */
+  inviteLinkPreview: (token: string) => request<InviteLinkPreview>(API.inviteLinks.item(token)),
+  /** 링크로 팀에 들어가기 */
+  joinByInviteLink: (token: string, password?: string) =>
+    request<InviteLinkJoined>(API.inviteLinks.join(token), { method: 'POST', json: { password } satisfies InviteLinkPasswordRequest }),
 }
 
 export const useTeamsQuery = (enabled = true) => useQuery({ queryKey: teamKeys.all, queryFn: teamApi.list, enabled })
@@ -36,3 +61,7 @@ export const useTeamQuery = (id: number) => useQuery({ queryKey: teamKeys.detail
 export const useTeamInvitationsQuery = (id: number, enabled: boolean) =>
   useQuery({ queryKey: teamKeys.invitations(id), queryFn: () => teamApi.teamInvitations(id), enabled })
 export const useMyInvitationsQuery = () => useQuery({ queryKey: teamKeys.myInvitations, queryFn: teamApi.myInvitations })
+export const useInviteLinksQuery = (teamId: number) => useQuery({ queryKey: teamKeys.inviteLinks(teamId), queryFn: () => teamApi.inviteLinks(teamId) })
+/** 지운 링크는 404 → 다시 시도하지 않는다 */
+export const useInviteLinkPreviewQuery = (token: string) =>
+  useQuery({ queryKey: teamKeys.inviteLinkPreview(token), queryFn: () => teamApi.inviteLinkPreview(token), enabled: !!token, retry: false })

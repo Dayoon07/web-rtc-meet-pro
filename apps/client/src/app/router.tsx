@@ -10,6 +10,7 @@ import { MeetingDetailPage } from '@/pages/meeting-detail'
 import { MeetingsPage } from '@/pages/meetings'
 import { NotFoundPage } from '@/pages/not-found'
 import { OAuthCallbackPage } from '@/pages/oauth-callback'
+import { JoinTeamPage } from '@/pages/join-team'
 import { OnboardingPage } from '@/pages/onboarding'
 import { TeamStartPage } from '@/pages/team-start'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/password-reset'
@@ -71,6 +72,8 @@ export const router = createBrowserRouter([
           {
             element: <RequireCompletedProfile />,
             children: [
+              // 팀 초대 링크: 팀이 없어도 열 수 있다 (수락하면 그 팀 채팅으로)
+              { element: <AuthLayout />, children: [{ path: ROUTES.joinPattern, element: <JoinTeamPage />, handle: { title: 'join.title' } }] },
               // 회의실(mediasoup-client, socket.io)은 들어갈 때만 내려받는다
               { path: ROUTES.meetPattern, lazy: async () => ({ Component: (await import('@/pages/meet')).MeetPage }) },
               {

@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { LoginForm } from '@/features/auth'
 import { translateDynamic } from '@/shared/i18n'
-import { ROUTES } from '@/shared/config/routes'
-
-/** 오픈 리다이렉트 방지: 내부 경로만 허용 */
-const safeRedirect = (value: string | null) => (value && value.startsWith('/') && !value.startsWith('//') ? value : ROUTES.chat())
+import { ROUTES, safeRedirect } from '@/shared/config/routes'
 
 export function LoginPage() {
   const { t } = useTranslation()

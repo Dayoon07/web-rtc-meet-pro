@@ -29,6 +29,10 @@ export const ROUTES = {
   meetPattern: '/meet/:meetingId',
   meet: (meetingId: number | string) => `/meet/${meetingId}`,
 
+  // ---- 팀 초대 링크 (로그인 뒤, 앱 화면 밖) ----
+  joinPattern: '/join/:token',
+  join: (token: string) => `/join/${token}`,
+
   // ---- 앱 화면 ----
   app: APP,
   chat: (teamId?: number | string, roomId?: number | string) =>
@@ -61,3 +65,6 @@ export const APP_CHILD_ROUTES = {
 
 /** 로그인하면 처음 가는 화면 (채팅 중심) */
 export const DEFAULT_APP_ROUTE = ROUTES.chat()
+
+/** 로그인 뒤 돌아갈 주소 (?redirect=). 오픈 리다이렉트 방지: 이 사이트 안 경로만, 아니면 처음 화면 */
+export const safeRedirect = (value: string | null) => (value && value.startsWith('/') && !value.startsWith('//') ? value : DEFAULT_APP_ROUTE)

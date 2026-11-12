@@ -65,7 +65,33 @@ export type Invitation = {
   createdAt: string
 }
 
+/** 팀 초대 링크 (팀 소유자·관리자가 만들고 지운다. 기간 제한 없음) */
+export type InviteLink = {
+  id: number
+  token: string
+  hasPassword: boolean
+  /** 이 링크로 들어온 사람 수 */
+  joinCount: number
+  createdByName: string | null
+  createdAt: string
+}
+
+/** 초대 링크를 연 사람이 보는 팀 소개 */
+export type InviteLinkPreview = {
+  teamId: number
+  teamName: string
+  teamDescription: string | null
+  memberCount: number
+  hasPassword: boolean
+  /** 이미 멤버면 수락 대신 "채팅으로 가기" */
+  alreadyMember: boolean
+}
+
+export type InviteLinkJoined = { teamId: number; teamName: string }
+
 // ---- 서버에 보내는 값 ----
 export type CreateTeamRequest = { name: string; description?: string }
+/** 초대 링크 만들기·들어가기 (비밀번호가 없으면 비워 둔다) */
+export type InviteLinkPasswordRequest = { password?: string }
 export type InviteRequest = { email: string }
 export type ChangeRoleRequest = { role: Exclude<TeamRole, 'OWNER'> }

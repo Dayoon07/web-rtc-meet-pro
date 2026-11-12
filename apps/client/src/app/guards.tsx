@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect } from 'react'
-import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
+import { Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { chatKeys } from '@/entities/chat'
 import { useAwayTracker, usePresenceRealtime } from '@/entities/presence'
 import { onPushNavigate, syncPush } from '@/entities/push'
@@ -10,7 +10,7 @@ import { useMeQuery } from '@/entities/user'
 import { realtime } from '@/shared/api'
 import { FullPageSpinner } from '@/shared/ui'
 import { useNotificationSideEffects } from '@/widgets/notification-bell'
-import { ROUTES } from '@/shared/config/routes'
+import { ROUTES, safeRedirect } from '@/shared/config/routes'
 
 /** 로그인 상태에서만 STOMP 연결을 유지하고, 실시간 이벤트로 캐시를 갱신한다 */
 function RealtimeBridge() {
@@ -82,6 +82,8 @@ export function OnboardingOnly() {
   return <Outlet />
 }
 
+/** 로그인·가입 화면은 로그인 전에만. 로그인되면 ?redirect= 주소(예: 팀 초대 링크)로, 없으면 채팅으로 */
 export function GuestOnly() {
-  return useIsAuthenticated() ? <Navigate to={ROUTES.chat()} replace /> : <Outlet />
+  const [params] = useSearchParams()
+  return useIsAuthenticated() ? <Navigate to={safeRedirect(params.get('redirect'))} replace /> : <Outlet />
 }

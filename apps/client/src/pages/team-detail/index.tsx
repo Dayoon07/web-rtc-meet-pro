@@ -8,7 +8,7 @@ import { chatApi } from '@/entities/chat'
 import { MeetingStatusBadge, useMeetingsQuery } from '@/entities/meeting'
 import { hasTeamPermission, teamApi, teamKeys, type TeamRole, useTeamQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
-import { InviteMemberPanel } from '@/features/invite-member'
+import { InviteLinkPanel, InviteMemberPanel } from '@/features/invite-member'
 import { JoinMeetingButton } from '@/features/meeting-actions'
 import { ScheduleMeetingModal, type ScheduleTarget } from '@/features/schedule-meeting'
 import { RemoveMemberButton, TeamExitButton } from '@/features/team-membership'
@@ -29,7 +29,7 @@ export function TeamDetailPage() {
   const { data: detail, isPending, isError } = useTeamQuery(teamId)
   const statusOf = usePresence(teamId)
   const { data: upcoming = [] } = useMeetingsQuery('upcoming')
-  const [tab, setTab] = useState<'members' | 'meetings'>('members')
+  const [tab, setTab] = useState<'members' | 'invite' | 'meetings'>('members')
   const scheduling = useDialog<ScheduleTarget>()
 
   const queryClient = useQueryClient()
@@ -54,6 +54,8 @@ export function TeamDetailPage() {
   const { team, members } = detail
   // 역할 바꾸기는 MANAGE_ROLES 권한(팀 OWNER)만. OWNER 와 나 자신은 바꿀 수 없다
   const canManageRoles = hasTeamPermission(team, 'MANAGE_ROLES')
+  // 멤버 초대(이메일·초대 링크)는 팀 소유자·관리자만
+  const canInvite = hasTeamPermission(team, 'INVITE_MEMBER')
   const meetings = upcoming.filter((m) => m.teamId === teamId)
 
   return (
@@ -85,7 +87,8 @@ export function TeamDetailPage() {
       </div>
 
       <div role="tablist" className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
-        {(['members', 'meetings'] as const).map((key) => (
+        {/* 멤버 초대 탭은 초대할 수 있는 사람(팀 소유자·관리자)에게만 */}
+        {(canInvite ? (['members', 'invite', 'meetings'] as const) : (['members', 'meetings'] as const)).map((key) => (
           <button
             key={key}
             role="tab"
@@ -103,8 +106,19 @@ export function TeamDetailPage() {
         ))}
       </div>
 
-      {tab === 'members' ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      {tab === 'invite' && canInvite ? (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">{t('teams.members.invite.title')}</h3>
+            <InviteMemberPanel detail={detail} />
+          </Card>
+          <Card>
+            <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">{t('teams.inviteLink.title')}</h3>
+            <InviteLinkPanel teamId={teamId} />
+          </Card>
+        </div>
+      ) : tab === 'members' ? (
+        <div>
           <Card className="p-0">
             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
               {members.map((m) => (
@@ -150,10 +164,6 @@ export function TeamDetailPage() {
                 </li>
               ))}
             </ul>
-          </Card>
-          <Card>
-            <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">{t('teams.members.invite.title')}</h3>
-            <InviteMemberPanel detail={detail} />
           </Card>
         </div>
       ) : meetings.length ? (
