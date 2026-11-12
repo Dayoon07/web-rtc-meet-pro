@@ -314,4 +314,5 @@
     <string name="start_invites_hint">초대를 수락하면 그 팀으로 들어가요. 따로 팀을 만들지 않아도 돼요.</string>
     <string name="start_create_title">새 팀 만들기</string>
     <string name="error_TEAM_ALREADY_OWNED">팀은 한 사람당 하나만 만들 수 있어요. 다른 팀은 초대를 받아 들어가요.</string>
+    <string name="notif_PAYMENT_REFUNDED">%1$s 플랜 결제 %2$s원을 환불했어요. 플랜은 바로 끝났어요</string>
 </resources>

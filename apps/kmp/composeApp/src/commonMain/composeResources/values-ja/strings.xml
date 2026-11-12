@@ -314,4 +314,5 @@
     <string name="start_invites_hint">招待を承諾するとそのチームに参加します。自分でチームを作る必要はありません。</string>
     <string name="start_create_title">新しいチームを作成</string>
     <string name="error_TEAM_ALREADY_OWNED">チームは1人1つまで作成できます。ほかのチームには招待で参加します。</string>
+    <string name="notif_PAYMENT_REFUNDED">%1$sプランの決済%2$sウォンを返金しました。プランは終了しました</string>
 </resources>

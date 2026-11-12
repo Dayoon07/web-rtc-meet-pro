@@ -315,4 +315,5 @@
     <string name="start_invites_hint">Accept an invitation to join that team. You don’t need to create your own.</string>
     <string name="start_create_title">Create a new team</string>
     <string name="error_TEAM_ALREADY_OWNED">You can create only one team. Join other teams by invitation.</string>
+    <string name="notif_PAYMENT_REFUNDED">Refunded %2$s KRW for the %1$s plan. The plan has ended</string>
 </resources>

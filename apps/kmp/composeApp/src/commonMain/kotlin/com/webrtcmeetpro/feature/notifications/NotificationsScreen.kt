@@ -3,6 +3,7 @@ package com.webrtcmeetpro.feature.notifications
 import com.webrtcmeetpro.resources.notif_MEETING_NOTES_READY
 import com.webrtcmeetpro.resources.notif_MEMBER_OVERAGE
 import com.webrtcmeetpro.resources.notif_OVERAGE_CHARGE_SOON
+import com.webrtcmeetpro.resources.notif_PAYMENT_REFUNDED
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +86,7 @@ private fun template(n: AppNotification): Pair<StringResource, Array<Any>>? {
         "MEETING_NOTES_READY" -> Res.string.notif_MEETING_NOTES_READY to arrayOf(n.param("title"), n.param("actions"))
         "MEMBER_OVERAGE" -> Res.string.notif_MEMBER_OVERAGE to arrayOf(n.param("teamName"), n.param("limit"), n.param("excess"), n.param("amount"))
         "OVERAGE_CHARGE_SOON" -> Res.string.notif_OVERAGE_CHARGE_SOON to arrayOf(n.param("teamName"), time.ifEmpty { n.param("date").takeIf { it.isNotEmpty() }?.let(::formatDateTime).orEmpty() }, n.param("amount"), n.param("excess"))
+        "PAYMENT_REFUNDED" -> Res.string.notif_PAYMENT_REFUNDED to arrayOf(n.param("planName"), n.param("amount"))
         else -> null
     }
 }

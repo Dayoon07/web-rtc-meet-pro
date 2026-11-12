@@ -88,7 +88,15 @@ class BillingServiceTest {
             charged += amount
             return TossPayment("pk_$orderId", "카드", "https://receipt.test/$orderId")
         }
+
+        /** 환불: failCancel 이 있으면 그 오류로 거절, 아니면 (paymentKey, 부분 금액) 을 남긴다 */
+        override fun cancel(paymentKey: String, reason: String, amount: Long?, idempotencyKey: String) {
+            failCancel?.let { failCancel = null; throw it }
+            canceled += paymentKey to amount
+        }
     }
+    private var failCancel: TossException? = null
+    private val canceled = mutableListOf<Pair<String, Long?>>()
     private val noTx = object : PlatformTransactionManager {
         override fun getTransaction(definition: TransactionDefinition?): TransactionStatus = SimpleTransactionStatus()
         override fun commit(status: TransactionStatus) {}
@@ -102,6 +110,8 @@ class BillingServiceTest {
         tossClient, toss, cipher, planService, fakes.billingKeyRepo, fakes.paymentRepo, fakes.subscriptionRepo, users,
         fakes.teamRepo, notifications, mailService, WebProperties("http://web.test"), overage, noTx,
     )
+
+    private val refunds = RefundService(tossClient, fakes.paymentRepo, fakes.subscriptionRepo, planService, fakes.teamRepo, notifications, noTx)
 
     /** 워크스페이스에 멤버를 n 명 더 (소유자 포함 1 + n 명) */
     private fun addMembers(teamId: Long, n: Int) = repeat(n) { fakes.join(teamId, 10_000L + it) }
@@ -472,5 +482,89 @@ class BillingServiceTest {
         assertFalse(team.overageAllowed)
         assertEquals(3, fakes.payments.count { it.status == PaymentStatus.FAILED })
         assertTrue(sent.any { it.type == NotificationType.PAYMENT_FAILED })
+    }
+
+    // ------------------------------------------------------------- 환불
+
+    @Test
+    fun `7일 안이면 전액 환불하고 그 플랜은 바로 끝난다`() {
+        registerCard()
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true)
+        val payment = fakes.payments.single()
+        val quote = refunds.quoteForUser(payment.orderId, uid)
+        assertTrue(quote.refundable)
+        assertEquals(RefundRule.FULL_7_DAYS, quote.rule)
+        assertEquals(19_900, quote.refundAmount)
+        assertTrue(quote.cancelsPlan)
+
+        refunds.refundByUser(payment.orderId, uid, "생각보다 안 써요")
+        assertEquals(PaymentStatus.CANCELED, payment.status)
+        assertEquals(19_900, payment.refundedAmount)
+        assertEquals(listOf<Pair<String, Long?>>("pk_${payment.orderId}" to null), canceled, "전액은 금액 없이 취소")
+        assertEquals("FREE", planService.planOfTeam(ws).code, "환불하면 플랜을 바로 못 쓴다")
+        assertEquals(SubscriptionStatus.CANCELED, fakes.subscriptions.single { it.currentPeriodEnd != null }.status)
+        assertTrue(sent.any { it.type == NotificationType.PAYMENT_REFUNDED })
+        assertEquals(19_900, billing.history(uid).single().refundedAmount)
+        // 두 번은 안 된다
+        assertEquals(ErrorCode.REFUND_NOT_ALLOWED, assertThrows<BusinessException> { refunds.refundByUser(payment.orderId, uid, null) }.errorCode)
+    }
+
+    @Test
+    fun `7일이 지나면 이 결제 기간 중 쓴 날수만큼 빼고 부분 환불`() {
+        registerCard()
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        val payment = fakes.payments.single()
+        val later = payment.approvedAt!!.plusDays(10)
+        val quote = refunds.quoteForUser(payment.orderId, uid, later)
+        assertEquals(RefundRule.PRORATED, quote.rule)
+        assertEquals(10, quote.usedDays)
+        val expected = 19_900 - Math.round(19_900.0 * 10 / quote.periodDays)
+        assertEquals(expected, quote.refundAmount)
+        refunds.refundByUser(payment.orderId, uid, null, later)
+        assertEquals(listOf<Pair<String, Long?>>("pk_${payment.orderId}" to expected), canceled, "부분 취소는 금액을 보낸다")
+        assertEquals(expected, payment.refundedAmount)
+    }
+
+    @Test
+    fun `연 결제는 할인 전 월 요금으로 쓴 날을 계산한다`() {
+        registerCard()
+        billing.purchase(uid, ws, "PRO", BillingCycle.YEARLY, autoRenew = false)
+        val payment = fakes.payments.single()
+        val quote = refunds.quoteForUser(payment.orderId, uid, payment.approvedAt!!.plusDays(30))
+        assertEquals(payment.amount - Math.round(4_900 / 30.0 * 30), quote.refundAmount)
+    }
+
+    @Test
+    fun `사용자는 그 플랜의 가장 최근 결제만 환불할 수 있고 남의 결제는 못 본다`() {
+        registerCard()
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false) // 같은 플랜을 미리 사서 이어 붙임
+        val (first, second) = fakes.payments
+        assertEquals(ErrorCode.REFUND_NOT_LATEST.name, refunds.quoteForUser(first.orderId, uid).blockedBy)
+        assertTrue(refunds.quoteForUser(second.orderId, uid).refundable)
+        assertEquals(ErrorCode.PAYMENT_NOT_FOUND, assertThrows<BusinessException> { refunds.quoteForUser(second.orderId, uid + 777) }.errorCode)
+    }
+
+    @Test
+    fun `토스가 환불을 거절하면 결제와 플랜은 그대로`() {
+        registerCard()
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        val payment = fakes.payments.single()
+        failCancel = TossException("ALREADY_CANCELED_PAYMENT", "이미 취소된 결제입니다.")
+        assertEquals(ErrorCode.REFUND_FAILED, assertThrows<BusinessException> { refunds.refundByUser(payment.orderId, uid, null) }.errorCode)
+        assertEquals(PaymentStatus.DONE, payment.status)
+        assertEquals("TEAM", planService.planOfTeam(ws).code)
+    }
+
+    @Test
+    fun `관리자는 금액을 정해서 환불하고 결제 금액보다 많이는 못 한다`() {
+        registerCard()
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        val payment = fakes.payments.single()
+        assertEquals(ErrorCode.INVALID_REFUND_AMOUNT, assertThrows<BusinessException> { refunds.refundByAdmin(payment.orderId, 1, 20_000, "x") }.errorCode)
+        refunds.refundByAdmin(payment.orderId, 1, 5_000, "장애 보상")
+        assertEquals(5_000, payment.refundedAmount)
+        assertEquals("장애 보상", payment.refundReason)
+        assertEquals("FREE", planService.planOfTeam(ws).code)
     }
 }

@@ -109,6 +109,18 @@ class Payment(
     var approveNo: String? = null
         protected set
 
+    /** 환불한 금액 (전액이면 amount). 환불 시각은 canceled_at */
+    @Column(nullable = false)
+    var refundedAmount: Long = 0
+        protected set
+
+    var refundReason: String? = null
+        protected set
+
+    /** 환불한 사람 (결제한 사람 또는 관리자) */
+    var refundedBy: Long? = null
+        protected set
+
     fun approve(
         paymentKey: String?,
         method: String?,
@@ -144,6 +156,16 @@ class Payment(
         status = PaymentStatus.CANCELED
         canceledAt = at
     }
+
+    /** 환불 (토스 취소가 끝난 뒤): 전액·부분 모두 CANCELED + 환불 금액·사유·한 사람 */
+    fun refund(amount: Long, reason: String?, by: Long, at: LocalDateTime = LocalDateTime.now()) {
+        check(status == PaymentStatus.DONE) { "승인된 결제만 환불할 수 있습니다." }
+        require(amount in 1..this.amount) { "환불 금액은 1원 ~ 결제 금액입니다." }
+        refundedAmount = amount
+        refundReason = reason?.take(200)
+        refundedBy = by
+        cancel(at)
+    }
 }
 
 interface PaymentRepository {
@@ -151,6 +173,8 @@ interface PaymentRepository {
     fun findByOrderId(orderId: String): Payment?
     fun findAllByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
     fun findTop50ByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
+    /** 한 구독의 결제 (최근 것부터) — 사용자는 가장 최근 결제만 환불할 수 있다 */
+    fun findAllBySubscriptionIdOrderByIdDesc(subscriptionId: Long): List<Payment>
 }
 
 /** 토스 자동결제 빌링키. billingKey 는 애플리케이션에서 암호화한 값 */

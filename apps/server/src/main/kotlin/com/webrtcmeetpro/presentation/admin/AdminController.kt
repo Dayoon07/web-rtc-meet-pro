@@ -1,5 +1,10 @@
 package com.webrtcmeetpro.presentation.admin
 
+import com.webrtcmeetpro.application.admin.AdminPaymentService
+import com.webrtcmeetpro.application.admin.AdminPaymentView
+import com.webrtcmeetpro.application.plan.RefundQuoteView
+import com.webrtcmeetpro.application.plan.RefundService
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.http.HttpStatus
 import com.webrtcmeetpro.application.admin.PendingSignupView
@@ -26,7 +31,30 @@ class AdminController(
     private val errorLogs: AdminErrorLogService,
     private val admins: SystemAdminAccess,
     private val verifications: AdminEmailVerificationService,
+    private val adminPayments: AdminPaymentService,
+    private val refunds: RefundService,
 ) {
+
+    /** 최근 결제 200건. q = 주문번호·이메일·주문명·팀 이름, status = DONE | CANCELED | FAILED ... */
+    @GetMapping("/payments")
+    fun payments(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?, @RequestParam(required = false) status: String?): List<AdminPaymentView> {
+        admins.require(jwt.userId)
+        return adminPayments.recent(q, status)
+    }
+
+    /** 환불 미리 계산 (약관대로 계산한 금액) */
+    @GetMapping("/payments/{orderId}/refund")
+    fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteView {
+        admins.require(jwt.userId)
+        return refunds.quoteForAdmin(orderId)
+    }
+
+    /** 관리자 환불: amount 가 없으면 약관대로 계산한 금액. 그 플랜은 바로 끝난다 */
+    @PostMapping("/payments/{orderId}/refund")
+    fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @RequestBody body: AdminRefundRequest): RefundQuoteView {
+        admins.require(jwt.userId)
+        return refunds.refundByAdmin(orderId, jwt.userId, body.amount, body.reason)
+    }
 
     /** 이메일 인증을 기다리는 가입 (최근 200명). q = 이메일·닉네임·이름 일부 */
     @GetMapping("/signups/pending")
@@ -67,3 +95,6 @@ class AdminController(
     @PostMapping("/error-logs/{errorCode}/resolve")
     fun resolve(@AuthenticationPrincipal jwt: Jwt, @PathVariable errorCode: String) = errorLogs.resolve(jwt.userId, errorCode)
 }
+
+/** 관리자 환불: amount = 환불 금액 (없으면 약관대로 계산한 금액), reason = 사유 */
+data class AdminRefundRequest(val amount: Long? = null, val reason: String? = null)

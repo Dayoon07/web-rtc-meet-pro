@@ -139,6 +139,8 @@ export const API = {
     cardPrepare: `${BILLING}/card/prepare`,
     card: `${BILLING}/card`,
     payments: `${BILLING}/payments`,
+    /** 환불 미리 계산(GET) · 환불(POST) */
+    refund: (orderId: string) => `${BILLING}/payments/${part(orderId)}/refund`,
   },
 
   // ---- 브라우저 푸시 ----

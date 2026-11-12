@@ -66,6 +66,10 @@ data class PaymentView(
     /** 이 결제에 들어간 초과 인원과 그 금액 (영수증에 따로) */
     val overageMembers: Int = 0,
     val overageAmount: Long = 0,
+    /** 환불한 금액 · 시각 · 사유 (환불 안 했으면 0 · null) */
+    val refundedAmount: Long = 0,
+    val refundedAt: LocalDateTime? = null,
+    val refundReason: String? = null,
 )
 
 /**
@@ -189,6 +193,9 @@ class BillingService(
                 kind = it.paymentKind,
                 overageMembers = it.overageMembers,
                 overageAmount = it.overageAmount,
+                refundedAmount = it.refundedAmount,
+                refundedAt = it.canceledAt.takeIf { _ -> it.refundedAmount > 0 },
+                refundReason = it.refundReason,
             )
         }
     }

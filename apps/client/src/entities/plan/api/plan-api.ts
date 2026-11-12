@@ -11,6 +11,8 @@ import type {
   Payment,
   Plan,
   PurchaseRequest,
+  RefundQuote,
+  RefundRequest,
   RegisterCardRequest,
   Subscription,
 } from '../model/types'
@@ -42,6 +44,11 @@ export const planApi = {
   registerCard: (customerKey: string, authKey: string) => request<Card>(API.billing.card, { method: 'POST', json: { customerKey, authKey } satisfies RegisterCardRequest }),
   removeCard: () => request<void>(API.billing.card, { method: 'DELETE' }),
   payments: () => request<Payment[]>(API.billing.payments),
+  /** 환불 미리 계산 (내가 결제한 것만) */
+  refundQuote: (orderId: string) => request<RefundQuote>(API.billing.refund(orderId)),
+  /** 환불: 약관대로 계산한 금액, 그 플랜은 바로 끝난다 */
+  refund: (orderId: string, reason: string | undefined, agree: boolean) =>
+    request<RefundQuote>(API.billing.refund(orderId), { method: 'POST', json: { reason, agree } satisfies RefundRequest }),
   /** 멤버 한도 초과: 인원·초과 인원·다음 결제 금액 */
   overage: (teamId: number) => request<OverageInfo>(API.teams.overage(teamId)),
   /** 한도 초과 허용 켜기(동의 필요)·끄기 (소유자) */

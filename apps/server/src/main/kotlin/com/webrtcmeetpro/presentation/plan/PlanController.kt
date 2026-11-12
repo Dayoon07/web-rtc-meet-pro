@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.presentation.plan
 
+import com.webrtcmeetpro.application.plan.RefundQuoteView
+import com.webrtcmeetpro.application.plan.RefundService
 import com.webrtcmeetpro.application.plan.BillingService
 import com.webrtcmeetpro.application.plan.MemberOverageService
 import com.webrtcmeetpro.application.plan.CardRegistrationView
@@ -49,6 +51,7 @@ class PlanController(
     private val planService: PlanService,
     private val billingService: BillingService,
     private val overageService: MemberOverageService,
+    private val refunds: RefundService,
 ) {
 
     /** 멤버 한도 초과: 지금 인원·초과 인원·다음 결제 금액 (워크스페이스 멤버) */
@@ -103,4 +106,18 @@ class PlanController(
 
     @GetMapping("/billing/payments")
     fun payments(@AuthenticationPrincipal jwt: Jwt): List<PaymentView> = billingService.history(jwt.userId)
+
+    /** 환불 미리 계산 (내가 결제한 것만) */
+    @GetMapping("/billing/payments/{orderId}/refund")
+    fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteView = refunds.quoteForUser(orderId, jwt.userId)
+
+    /** 환불: 약관대로 계산한 금액, 그 플랜은 바로 끝난다. agree = 플랜이 바로 끝나는 것에 동의 */
+    @PostMapping("/billing/payments/{orderId}/refund")
+    fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @Valid @RequestBody request: RefundRequest): RefundQuoteView {
+        if (request.agree != true) throw BusinessException(ErrorCode.REFUND_NOT_ALLOWED, mapOf("reason" to "AGREE_REQUIRED"))
+        return refunds.refundByUser(orderId, jwt.userId, request.reason)
+    }
 }
+
+/** 환불 요청. reason = 사유(선택), agree = "환불하면 플랜이 바로 끝나요" 확인 */
+data class RefundRequest(@field:Size(max = 200) val reason: String? = null, val agree: Boolean? = null)

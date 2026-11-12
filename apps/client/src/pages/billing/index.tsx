@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Receipt } from 'lucide-react'
+import { Building2, Receipt, Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router'
@@ -20,6 +20,7 @@ import { useTeamsQuery } from '@/entities/team'
 import { userKeys } from '@/entities/user'
 import { OverageCard } from '@/features/member-overage'
 import { AutoRenewSwitch, ManageCard } from '@/features/purchase-plan'
+import { RefundPaymentModal } from '@/features/refund-payment'
 import { errorMessage } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Badge, Card, EmptyState, FullPageSpinner, LinkButton, Select, Spinner } from '@/shared/ui'
@@ -160,6 +161,7 @@ function PaymentHistory() {
   const fmt = useFormat()
   const { data, isPending } = usePaymentsQuery()
   const receipt = useDialog<Payment>()
+  const refund = useDialog<Payment>()
   return (
     <Card className="p-6">
       <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">{t('billing.history.title')}</h3>
@@ -200,7 +202,18 @@ function PaymentHistory() {
                   <td className="py-2.5 pl-4">
                     <PaymentStatusCell payment={p} />
                   </td>
-                  <td className="py-2.5 pl-4 text-right">
+                  <td className="py-2.5 pl-4 text-right whitespace-nowrap">
+                    {/* 승인된 플랜 결제만 (초과 인원 요금은 고객센터로) */}
+                    {p.status === 'DONE' && p.kind !== 'OVERAGE' && (
+                      <button
+                        type="button"
+                        onClick={() => refund.show(p)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold whitespace-nowrap text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                      >
+                        <Undo2 className="size-3.5" />
+                        {t('billing.refund.open')}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => receipt.show(p)}
@@ -217,6 +230,7 @@ function PaymentHistory() {
         </div>
       )}
       <ReceiptModal dialog={receipt} />
+      <RefundPaymentModal dialog={refund} />
     </Card>
   )
 }
@@ -229,6 +243,9 @@ function PaymentStatusCell({ payment }: { payment: Payment }) {
         <Badge tone={payment.status === 'DONE' ? 'green' : 'gray'}>{t(`billing.history.statuses.${payment.status}`)}</Badge>
       </span>
       {payment.failureMessage && <span className="text-xs text-red-600 dark:text-red-400">{payment.failureMessage}</span>}
+      {payment.refundedAmount > 0 && (
+        <span className="text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">{t('billing.refund.refunded', { amount: formatPrice(payment.refundedAmount) })}</span>
+      )}
     </div>
   )
 }

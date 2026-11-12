@@ -119,6 +119,40 @@ export type ErrorLog = {
 
 export type AdminMe = { id: number; email: string; nickname: string }
 
+/** 결제·환불 목록 한 줄 */
+export type AdminPayment = {
+  orderId: string
+  orderName: string
+  amount: number
+  status: 'READY' | 'DONE' | 'CANCELED' | 'FAILED' | 'ABORTED'
+  paymentKind: 'PLAN' | 'OVERAGE'
+  billingCycle: 'MONTHLY' | 'YEARLY' | null
+  userId: number
+  userEmail: string | null
+  teamName: string | null
+  approvedAt: string | null
+  createdAt: string
+  refundedAmount: number
+  refundedAt: string | null
+  refundReason: string | null
+  hasPaymentKey: boolean
+}
+
+/** 환불 미리 계산 (약관 제8조) */
+export type RefundQuote = {
+  orderId: string
+  orderName: string
+  planName: string
+  paidAmount: number
+  refundable: boolean
+  refundAmount: number
+  rule: 'FULL_7_DAYS' | 'PRORATED' | 'NONE'
+  usedDays: number
+  periodDays: number
+  blockedBy: string | null
+  cancelsPlan: boolean
+}
+
 /** 이메일 인증을 기다리는 가입 */
 export type PendingSignup = {
   id: number
@@ -151,6 +185,16 @@ export const adminApi = {
   verifyEmail: (userId: number) => http<void>(`/admin/users/${userId}/verify-email`, { method: 'POST' }),
   /** 이메일 인증 거절 = 가입 취소 */
   rejectSignup: (userId: number) => http<void>(`/admin/users/${userId}/reject-signup`, { method: 'POST' }),
+  payments: (q: string, status: string) => {
+    const p = new URLSearchParams()
+    if (q) p.set('q', q)
+    if (status) p.set('status', status)
+    return http<AdminPayment[]>(`/admin/payments?${p}`)
+  },
+  refundQuote: (orderId: string) => http<RefundQuote>(`/admin/payments/${encodeURIComponent(orderId)}/refund`),
+  /** 환불: 토스 결제 취소 + 그 플랜 바로 끝 */
+  refund: (orderId: string, amount: number, reason: string) =>
+    http<RefundQuote>(`/admin/payments/${encodeURIComponent(orderId)}/refund`, { method: 'POST', json: { amount, reason } }),
 }
 
 /** CSV 같은 파일 내려받기 (토큰을 붙여야 해서 <a href> 로는 안 된다) */

@@ -35,6 +35,8 @@ enum class NotificationType {
     MEMBER_OVERAGE,
     /** 3일 뒤 초과 인원 요금이 들어간 결제 */
     OVERAGE_CHARGE_SOON,
+    /** 결제를 환불함 (그 플랜은 바로 끝남) */
+    PAYMENT_REFUNDED,
 }
 
 /** 문구는 저장하지 않는다. type + params(JSON) 를 클라이언트가 사용자 언어로 번역해 보여준다 */

@@ -105,7 +105,33 @@ export type Payment = {
   kind?: 'PLAN' | 'OVERAGE'
   overageMembers?: number
   overageAmount?: number
+  /** 환불한 금액 · 시각 · 사유 (환불 안 했으면 0 · null) */
+  refundedAmount: number
+  refundedAt: string | null
+  refundReason: string | null
 }
+
+/** 환불 미리 계산 (약관 제8조): FULL_7_DAYS = 7일 안 전액, PRORATED = 쓴 날수만큼 빼고, NONE = 못 함 */
+export type RefundQuote = {
+  orderId: string
+  orderName: string
+  planName: string
+  paidAmount: number
+  approvedAt: string | null
+  periodEnd: string | null
+  refundable: boolean
+  refundAmount: number
+  rule: 'FULL_7_DAYS' | 'PRORATED' | 'NONE'
+  usedDays: number
+  periodDays: number
+  /** 못 할 때 이유 (오류 코드) */
+  blockedBy: string | null
+  /** 환불하면 함께 끝나는 플랜이 지금 쓰이는 중인지 */
+  cancelsPlan: boolean
+}
+
+/** 환불 요청: agree = "환불하면 플랜이 바로 취소돼요" 확인 */
+export type RefundRequest = { reason?: string; agree: boolean }
 
 /** 워크스페이스 멤버 한도 초과 (소유자가 허용하면 1명당 월 요금) */
 export type OverageInfo = {

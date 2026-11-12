@@ -92,6 +92,7 @@ class PlanFakes(val plans: List<Plan>) {
         override fun findByOrderId(orderId: String) = payments.find { it.orderId == orderId }
         override fun findAllByUserIdOrderByCreatedDtDesc(userId: Long) = payments.filter { it.userId == userId }
         override fun findTop50ByUserIdOrderByCreatedDtDesc(userId: Long) = payments.filter { it.userId == userId }.take(50)
+        override fun findAllBySubscriptionIdOrderByIdDesc(subscriptionId: Long) = payments.filter { it.subscriptionId == subscriptionId }.sortedByDescending { it.id }
     }
     val teamRepo = object : TeamRepository {
         override fun save(team: Team) = team

@@ -73,6 +73,20 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         )
     }
 
+    /**
+     * 결제 취소 = 환불 (https://docs.tosspayments.com/reference#결제-취소). amount 가 null 이면 전액, 있으면 부분 취소.
+     * idempotencyKey 로 같은 환불을 두 번 보내도 한 번만 취소된다
+     */
+    fun cancel(paymentKey: String, reason: String, amount: Long?, idempotencyKey: String) {
+        val payload = buildMap<String, Any> {
+            put("cancelReason", reason.ifBlank { "환불" })
+            amount?.let { put("cancelAmount", it) }
+        }
+        val body = post("/v1/payments/${URLEncoder.encode(paymentKey, Charsets.UTF_8)}/cancel", payload, idempotencyKey)
+        val status = body["status"] as? String
+        if (status != "CANCELED" && status != "PARTIAL_CANCELED") throw TossException(status ?: "UNKNOWN", "환불이 끝나지 않았어요.")
+    }
+
     private fun post(path: String, payload: Map<String, Any>, idempotencyKey: String?): Map<*, *> {
         val auth = Base64.getEncoder().encodeToString("${props.secretKey}:".toByteArray())
         val request = HttpRequest.newBuilder(URI.create(props.apiUrl + path))

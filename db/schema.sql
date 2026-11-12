@@ -1,5 +1,6 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v1.8  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v1.9  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+--   v1.9: 환불(payments.refunded_amount, refund_reason, refunded_by), 환불 알림(PAYMENT_REFUNDED). 기존 DB 는 db/migrations/v1.9-refunds.sql
 --   v1.8: 팀 초대 링크(team_invite_links). 기존 DB 는 db/migrations/v1.8-team-invite-links.sql
 --   v1.7: 웹 푸시(push_subscriptions), 채널 알림 끄기(chat_room_members.muted_yn), 방해 금지 시간(users.dnd_*). 기존 DB 는 db/migrations/v1.7-push-mute-dnd.sql
 --   v1.6: 채팅 답장·멘션(chat_messages.reply_to_id, mention_*), 이모지 반응(chat_message_reactions), CHAT_MENTION 알림. 기존 DB 는 db/migrations/v1.6-chat-replies-reactions.sql
@@ -281,6 +282,9 @@ CREATE TABLE payments (
     failure_message     VARCHAR2(500 CHAR),
     approved_at         TIMESTAMP(6),
     canceled_at         TIMESTAMP(6),
+    refunded_amount     NUMBER(12)      DEFAULT 0 NOT NULL,     -- 환불한 금액 (v1.9)
+    refund_reason       VARCHAR2(200),
+    refunded_by         NUMBER(19),
     billing_cycle       VARCHAR2(10),                     -- MONTHLY / YEARLY
     period_end          TIMESTAMP(6),                     -- 이 결제로 늘어난 구독 기간 끝
     team_id             NUMBER(19),                       -- 요금제를 적용한 워크스페이스
@@ -303,6 +307,7 @@ CREATE TABLE payments (
     CONSTRAINT fk_payments_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions (subscription_id),
     CONSTRAINT fk_payments_billing_key FOREIGN KEY (billing_key_id) REFERENCES billing_keys (billing_key_id),
     CONSTRAINT ck_payments_amount CHECK (amount >= 0),
+    CONSTRAINT ck_payments_refunded_amount CHECK (refunded_amount >= 0 AND refunded_amount <= amount),
     CONSTRAINT ck_payments_status CHECK (status IN ('READY', 'DONE', 'CANCELED', 'FAILED', 'ABORTED')),
     CONSTRAINT ck_payments_cycle CHECK (billing_cycle IN ('MONTHLY', 'YEARLY')),
     CONSTRAINT ck_payments_kind CHECK (payment_kind IN ('PLAN', 'OVERAGE')),
@@ -809,7 +814,7 @@ CREATE TABLE notifications (
         'CHAT_ROOM_INVITED', 'CHAT_MENTION',
         'MEETING_SCHEDULED', 'MEETING_REMINDER', 'MEETING_STARTED', 'MEETING_CANCELED', 'MEETING_UPDATED',
         'MEETING_NOTES_READY',
-        'PLAN_EXPIRING', 'PLAN_EXPIRED', 'PAYMENT_FAILED',
+        'PLAN_EXPIRING', 'PLAN_EXPIRED', 'PAYMENT_FAILED', 'PAYMENT_REFUNDED',
         'MEMBER_OVERAGE', 'OVERAGE_CHARGE_SOON'
     )),
     CONSTRAINT ck_notifications_deleted_yn CHECK (deleted_yn IN ('Y', 'N'))

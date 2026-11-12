@@ -314,4 +314,5 @@
     <string name="start_invites_hint">接受邀请即可加入该团队，无需自己创建团队。</string>
     <string name="start_create_title">创建新团队</string>
     <string name="error_TEAM_ALREADY_OWNED">每人只能创建一个团队。其他团队可通过邀请加入。</string>
+    <string name="notif_PAYMENT_REFUNDED">已退还 %1$s 套餐付款 %2$s 韩元，套餐已结束</string>
 </resources>
