@@ -143,8 +143,9 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
           </div>
         )}
 
-        <nav className={cn('flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-2', mini && 'md:px-2')} onClick={onClose}>
-          <div className="flex flex-col gap-0.5">
+        {/* 사이드바 전체는 스크롤하지 않는다: 위 메뉴·지금 팀·아래 메뉴는 고정, 채팅 목록만 스크롤 (TeamRoomPanel) */}
+        <nav className={cn('flex min-h-0 flex-1 flex-col gap-4 px-3 py-2', mini && 'md:px-2')} onClick={onClose}>
+          <div className="flex shrink-0 flex-col gap-0.5">
             <NavItem item={{ to: ROUTES.app, end: true, icon: <House />, mini }}>
               {t('nav.home')}
             </NavItem>
@@ -156,13 +157,13 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             </NavItem>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-1">
             {mini && <div className="mx-3 mb-1 hidden border-t border-gray-200 md:block dark:border-gray-800" />}
             {teams?.length ? (
               <>
                 {/* 접으면 지금 팀 첫 글자만 (채팅 목록은 펼쳤을 때) */}
                 {mini && <MiniTeamMark team={teams.find((tm) => tm.id === currentTeamId) ?? teams[0]} />}
-                {slots?.teamPanel && <div className={cn(mini && 'md:hidden')}>{slots.teamPanel}</div>}
+                {slots?.teamPanel && <div className={cn('flex min-h-0 flex-1 flex-col', mini && 'md:hidden')}>{slots.teamPanel}</div>}
               </>
             ) : (
               <Link to={ROUTES.start} className={cn('px-3 py-2 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300', mini && 'md:hidden')}>
@@ -171,7 +172,7 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             )}
           </div>
 
-          <div className="mt-auto flex flex-col gap-0.5">
+          <div className="mt-auto flex shrink-0 flex-col gap-0.5">
             <NavItem item={{ to: ROUTES.billing, icon: <CreditCard />, mini }}>
               {t('nav.billing')}
             </NavItem>
