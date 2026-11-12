@@ -40,7 +40,8 @@ export function InviteMemberPanel({ detail }: { detail: TeamDetail }) {
     onError: (e) => toastError(e),
   })
 
-  const used = detail.members.length + detail.limits.pendingInvitations
+  // 인원 한도는 소유자의 모든 팀 합계 (여러 팀에 있는 사람은 한 명)
+  const used = detail.limits.usedMembers + detail.limits.pendingInvitations
 
   if (!allowed) {
     return <p className="text-sm text-gray-500 dark:text-gray-400">{t('teams.members.invite.noPermission')}</p>
@@ -72,7 +73,7 @@ export function InviteMemberPanel({ detail }: { detail: TeamDetail }) {
 
       <div className="flex flex-col gap-2">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          {t('teams.members.invite.usage', { current: detail.members.length, max: detail.limits.maxMembers, pending: detail.limits.pendingInvitations })}
+          {t('teams.members.invite.usage', { current: detail.limits.usedMembers, max: detail.limits.maxMembers, pending: detail.limits.pendingInvitations })}
         </p>
         <Progress value={used} max={detail.limits.maxMembers} />
       </div>

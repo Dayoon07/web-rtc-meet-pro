@@ -117,6 +117,17 @@ class Team(
         overageNextChargeAt = now.plusDays(1)
     }
 
+    /** 소유자의 다른 팀이 지워질 때: 그 팀이 들고 있던 한도 초과 설정·결제 일정을 이어받는다 */
+    fun takeOverOverage(from: Team) {
+        overageAllowed = from.overageAllowed
+        overageAgreedAt = from.overageAgreedAt
+        overageAgreedBy = from.overageAgreedBy
+        overageWarnedAt = from.overageWarnedAt
+        overageNextChargeAt = from.overageNextChargeAt
+        overageNoticeFor = from.overageNoticeFor
+        overageFailedAttempts = from.overageFailedAttempts
+    }
+
     /** 삭제: 행은 남기고 status = DELETED + deleted_yn = 'Y' (삭제 시각은 edited_dt) */
     fun delete() {
         status = TeamStatus.DELETED
@@ -134,6 +145,8 @@ interface TeamRepository {
     fun save(team: Team): Team
     fun findTeamById(id: Long): Team?
     fun countByOwnerIdAndStatus(ownerId: Long, status: TeamStatus): Long
+    /** 소유자(회사 계정)가 만든 팀 — 플랜·인원 한도는 이 팀들을 합쳐서 본다 */
+    fun findAllByOwnerIdAndStatus(ownerId: Long, status: TeamStatus): List<Team>
     fun findAllByIdInAndStatus(ids: Collection<Long>, status: TeamStatus): List<Team>
     /** 한도 초과를 허용한 워크스페이스 (초과 요금 스케줄러) */
     fun findAllByOverageAllowedTrueAndStatus(status: TeamStatus): List<Team>

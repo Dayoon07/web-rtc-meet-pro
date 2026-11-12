@@ -108,7 +108,7 @@
     <string name="team_invite">Invite</string>
     <string name="team_invite_email">Email to invite</string>
     <string name="team_invite_sent">Invitation sent to %1$s</string>
-    <string name="team_members_limit">Members %1$d / %2$d</string>
+    <string name="team_members_limit">Members %1$d / %2$d (all teams)</string>
     <string name="team_pending">Pending invitations</string>
     <string name="meeting_schedule">New meeting</string>
     <string name="meeting_team">Team</string>

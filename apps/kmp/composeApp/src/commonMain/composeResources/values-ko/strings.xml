@@ -107,7 +107,7 @@
     <string name="team_invite">초대</string>
     <string name="team_invite_email">초대할 이메일</string>
     <string name="team_invite_sent">%1$s 님에게 초대를 보냈어요</string>
-    <string name="team_members_limit">멤버 %1$d / %2$d명</string>
+    <string name="team_members_limit">인원 %1$d / %2$d명 (모든 팀 합계)</string>
     <string name="team_pending">대기 중인 초대</string>
     <string name="meeting_schedule">새 회의</string>
     <string name="meeting_team">팀</string>

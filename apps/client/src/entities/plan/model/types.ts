@@ -58,6 +58,8 @@ export type Card = { company: string | null; numberMasked: string | null; regist
 /** 워크스페이스 하나의 요금제 상태 (GET /teams/{id}/subscription) */
 export type Subscription = {
   team: { id: number; name: string }
+  /** 이 플랜이 적용되는 팀 = 소유자가 만든 모든 팀 */
+  appliesTo: { id: number; name: string }[]
   /** 지금 적용 중인 플랜 (유료 구독이 없으면 FREE) */
   plan: Plan
   status: SubscriptionStatus

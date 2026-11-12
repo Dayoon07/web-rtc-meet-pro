@@ -96,15 +96,18 @@ data class CardView(val company: String?, val numberMasked: String?, val registe
 
 data class WorkspaceRef(val id: Long, val name: String)
 
-/** 워크스페이스 하나의 요금제 상태 */
+/** 요금제 상태 (플랜은 팀 소유자의 것이라 그 사람이 만든 모든 팀에 같다) */
 data class SubscriptionView(
     val team: WorkspaceRef,
+    /** 이 플랜이 적용되는 팀 = 소유자가 만든 모든 팀 */
+    val appliesTo: List<WorkspaceRef>,
     /** 지금 적용 중인 플랜 (유료 구독이 없으면 FREE) */
     val plan: PlanView,
     val status: SubscriptionStatus,
     val startedAt: LocalDateTime?,
     /** 적용 중인 구독의 기간 끝 (FREE 는 null) */
     val currentPeriodEnd: LocalDateTime?,
+    /** 소유자의 모든 팀 사람 수 (여러 팀에 있어도 한 명) */
     val memberCount: Long,
     val subscriptions: List<SubscriptionItemView>,
     /** 결제할 수 있는 사람 (워크스페이스 소유자) */
@@ -116,11 +119,12 @@ data class SubscriptionView(
 )
 
 /**
- * 요금제와 구독. **요금제는 워크스페이스(팀)마다** 붙는다 (슬랙·디스코드처럼).
- * - 워크스페이스는 몇 개든 만들 수 있고, 처음엔 FREE.
- * - 한 워크스페이스가 여러 플랜을 동시에 가질 수 있고, 기간이 남은 것 중 가장 높은 플랜을 쓴다.
- * - 멤버 수·회의 인원·녹화·채널 한도는 그 워크스페이스의 지금 플랜으로 판단한다.
- * - 결제는 워크스페이스 소유자가 하고(BillingService), 성공하면 [applyPurchase] 로 기간을 늘린다.
+ * 요금제와 구독. **플랜은 팀 소유자(회사 계정)에게** 붙는다: 한 번 결제하면 그 사람이 만든 모든 팀에 적용.
+ * - 팀은 몇 개든 무료로 만들 수 있고, 처음엔 FREE.
+ * - 한 소유자가 여러 플랜을 동시에 가질 수 있고, 기간이 남은 것 중 가장 높은 플랜을 쓴다.
+ * - 멤버 한도는 소유자의 모든 팀 사람을 합쳐(겹치는 사람은 한 명) 센다. 회의 인원·녹화·팀당 채널 수도 소유자 플랜으로.
+ * - 결제는 소유자가 하고(BillingService), 성공하면 [applyPurchase] 로 기간을 늘린다.
+ * - 구독 행에는 결제할 때 고른 팀(teamId)이 남는다. 그 팀을 지우면 남은 팀으로 옮긴다 ([onTeamDeleted]).
  */
 @Service
 @Transactional(readOnly = true)
@@ -139,22 +143,40 @@ class PlanService(
     fun findPlan(code: String): Plan =
         planRepository.findByCode(code)?.takeIf { it.active } ?: throw BusinessException(ErrorCode.PLAN_NOT_FOUND)
 
-    /** 워크스페이스에 지금 적용 중인 플랜 (한도 체크용). 유료 구독이 다 끝났으면 FREE */
+    /** 팀에 지금 적용 중인 플랜 = 그 팀 소유자의 플랜 (한도 체크용). 유료 구독이 다 끝났으면 FREE */
     fun planOfTeam(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Plan =
-        inUse(liveOf(teamId), now)?.second ?: freePlan()
+        teamRepository.findTeamById(teamId)?.let { planOfOwner(it.ownerId, now) } ?: freePlan()
 
-    /** 내가 만든 워크스페이스 중 가장 높은 플랜 (내 정보 화면 표시용) */
-    fun bestOwnedPlan(userId: Long, now: LocalDateTime = LocalDateTime.now()): Plan {
-        val owned = ownedTeams(userId).map { it.id!! }
-        if (owned.isEmpty()) return freePlan()
-        val live = subscriptionRepository.findAllByTeamIdInAndStatusIn(owned, LIVE)
-        return inUse(live, now)?.second ?: freePlan()
+    /** 소유자(회사 계정)의 플랜. 그 사람이 만든 모든 팀에 같은 플랜이 적용된다 */
+    fun planOfOwner(ownerId: Long, now: LocalDateTime = LocalDateTime.now()): Plan =
+        inUse(liveOfOwner(ownerId), now)?.second ?: freePlan()
+
+    /** 내 플랜 (내 정보 화면 표시용) */
+    fun bestOwnedPlan(userId: Long, now: LocalDateTime = LocalDateTime.now()): Plan = planOfOwner(userId, now)
+
+    /** 소유자가 만든 팀 (만든 순) */
+    fun ownedTeams(ownerId: Long): List<Team> =
+        teamRepository.findAllByOwnerIdAndStatus(ownerId, TeamStatus.ACTIVE).sortedBy { it.id }
+
+    /** 이 팀과 같은 소유자의 팀 id 전부 (AI 사용 시간처럼 소유자 단위로 합칠 때) */
+    fun siblingTeamIds(teamId: Long): List<Long> {
+        val team = teamRepository.findTeamById(teamId) ?: return listOf(teamId)
+        return ownedTeams(team.ownerId).map { it.id!! }.ifEmpty { listOf(teamId) }
     }
 
-    /** 워크스페이스 요금제 화면. 멤버면 볼 수 있고, 결제는 소유자만 */
+    /** 소유자의 모든 팀 사람 (여러 팀에 있어도 한 명) — 멤버 한도·초과 요금 기준 */
+    fun ownerMemberIds(ownerId: Long): Set<Long> {
+        val teamIds = ownedTeams(ownerId).map { it.id!! }
+        if (teamIds.isEmpty()) return emptySet()
+        return teamMemberRepository.findAllByTeamIdInAndStatus(teamIds, TeamMemberStatus.ACTIVE).map { it.userId }.toSet()
+    }
+
+    fun ownerMemberCount(ownerId: Long): Long = ownerMemberIds(ownerId).size.toLong()
+
+    /** 요금제 화면 (그 팀 소유자의 플랜). 멤버면 볼 수 있고, 결제는 소유자만 */
     fun workspaceSubscription(teamId: Long, viewerId: Long, now: LocalDateTime = LocalDateTime.now()): SubscriptionView {
         val team = requireMemberTeam(teamId, viewerId)
-        val live = liveOf(teamId)
+        val live = liveOfOwner(team.ownerId)
         val current = inUse(live, now)
         val plans = mutableMapOf<Long, Plan>()
         fun planOf(id: Long) = plans.getOrPut(id) { planById(id) }
@@ -178,11 +200,12 @@ class PlanService(
             }
         return SubscriptionView(
             team = WorkspaceRef(team.id!!, team.name),
+            appliesTo = ownedTeams(team.ownerId).map { WorkspaceRef(it.id!!, it.name) },
             plan = PlanView.from(current?.second ?: freePlan()),
             status = current?.first?.status ?: SubscriptionStatus.ACTIVE,
             startedAt = current?.first?.startedAt,
             currentPeriodEnd = current?.first?.currentPeriodEnd,
-            memberCount = teamMemberRepository.countByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE),
+            memberCount = ownerMemberCount(team.ownerId),
             subscriptions = items,
             canManage = team.ownerId == viewerId,
             card = billingKeyRepository.findByUserIdAndActiveTrue(viewerId)?.let(::cardView),
@@ -213,7 +236,7 @@ class PlanService(
         subscriptionRepository.save(Subscription(userId = userId, planId = freePlan().id!!))
 
     /**
-     * 결제가 성공한 뒤 워크스페이스의 구독 기간을 늘린다. 같은 플랜 구독이 살아 있으면 그 뒤에 이어 붙이고, 없으면 오늘부터 새 구독.
+     * 결제가 성공한 뒤 소유자의 구독 기간을 늘린다 (teamId = 결제할 때 고른 팀). 같은 플랜 구독이 살아 있으면 그 뒤에 이어 붙이고, 없으면 오늘부터 새 구독.
      * 다른 플랜 구독은 건드리지 않는다 (높은 플랜이 끝나면 남은 낮은 플랜으로 돌아간다).
      */
     @Transactional
@@ -225,12 +248,12 @@ class PlanService(
         autoRenew: Boolean,
         now: LocalDateTime = LocalDateTime.now(),
     ): Subscription {
-        val subscription = liveOf(teamId).firstOrNull { it.planId == plan.id && it.currentPeriodEnd != null }
+        val subscription = liveOfOwner(payerId).firstOrNull { it.planId == plan.id && it.currentPeriodEnd != null }
             ?: Subscription(userId = payerId, planId = plan.id!!, startedAt = now, autoRenew = autoRenew, billingCycle = cycle, teamId = teamId)
         subscription.extend(cycle, now)
         subscription.autoRenew = autoRenew
         // 같은 플랜을 다시 결제했으면 그 플랜의 만료 안내는 필요 없다
-        subscriptionRepository.findAllByTeamIdAndStatusIn(teamId, listOf(SubscriptionStatus.EXPIRED))
+        subscriptionRepository.findAllByUserIdAndStatusIn(payerId, listOf(SubscriptionStatus.EXPIRED))
             .filter { it.planId == plan.id && it.expiryAcknowledgedAt == null }
             .forEach { it.acknowledgeExpiry(now) }
         return subscriptionRepository.save(subscription)
@@ -257,10 +280,21 @@ class PlanService(
         subscription.acknowledgeExpiry()
     }
 
-    /** 워크스페이스를 지우면 남은 구독도 끝낸다 (자동결제 멈춤) */
+    /**
+     * 팀을 지울 때 (team.delete() 전에). 플랜은 소유자의 것이라 다른 팀이 남아 있으면
+     * 이 팀으로 결제한 구독과 한도 초과 설정을 그 팀으로 옮긴다. 마지막 팀이면 구독을 끝낸다 (자동결제 멈춤).
+     */
     @Transactional
-    fun cancelTeamSubscriptions(teamId: Long) {
-        liveOf(teamId).forEach { it.cancel() }
+    fun onTeamDeleted(teamId: Long) {
+        val team = teamRepository.findTeamById(teamId) ?: return
+        val live = liveOf(teamId)
+        val heir = ownedTeams(team.ownerId).firstOrNull { it.id != teamId }
+        if (heir == null) {
+            live.forEach { it.cancel() }
+            return
+        }
+        live.forEach { it.moveTo(heir.id!!) }
+        if (team.overageAllowed && !heir.overageAllowed) heir.takeOverOverage(team)
     }
 
     /** 결제할 수 있는 사람인지: 워크스페이스 소유자 */
@@ -272,8 +306,9 @@ class PlanService(
 
     fun planById(id: Long): Plan = planRepository.findPlanById(id) ?: freePlan()
 
-    /** 워크스페이스에 지금 적용 중인 (구독, 플랜). 유료 구독이 없으면 null */
-    fun inUseSubscription(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Pair<Subscription, Plan>? = inUse(liveOf(teamId), now)
+    /** 팀(= 그 소유자)에 지금 적용 중인 (구독, 플랜). 유료 구독이 없으면 null */
+    fun inUseSubscription(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Pair<Subscription, Plan>? =
+        teamRepository.findTeamById(teamId)?.let { inUse(liveOfOwner(it.ownerId), now) }
 
     /** 워크스페이스 멤버만 (요금제·초과 인원 화면) */
     fun requireMemberTeamOf(teamId: Long, userId: Long): Team = requireMemberTeam(teamId, userId)
@@ -284,9 +319,10 @@ class PlanService(
 
     private fun liveOf(teamId: Long) = subscriptionRepository.findAllByTeamIdAndStatusIn(teamId, LIVE)
 
-    private fun ownedTeams(userId: Long): List<Team> {
-        val memberships = teamMemberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).map { it.teamId }
-        return teamRepository.findAllByIdInAndStatus(memberships, TeamStatus.ACTIVE).filter { it.ownerId == userId }
+    /** 소유자가 결제한 구독 중 살아 있는 것 (소유자의 어느 팀으로 결제했든) */
+    private fun liveOfOwner(ownerId: Long): List<Subscription> {
+        val teamIds = ownedTeams(ownerId).map { it.id!! }
+        return if (teamIds.isEmpty()) emptyList() else subscriptionRepository.findAllByTeamIdInAndStatusIn(teamIds, LIVE)
     }
 
     private fun requireMemberTeam(teamId: Long, userId: Long): Team {

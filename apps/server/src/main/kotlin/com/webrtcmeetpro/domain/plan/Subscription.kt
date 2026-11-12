@@ -29,8 +29,9 @@ enum class BillingCycle {
 }
 
 /**
- * 워크스페이스(팀) 구독. [userId] = 결제한 사람, [teamId] = 요금제가 적용되는 워크스페이스.
- * 한 워크스페이스가 플랜마다 하나씩 여러 구독을 동시에 가질 수 있고(예: Team 과 Pro 를 둘 다 결제),
+ * 플랜 구독. [userId] = 결제한 사람(팀 소유자 = 회사 계정), [teamId] = 결제할 때 고른 팀.
+ * 플랜은 **소유자가 만든 모든 팀에** 적용된다 (팀은 몇 개든 무료로 만들 수 있다).
+ * 한 소유자가 플랜마다 하나씩 여러 구독을 동시에 가질 수 있고(예: Team 과 Pro 를 둘 다 결제),
  * 기간이 남은 것 중 가장 높은 플랜을 쓴다. Team 이 끝나면 남은 Pro 로, Pro 도 끝나면 무료로.
  * teamId 가 없는 FREE 구독은 회원가입 때 만드는 기간 없는 구독이다 (어디에도 적용 안 됨).
  */
@@ -55,8 +56,13 @@ class Subscription(
     @Enumerated(EnumType.STRING)
     var billingCycle: BillingCycle? = null,
 
-    val teamId: Long? = null,
+    teamId: Long? = null,
 ) : BaseEntity() {
+
+    /** 결제할 때 고른 팀. 그 팀을 지우면 소유자의 다른 팀으로 옮긴다 ([moveTo]) */
+    @Column(name = "team_id")
+    var teamId: Long? = teamId
+        protected set
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -130,6 +136,11 @@ class Subscription(
     /** "플랜이 만료됐어요" 창을 닫았다 */
     fun acknowledgeExpiry(now: LocalDateTime = LocalDateTime.now()) {
         expiryAcknowledgedAt = now
+    }
+
+    /** 결제한 팀을 지울 때: 소유자의 남은 팀으로 옮긴다 (플랜은 계속 소유자의 모든 팀에 적용) */
+    fun moveTo(teamId: Long) {
+        this.teamId = teamId
     }
 
     fun cancel(at: LocalDateTime = LocalDateTime.now()) {

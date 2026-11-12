@@ -42,7 +42,12 @@ export type TeamDetail = {
     maxMembers: number
     /** null = 제한 없음 */
     maxGroupRooms: number | null
+    /** 소유자의 모든 팀에 대기 중인 초대 */
     pendingInvitations: number
+    /** 소유자의 모든 팀 사람 수 (여러 팀에 있어도 한 명) */
+    usedMembers: number
+    /** 소유자가 만든 팀 수 */
+    ownedTeamCount: number
     maxMeetingParticipants: number
     recordingEnabled: boolean
     planCode: string

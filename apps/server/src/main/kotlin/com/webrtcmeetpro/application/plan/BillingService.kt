@@ -243,7 +243,7 @@ class BillingService(
         val payment = tx.execute { payments.save(newPayment(s.userId, team.id!!, team.name, plan, cycle, card, excess)) }!!
         try {
             chargeAndApply(payment.orderId, card) { at ->
-                if (excess > 0 || combinesOverage(s, plan, team, now)) teams.findTeamById(team.id!!)?.clearOverageSchedule()
+                if (excess > 0 || combinesOverage(s, plan, team, now)) overage.settingsTeam(team).clearOverageSchedule()
                 reload(s).also { it.extend(cycle, at) }
             }
             log.info("자동결제 성공 (subscriptionId={}, {} {}, 초과 {}명)", s.id, plan.code, cycle, excess)
@@ -268,7 +268,7 @@ class BillingService(
 
     /** 이 구독 갱신에 초과 인원 요금을 같이 넣는지: 월 결제이고, 이보다 높은 플랜이 따로 쓰이고 있지 않을 때 */
     private fun combinesOverage(s: Subscription, plan: Plan, team: Team, now: LocalDateTime): Boolean {
-        if ((s.billingCycle ?: BillingCycle.MONTHLY) != BillingCycle.MONTHLY || !team.overageAllowed) return false
+        if ((s.billingCycle ?: BillingCycle.MONTHLY) != BillingCycle.MONTHLY || !overage.settingsTeam(team).overageAllowed) return false
         val other = planService.inUseSubscription(team.id!!, now)
         return other == null || other.first.id == s.id || other.second.sortOrder <= plan.sortOrder
     }
@@ -284,7 +284,8 @@ class BillingService(
     // ----------------------------------------------------------------- 초과 인원 요금 (따로 결제)
 
     /**
-     * 월 자동결제 플랜이 아닌 워크스페이스(무료·연 결제·자동결제 꺼짐)의 초과 인원 요금을 한 달마다 따로 결제 (스케줄러).
+     * 월 자동결제 플랜이 아닌 소유자(무료·연 결제·자동결제 꺼짐)의 초과 인원 요금을 한 달마다 따로 결제 (스케줄러).
+     * 소유자마다 설정을 들고 있는 팀([MemberOverageService.settingsTeam]) 하나로 한 번만 청구한다.
      * 결제일 3일 전에 안내, 결제일의 멤버 수로 계산. 초과 인원이 없으면 일정을 지운다.
      * 실패하면 하루 뒤 다시, 3번 실패하면 한도 초과 허용을 끈다 (새 초대만 막힌다).
      * @return 결제를 시도한 워크스페이스 수
@@ -295,6 +296,8 @@ class BillingService(
             runCatching {
                 val due = tx.execute {
                     val team = teams.findTeamById(candidate.id!!)!!
+                    // 예전에 팀마다 켜 둔 설정이 남아 있어도 소유자당 한 번만
+                    if (overage.settingsTeam(team).id != team.id) return@execute null
                     val plan = planService.planOfTeam(team.id!!, now)
                     val excess = overage.billableExcess(team, plan)
                     val billing = overage.billing(team, now)
@@ -337,7 +340,7 @@ class BillingService(
                     userId = team.ownerId,
                     planId = plan.id!!,
                     orderId = "ORD-" + UUID.randomUUID().toString().replace("-", ""),
-                    orderName = "MQ 초과 인원 ${excess}명 (1개월) · ${team.name}".take(100),
+                    orderName = "MQ 초과 인원 ${excess}명 (1개월)".take(100),
                     amount = amount,
                     billingKeyId = card.id,
                     billingCycle = BillingCycle.MONTHLY,

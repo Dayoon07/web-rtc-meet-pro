@@ -132,4 +132,5 @@ interface TeamMemberRepository {
     fun findAllByTeamIdAndStatus(teamId: Long, status: TeamMemberStatus): List<TeamMember>
     fun findAllByUserIdAndStatus(userId: Long, status: TeamMemberStatus): List<TeamMember>
     fun countByTeamIdAndStatus(teamId: Long, status: TeamMemberStatus): Long
+    fun findAllByTeamIdInAndStatus(teamIds: Collection<Long>, status: TeamMemberStatus): List<TeamMember>
 }

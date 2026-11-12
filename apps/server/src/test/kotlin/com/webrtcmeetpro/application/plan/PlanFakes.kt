@@ -97,6 +97,7 @@ class PlanFakes(val plans: List<Plan>) {
         override fun save(team: Team) = team
         override fun findTeamById(id: Long): Team? = teams.find { it.id == id }
         override fun countByOwnerIdAndStatus(ownerId: Long, status: TeamStatus) = teams.count { it.ownerId == ownerId && it.status == status }.toLong()
+        override fun findAllByOwnerIdAndStatus(ownerId: Long, status: TeamStatus) = teams.filter { it.ownerId == ownerId && it.status == status }
         override fun findAllByIdInAndStatus(ids: Collection<Long>, status: TeamStatus) = teams.filter { it.id in ids && it.status == status }
         override fun findAllByOverageAllowedTrueAndStatus(status: TeamStatus) = teams.filter { it.overageAllowed && it.status == status }
     }
@@ -106,6 +107,7 @@ class PlanFakes(val plans: List<Plan>) {
         override fun findAllByTeamIdAndStatus(teamId: Long, status: TeamMemberStatus) = members.filter { it.teamId == teamId && it.status == status }
         override fun findAllByUserIdAndStatus(userId: Long, status: TeamMemberStatus) = members.filter { it.userId == userId && it.status == status }
         override fun countByTeamIdAndStatus(teamId: Long, status: TeamMemberStatus) = members.count { it.teamId == teamId && it.status == status }.toLong()
+        override fun findAllByTeamIdInAndStatus(teamIds: Collection<Long>, status: TeamMemberStatus) = members.filter { it.teamId in teamIds && it.status == status }
     }
 
     fun planService(toss: TossProperties = TossProperties()) = PlanService(planRepo, subscriptionRepo, teamRepo, memberRepo, billingKeyRepo, toss)

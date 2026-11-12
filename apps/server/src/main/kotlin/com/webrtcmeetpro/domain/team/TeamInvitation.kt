@@ -69,4 +69,5 @@ interface TeamInvitationRepository {
     fun findByToken(token: String): TeamInvitation?
     fun findAllByInviteeEmailAndStatus(inviteeEmail: String, status: InvitationStatus): List<TeamInvitation>
     fun countByTeamIdAndStatus(teamId: Long, status: InvitationStatus): Long
+    fun findAllByTeamIdInAndStatus(teamIds: Collection<Long>, status: InvitationStatus): List<TeamInvitation>
 }

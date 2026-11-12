@@ -107,7 +107,7 @@
     <string name="team_invite">邀请</string>
     <string name="team_invite_email">被邀请人的邮箱</string>
     <string name="team_invite_sent">已向 %1$s 发送邀请</string>
-    <string name="team_members_limit">成员 %1$d / %2$d</string>
+    <string name="team_members_limit">成员 %1$d / %2$d（所有团队合计）</string>
     <string name="team_pending">待处理的邀请</string>
     <string name="meeting_schedule">新会议</string>
     <string name="meeting_team">团队</string>

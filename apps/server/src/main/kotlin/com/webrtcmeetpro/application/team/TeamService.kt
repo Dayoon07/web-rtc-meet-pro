@@ -57,9 +57,11 @@ data class TeamMemberView(
 )
 
 /** maxGroupRooms: null = 제한 없음. 한도는 팀 소유자의 지금 플랜 기준 */
+/** 한도 (인원은 소유자의 모든 팀 합계: 여러 팀에 있는 사람은 한 명) */
 data class TeamLimitsView(
     val maxMembers: Int,
     val maxGroupRooms: Int?,
+    /** 소유자의 모든 팀에 대기 중인 초대 */
     val pendingInvitations: Int,
     val maxMeetingParticipants: Int = 0,
     val recordingEnabled: Boolean = false,
@@ -67,6 +69,10 @@ data class TeamLimitsView(
     /** 소유자가 한도 초과를 허용함 (넘게 초대할 수 있고, 1명당 월 overagePrice 원) */
     val overageAllowed: Boolean = false,
     val overagePrice: Long = 0,
+    /** 소유자의 모든 팀 사람 수 */
+    val usedMembers: Int = 0,
+    /** 소유자가 만든 팀 수 */
+    val ownedTeamCount: Int = 1,
 )
 
 data class TeamDetailView(val team: TeamSummaryView, val members: List<TeamMemberView>, val limits: TeamLimitsView)
@@ -122,15 +128,16 @@ class TeamService(
         val members = memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)
         val users = userRepository.findAllByIdIn(members.map { it.userId }).associateBy { it.id!! }
         val plan = planService.planOfTeam(teamId)
-        val pending = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).count { it.isPending() }
+        val seats = ownerSeats(team)
         return TeamDetailView(
             team = summary(team, me.role, members.size),
             members = members
                 .mapNotNull { m -> users[m.userId]?.let { memberView(m, it, removable = me.canRemove(m)) } }
                 .sortedWith(compareBy({ it.role.ordinal }, { it.joinedAt })),
             limits = TeamLimitsView(
-                plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, pending, plan.maxMeetingParticipants, plan.recordingEnabled, plan.code,
-                overageAllowed = team.overageAllowed, overagePrice = plan.overagePricePerMember,
+                plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, seats.pending, plan.maxMeetingParticipants, plan.recordingEnabled, plan.code,
+                overageAllowed = overage.settingsTeam(team).overageAllowed, overagePrice = plan.overagePricePerMember,
+                usedMembers = seats.members, ownedTeamCount = planService.ownedTeams(team.ownerId).size,
             ),
         )
     }
@@ -150,11 +157,12 @@ class TeamService(
         val pending = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }
         if (pending.any { it.inviteeEmail == email }) throw BusinessException(ErrorCode.INVITATION_ALREADY_PENDING)
 
-        // 멤버 수 한도는 워크스페이스 플랜 기준. 대기 중인 초대도 자리를 차지한다.
-        // 넘으면 소유자가 "한도 초과 허용"(초과 요금 동의)을 켰을 때만
+        // 멤버 수 한도는 소유자(회사)의 모든 팀 사람 수 기준 (여러 팀에 있어도 한 명). 대기 중인 초대도 자리를 차지한다.
+        // 이미 소유자의 다른 팀에 있는 사람은 자리를 더 차지하지 않는다. 넘으면 소유자가 "한도 초과 허용"을 켰을 때만
         val plan = planService.planOfTeam(teamId)
-        val active = memberRepository.countByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)
-        overage.requireSeat(team, plan, active + pending.size)
+        if (invitee == null || invitee.id!! !in planService.ownerMemberIds(team.ownerId)) {
+            overage.requireSeat(team, plan, ownerSeats(team).total.toLong())
+        }
 
         val invitation = invitationRepository.save(
             TeamInvitation(
@@ -208,7 +216,8 @@ class TeamService(
 
         val plan = planService.planOfTeam(team.id!!)
         val active = memberRepository.countByTeamIdAndStatus(team.id!!, TeamMemberStatus.ACTIVE)
-        overage.requireSeat(team, plan, active)
+        val ownerMembers = planService.ownerMemberIds(team.ownerId)
+        if (userId !in ownerMembers) overage.requireSeat(team, plan, ownerMembers.size.toLong())
 
         val existing = memberRepository.findByTeamIdAndUserId(team.id!!, userId)
         when {
@@ -283,9 +292,24 @@ class TeamService(
         invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }.forEach { it.cancel() }
         chatRoomRepository.findAllByTeamIdAndDeletedFalse(teamId).forEach { it.delete() }
         memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
-        // 남은 요금제 구독도 끝낸다 (자동결제가 더 나가지 않게)
-        planService.cancelTeamSubscriptions(teamId)
+        // 플랜은 소유자의 것: 다른 팀이 있으면 구독·한도 초과 설정을 그 팀으로 옮기고, 마지막 팀이면 끝낸다
+        planService.onTeamDeleted(teamId)
         team.delete()
+    }
+
+    /** 소유자의 모든 팀에서 차지한 자리: 사람(겹치면 한 명) + 아직 안 들어온 사람에게 간 대기 중인 초대 (같은 이메일은 한 번) */
+    private data class Seats(val members: Int, val pending: Int) {
+        val total get() = members + pending
+    }
+
+    private fun ownerSeats(team: Team): Seats {
+        val memberIds = planService.ownerMemberIds(team.ownerId)
+        val teamIds = planService.ownedTeams(team.ownerId).map { it.id!! }.ifEmpty { listOf(team.id!!) }
+        val pending = invitationRepository.findAllByTeamIdInAndStatus(teamIds, InvitationStatus.PENDING)
+            .filter { it.isPending() && (it.inviteeId == null || it.inviteeId !in memberIds) }
+            .map { it.inviteeEmail }
+            .distinct()
+        return Seats(memberIds.size, pending.size)
     }
 
     /** 이 팀의 채팅방에서 나가게 한다 (안 읽은 개수·방 목록에서 빠지도록) */

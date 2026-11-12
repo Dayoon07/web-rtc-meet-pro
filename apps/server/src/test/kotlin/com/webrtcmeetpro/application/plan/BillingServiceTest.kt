@@ -253,13 +253,58 @@ class BillingServiceTest {
     }
 
     @Test
-    fun `요금제는 워크스페이스마다 - 다른 워크스페이스는 무료 그대로`() {
+    fun `플랜은 소유자의 모든 팀에 적용되고 다른 사람의 팀은 무료 그대로`() {
         registerCard()
-        val other = fakes.team(uid, "취미 모임").id!!
+        val other = fakes.team(uid, "영업팀").id!!
+        val stranger = fakes.team(uid + 900, "남의 회사").id!!
         billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
         assertEquals("TEAM", planService.planOfTeam(ws).code)
-        assertEquals("FREE", planService.planOfTeam(other).code)
+        assertEquals("TEAM", planService.planOfTeam(other).code)
+        assertEquals("FREE", planService.planOfTeam(stranger).code)
         assertEquals("TEAM", planService.bestOwnedPlan(uid).code)
+        assertEquals(setOf("우리 회사", "영업팀"), planService.workspaceSubscription(other, uid).appliesTo.map { it.name }.toSet())
+        // 다른 팀에서 같은 플랜을 또 사면 새 구독이 아니라 기간이 이어 붙는다
+        billing.purchase(uid, other, "TEAM", BillingCycle.MONTHLY, autoRenew = false)
+        assertEquals(1, fakes.subscriptions.count { it.currentPeriodEnd != null })
+    }
+
+    @Test
+    fun `인원은 소유자의 모든 팀을 합쳐 세고 여러 팀에 있는 사람은 한 명`() {
+        val other = fakes.team(uid, "영업팀").id!!
+        addMembers(ws, 5) // 10000..10004
+        repeat(3) { fakes.join(other, 10_000L + it) } // 겹치는 3명
+        fakes.join(other, 20_000L)
+        assertEquals(7, planService.ownerMemberCount(uid)) // 소유자 1 + 5 + 새 사람 1
+        assertEquals(7, overage.view(other, uid).members)
+        assertEquals(7, planService.workspaceSubscription(ws, uid).memberCount)
+    }
+
+    @Test
+    fun `한도 초과 허용은 소유자 단위 - 어느 팀에서 켜도 모든 팀에 적용`() {
+        registerCard()
+        val other = fakes.team(uid, "영업팀").id!!
+        overage.setAllowed(other, uid, allowed = true, agree = true)
+        assertTrue(overage.view(ws, uid).allowed)
+        val t = fakes.teams.single { it.id == ws }
+        overage.requireSeat(t, free, 10)
+        overage.setAllowed(ws, uid, allowed = false, agree = false)
+        assertFalse(overage.view(other, uid).allowed)
+        assertTrue(fakes.teams.none { it.overageAllowed })
+    }
+
+    @Test
+    fun `결제한 팀을 지우면 구독이 남은 팀으로 옮겨지고 마지막 팀이면 끝난다`() {
+        registerCard()
+        val other = fakes.team(uid, "영업팀").id!!
+        billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true)
+        planService.onTeamDeleted(ws)
+        fakes.teams.single { it.id == ws }.delete()
+        assertEquals("TEAM", planService.planOfTeam(other).code)
+        assertEquals(other, fakes.subscriptions.single { it.currentPeriodEnd != null }.teamId)
+        planService.onTeamDeleted(other)
+        fakes.teams.single { it.id == other }.delete()
+        assertEquals(SubscriptionStatus.CANCELED, fakes.subscriptions.single { it.currentPeriodEnd != null }.status)
+        assertEquals("FREE", planService.planOfOwner(uid).code)
     }
 
     @Test

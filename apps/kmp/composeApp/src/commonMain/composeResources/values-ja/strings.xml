@@ -107,7 +107,7 @@
     <string name="team_invite">招待</string>
     <string name="team_invite_email">招待するメールアドレス</string>
     <string name="team_invite_sent">%1$s に招待を送りました</string>
-    <string name="team_members_limit">メンバー %1$d / %2$d人</string>
+    <string name="team_members_limit">メンバー %1$d / %2$d人（全チーム合計）</string>
     <string name="team_pending">保留中の招待</string>
     <string name="meeting_schedule">新しい会議</string>
     <string name="meeting_team">チーム</string>

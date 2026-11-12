@@ -267,7 +267,7 @@ fun TeamDetailScreen(
                 detail == null -> CircularProgressIndicator(Modifier.padding(48.dp))
                 else -> Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        stringResource(Res.string.team_members_limit, detail.members.size, detail.limits.maxMembers),
+                        stringResource(Res.string.team_members_limit, detail.limits.usedMembers.takeIf { it > 0 } ?: detail.members.size, detail.limits.maxMembers),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )

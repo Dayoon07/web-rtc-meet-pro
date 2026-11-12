@@ -28,8 +28,8 @@ import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
 
 /**
- * 요금제 화면. 요금제는 워크스페이스마다 → 위에서 워크스페이스를 고르고 그 워크스페이스의 플랜을 결제한다.
- * ?team={id} 로 바로 고를 수 있다 (만료 알림·메일의 링크).
+ * 요금제 화면. 플랜은 팀 소유자(회사 계정)의 것 → 내가 만든 팀들은 "내 플랜" 하나로 묶어 보이고,
+ * 남이 만든 팀은 그 소유자의 플랜을 보기만 한다. ?team={id} 로 바로 고를 수 있다 (만료 알림·메일의 링크).
  */
 export function BillingPage() {
   const { t } = useTranslation()
@@ -38,7 +38,10 @@ export function BillingPage() {
   const { data: teams, isPending: teamsPending } = useTeamsQuery()
   const fromUrl = Number(params.get('team')) || undefined
   const owned = teams?.filter((tm) => tm.myRole === 'OWNER') ?? []
-  const teamId = teams?.some((tm) => tm.id === fromUrl) ? fromUrl : (owned[0] ?? teams?.[0])?.id
+  const picked = teams?.some((tm) => tm.id === fromUrl) ? fromUrl : (owned[0] ?? teams?.[0])?.id
+  // 내가 만든 팀은 어느 것이든 같은 플랜 → 첫 팀 하나로
+  const teamId = owned.some((tm) => tm.id === picked) ? owned[0].id : picked
+  const others = teams?.filter((tm) => tm.myRole !== 'OWNER') ?? []
   const { data: sub } = useWorkspaceSubscriptionQuery(teamId)
 
   return (
@@ -48,15 +51,15 @@ export function BillingPage() {
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('billing.title')}</h2>
           <p className="mt-1 text-gray-500 dark:text-gray-400">{t('billing.subtitle')}</p>
         </div>
-        {teams && teams.length > 0 && (
+        {owned.length + others.length > 1 && (
           <label className="flex w-full items-center gap-2 sm:w-72">
             <Building2 className="size-5 shrink-0 text-gray-400" />
             <span className="sr-only">{t('billing.workspace')}</span>
             <Select value={teamId ?? ''} onChange={(e) => setParams({ team: e.target.value }, { replace: true })}>
-              {teams.map((tm) => (
+              {owned.length > 0 && <option value={owned[0].id}>{t('billing.myPlan', { count: owned.length })}</option>}
+              {others.map((tm) => (
                 <option key={tm.id} value={tm.id}>
-                  {tm.name}
-                  {tm.myRole === 'OWNER' ? '' : ` (${t('billing.memberView')})`}
+                  {tm.name} ({t('billing.memberView')})
                 </option>
               ))}
             </Select>
@@ -77,7 +80,14 @@ export function BillingPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <Card className="flex flex-col gap-4 p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{t('billing.current.title', { workspace: sub.team.name })}</h3>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {sub.canManage ? t('billing.current.mine') : t('billing.current.title', { workspace: sub.team.name })}
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {t('billing.current.appliesTo', { teams: sub.appliesTo.map((tm) => tm.name).join(', ') })}
+                </p>
+              </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {sub.currentPeriodEnd
                   ? t('billing.current.until', { name: planName(sub.plan), date: fmt.date(sub.currentPeriodEnd) })

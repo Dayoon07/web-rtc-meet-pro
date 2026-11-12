@@ -45,7 +45,10 @@ data class TeamLimits(
     val maxMembers: Int,
     /** null = 제한 없음 */
     val maxGroupRooms: Int? = null,
+    /** 소유자의 모든 팀에 대기 중인 초대 */
     val pendingInvitations: Int = 0,
+    /** 소유자의 모든 팀 사람 수 (여러 팀에 있어도 한 명) — 멤버 한도는 이 수로 본다 */
+    val usedMembers: Int = 0,
     val maxMeetingParticipants: Int = 0,
     val recordingEnabled: Boolean = false,
     val planCode: String = "",
