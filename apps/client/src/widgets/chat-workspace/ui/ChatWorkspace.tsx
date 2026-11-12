@@ -1,6 +1,6 @@
 import { FolderPlus, Info, MessageSquarePlus, MessagesSquare, Plus, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, Navigate, useParams } from 'react-router'
 import { CategoryModal, CreateGroupRoomModal, StartDirectChatModal } from '@/features/chat-room-actions'
 import { MessageSearchModal } from '@/features/search-messages'
 import { VoiceBar } from '@/features/voice-chat'
@@ -99,6 +99,7 @@ function WorkspaceDialogs() {
 export function ChatWorkspace() {
   const { t } = useTranslation()
   const ws = useChatWorkspace()
+  const { teamId } = useParams()
 
   if (ws.teamsPending) {
     return (
@@ -119,6 +120,9 @@ export function ChatWorkspace() {
       </div>
     )
   }
+
+  // /app/chat 처럼 워크스페이스가 없으면 첫 워크스페이스 채팅으로 (다른 곳은 왼쪽 사이드바에서 고른다)
+  if (!teamId) return <Navigate to={ROUTES.chat(ws.teams[0].id)} replace />
 
   return (
     <WorkspaceContext value={ws}>

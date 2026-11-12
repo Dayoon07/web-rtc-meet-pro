@@ -100,4 +100,7 @@ export type SendOptions = Omit<SendMessageRequest, 'content'>
 export type ReactionRequest = { emoji: string }
 export type MuteRequest = { muted: boolean }
 export type MarkReadRequest = { messageId: number }
-export type UnreadCountResponse = { count: number }
+/** count = 전체, teams = 워크스페이스마다 (안 읽은 게 있는 곳만) */
+export type UnreadCountResponse = { count: number; teams?: { teamId: number; count: number }[] }
+/** 화면에서 쓰는 모양: 전체 + 워크스페이스 id → 수 */
+export type ChatUnread = { total: number; byTeam: Record<number, number> }

@@ -14,6 +14,7 @@ import type {
   ReactionRequest,
   SendOptions,
   SendMessageRequest,
+  ChatUnread,
   UnreadCountResponse,
   UpdateChannelRequest,
 } from '../model/types'
@@ -84,7 +85,12 @@ export const chatApi = {
     request<void>(API.chat.read(roomId), { method: 'POST', json: { messageId } satisfies MarkReadRequest }),
 }
 
-export const useChatUnreadQuery = () => useQuery({ queryKey: chatKeys.unread, queryFn: chatApi.unreadCount, select: (d) => d.count })
+export const useChatUnreadQuery = () =>
+  useQuery({
+    queryKey: chatKeys.unread,
+    queryFn: chatApi.unreadCount,
+    select: (d): ChatUnread => ({ total: d.count, byTeam: Object.fromEntries((d.teams ?? []).map((x) => [x.teamId, x.count])) }),
+  })
 
 export const useChatRoomsQuery = (teamId: number) =>
   useQuery({ queryKey: chatKeys.rooms(teamId), queryFn: () => chatApi.rooms(teamId), enabled: teamId > 0 })

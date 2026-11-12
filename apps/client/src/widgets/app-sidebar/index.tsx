@@ -1,7 +1,8 @@
-import { ChevronLeft, ChevronRight, CreditCard, House, Mail, MessageSquare, Plus, Settings, Video, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CreditCard, House, Mail, Plus, Settings, Video, X } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, matchPath, NavLink, useLocation } from 'react-router'
+import type { ChatUnread } from '@/entities/chat'
 import { planName } from '@/entities/plan'
 import { useMyInvitationsQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
@@ -20,6 +21,21 @@ const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white',
   )
 
+/** 메뉴 오른쪽 숫자 (접힌 사이드바에서는 아이콘 오른쪽 위에 작게) */
+function CountBadge({ count, mini }: { count?: number; mini?: boolean }) {
+  if (!count) return null
+  return (
+    <span
+      className={cn(
+        'min-w-5 shrink-0 rounded-full bg-brand-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white',
+        mini && 'md:absolute md:top-0.5 md:right-1.5 md:min-w-4 md:px-1 md:text-[10px] md:leading-4',
+      )}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
 /** item = 주소 · 아이콘 · 정확히 같은 주소일 때만 · 숫자 배지 · 접힌 사이드바, children = 이름 */
 function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?: boolean; badge?: number; mini?: boolean }; children: ReactNode }) {
   const { to, icon, end, badge, mini } = item
@@ -27,17 +43,7 @@ function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?
     <NavLink to={to} end={end} className={(s) => itemClass(s, mini)} title={mini && typeof children === 'string' ? children : undefined}>
       {icon}
       <span className={cn('flex-1', mini && 'md:sr-only')}>{children}</span>
-      {!!badge && (
-        <span
-          className={cn(
-            'min-w-5 rounded-full bg-brand-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white',
-            // 접으면 아이콘 오른쪽 위에 작게
-            mini && 'md:absolute md:top-0.5 md:right-1.5 md:min-w-4 md:px-1 md:text-[10px] md:leading-4',
-          )}
-        >
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
+      <CountBadge count={badge} mini={mini} />
     </NavLink>
   )
 }
@@ -78,7 +84,7 @@ function PlanUsage() {
  * 휴대폰에서는 늘 펼친 서랍 (open 으로 열고 닫음).
  */
 /** 앱 사이드바의 상태: 휴대폰에서 열림 · 닫기 · 채팅 안 읽은 수 · 접힘 · 접기/펴기 */
-export type AppSidebarState = { open: boolean; onClose: () => void; chatUnread?: number; collapsed?: boolean; onToggleCollapsed?: () => void }
+export type AppSidebarState = { open: boolean; onClose: () => void; chatUnread?: ChatUnread; collapsed?: boolean; onToggleCollapsed?: () => void }
 
 export function AppSidebar({ state }: { state: AppSidebarState }) {
   const { open, onClose, chatUnread, collapsed = false, onToggleCollapsed } = state
@@ -132,9 +138,6 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             <NavItem item={{ to: ROUTES.app, end: true, icon: <House />, mini }}>
               {t('nav.home')}
             </NavItem>
-            <NavItem item={{ to: ROUTES.chat(), icon: <MessageSquare />, badge: chatUnread, mini }}>
-              {t('nav.chat')}
-            </NavItem>
             <NavItem item={{ to: ROUTES.meetings, icon: <Video />, mini }}>
               {t('nav.meetings')}
             </NavItem>
@@ -180,7 +183,8 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
                   >
                     {team.name.slice(0, 1).toUpperCase()}
                   </span>
-                  <span className={cn('truncate', mini && 'md:sr-only')}>{team.name}</span>
+                  <span className={cn('flex-1 truncate', mini && 'md:sr-only')}>{team.name}</span>
+                  <CountBadge count={chatUnread?.byTeam[team.id]} mini={mini} />
                 </Link>
               ))
             ) : (

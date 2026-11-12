@@ -169,11 +169,17 @@ class ChatService(
             .sortedByDescending { it.lastMessageAt ?: it.createdAt }
     }
 
-    fun totalUnread(userId: Long): Long {
+    /** 워크스페이스마다 안 읽은 메시지 수 (0 인 워크스페이스는 빠진다) */
+    fun unreadByTeam(userId: Long): Map<Long, Long> {
         val mine = memberRepository.findAllByUserIdAndLeftAtIsNull(userId)
-        val live = roomRepository.findAllByIdInAndDeletedFalse(mine.map { it.roomId }).map { it.id!! }.toSet()
-        return mine.filter { it.roomId in live }
-            .sumOf { messageRepository.countByRoomIdAndIdGreaterThan(it.roomId, it.lastReadMessageId ?: 0) }
+        val teamOf = roomRepository.findAllByIdInAndDeletedFalse(mine.map { it.roomId }).associate { it.id!! to it.teamId }
+        val result = linkedMapOf<Long, Long>()
+        mine.forEach { m ->
+            val teamId = teamOf[m.roomId] ?: return@forEach
+            val n = messageRepository.countByRoomIdAndIdGreaterThan(m.roomId, m.lastReadMessageId ?: 0)
+            if (n > 0) result.merge(teamId, n, Long::plus)
+        }
+        return result
     }
 
     fun room(roomId: Long, userId: Long): ChatRoomView {

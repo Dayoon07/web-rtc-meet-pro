@@ -70,7 +70,11 @@ class ChatController(private val chat: ChatService) {
 
     /** 사이드바 "채팅" 배지: 모든 팀의 안 읽은 메시지 합계 */
     @GetMapping("/chat/unread-count")
-    fun unreadCount(@AuthenticationPrincipal jwt: Jwt) = mapOf("count" to chat.totalUnread(jwt.userId))
+    /** count = 전체, teams = 워크스페이스마다 (사이드바 워크스페이스 옆 숫자) */
+    fun unreadCount(@AuthenticationPrincipal jwt: Jwt): Map<String, Any> {
+        val byTeam = chat.unreadByTeam(jwt.userId)
+        return mapOf("count" to byTeam.values.sum(), "teams" to byTeam.map { (teamId, count) -> mapOf("teamId" to teamId, "count" to count) })
+    }
 
     @GetMapping("/teams/{teamId}/chat/rooms")
     fun rooms(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = chat.rooms(teamId, jwt.userId)
