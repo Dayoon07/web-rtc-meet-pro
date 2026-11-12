@@ -493,6 +493,7 @@ const ko = {
     markAllRead: '모두 읽음',
     enableBrowser: '브라우저 알림 켜기',
     browserBlocked: '브라우저 설정에서 알림이 차단되어 있어요',
+    desktop: { mention: '{{name}}님이 회원님을 언급했어요', file: '파일을 보냈어요' },
     types: {
       TEAM_INVITATION: '{{inviterName}}님이 {{teamName}} 팀에 초대했어요',
       TEAM_INVITATION_ACCEPTED: '{{memberName}}님이 {{teamName}} 팀에 참여했어요',
@@ -655,6 +656,7 @@ const ko = {
     OFFLINE: '접속 안 함',
   },
   notifySettings: {
+    prompt: { text: '새 메시지·멘션이 오면 크롬 알림으로 알려 드릴까요? 창을 닫아도 받아요.', enable: '알림 켜기', dismiss: '닫기' },
     title: '알림',
     desc: '브라우저를 닫아도 받는 알림과 방해 금지 시간을 정해요.',
     push: {

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { type AppNotification, notificationApi, notificationKeys, notificationText, type NotificationType, useNotificationsQuery, useUnreadNotificationsQuery } from '@/entities/notification'
+import { type Me, userKeys } from '@/entities/user'
+import { inQuietHours, showDesktopNotification } from '@/shared/lib/desktop-notify'
 import { useFormat } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/cn'
 import { Menu, Spinner } from '@/shared/ui'
@@ -170,14 +172,19 @@ export function useNotificationSideEffects(subscribe: (cb: (payload: unknown) =>
         if (n.type === 'TEAM_INVITATION_ACCEPTED') void queryClient.invalidateQueries({ queryKey: ['teams'] })
         if (n.type.startsWith('PLAN') || n.type === 'PAYMENT_FAILED') void queryClient.invalidateQueries({ queryKey: ['subscriptions'] })
 
-        const text = notificationText(n, t, fmt.dateTime)
-        if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-          const os = new Notification('MQ', { body: text, tag: `wrmp-${n.id}`, icon: '/favicon.svg' })
-          os.onclick = () => {
-            window.focus()
-            if (n.link) navigate(n.link)
-          }
-        }
+        // MQ 탭을 안 보고 있으면 크롬 알림 (방해 금지 시간은 빼고). 멘션은 "누가 언급" + 메시지 내용으로
+        const me = queryClient.getQueryData<Me>(userKeys.me)
+        if (me && inQuietHours(me.dndStart, me.dndEnd, me.dndTimeZone)) return
+        const mention = n.type === 'CHAT_MENTION'
+        void showDesktopNotification(
+          {
+            title: mention ? t('notifications.desktop.mention', { name: String(n.params.senderName ?? '') }) : 'MQ',
+            body: mention ? String(n.params.preview ?? '') : notificationText(n, t, fmt.dateTime),
+            tag: mention ? 'mention' : `notif-${n.id}`,
+            link: n.link ?? '/',
+          },
+          (link) => navigate(link),
+        )
       }),
     [subscribe, queryClient, t, fmt, navigate],
   )

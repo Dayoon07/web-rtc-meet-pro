@@ -10,6 +10,7 @@ import { useMeQuery } from '@/entities/user'
 import { realtime } from '@/shared/api'
 import { FullPageSpinner } from '@/shared/ui'
 import { useNotificationSideEffects } from '@/widgets/notification-bell'
+import { useChatDesktopNotifications } from '@/features/desktop-notifications'
 import { ROUTES, safeRedirect } from '@/shared/config/routes'
 import { clearReturnToIfArrived, rememberReturnTo, returnToPath } from '@/shared/lib/return-to'
 
@@ -29,6 +30,7 @@ function RealtimeBridge() {
     }
   }, [queryClient])
   useNotificationSideEffects(useCallback((cb) => realtime.on('notifications', cb), []))
+  useChatDesktopNotifications()
   usePresenceRealtime()
   useAwayTracker(true)
   const navigate = useNavigate()

@@ -494,6 +494,7 @@ const en: Messages = {
     markAllRead: 'Mark all as read',
     enableBrowser: 'Turn on browser notifications',
     browserBlocked: 'Notifications are blocked in your browser settings',
+    desktop: { mention: '{{name}} mentioned you', file: 'Sent a file' },
     types: {
       TEAM_INVITATION: '{{inviterName}} invited you to {{teamName}}',
       TEAM_INVITATION_ACCEPTED: '{{memberName}} joined {{teamName}}',
@@ -656,6 +657,7 @@ const en: Messages = {
     OFFLINE: 'Offline',
   },
   notifySettings: {
+    prompt: { text: 'Get Chrome notifications for new messages and mentions, even with the tab closed?', enable: 'Turn on', dismiss: 'Dismiss' },
     title: 'Notifications',
     desc: 'Get notified even when the browser is closed, and set quiet hours.',
     push: {

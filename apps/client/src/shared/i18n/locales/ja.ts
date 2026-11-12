@@ -494,6 +494,7 @@ const ja: Messages = {
     markAllRead: 'すべて既読にする',
     enableBrowser: 'ブラウザ通知をオンにする',
     browserBlocked: 'ブラウザの設定で通知がブロックされています',
+    desktop: { mention: '{{name}}さんがあなたをメンションしました', file: 'ファイルを送信しました' },
     types: {
       TEAM_INVITATION: '{{inviterName}} さんが {{teamName}} に招待しました',
       TEAM_INVITATION_ACCEPTED: '{{memberName}} さんが {{teamName}} に参加しました',
@@ -656,6 +657,7 @@ const ja: Messages = {
     OFFLINE: 'オフライン',
   },
   notifySettings: {
+    prompt: { text: '新しいメッセージやメンションをブラウザ通知で受け取りますか？タブを閉じても届きます。', enable: '通知をオン', dismiss: '閉じる' },
     title: '通知',
     desc: 'ブラウザを閉じていても届く通知と、おやすみ時間を設定します。',
     push: {

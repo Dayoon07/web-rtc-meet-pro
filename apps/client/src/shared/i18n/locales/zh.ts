@@ -495,6 +495,7 @@ const zh: Messages = {
     markAllRead: '全部标为已读',
     enableBrowser: '开启浏览器通知',
     browserBlocked: '浏览器设置已屏蔽通知',
+    desktop: { mention: '{{name}} 提到了你', file: '发送了文件' },
     types: {
       TEAM_INVITATION: '{{inviterName}} 邀请你加入 {{teamName}}',
       TEAM_INVITATION_ACCEPTED: '{{memberName}} 已加入 {{teamName}}',
@@ -657,6 +658,7 @@ const zh: Messages = {
     OFFLINE: '离线',
   },
   notifySettings: {
+    prompt: { text: '要通过浏览器通知接收新消息和提及吗？关闭标签页也能收到。', enable: '开启通知', dismiss: '关闭' },
     title: '通知',
     desc: '设置关闭浏览器也能收到的通知和免打扰时间。',
     push: {

@@ -1,6 +1,7 @@
 import { MessagesSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useParams } from 'react-router'
+import { PushPromptBanner } from '@/features/notification-settings'
 import { VoiceBar } from '@/features/voice-chat'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
@@ -79,6 +80,7 @@ export function ChatWorkspace() {
           <VoiceBar me={ws.me} />
         </aside>
         <section className={cn('flex min-w-0 flex-1 flex-col', !ws.activeRoom && 'hidden md:flex')}>
+          <PushPromptBanner />
           {ws.activeRoom ? <RoomView key={ws.activeRoom.id} room={ws.activeRoom} /> : <NoRoomSelected />}
         </section>
         <WorkspaceDialogs />
