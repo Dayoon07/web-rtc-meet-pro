@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { draftFromMe, emptyAgreements, type Me, ProfileFields, type ProfileErrors, requiredAgreed, TermsAgreement, toProfileRequest, userApi, userKeys, validateProfile } from '@/entities/user'
 import { errorMessage } from '@/shared/api'
 import { Button, FieldError } from '@/shared/ui'
-import { ROUTES } from '@/shared/config/routes'
+import { returnToPath } from '@/shared/lib/return-to'
 
 /** 구글로 처음 가입한 사용자: 실명·전화번호·국가·출생년도 + 약관 동의를 받는다 */
 export function OnboardingForm({ me }: { me: Me }) {
@@ -23,7 +23,7 @@ export function OnboardingForm({ me }: { me: Me }) {
     onSuccess: (updated) => {
       queryClient.setQueryData(userKeys.me, updated)
       toast.success(t('auth.onboarding.done'))
-      navigate(ROUTES.chat(), { replace: true })
+      navigate(returnToPath(), { replace: true })
     },
   })
 

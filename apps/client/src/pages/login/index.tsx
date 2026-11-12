@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router'
 import { LoginForm } from '@/features/auth'
 import { translateDynamic } from '@/shared/i18n'
 import { ROUTES, safeRedirect } from '@/shared/config/routes'
+import { returnToPath } from '@/shared/lib/return-to'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -22,7 +23,7 @@ export function LoginPage() {
           {translateDynamic(`errors.${oauthError}`, undefined, t('errors.OAUTH_FAILED'))}
         </div>
       )}
-      <LoginForm redirectTo={safeRedirect(params.get('redirect'))} />
+      <LoginForm redirectTo={params.get('redirect') ? safeRedirect(params.get('redirect')) : returnToPath()} />
       <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         {t('auth.login.noAccount')}{' '}
         <Link to={ROUTES.signup} className="font-semibold text-brand-700 hover:underline dark:text-brand-300">

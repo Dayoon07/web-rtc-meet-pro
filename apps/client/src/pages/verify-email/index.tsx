@@ -10,6 +10,7 @@ import { authApi, useLogout } from '@/features/auth'
 import { ApiError, errorMessage } from '@/shared/api'
 import { Button, FullPageSpinner, LinkButton, Spinner } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
+import { returnToPath } from '@/shared/lib/return-to'
 
 /**
  * 이메일로 가입한 뒤 인증 전에 보이는 화면. 메일의 링크를 누르면(다른 기기여도) 인증되고,
@@ -130,7 +131,7 @@ export function ConfirmEmailPage() {
           {failed ? (confirm.error ? errorMessage(confirm.error) : t('errors.EMAIL_VERIFY_TOKEN_INVALID')) : t('auth.verify.successBody')}
         </p>
       </div>
-      <LinkButton to={loggedIn ? (failed ? ROUTES.verifyEmail : ROUTES.chat()) : ROUTES.login} size="lg">
+      <LinkButton to={loggedIn ? (failed ? ROUTES.verifyEmail : returnToPath()) : ROUTES.login} size="lg">
         {loggedIn ? (failed ? t('auth.verify.again') : t('auth.verify.goApp')) : t('auth.login.submit')}
       </LinkButton>
     </div>

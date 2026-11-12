@@ -21,7 +21,7 @@ import { cn } from '@/shared/lib/cn'
 import { AvatarPicker, Button, Divider, Field, FieldError, Input } from '@/shared/ui'
 import { authApi } from '../api/auth-api'
 import { GoogleButton } from './GoogleButton'
-import { ROUTES } from '@/shared/config/routes'
+import { returnToPath } from '@/shared/lib/return-to'
 
 function Stepper({ step, labels }: { step: number; labels: string[] }) {
   return (
@@ -89,7 +89,8 @@ export function SignupForm() {
     },
     onSuccess: () => {
       toast.success(t('auth.signup.welcome'))
-      navigate(ROUTES.chat(), { replace: true })
+      // 초대 링크로 왔으면 인증을 마친 뒤 그 링크로 (가는 길에 이메일 인증 화면을 거친다)
+      navigate(returnToPath(), { replace: true })
     },
   })
 

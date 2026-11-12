@@ -8,6 +8,7 @@ import { authApi } from '@/features/auth'
 import { ApiError } from '@/shared/api'
 import { Spinner } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
+import { returnToPath } from '@/shared/lib/return-to'
 
 /**
  * 앱(Android·Windows)이 넘긴 이동 경로. 같은 사이트 안의 경로만 허용한다 (open redirect 방지).
@@ -45,7 +46,8 @@ export function OAuthCallbackPage() {
         setTokens(await authApi.exchangeOAuthCode(code))
         const me = await userApi.me()
         queryClient.setQueryData(userKeys.me, me)
-        navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? ROUTES.chat()) : ROUTES.onboarding, { replace: true })
+        // 구글로 처음 가입하면 프로필 입력을 거쳐 기억해 둔 주소(초대 링크 등)로
+        navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? returnToPath()) : ROUTES.onboarding, { replace: true })
       } catch (e) {
         const error = e instanceof ApiError ? e.code : 'OAUTH_FAILED'
         navigate(`${ROUTES.login}?error=${error}`, { replace: true })
