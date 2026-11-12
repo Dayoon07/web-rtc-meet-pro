@@ -57,6 +57,8 @@ import androidx.navigation.toRoute
 import com.webrtcmeetpro.core.data.BadgeRepository
 import com.webrtcmeetpro.feature.chat.ChatListScreen
 import com.webrtcmeetpro.feature.chat.ChatRoomScreen
+import com.webrtcmeetpro.feature.chat.ThreadScreen
+import com.webrtcmeetpro.feature.settings.PaymentsScreen
 import com.webrtcmeetpro.feature.chat.NewChatScreen
 import com.webrtcmeetpro.feature.home.HomeScreen
 import com.webrtcmeetpro.feature.meetings.MeetingDetailScreen
@@ -91,6 +93,8 @@ import kotlin.reflect.KClass
 
 // 하위 화면
 @Serializable data class ChatRoomRoute(val roomId: Long)
+/** 스레드 화면 (시작 글 id, 답글 id 여도 된다) */
+@Serializable data class ThreadRoute(val rootId: Long)
 @Serializable data class NewChatRoute(val teamId: Long, val group: Boolean = false)
 @Serializable data class MeetingDetailRoute(val meetingId: Long)
 @Serializable data object ScheduleMeetingRoute
@@ -99,6 +103,7 @@ import kotlin.reflect.KClass
 @Serializable data class MeetRoomRoute(val url: String)
 @Serializable data class TeamDetailRoute(val teamId: Long)
 @Serializable data object NotificationsRoute
+@Serializable data object PaymentsRoute
 
 private enum class Tab(val route: Any, val routeClass: KClass<*>, val label: StringResource, val icon: ImageVector) {
     // 채팅 중심: 채팅이 첫 탭이자 첫 화면
@@ -249,7 +254,8 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
             MeetingsScreen(onOpen = { nav.navigate(MeetingDetailRoute(it)) }, onSchedule = { nav.navigate(ScheduleMeetingRoute) })
         }
         composable<InvitationsRoute> { InvitationsScreen(onJoined = { nav.openTab(Tab.CHAT) }) }
-        composable<SettingsRoute> { SettingsScreen() }
+        composable<SettingsRoute> { SettingsScreen(onOpenPayments = { nav.navigate(PaymentsRoute) }) }
+        composable<PaymentsRoute> { PaymentsScreen(onBack = back) }
 
         composable<ChatRoomRoute> {
             ChatRoomScreen(
@@ -257,7 +263,11 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
                 onBack = back,
                 onJoinInApp = { url -> nav.navigate(MeetRoomRoute(url)) },
                 onOpenMeeting = { id -> nav.navigate(MeetingDetailRoute(id)) },
+                onOpenThread = { rootId -> nav.navigate(ThreadRoute(rootId)) },
             )
+        }
+        composable<ThreadRoute> {
+            ThreadScreen(it.toRoute<ThreadRoute>().rootId, onBack = back)
         }
         composable<NewChatRoute> {
             val route = it.toRoute<NewChatRoute>()
@@ -301,7 +311,7 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
                 onOpen = { target ->
                     when (target) {
                         is NotificationTarget.Meeting -> nav.navigate(MeetingDetailRoute(target.id))
-                        is NotificationTarget.ChatRoom -> nav.navigate(ChatRoomRoute(target.id))
+                        is NotificationTarget.ChatRoom -> nav.navigate(target.threadId?.let(::ThreadRoute) ?: ChatRoomRoute(target.id))
                         is NotificationTarget.Team -> nav.navigate(TeamDetailRoute(target.id))
                         NotificationTarget.Invitations -> nav.openTab(Tab.INVITATIONS)
                     }

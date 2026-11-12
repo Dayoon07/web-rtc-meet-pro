@@ -87,6 +87,7 @@ import com.webrtcmeetpro.resources.chat_notice_remove
 import com.webrtcmeetpro.resources.chat_notice_save
 import com.webrtcmeetpro.resources.chat_notice_title
 import com.webrtcmeetpro.resources.chat_reply
+import com.webrtcmeetpro.resources.chat_thread_open
 import com.webrtcmeetpro.resources.chat_reply_to
 import com.webrtcmeetpro.resources.chat_typing_many
 import com.webrtcmeetpro.resources.chat_typing_one
@@ -329,7 +330,8 @@ fun MessageActionsDialog(
                     Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = actions.moreEmoji), contentAlignment = Alignment.Center) { Text("➕", fontSize = 18.sp) }
                 }
                 Column {
-                    TextButton(onClick = actions.reply) { Text(stringResource(Res.string.chat_reply)) }
+                    actions.thread?.let { TextButton(onClick = it) { Text(stringResource(Res.string.chat_thread_open)) } }
+                    actions.reply?.let { TextButton(onClick = it) { Text(stringResource(Res.string.chat_reply)) } }
                     actions.makeNotice?.let { TextButton(onClick = it) { Text(stringResource(Res.string.chat_notice_from_message)) } }
                     actions.edit?.let { TextButton(onClick = it) { Text(stringResource(Res.string.chat_edit)) } }
                     actions.delete?.let { TextButton(onClick = it) { Text(stringResource(Res.string.chat_delete), color = MaterialTheme.colorScheme.error) } }
@@ -345,10 +347,12 @@ fun MessageActionsDialog(
 data class MessageActions(
     val react: (String) -> Unit,
     val moreEmoji: () -> Unit,
-    val reply: () -> Unit,
+    val reply: (() -> Unit)?,
     val makeNotice: (() -> Unit)?,
     val edit: (() -> Unit)?,
     val delete: (() -> Unit)?,
+    /** 스레드에서 답글 (스레드 화면 안에서는 null) */
+    val thread: (() -> Unit)? = null,
 )
 
 /** 이모지 고르기 창 (분류 탭) */

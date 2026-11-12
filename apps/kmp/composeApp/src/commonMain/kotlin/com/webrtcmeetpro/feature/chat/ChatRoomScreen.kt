@@ -10,6 +10,10 @@ import androidx.compose.material.icons.outlined.NotificationsOff
 import com.webrtcmeetpro.core.model.ChatUser
 import com.webrtcmeetpro.core.model.ReadState
 import com.webrtcmeetpro.resources.chat_emoji
+import com.webrtcmeetpro.resources.chat_thread_replies
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Forum
 import com.webrtcmeetpro.resources.chat_mention_all
 import com.webrtcmeetpro.resources.chat_mute
 import com.webrtcmeetpro.resources.chat_notice_title
@@ -150,9 +154,10 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-/** 지금 열려 있는 채팅방. 그 방의 새 메시지는 시스템 알림을 띄우지 않는다 */
+/** 지금 열려 있는 채팅방·스레드. 그 방의 새 메시지, 그 스레드의 답글 알림은 시스템 알림을 띄우지 않는다 */
 class ChatPresence {
     val activeRoomId = MutableStateFlow<Long?>(null)
+    val activeThreadId = MutableStateFlow<Long?>(null)
 }
 
 data class ChatRoomUiState(
@@ -225,8 +230,11 @@ class ChatRoomViewModel(
                     // 채널 목록 화면만 다시 그린다
                 } else if (event.type == "MESSAGE" && message != null) {
                     message.sender?.let { hideTyping(it.id) }
-                    append(message)
-                    markRead()
+                    // 스레드 답글은 채팅방 본문이 아니라 스레드 화면에만 (시작 글의 답글 수는 MESSAGE_UPDATED 로 온다)
+                    if (message.threadRootId == null) {
+                        append(message)
+                        markRead()
+                    }
                 } else if (event.type == "MESSAGE_UPDATED" && message != null) {
                     replace(message)
                 } else {
@@ -487,6 +495,8 @@ fun ChatRoomScreen(
     onJoinInApp: (url: String) -> Unit = {},
     /** 채널에 올라온 AI 회의록 카드를 누르면 회의 상세로 */
     onOpenMeeting: (meetingId: Long) -> Unit = {},
+    /** 스레드 화면 (시작 글 id) */
+    onOpenThread: (rootId: Long) -> Unit = {},
     viewModel: ChatRoomViewModel = koinViewModel(key = "room-$roomId") { parametersOf(roomId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -568,6 +578,7 @@ fun ChatRoomScreen(
                     onLongPress = viewModel::select,
                     onReact = viewModel::react,
                     onOpenMeeting = onOpenMeeting,
+                    onOpenThread = { m -> onOpenThread(m.id) },
                     modifier = Modifier.weight(1f),
                 )
                 TypingLine(state.typing)
@@ -616,6 +627,7 @@ fun ChatRoomScreen(
                 react = { e -> viewModel.react(m, e) },
                 moreEmoji = { viewModel.chooseReaction(m) },
                 reply = { viewModel.startReply(m) },
+                thread = { viewModel.select(null); onOpenThread(m.id) },
                 makeNotice = m.content?.takeIf { state.canNotice && it.isNotBlank() }?.let { c -> { viewModel.openNotice(c) } },
                 edit = if (mine && m.type == MessageType.TEXT) ({ viewModel.startEdit(m) }) else null,
                 delete = if (mine || state.canModerate) ({ confirmDelete = m; viewModel.select(null) }) else null,
@@ -681,6 +693,7 @@ private fun MessageList(
     onLongPress: (ChatMessage) -> Unit,
     onReact: (ChatMessage, String) -> Unit,
     onOpenMeeting: (Long) -> Unit,
+    onOpenThread: (ChatMessage) -> Unit,
     modifier: Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -692,6 +705,7 @@ private fun MessageList(
         names = members.associate { it.id to it.nickname },
         reads = state.room?.reads.orEmpty(),
         onReact = onReact,
+        onOpenThread = onOpenThread,
     )
 
     // reverseLayout: index 0 이 맨 아래(최신). 마지막 항목(가장 오래된 것)이 보이면 이전 페이지 요청
@@ -734,17 +748,19 @@ private fun MessageList(
     }
 }
 
-/** 말풍선마다 같은 정보: 나 · 방 사람 이름 · 읽음 · 반응 누르기 */
-private class BubbleContext(
+/** 말풍선마다 같은 정보: 나 · 방 사람 이름 · 읽음 · 반응 누르기 · 스레드 열기 (스레드 화면 안에서는 null) */
+internal class BubbleContext(
     val myId: Long,
     val myName: String?,
     val names: Map<Long, String>,
     val reads: List<ReadState>,
     val onReact: (ChatMessage, String) -> Unit,
+    val onOpenThread: ((ChatMessage) -> Unit)? = null,
 ) {
-    /** 이 메시지를 아직 안 읽은 사람 수 (보낸 사람 빼고) */
+    /** 이 메시지를 아직 안 읽은 사람 수 (보낸 사람 빼고). 스레드 답글은 읽음을 따지지 않는다 */
     fun unread(message: ChatMessage): Int =
-        reads.count { it.userId != message.sender?.id && (it.lastReadMessageId ?: 0) < message.id }
+        if (message.threadRootId != null) 0
+        else reads.count { it.userId != message.sender?.id && (it.lastReadMessageId ?: 0) < message.id }
 
     fun mentionNames(message: ChatMessage): List<String> =
         message.mentions.mapNotNull { names[it] } + (if (message.mentionAll) ALL_LABELS.toList() else emptyList())
@@ -759,7 +775,7 @@ private fun mentionOptions(state: ChatRoomUiState, allLabel: String): List<ChatU
 }
 
 @Composable
-private fun MessageBubble(
+internal fun MessageBubble(
     message: ChatMessage,
     mine: Boolean,
     showSender: Boolean,
@@ -829,8 +845,38 @@ private fun MessageBubble(
                 )
             }
             if (!message.deleted) ReactionChips(message.reactions, bubble.myId) { e -> bubble.onReact(message, e) }
+            bubble.onOpenThread?.let { open -> ThreadSummary(message, onClick = { open(message) }) }
         }
         if (!mine) TimeLabel(message.createdAt, message.edited && !message.deleted, bubble.unread(message), mine)
+    }
+}
+
+/** 시작 글 아래 "답글 N개 · 마지막 답글 시각" + 답글 단 사람 얼굴. 누르면 스레드 화면 */
+@Composable
+private fun ThreadSummary(message: ChatMessage, onClick: () -> Unit) {
+    if (message.replyCount <= 0) return
+    Row(
+        Modifier.padding(top = 4.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(Icons.Outlined.Forum, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+        Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
+            message.threadUsers.take(3).forEach { u ->
+                Box(Modifier.clip(CircleShape).border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)) {
+                    Avatar(u.nickname, resolveImageUrl(u.profileImageUrl), size = 20.dp)
+                }
+            }
+        }
+        Text(
+            stringResource(Res.string.chat_thread_replies, message.replyCount),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        message.lastReplyAt?.let {
+            Text(formatChatTime(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -850,7 +896,7 @@ private fun TimeLabel(iso: String, edited: Boolean, unread: Int, mine: Boolean) 
 }
 
 @Composable
-private fun InputBar(
+internal fun InputBar(
     value: String,
     files: List<PickedFile>,
     sending: Boolean,
@@ -859,6 +905,8 @@ private fun InputBar(
     onRemoveFile: (Int) -> Unit,
     onEmoji: () -> Unit,
     onSend: () -> Unit,
+    /** 입력칸 안내 글 (비우면 "메시지 입력") */
+    hint: String? = null,
 ) {
     val pick = rememberFilePicker(stringResource(Res.string.chat_attach), onAttach)
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -900,7 +948,7 @@ private fun InputBar(
             OutlinedTextField(
                 value = value,
                 onValueChange = onChange,
-                placeholder = { Text(stringResource(Res.string.chat_input_hint)) },
+                placeholder = { Text(hint ?: stringResource(Res.string.chat_input_hint)) },
                 maxLines = 5,
                 shape = RoundedCornerShape(24.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),

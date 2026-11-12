@@ -72,6 +72,7 @@ import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.lang_system
 import com.webrtcmeetpro.resources.settings_language
 import com.webrtcmeetpro.resources.settings_billing
+import com.webrtcmeetpro.resources.payments_title
 import androidx.compose.ui.platform.LocalUriHandler
 import com.webrtcmeetpro.core.network.ApiConfig
 import org.koin.compose.koinInject
@@ -164,7 +165,11 @@ private val languageNames = linkedMapOf(
 )
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = koinViewModel()) {
+fun SettingsScreen(
+    /** 결제 내역 · 환불 화면 */
+    onOpenPayments: () -> Unit = {},
+    viewModel: SettingsViewModel = koinViewModel(),
+) {
     val me by viewModel.me.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
@@ -182,6 +187,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = koinViewModel()) {
                 onClick = { uriHandler.openUri(config.webUrl.trimEnd('/') + "/app/billing") },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        // 결제 내역 보기 · 환불은 앱에서도 (새 결제는 위의 웹 요금제)
+        item {
+            SecondaryButton(stringResource(Res.string.payments_title), onClick = onOpenPayments, modifier = Modifier.fillMaxWidth())
         }
 
         item {

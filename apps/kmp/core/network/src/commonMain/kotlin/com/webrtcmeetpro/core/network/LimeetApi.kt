@@ -1,6 +1,14 @@
 package com.webrtcmeetpro.core.network
 
 import com.webrtcmeetpro.core.model.MeetingNotes
+import com.webrtcmeetpro.core.model.ChatThread
+import com.webrtcmeetpro.core.model.InviteLink
+import com.webrtcmeetpro.core.model.InviteLinkJoined
+import com.webrtcmeetpro.core.model.InviteLinkPasswordRequest
+import com.webrtcmeetpro.core.model.InviteLinkPreview
+import com.webrtcmeetpro.core.model.Payment
+import com.webrtcmeetpro.core.model.RefundQuote
+import com.webrtcmeetpro.core.model.RefundRequest
 import com.webrtcmeetpro.core.model.UpdateChannelRequest
 import com.webrtcmeetpro.core.model.CategoryRequest
 import com.webrtcmeetpro.core.model.Recording
@@ -137,6 +145,30 @@ class LimeetApi(private val client: HttpClient) {
 
     suspend fun myInvitations(): List<Invitation> = client.get("api/invitations").body()
 
+    /** 팀 초대 링크 (INVITE_MEMBER 권한: 소유자·관리자) */
+    suspend fun inviteLinks(teamId: Long): List<InviteLink> = client.get("api/teams/$teamId/invite-links").body()
+
+    suspend fun createInviteLink(teamId: Long, password: String?): InviteLink =
+        client.post("api/teams/$teamId/invite-links") { setBody(InviteLinkPasswordRequest(password)) }.body()
+
+    suspend fun deleteInviteLink(teamId: Long, linkId: Long) {
+        client.delete("api/teams/$teamId/invite-links/$linkId")
+    }
+
+    /** 링크로 들어가기 전에 어떤 팀인지 · 비밀번호가 필요한지 */
+    suspend fun inviteLinkPreview(token: String): InviteLinkPreview = client.get("api/invite-links/$token").body()
+
+    suspend fun joinByInviteLink(token: String, password: String?): InviteLinkJoined =
+        client.post("api/invite-links/$token/join") { setBody(InviteLinkPasswordRequest(password)) }.body()
+
+    /** 내 결제 내역 · 환불 미리 계산 · 환불 (플랜은 바로 끝난다) */
+    suspend fun payments(): List<Payment> = client.get("api/billing/payments").body()
+
+    suspend fun refundQuote(orderId: String): RefundQuote = client.get("api/billing/payments/$orderId/refund").body()
+
+    suspend fun refund(orderId: String, reason: String?): RefundQuote =
+        client.post("api/billing/payments/$orderId/refund") { setBody(RefundRequest(reason, agree = true)) }.body()
+
     suspend fun acceptInvitation(invitationId: Long) {
         client.post("api/invitations/$invitationId/accept")
     }
@@ -198,6 +230,9 @@ class LimeetApi(private val client: HttpClient) {
     suspend fun sendMessage(roomId: Long, request: SendMessageRequest): ChatMessage =
         client.post("api/chat/rooms/$roomId/messages") { setBody(request) }.body()
 
+    /** 스레드: 시작 글 + 답글 (답글 id 를 줘도 그 스레드) */
+    suspend fun thread(messageId: Long): ChatThread = client.get("api/chat/messages/$messageId/thread").body()
+
     /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
     suspend fun react(messageId: Long, emoji: String): ChatMessage =
         client.post("api/chat/messages/$messageId/reactions") { setBody(ReactionRequest(emoji)) }.body()
@@ -226,11 +261,12 @@ class LimeetApi(private val client: HttpClient) {
      * 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) = FILE 메시지 1개.
      * 한글 파일 이름은 filename* (RFC 5987, UTF-8) 로 보낸다. 큰 파일은 기본 30초 제한을 넘을 수 있어 늘린다
      */
-    suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?): ChatMessage =
+    suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?, threadRootId: Long? = null): ChatMessage =
         client.submitFormWithBinaryData(
             url = "api/chat/rooms/$roomId/files",
             formData = formData {
                 content?.let { append("content", it, Headers.build { append(HttpHeaders.ContentType, "text/plain; charset=UTF-8") }) }
+                threadRootId?.let { append("threadRootId", it.toString()) }
                 files.forEach { f ->
                     append(
                         "files",

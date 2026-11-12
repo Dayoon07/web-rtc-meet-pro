@@ -90,7 +90,7 @@ class UserRepository(private val api: LimeetApi) {
     }
 }
 
-class TeamRepository(private val api: LimeetApi) {
+class TeamRepository(private val api: LimeetApi, private val config: ApiConfig) {
     private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** 팀을 만들거나·초대를 수락하거나·나가거나·삭제하면 알린다 (팀 목록이 다시 불러오게) */
     val changed: SharedFlow<Unit> = _changed
@@ -109,6 +109,15 @@ class TeamRepository(private val api: LimeetApi) {
     suspend fun myInvitations(): List<Invitation> = api.myInvitations()
     suspend fun accept(invitationId: Long) = api.acceptInvitation(invitationId).also { _changed.tryEmit(Unit) }
     suspend fun decline(invitationId: Long) = api.declineInvitation(invitationId)
+
+    // 초대 링크 (주소 = 웹 주소/join/코드)
+    fun inviteLinkUrl(token: String): String = "${config.webUrl.trimEnd('/')}/join/$token"
+    suspend fun inviteLinks(teamId: Long) = api.inviteLinks(teamId)
+    suspend fun createInviteLink(teamId: Long, password: String?) = api.createInviteLink(teamId, password?.trim()?.ifEmpty { null })
+    suspend fun deleteInviteLink(teamId: Long, linkId: Long) = api.deleteInviteLink(teamId, linkId)
+    suspend fun inviteLinkPreview(token: String) = api.inviteLinkPreview(token)
+    suspend fun joinByInviteLink(token: String, password: String?) =
+        api.joinByInviteLink(token, password?.ifEmpty { null }).also { _changed.tryEmit(Unit) }
 }
 
 class ChatRepository(private val api: LimeetApi) {
@@ -126,17 +135,19 @@ class ChatRepository(private val api: LimeetApi) {
     suspend fun invite(roomId: Long, userIds: List<Long>) = api.inviteToRoom(roomId, userIds)
     suspend fun leave(roomId: Long) = api.leaveRoom(roomId)
     suspend fun messages(roomId: Long, before: Long? = null): List<ChatMessage> = api.messages(roomId, before)
-    /** 글 보내기. 답장할 메시지 · @멘션한 사람 · @모두 */
-    suspend fun send(roomId: Long, content: String, replyToId: Long? = null, mentionIds: List<Long> = emptyList(), mentionAll: Boolean = false): ChatMessage =
-        api.sendMessage(roomId, SendMessageRequest(content.trim(), replyToId, mentionIds, mentionAll))
+    /** 스레드: 시작 글 + 답글 */
+    suspend fun thread(messageId: Long) = api.thread(messageId)
+    /** 글 보내기. 답장할 메시지 · @멘션한 사람 · @모두 · 스레드 답글 */
+    suspend fun send(roomId: Long, content: String, replyToId: Long? = null, mentionIds: List<Long> = emptyList(), mentionAll: Boolean = false, threadRootId: Long? = null): ChatMessage =
+        api.sendMessage(roomId, SendMessageRequest(content.trim(), replyToId, mentionIds, mentionAll, threadRootId))
     suspend fun react(messageId: Long, emoji: String): ChatMessage = api.react(messageId, emoji)
     suspend fun search(teamId: Long, query: String): List<ChatMessage> = api.searchMessages(teamId, query.trim())
     suspend fun setNotice(roomId: Long, content: String?): ChatRoom = api.setNotice(roomId, content?.trim()?.ifEmpty { null })
     suspend fun setMuted(roomId: Long, muted: Boolean): ChatRoom = api.setMuted(roomId, muted)
     suspend fun typing(roomId: Long) = api.typing(roomId)
     suspend fun presence(teamId: Long): List<PresenceView> = api.presence(teamId)
-    suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?): ChatMessage =
-        api.sendFiles(roomId, files, content?.trim()?.ifEmpty { null })
+    suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?, threadRootId: Long? = null): ChatMessage =
+        api.sendFiles(roomId, files, content?.trim()?.ifEmpty { null }, threadRootId)
     suspend fun markRead(roomId: Long, messageId: Long) = api.markRead(roomId, messageId)
     suspend fun edit(messageId: Long, content: String): ChatMessage = api.editMessage(messageId, content.trim())
     suspend fun delete(messageId: Long): ChatMessage = api.deleteMessage(messageId)
@@ -174,6 +185,13 @@ class MeetingRepository(
             .replace("%", "%25").replace("?", "%3F").replace("&", "%26").replace("=", "%3D").replace("/", "%2F")
         return "${config.webUrl.trimEnd('/')}/oauth/callback?code=$code&next=$next"
     }
+}
+
+/** 내 결제 내역 · 환불 (새 결제는 웹 요금제 화면) */
+class BillingRepository(private val api: LimeetApi) {
+    suspend fun payments() = api.payments()
+    suspend fun refundQuote(orderId: String) = api.refundQuote(orderId)
+    suspend fun refund(orderId: String, reason: String?) = api.refund(orderId, reason?.trim()?.ifEmpty { null })
 }
 
 class NotificationRepository(private val api: LimeetApi) {

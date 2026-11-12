@@ -79,15 +79,21 @@ class AppViewModel(
                     launch {
                         realtime.notifications.collect { n ->
                             badges.refresh()
-                            notifier.show(getString(Res.string.app_name), notificationTextAsync(n))
+                            // 지금 보고 있는 스레드의 답글은 띄우지 않는다
+                            val watching = n.type == "THREAD_REPLY" && n.param("rootId").toLongOrNull() == presence.activeThreadId.value
+                            if (!watching) notifier.show(getString(Res.string.app_name), notificationTextAsync(n))
                         }
                     }
                     launch {
                         realtime.chatEvents.collect { event ->
                             badges.refresh()
+                            // 새 메시지만 (고치기·지우기·반응은 알리지 않는다). 스레드 답글·나를 부른 멘션은 알림(THREAD_REPLY·CHAT_MENTION)으로 따로 온다
+                            if (event.type != "MESSAGE") return@collect
                             val message = event.message ?: return@collect
-                            val mine = message.sender?.id == users.me.value?.id
-                            if (!mine && presence.activeRoomId.value != event.roomId && message.sender != null) {
+                            val myId = users.me.value?.id
+                            val mine = message.sender?.id == myId
+                            val mentioned = message.mentionAll || (myId != null && myId in message.mentions)
+                            if (!mine && !mentioned && message.threadRootId == null && presence.activeRoomId.value != event.roomId && message.sender != null) {
                                 notifier.show(message.sender!!.nickname, messagePreviewAsync(message))
                             }
                         }

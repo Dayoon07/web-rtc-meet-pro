@@ -5,6 +5,7 @@ import com.webrtcmeetpro.feature.main.PlanExpiryViewModel
 import com.webrtcmeetpro.AppViewModel
 import com.webrtcmeetpro.core.data.AuthRepository
 import com.webrtcmeetpro.core.data.BadgeRepository
+import com.webrtcmeetpro.core.data.BillingRepository
 import com.webrtcmeetpro.core.data.ChatRepository
 import com.webrtcmeetpro.core.data.MeetingRepository
 import com.webrtcmeetpro.core.data.NotificationRepository
@@ -22,6 +23,8 @@ import com.webrtcmeetpro.feature.auth.SignupViewModel
 import com.webrtcmeetpro.feature.chat.ChatListViewModel
 import com.webrtcmeetpro.feature.chat.ChatPresence
 import com.webrtcmeetpro.feature.chat.ChatRoomViewModel
+import com.webrtcmeetpro.feature.chat.ThreadViewModel
+import com.webrtcmeetpro.feature.settings.PaymentsViewModel
 import com.webrtcmeetpro.feature.chat.NewChatViewModel
 import com.webrtcmeetpro.feature.home.HomeViewModel
 import com.webrtcmeetpro.feature.meetings.MeetingDetailViewModel
@@ -54,6 +57,7 @@ val dataModule = module {
     singleOf(::ChatRepository)
     singleOf(::MeetingRepository)
     singleOf(::NotificationRepository)
+    singleOf(::BillingRepository)
     singleOf(::ChatPresence)
 }
 
@@ -67,6 +71,7 @@ val viewModelModule = module {
     viewModelOf(::ChatListViewModel)
     viewModelOf(::NewChatViewModel)
     viewModelOf(::ChatRoomViewModel)
+    viewModelOf(::ThreadViewModel)
     viewModelOf(::MeetingsViewModel)
     viewModelOf(::MeetingDetailViewModel)
     viewModelOf(::ScheduleMeetingViewModel)
@@ -74,6 +79,7 @@ val viewModelModule = module {
     viewModelOf(::TeamDetailViewModel)
     viewModelOf(::NotificationsViewModel)
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::PaymentsViewModel)
     viewModelOf(::VerifyEmailViewModel)
 }
 

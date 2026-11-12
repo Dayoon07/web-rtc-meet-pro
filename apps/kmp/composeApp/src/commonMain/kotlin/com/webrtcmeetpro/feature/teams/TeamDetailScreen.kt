@@ -47,6 +47,8 @@ import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.Badge
 import com.webrtcmeetpro.core.designsystem.component.LimeetCard
 import com.webrtcmeetpro.core.model.Invitation
+import com.webrtcmeetpro.core.model.InviteLink
+import com.webrtcmeetpro.resources.invite_link_copied
 import com.webrtcmeetpro.core.model.InvitationStatus
 import com.webrtcmeetpro.core.model.TeamDetail
 import com.webrtcmeetpro.core.model.TeamRole
@@ -108,6 +110,11 @@ data class TeamDetailUiState(
     val inviting: Boolean = false,
     val invitedTo: String? = null,
     val errorCode: String? = null,
+    /** 초대 링크 (초대 권한이 있을 때만) */
+    val links: List<InviteLink> = emptyList(),
+    val creatingLink: Boolean = false,
+    /** 링크를 복사했다 (스낵바 한 번) */
+    val linkCopied: Boolean = false,
 )
 
 class TeamDetailViewModel(
@@ -129,10 +136,39 @@ class TeamDetailViewModel(
                     teams.pendingInvitations(teamId).filter { it.status == InvitationStatus.PENDING }
                 } else emptyList()
                 Triple(detail, pending, users.me().id)
-            }.onSuccess { (detail, pending, myId) -> _state.update { it.copy(team = detail, pending = pending, myId = myId) } }
+            }.onSuccess { (detail, pending, myId) ->
+                _state.update { it.copy(team = detail, pending = pending, myId = myId) }
+                if (detail.team.canInvite) {
+                    runCatching { teams.inviteLinks(teamId) }.onSuccess { list -> _state.update { it.copy(links = list) } }
+                }
+            }
                 .onFailure { e -> _state.update { it.copy(loadError = e.errorCode) } }
         }
     }
+
+    fun linkUrl(link: InviteLink) = teams.inviteLinkUrl(link.token)
+
+    /** 초대 링크 만들기 (password 가 null 이면 링크만으로 들어올 수 있다) */
+    fun createLink(password: String?) {
+        if (_state.value.creatingLink) return
+        _state.update { it.copy(creatingLink = true) }
+        viewModelScope.launch {
+            runCatching { teams.createInviteLink(teamId, password) }
+                .onSuccess { link -> _state.update { it.copy(creatingLink = false, links = listOf(link) + it.links) } }
+                .onFailure { e -> _state.update { it.copy(creatingLink = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    fun deleteLink(link: InviteLink) {
+        viewModelScope.launch {
+            runCatching { teams.deleteInviteLink(teamId, link.id) }
+                .onSuccess { _state.update { s -> s.copy(links = s.links.filterNot { it.id == link.id }) } }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
+    fun linkCopied() = _state.update { it.copy(linkCopied = true) }
+    fun linkCopiedShown() = _state.update { it.copy(linkCopied = false) }
 
     fun setEmail(v: String) = _state.update { it.copy(email = v.trim().take(255)) }
 
@@ -236,6 +272,12 @@ fun TeamDetailScreen(
             snackbar.showSnackbar(getString(Res.string.team_removed, it.nickname))
         }
     }
+    LaunchedEffect(state.linkCopied) {
+        if (state.linkCopied) {
+            viewModel.linkCopiedShown()
+            snackbar.showSnackbar(getString(Res.string.invite_link_copied))
+        }
+    }
     LaunchedEffect(state.exited) { if (state.exited) onBack() }
     val detail = state.team
     var confirmLeave by remember { mutableStateOf(false) }
@@ -310,6 +352,17 @@ fun TeamDetailScreen(
                                 }
                             }
                         }
+                    }
+
+                    if (detail.team.canInvite) {
+                        InviteLinksSection(
+                            links = state.links,
+                            linkUrl = viewModel::linkUrl,
+                            creating = state.creatingLink,
+                            onCreate = viewModel::createLink,
+                            onDelete = viewModel::deleteLink,
+                            onCopied = viewModel::linkCopied,
+                        )
                     }
 
                     LimeetCard(Modifier.fillMaxWidth()) {

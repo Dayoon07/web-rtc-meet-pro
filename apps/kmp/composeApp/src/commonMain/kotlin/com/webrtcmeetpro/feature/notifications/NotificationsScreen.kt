@@ -4,6 +4,8 @@ import com.webrtcmeetpro.resources.notif_MEETING_NOTES_READY
 import com.webrtcmeetpro.resources.notif_MEMBER_OVERAGE
 import com.webrtcmeetpro.resources.notif_OVERAGE_CHARGE_SOON
 import com.webrtcmeetpro.resources.notif_PAYMENT_REFUNDED
+import com.webrtcmeetpro.resources.notif_CHAT_MENTION
+import com.webrtcmeetpro.resources.notif_THREAD_REPLY
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +80,8 @@ private fun template(n: AppNotification): Pair<StringResource, Array<Any>>? {
         "TEAM_INVITATION" -> Res.string.notif_TEAM_INVITATION to arrayOf(n.param("inviterName"), n.param("teamName"))
         "TEAM_INVITATION_ACCEPTED" -> Res.string.notif_TEAM_INVITATION_ACCEPTED to arrayOf(n.param("memberName"), n.param("teamName"))
         "CHAT_ROOM_INVITED" -> Res.string.notif_CHAT_ROOM_INVITED to arrayOf(n.param("inviterName"), n.param("roomName"))
+        "CHAT_MENTION" -> Res.string.notif_CHAT_MENTION to arrayOf(n.param("senderName"), n.param("preview"))
+        "THREAD_REPLY" -> Res.string.notif_THREAD_REPLY to arrayOf(n.param("senderName"), n.param("preview"))
         "MEETING_SCHEDULED" -> Res.string.notif_MEETING_SCHEDULED to arrayOf(n.param("teamName"), n.param("title"), time)
         "MEETING_REMINDER" -> Res.string.notif_MEETING_REMINDER to arrayOf(n.param("title"), time)
         "MEETING_STARTED" -> Res.string.notif_MEETING_STARTED to arrayOf(n.param("title"))
@@ -102,16 +106,20 @@ suspend fun notificationTextAsync(n: AppNotification): String =
 /** 알림을 눌렀을 때 갈 앱 화면. 서버 link 는 웹 경로라서 앱 화면으로 바꾼다 */
 sealed interface NotificationTarget {
     data class Meeting(val id: Long) : NotificationTarget
-    data class ChatRoom(val id: Long) : NotificationTarget
+    /** threadId: 스레드 답글·스레드 안 멘션이면 그 스레드 화면으로 */
+    data class ChatRoom(val id: Long, val threadId: Long? = null) : NotificationTarget
     data class Team(val id: Long) : NotificationTarget
     data object Invitations : NotificationTarget
 }
 
 fun AppNotification.target(): NotificationTarget? {
-    val parts = link.orEmpty().trim('/').split('/')
+    // 예: /app/chat/1/1106?thread=1131 (주소 뒤 ?thread= 는 스레드)
+    val path = link.orEmpty().substringBefore('?')
+    val thread = Regex("[?&]thread=(\\d+)").find(link.orEmpty())?.groupValues?.get(1)?.toLongOrNull()
+    val parts = path.trim('/').split('/')
     return when {
         parts.getOrNull(1) == "meetings" -> parts.getOrNull(2)?.toLongOrNull()?.let(NotificationTarget::Meeting)
-        parts.getOrNull(1) == "chat" -> parts.getOrNull(3)?.toLongOrNull()?.let(NotificationTarget::ChatRoom)
+        parts.getOrNull(1) == "chat" -> parts.getOrNull(3)?.toLongOrNull()?.let { NotificationTarget.ChatRoom(it, thread) }
         parts.getOrNull(1) == "teams" -> parts.getOrNull(2)?.toLongOrNull()?.let(NotificationTarget::Team)
         parts.getOrNull(1) == "invitations" -> NotificationTarget.Invitations
         else -> null

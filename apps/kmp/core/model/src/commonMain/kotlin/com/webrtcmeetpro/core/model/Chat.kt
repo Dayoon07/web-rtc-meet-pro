@@ -46,7 +46,17 @@ data class ChatMessage(
     val mentions: List<Long> = emptyList(),
     /** @모두 */
     val mentionAll: Boolean = false,
+    /** 스레드 답글이면 스레드 시작 글 id (채팅방 본문이 아니라 스레드 화면에 보인다) */
+    val threadRootId: Long? = null,
+    /** 스레드 시작 글: 답글 수 · 마지막 답글 시각 · 답글 단 사람(최근 순 몇 명) */
+    val replyCount: Int = 0,
+    val lastReplyAt: String? = null,
+    val threadUsers: List<ChatUser> = emptyList(),
 )
+
+/** 스레드 화면: 시작 글 + 답글(오래된 순) */
+@Serializable
+data class ChatThread(val root: ChatMessage, val replies: List<ChatMessage> = emptyList())
 
 /** 답장한 원래 메시지 (지웠으면 content 없이 deleted) */
 @Serializable
@@ -147,13 +157,14 @@ data class CategoryRequest(val name: String)
 @Serializable
 data class InviteMembersRequest(val userIds: List<Long>)
 
-/** 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두 */
+/** 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두, threadRootId = 스레드 답글 */
 @Serializable
 data class SendMessageRequest(
     val content: String,
     val replyToId: Long? = null,
     val mentionIds: List<Long> = emptyList(),
     val mentionAll: Boolean = false,
+    val threadRootId: Long? = null,
 )
 
 @Serializable

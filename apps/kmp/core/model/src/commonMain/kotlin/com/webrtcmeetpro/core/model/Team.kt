@@ -82,3 +82,33 @@ data class InviteRequest(val email: String)
 /** PATCH /api/teams/{teamId}/members/{userId}/role. ADMIN 또는 MEMBER (OWNER 는 줄 수 없다) */
 @Serializable
 data class ChangeRoleRequest(val role: TeamRole)
+
+/** 팀 초대 링크 (팀 소유자·관리자가 만들고 지운다). 링크 주소 = 웹 주소/join/token. 기간 제한 없음 */
+@Serializable
+data class InviteLink(
+    val id: Long,
+    val token: String,
+    val hasPassword: Boolean = false,
+    val joinCount: Int = 0,
+    val createdByName: String? = null,
+    val createdAt: String,
+)
+
+/** 링크를 연 사람에게 보여 줄 팀 소개 */
+@Serializable
+data class InviteLinkPreview(
+    val teamId: Long,
+    val teamName: String,
+    val teamDescription: String? = null,
+    val memberCount: Int = 0,
+    val hasPassword: Boolean = false,
+    /** 이미 이 팀 멤버면 들어가기 대신 "채팅으로 가기" */
+    val alreadyMember: Boolean = false,
+)
+
+@Serializable
+data class InviteLinkJoined(val teamId: Long, val teamName: String)
+
+/** 링크 만들 때(비우면 비밀번호 없음) · 링크로 들어갈 때 비밀번호 */
+@Serializable
+data class InviteLinkPasswordRequest(val password: String? = null)

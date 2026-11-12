@@ -4,6 +4,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.graphics.SolidColor
 import com.webrtcmeetpro.resources.error_MEETING_NOT_EDITABLE
+import com.webrtcmeetpro.resources.error_INVITE_LINK_NOT_FOUND
+import com.webrtcmeetpro.resources.error_INVITE_LINK_PASSWORD_REQUIRED
+import com.webrtcmeetpro.resources.error_INVITE_LINK_WRONG_PASSWORD
+import com.webrtcmeetpro.resources.error_INVALID_INVITE_LINK_PASSWORD
+import com.webrtcmeetpro.resources.error_REFUND_ALREADY_DONE
+import com.webrtcmeetpro.resources.error_REFUND_NOT_LATEST
+import com.webrtcmeetpro.resources.error_REFUND_PLAN_ENDED
+import com.webrtcmeetpro.resources.error_REFUND_NOTHING_LEFT
+import com.webrtcmeetpro.resources.error_REFUND_ASK_SUPPORT
+import com.webrtcmeetpro.resources.error_REFUND_FAILED
+import com.webrtcmeetpro.resources.error_REFUND_NOT_ALLOWED
+import com.webrtcmeetpro.resources.error_MESSAGE_NOT_FOUND
 import com.webrtcmeetpro.resources.error_TOO_MANY_FILES
 import com.webrtcmeetpro.resources.error_FILE_TOO_LARGE
 import com.webrtcmeetpro.resources.error_EMPTY_FILE
@@ -117,6 +129,18 @@ fun errorMessage(code: String): String = stringResource(
         "CANNOT_REMOVE_MEMBER" -> Res.string.error_CANNOT_REMOVE_MEMBER
         "INVALID_PASSWORD" -> Res.string.error_INVALID_PASSWORD
         "OWNED_TEAMS_EXIST" -> Res.string.error_OWNED_TEAMS_EXIST
+        "INVITE_LINK_NOT_FOUND" -> Res.string.error_INVITE_LINK_NOT_FOUND
+        "INVITE_LINK_PASSWORD_REQUIRED" -> Res.string.error_INVITE_LINK_PASSWORD_REQUIRED
+        "INVITE_LINK_WRONG_PASSWORD" -> Res.string.error_INVITE_LINK_WRONG_PASSWORD
+        "INVALID_INVITE_LINK_PASSWORD" -> Res.string.error_INVALID_INVITE_LINK_PASSWORD
+        "REFUND_ALREADY_DONE" -> Res.string.error_REFUND_ALREADY_DONE
+        "REFUND_NOT_LATEST" -> Res.string.error_REFUND_NOT_LATEST
+        "REFUND_PLAN_ENDED" -> Res.string.error_REFUND_PLAN_ENDED
+        "REFUND_NOTHING_LEFT" -> Res.string.error_REFUND_NOTHING_LEFT
+        "REFUND_ASK_SUPPORT", "REFUND_NO_PAYMENT_KEY" -> Res.string.error_REFUND_ASK_SUPPORT
+        "REFUND_FAILED" -> Res.string.error_REFUND_FAILED
+        "REFUND_NOT_ALLOWED", "REFUND_NOT_PAID", "INVALID_REFUND_AMOUNT" -> Res.string.error_REFUND_NOT_ALLOWED
+        "MESSAGE_NOT_FOUND" -> Res.string.error_MESSAGE_NOT_FOUND
         "NETWORK" -> Res.string.error_NETWORK
         else -> Res.string.error_UNKNOWN
     },

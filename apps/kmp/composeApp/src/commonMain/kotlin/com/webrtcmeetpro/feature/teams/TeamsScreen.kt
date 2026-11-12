@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import com.webrtcmeetpro.core.model.InviteLinkPreview
 
 data class TeamsUiState(
     /** 받은 초대 (대기 중인 것만). null = 아직 불러오는 중 */
@@ -71,6 +72,10 @@ data class TeamsUiState(
     /** 팀을 만들었거나 초대를 수락해 들어간 팀 → 그 팀 채팅으로 */
     val joinedTeamId: Long? = null,
     val errorCode: String? = null,
+    /** 초대 링크로 들어가기: 확인한 링크 코드 · 팀 소개 */
+    val linkToken: String? = null,
+    val linkPreview: InviteLinkPreview? = null,
+    val linkBusy: Boolean = false,
 )
 
 /**
@@ -125,6 +130,39 @@ class TeamsViewModel(
         }
     }
 
+    /** 붙여 넣은 초대 링크(또는 코드)로 어떤 팀인지 확인 */
+    fun checkLink(input: String) {
+        val token = inviteTokenOf(input)
+        if (token.isEmpty() || _state.value.linkBusy) return
+        _state.update { it.copy(linkBusy = true, linkPreview = null, linkToken = null) }
+        viewModelScope.launch {
+            runCatching { teams.inviteLinkPreview(token) }
+                .onSuccess { p -> _state.update { it.copy(linkBusy = false, linkToken = token, linkPreview = p) } }
+                .onFailure { e -> _state.update { it.copy(linkBusy = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    /** 링크로 팀에 들어가기 (이미 멤버면 그 팀으로만) */
+    fun joinByLink(password: String?) {
+        val token = _state.value.linkToken ?: return
+        val preview = _state.value.linkPreview ?: return
+        if (_state.value.linkBusy) return
+        viewModelScope.launch {
+            if (preview.alreadyMember) {
+                joined(preview.teamId)
+                return@launch
+            }
+            _state.update { it.copy(linkBusy = true) }
+            runCatching { teams.joinByInviteLink(token, password) }
+                .onSuccess { done ->
+                    _state.update { it.copy(linkBusy = false, linkToken = null, linkPreview = null) }
+                    badges.refresh()
+                    joined(done.teamId)
+                }
+                .onFailure { e -> _state.update { it.copy(linkBusy = false, errorCode = e.errorCode) } }
+        }
+    }
+
     private suspend fun joined(teamId: Long) {
         settings.setLastTeam(teamId)
         _state.update { it.copy(joinedTeamId = teamId) }
@@ -148,6 +186,7 @@ fun InvitationsScreen(onJoined: (teamId: Long) -> Unit, viewModel: TeamsViewMode
     val invitations = state.invitations
     ScreenList(refreshing = state.loading && invitations != null, onRefresh = viewModel::refresh) {
         item { ScreenTitle(stringResource(Res.string.invitations_title)) }
+        item { JoinByLinkCard(state.linkPreview, state.linkBusy, onCheck = viewModel::checkLink, onJoin = viewModel::joinByLink) }
         when {
             invitations == null -> loadingItem()
             invitations.isEmpty() -> item {
@@ -194,6 +233,8 @@ fun TeamStartScreen(onReady: () -> Unit, viewModel: TeamsViewModel = koinViewMod
                 InvitationCard(inv, onAccept = { viewModel.respond(inv, true) }, onDecline = { viewModel.respond(inv, false) })
             }
         }
+        // 초대 링크를 받았으면 팀을 만들지 않고 그 팀으로
+        item { JoinByLinkCard(state.linkPreview, state.linkBusy, onCheck = viewModel::checkLink, onJoin = viewModel::joinByLink) }
         item { SectionHeader(stringResource(Res.string.start_create_title)) }
         item {
             LimeetCard(Modifier.fillMaxWidth()) {
