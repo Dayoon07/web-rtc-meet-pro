@@ -2,6 +2,7 @@ package com.webrtcmeetpro.core.data
 
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.ChatEvent
+import com.webrtcmeetpro.core.model.PresenceView
 import com.webrtcmeetpro.core.network.ApiJson
 import com.webrtcmeetpro.core.network.LimeetApi
 import com.webrtcmeetpro.core.network.StompClient
@@ -28,7 +29,12 @@ class RealtimeRepository(
         .filter { it.destination == NOTIFICATIONS }
         .mapNotNull { runCatching { ApiJson.decodeFromString<AppNotification>(it.body) }.getOrNull() }
 
-    suspend fun run() = stomp.run(listOf(CHAT, NOTIFICATIONS)) {
+    /** 같은 워크스페이스 사람의 접속·자리 비움·나감 */
+    val presence: Flow<PresenceView> = stomp.messages
+        .filter { it.destination == PRESENCE }
+        .mapNotNull { runCatching { ApiJson.decodeFromString<PresenceView>(it.body) }.getOrNull() }
+
+    suspend fun run() = stomp.run(listOf(CHAT, NOTIFICATIONS, PRESENCE)) {
         // 아무 인증 API 나 부르면 401 → Ktor 가 토큰을 회전해 저장한다
         api.chatUnreadCount()
     }
@@ -36,5 +42,6 @@ class RealtimeRepository(
     private companion object {
         const val CHAT = "/user/queue/chat"
         const val NOTIFICATIONS = "/user/queue/notifications"
+        const val PRESENCE = "/user/queue/presence"
     }
 }

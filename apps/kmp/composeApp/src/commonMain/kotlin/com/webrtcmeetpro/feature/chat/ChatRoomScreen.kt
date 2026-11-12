@@ -3,6 +3,22 @@
 package com.webrtcmeetpro.feature.chat
 
 import com.webrtcmeetpro.core.data.MeetingRepository
+import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsOff
+import com.webrtcmeetpro.core.model.ChatUser
+import com.webrtcmeetpro.core.model.ReadState
+import com.webrtcmeetpro.resources.chat_emoji
+import com.webrtcmeetpro.resources.chat_mention_all
+import com.webrtcmeetpro.resources.chat_mute
+import com.webrtcmeetpro.resources.chat_notice_title
+import com.webrtcmeetpro.resources.chat_unmute
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -166,7 +182,20 @@ data class ChatRoomUiState(
     val voiceUrl: String? = null,
     val joiningVoice: Boolean = false,
     val categories: List<ChatCategory> = emptyList(),
-)
+    /** 답장할 메시지 (입력창 위에 표시) */
+    val replyTo: ChatMessage? = null,
+    /** 입력창에서 고른 @멘션 (id → 닉네임). 보낼 때 글에 "@닉네임" 이 남아 있는 사람만 */
+    val mentionPicks: Map<Long, String> = emptyMap(),
+    /** 지금 입력 중인 사람 */
+    val typing: List<ChatUser> = emptyList(),
+    /** 반응을 고르는 메시지 (이모지 창) */
+    val reactingTo: ChatMessage? = null,
+    /** 공지 창 (null = 닫힘, 값 = 처음 글) */
+    val noticeDraft: String? = null,
+) {
+    /** 공지는 1:1 방이면 누구나, 채널은 채널을 관리할 수 있는 사람 */
+    val canNotice: Boolean get() = room?.type == ChatRoomType.DIRECT || canManageChannel
+}
 
 class ChatRoomViewModel(
     private val roomId: Long,
@@ -186,7 +215,16 @@ class ChatRoomViewModel(
             realtime.chatEvents.collect { event ->
                 if (event.roomId != roomId) return@collect
                 val message = event.message
-                if (event.type == "MESSAGE" && message != null) {
+                val read = event.read
+                val typingUser = event.typing
+                if (event.type == "TYPING") {
+                    if (typingUser != null && typingUser.id != _state.value.myId) showTyping(typingUser)
+                } else if (event.type == "READ") {
+                    if (read != null) _state.update { s -> s.copy(room = s.room?.let { r -> r.copy(reads = r.reads.filter { it.userId != read.userId } + read) }) }
+                } else if (event.type == "CATEGORIES") {
+                    // 채널 목록 화면만 다시 그린다
+                } else if (event.type == "MESSAGE" && message != null) {
+                    message.sender?.let { hideTyping(it.id) }
                     append(message)
                     markRead()
                 } else if (event.type == "MESSAGE_UPDATED" && message != null) {
@@ -232,7 +270,79 @@ class ChatRoomViewModel(
         }
     }
 
-    fun setInput(value: String) = _state.update { it.copy(input = value.take(4000)) }
+    private var lastTypingSent: TimeMark? = null
+    private val typingTimers = mutableMapOf<Long, Job>()
+
+    /** 글을 쓰면 3초에 한 번씩 "입력 중" 을 알린다 */
+    fun setInput(value: String) {
+        _state.update { it.copy(input = value.take(4000)) }
+        if (value.isBlank()) return
+        if (lastTypingSent?.let { it.elapsedNow() < 3.seconds } == true) return
+        lastTypingSent = TimeSource.Monotonic.markNow()
+        viewModelScope.launch { runCatching { chat.typing(roomId) } }
+    }
+
+    /** 입력 중 표시는 5초 동안 새 신호가 없으면 사라진다 */
+    private fun showTyping(user: ChatUser) {
+        typingTimers.remove(user.id)?.cancel()
+        _state.update { s -> s.copy(typing = s.typing.filter { it.id != user.id } + user) }
+        typingTimers[user.id] = viewModelScope.launch {
+            delay(5_000)
+            hideTyping(user.id)
+        }
+    }
+
+    private fun hideTyping(userId: Long) {
+        typingTimers.remove(userId)?.cancel()
+        _state.update { s -> s.copy(typing = s.typing.filter { it.id != userId }) }
+    }
+
+    /** 입력창 끝의 "@검색어" 를 "@닉네임 " 으로 바꾼다. user 가 null 이면 @모두 */
+    fun pickMention(user: ChatUser?, allLabel: String) {
+        val name = user?.nickname ?: allLabel
+        _state.update { s ->
+            val next = s.input.replace(MENTION_TAIL, "") + "@$name "
+            s.copy(input = next.take(4000), mentionPicks = if (user != null) s.mentionPicks + (user.id to user.nickname) else s.mentionPicks)
+        }
+    }
+
+    fun startReply(message: ChatMessage) = _state.update { it.copy(selected = null, replyTo = message) }
+    fun cancelReply() = _state.update { it.copy(replyTo = null) }
+
+    fun react(message: ChatMessage, emoji: String) {
+        _state.update { it.copy(selected = null, reactingTo = null) }
+        viewModelScope.launch {
+            runCatching { chat.react(message.id, emoji) }
+                .onSuccess(::replace)
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
+    fun chooseReaction(message: ChatMessage?) = _state.update { it.copy(selected = null, reactingTo = message) }
+
+    /** 공지 창 열기 (메시지에서 공지로 올리면 그 글로 시작) */
+    fun openNotice(initial: String? = null) = _state.update { it.copy(selected = null, noticeDraft = initial ?: it.room?.notice?.content.orEmpty()) }
+    fun closeNotice() = _state.update { it.copy(noticeDraft = null) }
+
+    /** 공지 올리기·고치기 (null 이면 내리기) */
+    fun setNotice(content: String?) {
+        _state.update { it.copy(noticeDraft = null) }
+        viewModelScope.launch {
+            runCatching { chat.setNotice(roomId, content) }
+                .onSuccess { room -> _state.update { it.copy(room = room) } }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
+
+    /** 이 방 알림 끄기·켜기 */
+    fun toggleMute() {
+        val room = _state.value.room ?: return
+        viewModelScope.launch {
+            runCatching { chat.setMuted(roomId, !room.muted) }
+                .onSuccess { r -> _state.update { it.copy(room = r) } }
+                .onFailure { e -> _state.update { it.copy(errorCode = e.errorCode) } }
+        }
+    }
 
     /** 첨부 추가. 서버와 같은 한도(개수·크기·실행 파일)를 먼저 확인하고, 넘으면 안내만 한다 */
     fun addFiles(files: List<PickedFile>) {
@@ -246,19 +356,22 @@ class ChatRoomViewModel(
     fun removeFile(index: Int) = _state.update { s -> s.copy(pendingFiles = s.pendingFiles.filterIndexed { i, _ -> i != index }) }
 
     /** 글만 있으면 글 메시지, 첨부가 있으면 첨부 + 글을 FILE 메시지 하나로 */
-    fun send() {
+    fun send(allLabel: String) {
         val s = _state.value
         val text = s.input.trim()
         val files = s.pendingFiles
         if ((text.isEmpty() && files.isEmpty()) || s.sending) return
         _state.update { it.copy(sending = true) }
+        // 글에 "@닉네임" 이 남아 있는 사람만 멘션 (지웠으면 빼기)
+        val mentionIds = s.mentionPicks.filter { (_, name) -> text.contains("@$name") }.keys.toList()
+        val mentionAll = s.room?.type == ChatRoomType.GROUP && text.contains("@$allLabel")
         viewModelScope.launch {
             runCatching {
-                if (files.isEmpty()) chat.send(roomId, text)
+                if (files.isEmpty()) chat.send(roomId, text, s.replyTo?.id, mentionIds, mentionAll)
                 else chat.sendFiles(roomId, files.map { UploadFile(it.name, it.mimeType, it.bytes!!) }, text)
             }
                 .onSuccess { sent ->
-                    _state.update { it.copy(input = "", pendingFiles = emptyList(), sending = false) }
+                    _state.update { it.copy(input = "", pendingFiles = emptyList(), sending = false, replyTo = null, mentionPicks = emptyMap()) }
                     append(sent)
                 }
                 .onFailure { e -> _state.update { it.copy(sending = false, errorCode = e.errorCode) } }
@@ -361,6 +474,8 @@ class ChatRoomViewModel(
 
     private companion object {
         const val PAGE = 50
+        /** 입력창 끝의 "@검색어" */
+        val MENTION_TAIL = Regex("@[^\\s@]*$")
     }
 }
 
@@ -385,6 +500,8 @@ fun ChatRoomScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<ChatMessage?>(null) }
     var channelSettings by remember { mutableStateOf(false) }
+    var pickInputEmoji by remember { mutableStateOf(false) }
+    val allLabel = stringResource(Res.string.chat_mention_all)
     val uriHandler = LocalUriHandler.current
     LaunchedEffect(state.voiceUrl) {
         state.voiceUrl?.let {
@@ -401,6 +518,20 @@ fun ChatRoomScreen(
         },
         onBack = onBack,
         actions = {
+            if (room != null) {
+                if (state.canNotice) {
+                    IconButton(onClick = { viewModel.openNotice() }) {
+                        Icon(Icons.Outlined.Campaign, contentDescription = stringResource(Res.string.chat_notice_title))
+                    }
+                }
+                IconButton(onClick = viewModel::toggleMute) {
+                    Icon(
+                        if (room.muted) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
+                        contentDescription = stringResource(if (room.muted) Res.string.chat_unmute else Res.string.chat_mute),
+                        tint = if (room.muted) MaterialTheme.colorScheme.onSurfaceVariant else LocalContentColor.current,
+                    )
+                }
+            }
             if (room?.type == ChatRoomType.GROUP) {
                 // 디스코드처럼 채널 음성방. 누가 있으면 초록색 + 인원
                 IconButton(onClick = viewModel::joinVoice, enabled = !state.joiningVoice) {
@@ -430,8 +561,19 @@ fun ChatRoomScreen(
             room == null && state.loadError != null -> ErrorState(state.loadError!!, onRetry = viewModel::load)
             room == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else -> Column(Modifier.fillMaxSize().imePadding()) {
-                MessageList(state, onReachTop = viewModel::loadOlder, onLongPress = viewModel::select, onOpenMeeting = onOpenMeeting, modifier = Modifier.weight(1f))
+                room.notice?.let { NoticeBar(it, onEdit = if (state.canNotice) ({ viewModel.openNotice() }) else null) }
+                MessageList(
+                    state,
+                    onReachTop = viewModel::loadOlder,
+                    onLongPress = viewModel::select,
+                    onReact = viewModel::react,
+                    onOpenMeeting = onOpenMeeting,
+                    modifier = Modifier.weight(1f),
+                )
+                TypingLine(state.typing)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                state.replyTo?.let { ReplyBar(it, onCancel = viewModel::cancelReply) }
+                MentionSuggestions(mentionOptions(state, allLabel), allLabel, onPick = { viewModel.pickMention(it, allLabel) })
                 InputBar(
                     value = state.input,
                     files = state.pendingFiles,
@@ -439,7 +581,8 @@ fun ChatRoomScreen(
                     onChange = viewModel::setInput,
                     onAttach = viewModel::addFiles,
                     onRemoveFile = viewModel::removeFile,
-                    onSend = viewModel::send,
+                    onEmoji = { pickInputEmoji = true },
+                    onSend = { viewModel.send(allLabel) },
                 )
             }
         }
@@ -467,19 +610,32 @@ fun ChatRoomScreen(
     }
     state.selected?.let { m ->
         val mine = m.sender?.id == state.myId
-        AlertDialog(
-            onDismissRequest = { viewModel.select(null) },
-            text = { Text(m.content?.take(200) ?: "", maxLines = 4, style = MaterialTheme.typography.bodyMedium) },
-            confirmButton = {
-                TextButton(onClick = { confirmDelete = m; viewModel.select(null) }) {
-                    Text(stringResource(Res.string.chat_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                if (mine && m.type == MessageType.TEXT) {
-                    TextButton(onClick = { viewModel.startEdit(m) }) { Text(stringResource(Res.string.chat_edit)) }
-                }
-            },
+        MessageActionsDialog(
+            m,
+            MessageActions(
+                react = { e -> viewModel.react(m, e) },
+                moreEmoji = { viewModel.chooseReaction(m) },
+                reply = { viewModel.startReply(m) },
+                makeNotice = m.content?.takeIf { state.canNotice && it.isNotBlank() }?.let { c -> { viewModel.openNotice(c) } },
+                edit = if (mine && m.type == MessageType.TEXT) ({ viewModel.startEdit(m) }) else null,
+                delete = if (mine || state.canModerate) ({ confirmDelete = m; viewModel.select(null) }) else null,
+            ),
+            onDismiss = { viewModel.select(null) },
+        )
+    }
+    state.reactingTo?.let { m ->
+        EmojiPickerDialog(onPick = { e -> viewModel.react(m, e) }, onDismiss = { viewModel.chooseReaction(null) })
+    }
+    if (pickInputEmoji) {
+        EmojiPickerDialog(onPick = { e -> viewModel.setInput(state.input + e); pickInputEmoji = false }, onDismiss = { pickInputEmoji = false })
+    }
+    state.noticeDraft?.let { draft ->
+        NoticeDialog(
+            initial = draft,
+            canRemove = room?.notice != null,
+            onSave = { viewModel.setNotice(it) },
+            onRemove = { viewModel.setNotice(null) },
+            onDismiss = viewModel::closeNotice,
         )
     }
     confirmDelete?.let { m ->
@@ -519,9 +675,24 @@ fun ChatRoomScreen(
 }
 
 @Composable
-private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPress: (ChatMessage) -> Unit, onOpenMeeting: (Long) -> Unit, modifier: Modifier) {
+private fun MessageList(
+    state: ChatRoomUiState,
+    onReachTop: () -> Unit,
+    onLongPress: (ChatMessage) -> Unit,
+    onReact: (ChatMessage, String) -> Unit,
+    onOpenMeeting: (Long) -> Unit,
+    modifier: Modifier,
+) {
     val listState = rememberLazyListState()
     val newestFirst = state.messages.asReversed()
+    val members = state.room?.members.orEmpty()
+    val bubble = BubbleContext(
+        myId = state.myId,
+        myName = members.firstOrNull { it.id == state.myId }?.nickname,
+        names = members.associate { it.id to it.nickname },
+        reads = state.room?.reads.orEmpty(),
+        onReact = onReact,
+    )
 
     // reverseLayout: index 0 이 맨 아래(최신). 마지막 항목(가장 오래된 것)이 보이면 이전 페이지 요청
     LaunchedEffect(listState) {
@@ -545,12 +716,13 @@ private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPr
         ) {
             items(newestFirst, key = { it.id }) { message ->
                 val mine = message.sender?.id == state.myId
-                // 길게 누르면 고치기·지우기 (내 메시지, 또는 관리 권한이 있으면 남의 메시지 지우기)
-                val actionable = !message.deleted && message.type != MessageType.SYSTEM && (mine || state.canModerate)
+                // 길게 누르면 반응 · 답장 · 공지로 · 고치기 · 지우기
+                val actionable = !message.deleted && message.type != MessageType.SYSTEM
                 MessageBubble(
                     message,
                     mine = mine,
                     showSender = state.room?.type == ChatRoomType.GROUP,
+                    bubble = bubble,
                     onLongPress = if (actionable) ({ onLongPress(message) }) else null,
                     onOpenMeeting = onOpenMeeting,
                 )
@@ -562,11 +734,36 @@ private fun MessageList(state: ChatRoomUiState, onReachTop: () -> Unit, onLongPr
     }
 }
 
+/** 말풍선마다 같은 정보: 나 · 방 사람 이름 · 읽음 · 반응 누르기 */
+private class BubbleContext(
+    val myId: Long,
+    val myName: String?,
+    val names: Map<Long, String>,
+    val reads: List<ReadState>,
+    val onReact: (ChatMessage, String) -> Unit,
+) {
+    /** 이 메시지를 아직 안 읽은 사람 수 (보낸 사람 빼고) */
+    fun unread(message: ChatMessage): Int =
+        reads.count { it.userId != message.sender?.id && (it.lastReadMessageId ?: 0) < message.id }
+
+    fun mentionNames(message: ChatMessage): List<String> =
+        message.mentions.mapNotNull { names[it] } + (if (message.mentionAll) ALL_LABELS.toList() else emptyList())
+}
+
+/** "@" 뒤에 쓰는 중이면 방 사람(나 빼고) 중 이름이 맞는 사람. 채널이면 맨 앞에 @모두 */
+private fun mentionOptions(state: ChatRoomUiState, allLabel: String): List<ChatUser?> {
+    val query = Regex("(?:^|\\s)@([^\\s@]*)$").find(state.input)?.groupValues?.get(1) ?: return emptyList()
+    val people = state.room?.members.orEmpty().filter { it.id != state.myId && it.nickname.contains(query, ignoreCase = true) }.take(8)
+    val all = state.room?.type == ChatRoomType.GROUP && allLabel.startsWith(query, ignoreCase = true)
+    return (if (all) listOf<ChatUser?>(null) else emptyList()) + people
+}
+
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
     mine: Boolean,
     showSender: Boolean,
+    bubble: BubbleContext,
     onLongPress: (() -> Unit)? = null,
     onOpenMeeting: (Long) -> Unit = {},
 ) {
@@ -594,7 +791,7 @@ private fun MessageBubble(
             Avatar(sender.nickname, resolveImageUrl(sender.profileImageUrl), size = 32.dp)
             Spacer(Modifier.width(8.dp))
         }
-        if (mine) TimeLabel(message.createdAt, message.edited && !message.deleted)
+        if (mine) TimeLabel(message.createdAt, message.edited && !message.deleted, bubble.unread(message), mine)
         Column(
             horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
             modifier = Modifier.widthIn(max = 520.dp).weight(1f, fill = false)
@@ -603,6 +800,7 @@ private fun MessageBubble(
             if (!mine && showSender && sender != null) {
                 Text(sender.nickname, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            if (!message.deleted) message.replyTo?.let { ReplyQuote(it, onDark = false) }
             if (message.deleted) {
                 Text(
                     stringResource(Res.string.chat_deleted_message),
@@ -621,7 +819,7 @@ private fun MessageBubble(
             if (!text.isNullOrEmpty()) {
                 if (message.files.isNotEmpty()) Spacer(Modifier.height(4.dp))
                 Text(
-                    text,
+                    richMessageText(text, bubble.mentionNames(message), bubble.myName, onDark = mine),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
@@ -630,19 +828,25 @@ private fun MessageBubble(
                         .padding(horizontal = 14.dp, vertical = 9.dp),
                 )
             }
+            if (!message.deleted) ReactionChips(message.reactions, bubble.myId) { e -> bubble.onReact(message, e) }
         }
-        if (!mine) TimeLabel(message.createdAt, message.edited && !message.deleted)
+        if (!mine) TimeLabel(message.createdAt, message.edited && !message.deleted, bubble.unread(message), mine)
     }
 }
 
+/** 보낸 시각 (+ 위에 아직 안 읽은 사람 수, 노란색) */
 @Composable
-private fun TimeLabel(iso: String, edited: Boolean = false) {
-    Text(
-        (if (edited) stringResource(Res.string.chat_edited) + " " else "") + formatChatTime(iso),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 6.dp),
-    )
+private fun TimeLabel(iso: String, edited: Boolean, unread: Int, mine: Boolean) {
+    Column(Modifier.padding(horizontal = 6.dp), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+        if (unread > 0) {
+            Text("$unread", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+        }
+        Text(
+            (if (edited) stringResource(Res.string.chat_edited) + " " else "") + formatChatTime(iso),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -653,6 +857,7 @@ private fun InputBar(
     onChange: (String) -> Unit,
     onAttach: (List<PickedFile>) -> Unit,
     onRemoveFile: (Int) -> Unit,
+    onEmoji: () -> Unit,
     onSend: () -> Unit,
 ) {
     val pick = rememberFilePicker(stringResource(Res.string.chat_attach), onAttach)
@@ -688,6 +893,9 @@ private fun InputBar(
         ) {
             IconButton(onClick = pick, enabled = !sending, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Outlined.AttachFile, contentDescription = stringResource(Res.string.chat_attach))
+            }
+            IconButton(onClick = onEmoji, enabled = !sending, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.EmojiEmotions, contentDescription = stringResource(Res.string.chat_emoji))
             }
             OutlinedTextField(
                 value = value,

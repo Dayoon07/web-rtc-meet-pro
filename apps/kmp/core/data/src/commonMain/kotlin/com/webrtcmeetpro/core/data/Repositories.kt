@@ -8,6 +8,8 @@ import com.webrtcmeetpro.core.model.TeamRole
 import com.webrtcmeetpro.core.model.TeamMember
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.ChatMessage
+import com.webrtcmeetpro.core.model.PresenceView
+import com.webrtcmeetpro.core.model.SendMessageRequest
 import com.webrtcmeetpro.core.model.ChatCategory
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.core.model.Invitation
@@ -123,7 +125,15 @@ class ChatRepository(private val api: LimeetApi) {
     suspend fun invite(roomId: Long, userIds: List<Long>) = api.inviteToRoom(roomId, userIds)
     suspend fun leave(roomId: Long) = api.leaveRoom(roomId)
     suspend fun messages(roomId: Long, before: Long? = null): List<ChatMessage> = api.messages(roomId, before)
-    suspend fun send(roomId: Long, content: String): ChatMessage = api.sendMessage(roomId, content.trim())
+    /** 글 보내기. 답장할 메시지 · @멘션한 사람 · @모두 */
+    suspend fun send(roomId: Long, content: String, replyToId: Long? = null, mentionIds: List<Long> = emptyList(), mentionAll: Boolean = false): ChatMessage =
+        api.sendMessage(roomId, SendMessageRequest(content.trim(), replyToId, mentionIds, mentionAll))
+    suspend fun react(messageId: Long, emoji: String): ChatMessage = api.react(messageId, emoji)
+    suspend fun search(teamId: Long, query: String): List<ChatMessage> = api.searchMessages(teamId, query.trim())
+    suspend fun setNotice(roomId: Long, content: String?): ChatRoom = api.setNotice(roomId, content?.trim()?.ifEmpty { null })
+    suspend fun setMuted(roomId: Long, muted: Boolean): ChatRoom = api.setMuted(roomId, muted)
+    suspend fun typing(roomId: Long) = api.typing(roomId)
+    suspend fun presence(teamId: Long): List<PresenceView> = api.presence(teamId)
     suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?): ChatMessage =
         api.sendFiles(roomId, files, content?.trim()?.ifEmpty { null })
     suspend fun markRead(roomId: Long, messageId: Long) = api.markRead(roomId, messageId)

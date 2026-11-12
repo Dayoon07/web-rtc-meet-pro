@@ -13,6 +13,10 @@ import io.ktor.client.plugins.timeout
 import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.AuthTokens
 import com.webrtcmeetpro.core.model.ChatMessage
+import com.webrtcmeetpro.core.model.PresenceView
+import com.webrtcmeetpro.core.model.MuteRequest
+import com.webrtcmeetpro.core.model.NoticeRequest
+import com.webrtcmeetpro.core.model.ReactionRequest
 import com.webrtcmeetpro.core.model.ChangePasswordRequest
 import com.webrtcmeetpro.core.model.ClientErrorRequest
 import com.webrtcmeetpro.core.model.ChatRoom
@@ -191,8 +195,32 @@ class LimeetApi(private val client: HttpClient) {
     suspend fun messages(roomId: Long, before: Long? = null): List<ChatMessage> =
         client.get("api/chat/rooms/$roomId/messages") { before?.let { parameter("before", it) } }.body()
 
-    suspend fun sendMessage(roomId: Long, content: String): ChatMessage =
-        client.post("api/chat/rooms/$roomId/messages") { setBody(SendMessageRequest(content)) }.body()
+    suspend fun sendMessage(roomId: Long, request: SendMessageRequest): ChatMessage =
+        client.post("api/chat/rooms/$roomId/messages") { setBody(request) }.body()
+
+    /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
+    suspend fun react(messageId: Long, emoji: String): ChatMessage =
+        client.post("api/chat/messages/$messageId/reactions") { setBody(ReactionRequest(emoji)) }.body()
+
+    /** 워크스페이스에서 내가 들어간 방들의 메시지 검색 (글·첨부파일 이름, 최신 50개) */
+    suspend fun searchMessages(teamId: Long, query: String): List<ChatMessage> =
+        client.get("api/teams/$teamId/chat/search") { parameter("q", query) }.body()
+
+    /** 방 공지 올리기·고치기 (null 이면 내리기) */
+    suspend fun setNotice(roomId: Long, content: String?): ChatRoom =
+        client.put("api/chat/rooms/$roomId/notice") { setBody(NoticeRequest(content)) }.body()
+
+    /** 이 방 알림 끄기·켜기 */
+    suspend fun setMuted(roomId: Long, muted: Boolean): ChatRoom =
+        client.put("api/chat/rooms/$roomId/mute") { setBody(MuteRequest(muted)) }.body()
+
+    /** "입력 중..." 알리기 */
+    suspend fun typing(roomId: Long) {
+        client.post("api/chat/rooms/$roomId/typing")
+    }
+
+    /** 워크스페이스에서 접속 중·자리 비움인 사람 */
+    suspend fun presence(teamId: Long): List<PresenceView> = client.get("api/teams/$teamId/presence").body()
 
     /**
      * 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) = FILE 메시지 1개.
