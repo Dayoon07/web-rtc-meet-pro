@@ -75,6 +75,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     CANNOT_INVITE(HttpStatus.FORBIDDEN, "팀원을 초대할 권한이 없습니다."),
     CANNOT_INVITE_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 초대할 수 없습니다."),
     ALREADY_TEAM_MEMBER(HttpStatus.CONFLICT, "이미 팀원입니다."),
+    TEAM_ALREADY_OWNED(HttpStatus.CONFLICT, "팀은 한 사람당 하나만 만들 수 있습니다."),
     INVITATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 초대를 보낸 이메일입니다."),
     INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "초대를 찾을 수 없거나 만료되었습니다."),
     OWNER_ROLE_FIXED(HttpStatus.BAD_REQUEST, "팀을 만든 사람의 역할은 바꿀 수 없습니다."),

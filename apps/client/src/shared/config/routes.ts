@@ -35,6 +35,8 @@ export const ROUTES = {
     teamId == null ? `${APP}/chat` : roomId == null ? `${APP}/chat/${teamId}` : `${APP}/chat/${teamId}/${roomId}`,
   meetings: `${APP}/meetings`,
   meeting: (meetingId: number | string) => `${APP}/meetings/${meetingId}`,
+  /** 팀이 없을 때: 팀 만들기 · 받은 초대 수락 */
+  start: `${APP}/start`,
   teams: `${APP}/teams`,
   team: (teamId: number | string) => `${APP}/teams/${teamId}`,
   invitations: `${APP}/invitations`,
@@ -48,6 +50,7 @@ export const APP_CHILD_ROUTES = {
   chat: 'chat/:teamId?/:roomId?',
   meetings: 'meetings',
   meeting: 'meetings/:meetingId',
+  start: 'start',
   teams: 'teams',
   team: 'teams/:teamId',
   invitations: 'invitations',

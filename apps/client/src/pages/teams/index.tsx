@@ -11,6 +11,8 @@ export function TeamsPage() {
   const { t } = useTranslation()
   const { data: teams, isPending } = useTeamsQuery()
   const [creating, setCreating] = useState(false)
+  // 팀은 한 사람당 하나: 이미 만든 팀이 있으면 만들기 버튼을 숨긴다
+  const ownsTeam = teams?.some((tm) => tm.myRole === 'OWNER') ?? false
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -19,9 +21,11 @@ export function TeamsPage() {
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('teams.title')}</h2>
           <p className="mt-1 text-gray-500 dark:text-gray-400">{t('teams.subtitle')}</p>
         </div>
-        <Button icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
-          {t('teams.create.button')}
-        </Button>
+        {!ownsTeam && (
+          <Button icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
+            {t('teams.create.button')}
+          </Button>
+        )}
       </div>
 
       {isPending ? (

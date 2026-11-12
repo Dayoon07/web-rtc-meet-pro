@@ -1,15 +1,15 @@
-import { ChevronLeft, ChevronRight, CreditCard, House, Mail, Plus, Settings, Video, X } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { ChevronLeft, ChevronRight, CreditCard, House, Mail, Settings, Video, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, matchPath, NavLink, useLocation } from 'react-router'
 import type { ChatUnread } from '@/entities/chat'
 import { planName } from '@/entities/plan'
-import { useMyInvitationsQuery, useTeamsQuery } from '@/entities/team'
+import { useCurrentTeamId, useMyInvitationsQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
-import { CreateTeamModal } from '@/features/create-team'
 import { cn } from '@/shared/lib/cn'
 import { IconButton, Logo, MqMark } from '@/shared/ui'
 import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
+import { TeamSwitcher } from './ui/TeamSwitcher'
 
 const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
   cn(
@@ -48,16 +48,11 @@ function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?
   )
 }
 
-/**
- * 지금 보고 있는 워크스페이스: 채팅(/app/chat/:teamId/...) 이나 정보 화면(/app/teams/:teamId).
- * /app/chat 처럼 고르지 않았으면 채팅은 첫 워크스페이스를 연다
- */
-function useCurrentTeamId(firstTeamId?: number): number | undefined {
+/** 주소의 팀 (/app/chat/:teamId/... 또는 /app/teams/:teamId). 없으면 undefined → 마지막에 본 팀 */
+function useAddressTeamId(): number | undefined {
   const { pathname } = useLocation()
-  const chat = matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.chat}`, pathname)
-  if (chat) return chat.params.teamId ? Number(chat.params.teamId) : firstTeamId
-  const team = matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.team}`, pathname)
-  return team?.params.teamId ? Number(team.params.teamId) : undefined
+  const match = matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.chat}`, pathname) ?? matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.team}`, pathname)
+  return match?.params.teamId ? Number(match.params.teamId) : undefined
 }
 
 /** 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다) */
@@ -100,8 +95,7 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
   const { t } = useTranslation()
   const { data: teams } = useTeamsQuery()
   const { data: invitations } = useMyInvitationsQuery()
-  const [creating, setCreating] = useState(false)
-  const currentTeamId = useCurrentTeamId(teams?.[0]?.id)
+  const currentTeamId = useCurrentTeamId(useAddressTeamId())
 
   return (
     <>
@@ -154,51 +148,17 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             </NavItem>
           </div>
 
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             {mini && <div className="mx-3 mb-1 hidden border-t border-gray-200 md:block dark:border-gray-800" />}
-            <div className={cn('flex items-center justify-between px-3 pb-1', mini && 'md:hidden')}>
-              <NavLink to={ROUTES.teams} end className="text-xs font-semibold tracking-wide text-gray-400 uppercase hover:text-gray-600">
-                {t('sidebar.myTeams')}
-              </NavLink>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setCreating(true)
-                }}
-                title={t('sidebar.createTeam')}
-                aria-label={t('sidebar.createTeam')}
-                className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-              >
-                <Plus className="size-4" />
-              </button>
-            </div>
             {teams?.length ? (
-              teams.map((team) => (
-                // 누르면 바로 그 팀 채팅으로, 지금 팀이면 아래에 방 목록 (Slack 처럼). 팀 정보는 방 목록 위 (i) 버튼
-                <div key={team.id} className="flex flex-col">
-                  <Link
-                    to={ROUTES.chat(team.id)}
-                    aria-current={team.id === currentTeamId ? 'page' : undefined}
-                    className={itemClass({ isActive: team.id === currentTeamId }, mini)}
-                    title={mini ? team.name : undefined}
-                  >
-                    <span
-                      className={cn(
-                        'flex size-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-[11px] font-bold text-white',
-                        mini && 'md:size-7 md:text-xs',
-                      )}
-                    >
-                      {team.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className={cn('flex-1 truncate', mini && 'md:sr-only')}>{team.name}</span>
-                    <CountBadge count={chatUnread?.byTeam[team.id]} mini={mini} />
-                  </Link>
-                  {team.id === currentTeamId && slots?.teamPanel && <div className={cn(mini && 'md:hidden')}>{slots.teamPanel}</div>}
-                </div>
-              ))
+              <>
+                <TeamSwitcher teams={teams} view={{ currentTeamId, unread: chatUnread, mini }} />
+                {slots?.teamPanel && <div className={cn(mini && 'md:hidden')}>{slots.teamPanel}</div>}
+              </>
             ) : (
-              <p className={cn('px-3 py-2 text-sm text-gray-400 dark:text-gray-500', mini && 'md:hidden')}>{t('sidebar.noTeams')}</p>
+              <Link to={ROUTES.start} className={cn('px-3 py-2 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300', mini && 'md:hidden')}>
+                {t('sidebar.createTeam')}
+              </Link>
             )}
           </div>
 
@@ -217,7 +177,6 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
           <PlanUsage />
         </div>
       </aside>
-      <CreateTeamModal open={creating} onClose={() => setCreating(false)} />
     </>
   )
 }

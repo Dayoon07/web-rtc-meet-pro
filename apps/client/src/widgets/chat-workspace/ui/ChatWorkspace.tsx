@@ -116,7 +116,7 @@ export function ChatWorkspace() {
   }
 
   // /app/chat 처럼 워크스페이스가 없으면 첫 워크스페이스 채팅으로 (다른 곳은 왼쪽 사이드바에서 고른다)
-  if (!teamId) return <Navigate to={ROUTES.chat(ws.teams[0].id)} replace />
+  if (!teamId) return <Navigate to={ROUTES.chat(ws.activeTeamId)} replace />
 
   return (
     <WorkspaceContext value={ws}>

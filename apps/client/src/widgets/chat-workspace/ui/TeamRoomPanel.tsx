@@ -1,9 +1,7 @@
-import { FolderPlus, Info, MessageSquarePlus, Plus, Search } from 'lucide-react'
+import { FolderPlus, Hash, MessageSquarePlus, Plus, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
-import { ROUTES } from '@/shared/config/routes'
-import { Spinner } from '@/shared/ui'
+import { Menu, MenuItem, Spinner } from '@/shared/ui'
 import { RoomListStyleContext, useWorkspace, WorkspaceContext } from '../model/context'
 import { useChatWorkspace } from '../model/use-chat-workspace'
 import { RoomSidebar } from './RoomSidebar'
@@ -21,38 +19,69 @@ function Tool({ item, children }: { item: { label: string; onClick: () => void }
   )
 }
 
-/** 팀 이름 아래 버튼 줄: 새 1:1 채팅 · (관리자) 새 채널 · 새 카테고리 · 메시지 검색 · 팀 정보 */
-function PanelTools() {
+/** + 버튼: 새 채널 · 새 1:1 채팅 · 새 카테고리. 채널·카테고리는 팀 소유자·관리자만이라, 아니면 바로 1:1 채팅 */
+function AddChatButton() {
+  const { t } = useTranslation()
+  const ws = useWorkspace()
+  if (!ws.canManage) {
+    return (
+      <Tool item={{ label: t('chat.newDirect'), onClick: () => ws.dialogs.direct.show() }}>
+        <Plus className="size-4" />
+      </Tool>
+    )
+  }
+  return (
+    <Menu
+      label={t('sidebar.addChat')}
+      panelClassName="w-48 p-1.5"
+      trigger={({ open, toggle, id }) => (
+        <button type="button" className={toolClass} aria-label={t('sidebar.addChat')} title={t('sidebar.addChat')} aria-expanded={open} aria-controls={id} onClick={toggle}>
+          <Plus className="size-4" />
+        </button>
+      )}
+    >
+      {(close) => {
+        // 메뉴를 닫고 그 창을 연다
+        const pick = (open: () => void) => () => {
+          close()
+          open()
+        }
+        return (
+          <>
+            <MenuItem icon={<Hash />} onClick={pick(() => ws.dialogs.channel.show(null))}>
+              {t('chat.group')}
+            </MenuItem>
+            <MenuItem icon={<MessageSquarePlus />} onClick={pick(() => ws.dialogs.direct.show())}>
+              {t('chat.newDirect')}
+            </MenuItem>
+            <MenuItem icon={<FolderPlus />} onClick={pick(() => ws.dialogs.category.show(null))}>
+              {t('chat.newCategory')}
+            </MenuItem>
+          </>
+        )
+      }}
+    </Menu>
+  )
+}
+
+/** "채팅 목록" 제목 줄: 메시지 검색 · 추가 */
+function PanelHeader() {
   const { t } = useTranslation()
   const ws = useWorkspace()
   return (
-    <div className="flex items-center gap-0.5 pl-1">
-      <Tool item={{ label: t('chat.newDirect'), onClick: () => ws.dialogs.direct.show() }}>
-        <MessageSquarePlus className="size-4" />
-      </Tool>
-      {ws.canManage && (
-        <>
-          <Tool item={{ label: t('chat.group'), onClick: () => ws.dialogs.channel.show(null) }}>
-            <Plus className="size-4" />
-          </Tool>
-          <Tool item={{ label: t('chat.newCategory'), onClick: () => ws.dialogs.category.show(null) }}>
-            <FolderPlus className="size-4" />
-          </Tool>
-        </>
-      )}
+    <div className="flex items-center gap-0.5 px-2 pt-2 pb-0.5">
+      <span className="flex-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">{t('sidebar.chatList')}</span>
       <Tool item={{ label: t('chat.search.open'), onClick: () => ws.dialogs.search.show() }}>
         <Search className="size-4" />
       </Tool>
-      <Link to={ROUTES.team(ws.activeTeamId)} className={toolClass} aria-label={t('chat.workspaceInfo')} title={t('chat.workspaceInfo')}>
-        <Info className="size-4" />
-      </Link>
+      <AddChatButton />
     </div>
   )
 }
 
 /**
- * 앱 사이드바 "내 팀" 에서 지금 팀 아래에 펼치는 방 목록 (Slack 처럼 사이드바 하나로).
- * 카테고리 → 채널, 1:1 대화를 짧은 줄로 보여 주고, 누르면 그 방으로 간다.
+ * 앱 사이드바의 "채팅 목록": 지금 팀의 카테고리 → 채널, 1:1 대화를 짧은 줄로 (Slack 처럼 사이드바 하나로).
+ * 누르면 그 방으로, + 로 채팅방을 몇 개든 만든다.
  */
 export function TeamRoomPanel() {
   const ws = useChatWorkspace()
@@ -61,8 +90,8 @@ export function TeamRoomPanel() {
     <WorkspaceContext value={ws}>
       <RoomListStyleContext value="compact">
         {/* 휴대폰 서랍에서 묶음 접기·버튼을 눌러도 서랍이 닫히지 않게 (방으로 가면 주소가 바뀌어 닫힌다) */}
-        <div className="mt-0.5 mb-2 ml-3 border-l border-gray-200 pl-1 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
-          <PanelTools />
+        <div className="mb-2" onClick={(e) => e.stopPropagation()}>
+          <PanelHeader />
           {ws.roomsPending ? (
             <div className="flex justify-center py-3">
               <Spinner className="size-4 text-gray-400" />

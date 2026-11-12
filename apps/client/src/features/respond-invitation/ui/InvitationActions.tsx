@@ -21,7 +21,7 @@ export function InvitationActions({ invitation }: { invitation: Invitation }) {
     onSuccess: (team) => {
       refresh()
       toast.success(t('invitations.accepted', { teamName: team.name }))
-      navigate(ROUTES.team(team.id))
+      navigate(ROUTES.chat(team.id))
     },
     onError: (e) => toastError(e),
   })

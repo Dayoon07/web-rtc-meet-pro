@@ -11,6 +11,7 @@ import { MeetingsPage } from '@/pages/meetings'
 import { NotFoundPage } from '@/pages/not-found'
 import { OAuthCallbackPage } from '@/pages/oauth-callback'
 import { OnboardingPage } from '@/pages/onboarding'
+import { TeamStartPage } from '@/pages/team-start'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/password-reset'
 import { PricingPage } from '@/pages/pricing'
 import { RouteErrorPage } from '@/pages/route-error'
@@ -20,7 +21,7 @@ import { TeamDetailPage } from '@/pages/team-detail'
 import { TeamsPage } from '@/pages/teams'
 import { ConfirmEmailPage, VerifyEmailPage } from '@/pages/verify-email'
 import { PlanExpiryGate } from '@/widgets/plan-expiry-notice'
-import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile, VerifyEmailOnly } from './guards'
+import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile, RequireTeam, VerifyEmailOnly } from './guards'
 import { AppLayout, AuthLayout, MarketingLayout } from './layouts'
 import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
 
@@ -80,16 +81,24 @@ export const router = createBrowserRouter([
                     // 플랜이 만료되면 앱 화면 위에 안내 창
                     element: <PlanExpiryGate />,
                     children: [
-                  { index: true, element: <AppHomePage />, handle: { title: 'nav.home' } },
-                  { path: APP_CHILD_ROUTES.chat, element: <ChatPage />, handle: { title: 'nav.chat' } },
-                  { path: APP_CHILD_ROUTES.meetings, element: <MeetingsPage />, handle: { title: 'nav.meetings' } },
-                  { path: APP_CHILD_ROUTES.meeting, element: <MeetingDetailPage />, handle: { title: 'nav.meetings' } },
-                  { path: APP_CHILD_ROUTES.teams, element: <TeamsPage />, handle: { title: 'nav.teams' } },
-                  { path: APP_CHILD_ROUTES.team, element: <TeamDetailPage />, handle: { title: 'nav.teams' } },
+                  // 팀이 없어도 되는 화면: 시작(팀 만들기·초대 수락) · 받은 초대 · 설정(탈퇴 등)
+                  { path: APP_CHILD_ROUTES.start, element: <TeamStartPage />, handle: { title: 'start.title' } },
                   { path: APP_CHILD_ROUTES.invitations, element: <InvitationsPage />, handle: { title: 'nav.invitations' } },
-                  { path: APP_CHILD_ROUTES.billing, element: <BillingPage />, handle: { title: 'nav.billing' } },
-                  { path: APP_CHILD_ROUTES.billingCard, element: <CardReturnPage />, handle: { title: 'nav.billing' } },
                   { path: APP_CHILD_ROUTES.settings, element: <SettingsPage />, handle: { title: 'nav.settings' } },
+                  {
+                    // 나머지는 팀이 있어야: 없으면 시작 화면으로
+                    element: <RequireTeam />,
+                    children: [
+                      { index: true, element: <AppHomePage />, handle: { title: 'nav.home' } },
+                      { path: APP_CHILD_ROUTES.chat, element: <ChatPage />, handle: { title: 'nav.chat' } },
+                      { path: APP_CHILD_ROUTES.meetings, element: <MeetingsPage />, handle: { title: 'nav.meetings' } },
+                      { path: APP_CHILD_ROUTES.meeting, element: <MeetingDetailPage />, handle: { title: 'nav.meetings' } },
+                      { path: APP_CHILD_ROUTES.teams, element: <TeamsPage />, handle: { title: 'nav.teams' } },
+                      { path: APP_CHILD_ROUTES.team, element: <TeamDetailPage />, handle: { title: 'nav.teams' } },
+                      { path: APP_CHILD_ROUTES.billing, element: <BillingPage />, handle: { title: 'nav.billing' } },
+                      { path: APP_CHILD_ROUTES.billingCard, element: <CardReturnPage />, handle: { title: 'nav.billing' } },
+                    ],
+                  },
                     ],
                   },
                 ],

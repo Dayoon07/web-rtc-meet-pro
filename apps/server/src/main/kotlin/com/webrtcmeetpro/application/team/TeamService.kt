@@ -107,9 +107,13 @@ class TeamService(
 ) {
     private val random = SecureRandom()
 
-    /** 워크스페이스 만들기. 개수 제한 없음 (요금제는 워크스페이스마다 따로, 처음엔 FREE) */
+    /**
+     * 팀 만들기. 한 사람이 만들 수 있는 팀은 하나 (회사 하나 = 팀 하나, 그 안에 채팅방은 몇 개든).
+     * 다른 팀은 초대를 받아 들어간다. 처음엔 FREE
+     */
     @Transactional
     fun create(ownerId: Long, name: String, description: String?): TeamSummaryView {
+        if (teamRepository.countByOwnerIdAndStatus(ownerId, TeamStatus.ACTIVE) > 0) throw BusinessException(ErrorCode.TEAM_ALREADY_OWNED)
         val team = teamRepository.save(Team(ownerId, name.trim(), description?.trim()?.ifBlank { null }))
         memberRepository.save(TeamMember(team.id!!, ownerId, TeamRole.OWNER))
         return summary(team, TeamRole.OWNER, 1)

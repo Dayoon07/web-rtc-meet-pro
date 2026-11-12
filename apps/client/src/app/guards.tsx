@@ -5,6 +5,7 @@ import { chatKeys } from '@/entities/chat'
 import { useAwayTracker, usePresenceRealtime } from '@/entities/presence'
 import { onPushNavigate, syncPush } from '@/entities/push'
 import { useIsAuthenticated } from '@/entities/session'
+import { useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { realtime } from '@/shared/api'
 import { FullPageSpinner } from '@/shared/ui'
@@ -55,6 +56,14 @@ export function RequireCompletedProfile() {
   if (!me) return <FullPageSpinner />
   if (!me.profileCompleted) return <Navigate to={ROUTES.onboarding} replace />
   if (!me.emailVerified) return <Navigate to={ROUTES.verifyEmail} replace />
+  return <Outlet />
+}
+
+/** 팀이 없으면 먼저 팀을 만들거나 받은 초대를 수락한다 (회사 하나 = 팀 하나, 그 안에 채팅방은 몇 개든) */
+export function RequireTeam() {
+  const { data: teams } = useTeamsQuery()
+  if (!teams) return <FullPageSpinner />
+  if (!teams.length) return <Navigate to={ROUTES.start} replace />
   return <Outlet />
 }
 

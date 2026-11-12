@@ -1,1 +1,1 @@
-export { CreateTeamModal } from './ui/CreateTeamModal'
+export { CreateTeamForm, CreateTeamModal } from './ui/CreateTeamModal'

@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { chatApi, chatKeys, type ChatCategory, type ChatMessage, type ChatRoom, useChatCategoriesQuery, useChatRoomsQuery } from '@/entities/chat'
-import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
+import { hasTeamPermission, useCurrentTeamId, useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { toastError } from '@/shared/api'
 import { ROUTES } from '@/shared/config/routes'
@@ -21,7 +21,7 @@ export function useChatWorkspace() {
   const queryClient = useQueryClient()
   const { data: me } = useMeQuery()
   const { data: teams, isPending: teamsPending } = useTeamsQuery()
-  const activeTeamId = address.teamId ?? teams?.[0]?.id ?? 0
+  const activeTeamId = useCurrentTeamId(address.teamId) ?? 0
   const activeRoomId = address.roomId
   const { data: team } = useTeamQuery(activeTeamId)
   const { data: rooms = [], isPending: roomsPending } = useChatRoomsQuery(activeTeamId)
