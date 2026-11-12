@@ -619,6 +619,7 @@ const ja: Messages = {
     edit: '編集',
     title: 'チャット',
     team: 'ワークスペース',
+    workspaceInfo: 'ワークスペース情報',
     noTeams: 'チャットできるワークスペースがありません',
     noTeamsHint: 'ワークスペースに招待されるか、ワークスペースを作成するとメンバーとチャットできます。',
     goTeams: 'ワークスペースへ',

@@ -1,31 +1,41 @@
-import { FolderPlus, MessageSquarePlus, MessagesSquare, Plus, Search } from 'lucide-react'
+import { FolderPlus, Info, MessageSquarePlus, MessagesSquare, Plus, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { CategoryModal, CreateGroupRoomModal, StartDirectChatModal } from '@/features/chat-room-actions'
 import { MessageSearchModal } from '@/features/search-messages'
 import { VoiceBar } from '@/features/voice-chat'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
-import { Button, EmptyState, IconButton, LinkButton, Select, Spinner } from '@/shared/ui'
+import { Button, EmptyState, IconButton, LinkButton, Spinner } from '@/shared/ui'
 import { useWorkspace, WorkspaceContext } from '../model/context'
 import { useChatWorkspace } from '../model/use-chat-workspace'
 import { RoomSidebar } from './RoomSidebar'
 import { RoomView } from './RoomView'
 
-/** 왼쪽 위: 워크스페이스 고르기 + 새 1:1 채팅 · 새 채널 · 새 카테고리 */
+/**
+ * 왼쪽 위: 지금 워크스페이스 이름 (누르면 워크스페이스 정보 화면) + 새 1:1 채팅 · 새 채널 · 새 카테고리.
+ * 다른 워크스페이스는 앱 왼쪽 사이드바의 "내 워크스페이스" 에서 고른다 (디스코드의 서버 목록처럼)
+ */
 function SidebarToolbar() {
   const { t } = useTranslation()
   const ws = useWorkspace()
+  const name = ws.teams.find((tm) => tm.id === ws.activeTeamId)?.name ?? ''
   return (
     <div className="flex flex-col gap-3 border-b border-gray-200 p-3 dark:border-gray-800">
-      {ws.teams.length > 1 && (
-        <Select aria-label={t('chat.team')} value={ws.activeTeamId} onChange={(e) => ws.goTeam(Number(e.target.value))}>
-          {ws.teams.map((tm) => (
-            <option key={tm.id} value={tm.id}>
-              {tm.name}
-            </option>
-          ))}
-        </Select>
-      )}
+      <Link
+        to={ROUTES.team(ws.activeTeamId)}
+        title={t('chat.workspaceInfo')}
+        className="group flex items-center gap-2.5 rounded-lg px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-white">{name}</span>
+        <span className="flex shrink-0 items-center gap-1 text-xs text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200">
+          <Info className="size-4" />
+          <span className="hidden sm:inline">{t('chat.workspaceInfo')}</span>
+        </span>
+      </Link>
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" className="flex-1" icon={<MessageSquarePlus className="size-4" />} onClick={() => ws.dialogs.direct.show()}>
           {t('chat.newDirect')}

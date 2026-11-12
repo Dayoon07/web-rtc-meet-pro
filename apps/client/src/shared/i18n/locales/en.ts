@@ -619,6 +619,7 @@ const en: Messages = {
     edit: 'Edit',
     title: 'Chat',
     team: 'Workspace',
+    workspaceInfo: 'Workspace info',
     noTeams: 'No workspace to chat with yet',
     noTeamsHint: 'Join or create a workspace to start chatting with members.',
     goTeams: 'Go to workspaces',

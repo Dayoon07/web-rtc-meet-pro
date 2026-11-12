@@ -618,6 +618,7 @@ const ko = {
     edit: '고치기',
     title: '채팅',
     team: '워크스페이스',
+    workspaceInfo: '워크스페이스 정보',
     noTeams: '채팅할 워크스페이스가 없어요',
     noTeamsHint: '워크스페이스에 초대받거나 워크스페이스를 만들면 멤버와 채팅할 수 있어요.',
     goTeams: '워크스페이스로 가기',

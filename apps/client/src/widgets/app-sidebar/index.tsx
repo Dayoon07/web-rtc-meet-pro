@@ -1,14 +1,14 @@
 import { ChevronLeft, ChevronRight, CreditCard, House, Mail, MessageSquare, Plus, Settings, Video, X } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, NavLink } from 'react-router'
+import { Link, matchPath, NavLink, useLocation } from 'react-router'
 import { planName } from '@/entities/plan'
 import { useMyInvitationsQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { CreateTeamModal } from '@/features/create-team'
 import { cn } from '@/shared/lib/cn'
 import { IconButton, Logo, MqMark } from '@/shared/ui'
-import { ROUTES } from '@/shared/config/routes'
+import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
 
 const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
   cn(
@@ -40,6 +40,18 @@ function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?
       )}
     </NavLink>
   )
+}
+
+/**
+ * 지금 보고 있는 워크스페이스: 채팅(/app/chat/:teamId/...) 이나 정보 화면(/app/teams/:teamId).
+ * /app/chat 처럼 고르지 않았으면 채팅은 첫 워크스페이스를 연다
+ */
+function useCurrentTeamId(firstTeamId?: number): number | undefined {
+  const { pathname } = useLocation()
+  const chat = matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.chat}`, pathname)
+  if (chat) return chat.params.teamId ? Number(chat.params.teamId) : firstTeamId
+  const team = matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.team}`, pathname)
+  return team?.params.teamId ? Number(team.params.teamId) : undefined
 }
 
 /** 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다) */
@@ -75,6 +87,7 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
   const { data: teams } = useTeamsQuery()
   const { data: invitations } = useMyInvitationsQuery()
   const [creating, setCreating] = useState(false)
+  const currentTeamId = useCurrentTeamId(teams?.[0]?.id)
 
   return (
     <>
@@ -151,7 +164,14 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             </div>
             {teams?.length ? (
               teams.map((team) => (
-                <NavLink key={team.id} to={ROUTES.team(team.id)} className={(st) => itemClass(st, mini)} title={mini ? team.name : undefined}>
+                // 디스코드처럼 누르면 바로 그 워크스페이스 채팅으로 (정보 화면은 채팅 왼쪽 위 이름을 누르면)
+                <Link
+                  key={team.id}
+                  to={ROUTES.chat(team.id)}
+                  aria-current={team.id === currentTeamId ? 'page' : undefined}
+                  className={itemClass({ isActive: team.id === currentTeamId }, mini)}
+                  title={mini ? team.name : undefined}
+                >
                   <span
                     className={cn(
                       'flex size-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-[11px] font-bold text-white',
@@ -161,7 +181,7 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
                     {team.name.slice(0, 1).toUpperCase()}
                   </span>
                   <span className={cn('truncate', mini && 'md:sr-only')}>{team.name}</span>
-                </NavLink>
+                </Link>
               ))
             ) : (
               <p className={cn('px-3 py-2 text-sm text-gray-400 dark:text-gray-500', mini && 'md:hidden')}>{t('sidebar.noTeams')}</p>

@@ -620,6 +620,7 @@ const zh: Messages = {
     edit: '编辑',
     title: '聊天',
     team: '工作区',
+    workspaceInfo: '工作区信息',
     noTeams: '还没有可以聊天的工作区',
     noTeamsHint: '被邀请加入工作区或创建工作区后，就能与成员聊天了。',
     goTeams: '前往工作区',
