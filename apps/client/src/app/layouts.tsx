@@ -2,12 +2,10 @@ import { Quote } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation } from 'react-router'
-import { useChatUnreadQuery } from '@/entities/chat'
 import { useMeQuery } from '@/entities/user'
 import { LanguageMenu } from '@/features/change-language'
 import { ThemeToggle } from '@/features/toggle-theme'
 import { VoiceBar } from '@/features/voice-chat'
-import { AppShellContext } from '@/shared/lib/app-shell'
 import { Avatar, Logo, MqMark } from '@/shared/ui'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { AppTopbar } from '@/widgets/app-topbar'
@@ -104,7 +102,6 @@ export function AppLayout() {
       return !c
     })
   const location = useLocation()
-  const { data: chatUnread } = useChatUnreadQuery()
   const { data: me } = useMeQuery()
   // 채팅 실시간 이벤트는 어느 화면에 있든 한 번만 받는다 (사이드바 방 목록·채팅 화면이 같이 쓴다)
   useChatRealtime()
@@ -114,25 +111,22 @@ export function AppLayout() {
   useTranslation()
 
   return (
-    <AppShellContext value={{ sidebarCollapsed: collapsed }}>
-      <div className="flex min-h-dvh">
-        <AppSidebar
-          state={{
-            open: sidebarOpen,
-            onClose: () => setSidebarOpen(false),
-            chatUnread,
-            collapsed,
-            onToggleCollapsed: toggleCollapsed,
-            slots: { teamPanel: <TeamRoomPanel />, footer: <VoiceBar me={me} /> },
-          }}
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <AppTopbar onOpenSidebar={() => setSidebarOpen(true)} />
-          <main key={location.pathname.startsWith(ROUTES.chat()) ? 'chat' : location.pathname} className="flex-1 px-4 py-8 sm:px-6 lg:px-10">
-            <Outlet />
-          </main>
-        </div>
+    <div className="flex min-h-dvh">
+      <AppSidebar
+        state={{
+          open: sidebarOpen,
+          onClose: () => setSidebarOpen(false),
+          collapsed,
+          onToggleCollapsed: toggleCollapsed,
+          slots: { teamPanel: <TeamRoomPanel />, footer: <VoiceBar me={me} /> },
+        }}
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AppTopbar onOpenSidebar={() => setSidebarOpen(true)} />
+        <main key={location.pathname.startsWith(ROUTES.chat()) ? 'chat' : location.pathname} className="flex-1 px-4 py-8 sm:px-6 lg:px-10">
+          <Outlet />
+        </main>
       </div>
-    </AppShellContext>
+    </div>
   )
 }

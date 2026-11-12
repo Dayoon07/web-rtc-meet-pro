@@ -1,5 +1,4 @@
 import { BellOff, Hash, Users, Volume2 } from 'lucide-react'
-import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type ChatRoom, previewText, roomPeer, roomTitle } from '@/entities/chat'
 import { PresenceDot, usePresence } from '@/entities/presence'
@@ -8,7 +7,7 @@ import { useVoice } from '@/features/voice-chat'
 import { cn } from '@/shared/lib/cn'
 import { isSameDay, useFormat } from '@/shared/lib/format'
 import { Avatar } from '@/shared/ui'
-import { RoomListStyleContext, useWorkspace } from '../model/context'
+import { useWorkspace } from '../model/context'
 import { useTypingUsers } from '../model/typing-store'
 
 /** 1:1 방은 상대방 사진, 채널은 # 아이콘 */
@@ -52,72 +51,8 @@ function VoicePresence({ room }: { room: ChatRoom }) {
   )
 }
 
-/** 안 읽은 개수 (알림 끈 방은 회색) */
-function UnreadBadge({ room }: { room: ChatRoom }) {
-  if (room.unreadCount <= 0) return null
-  return (
-    <span
-      className={cn(
-        'ml-auto min-w-5 shrink-0 rounded-full px-1.5 text-center text-[11px] leading-5 font-bold text-white',
-        room.muted ? 'bg-gray-400 dark:bg-gray-600' : 'bg-brand-600',
-      )}
-    >
-      {room.unreadCount > 99 ? '99+' : room.unreadCount}
-    </span>
-  )
-}
-
-/** 앱 사이드바의 짧은 줄: # 이름 (1:1 은 작은 사진 + 접속 점) · 알림 끔 · 음성 중 · 안 읽은 개수 */
-function CompactRoomRow({ room }: { room: ChatRoom }) {
-  const { t } = useTranslation()
-  const ws = useWorkspace()
-  const statusOf = usePresence(room.teamId)
-  const active = room.id === ws.activeRoomId
-  const peer = roomPeer(room, ws.myId)
-  const typing = useTypingUsers(room.id).length > 0
-  const bold = room.unreadCount > 0 && !room.muted
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => ws.openRoom(room)}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-          active
-            ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-200'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white',
-        )}
-      >
-        {peer ? (
-          <span className="relative shrink-0">
-            <Avatar src={peer.profileImageUrl} name={peer.nickname} size="xs" />
-            <PresenceDot status={statusOf(peer.id)} />
-          </span>
-        ) : (
-          <Hash className="size-4 shrink-0 text-gray-400" />
-        )}
-        <span className={cn('min-w-0 flex-1 truncate', bold && 'font-semibold text-gray-900 dark:text-white')}>{roomTitle(room, ws.myId)}</span>
-        {typing && <span className="shrink-0 text-[11px] text-brand-600 dark:text-brand-300">{t('chat.typing.short')}</span>}
-        {!!room.voice?.participants.length && (
-          <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-green-600 dark:text-green-400" title={t('chat.voiceNow', { count: room.voice.participants.length })}>
-            <Volume2 className="size-3.5" />
-            {room.voice.participants.length}
-          </span>
-        )}
-        {room.muted && <BellOff aria-label={t('chat.muted')} className="size-3 shrink-0 text-gray-400" />}
-        <UnreadBadge room={room} />
-      </button>
-    </li>
-  )
-}
-
-/** 방 목록 한 줄: 이름·마지막 메시지·시간·안 읽은 개수, 누르면 그 방으로 (사이드바에서는 짧은 줄) */
+/** 방 목록 한 줄: 이름·마지막 메시지·시간·안 읽은 개수, 누르면 그 방으로 */
 export function RoomRow({ room }: { room: ChatRoom }) {
-  const compact = useContext(RoomListStyleContext) === 'compact'
-  return compact ? <CompactRoomRow room={room} /> : <FullRoomRow room={room} />
-}
-
-function FullRoomRow({ room }: { room: ChatRoom }) {
   const { t } = useTranslation()
   const fmt = useFormat()
   const ws = useWorkspace()
@@ -147,7 +82,16 @@ function FullRoomRow({ room }: { room: ChatRoom }) {
             <span className="truncate text-xs text-gray-500 dark:text-gray-400">
               {typingUsers.length ? <span className="text-brand-600 dark:text-brand-300">{t('chat.typing.short')}</span> : previewText(room.lastMessage, t, fmt.list)}
             </span>
-            <UnreadBadge room={room} />
+            {room.unreadCount > 0 && (
+              <span
+                className={cn(
+                  'ml-auto min-w-5 shrink-0 rounded-full px-1.5 text-center text-[11px] leading-5 font-bold text-white',
+                  room.muted ? 'bg-gray-400 dark:bg-gray-600' : 'bg-brand-600',
+                )}
+              >
+                {room.unreadCount > 99 ? '99+' : room.unreadCount}
+              </span>
+            )}
           </span>
           <VoicePresence room={room} />
         </span>

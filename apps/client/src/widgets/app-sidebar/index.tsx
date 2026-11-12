@@ -2,14 +2,12 @@ import { ChevronLeft, ChevronRight, CreditCard, House, Mail, Settings, Video, X 
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, matchPath, NavLink, useLocation } from 'react-router'
-import type { ChatUnread } from '@/entities/chat'
 import { planName } from '@/entities/plan'
 import { useCurrentTeamId, useMyInvitationsQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { cn } from '@/shared/lib/cn'
 import { IconButton, Logo, MqMark } from '@/shared/ui'
 import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
-import { TeamSwitcher } from './ui/TeamSwitcher'
 
 const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
   cn(
@@ -48,6 +46,17 @@ function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?
   )
 }
 
+/** 접힌 사이드바의 지금 팀 (누르면 그 팀 채팅) */
+function MiniTeamMark({ team }: { team: { id: number; name: string } }) {
+  return (
+    <Link to={ROUTES.chat(team.id)} title={team.name} className="hidden justify-center py-1 md:flex">
+      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
+        {team.name.slice(0, 1).toUpperCase()}
+      </span>
+    </Link>
+  )
+}
+
 /** 주소의 팀 (/app/chat/:teamId/... 또는 /app/teams/:teamId). 없으면 undefined → 마지막에 본 팀 */
 function useAddressTeamId(): number | undefined {
   const { pathname } = useLocation()
@@ -82,7 +91,6 @@ function PlanUsage() {
 export type AppSidebarState = {
   open: boolean
   onClose: () => void
-  chatUnread?: ChatUnread
   collapsed?: boolean
   onToggleCollapsed?: () => void
   /** 바깥에서 끼워 넣는 내용: teamPanel = 지금 팀 아래 방 목록, footer = 아래쪽 (음성 막대) */
@@ -90,7 +98,7 @@ export type AppSidebarState = {
 }
 
 export function AppSidebar({ state }: { state: AppSidebarState }) {
-  const { open, onClose, chatUnread, collapsed = false, onToggleCollapsed, slots } = state
+  const { open, onClose, collapsed = false, onToggleCollapsed, slots } = state
   const mini = collapsed
   const { t } = useTranslation()
   const { data: teams } = useTeamsQuery()
@@ -106,7 +114,7 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
       />
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-gray-200 bg-white transition-[transform,width] duration-200 md:sticky md:top-0 md:h-dvh md:translate-x-0 dark:border-gray-800 dark:bg-gray-950',
+          'fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col border-r border-gray-200 bg-white transition-[transform,width] duration-200 md:sticky md:top-0 md:h-dvh md:translate-x-0 dark:border-gray-800 dark:bg-gray-950',
           open ? 'translate-x-0' : '-translate-x-full',
           mini && 'md:w-[72px]',
         )}
@@ -152,7 +160,8 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             {mini && <div className="mx-3 mb-1 hidden border-t border-gray-200 md:block dark:border-gray-800" />}
             {teams?.length ? (
               <>
-                <TeamSwitcher teams={teams} view={{ currentTeamId, unread: chatUnread, mini }} />
+                {/* 접으면 지금 팀 첫 글자만 (채팅 목록은 펼쳤을 때) */}
+                {mini && <MiniTeamMark team={teams.find((tm) => tm.id === currentTeamId) ?? teams[0]} />}
                 {slots?.teamPanel && <div className={cn(mini && 'md:hidden')}>{slots.teamPanel}</div>}
               </>
             ) : (

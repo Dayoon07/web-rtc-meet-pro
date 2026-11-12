@@ -1,68 +1,16 @@
-import { FolderPlus, Info, MessageSquarePlus, MessagesSquare, Plus, Search } from 'lucide-react'
+import { MessagesSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link, Navigate, useParams } from 'react-router'
+import { Navigate, useParams } from 'react-router'
 import { VoiceBar } from '@/features/voice-chat'
-import { useAppShell } from '@/shared/lib/app-shell'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
-import { Button, EmptyState, IconButton, LinkButton, Spinner } from '@/shared/ui'
-import { useWorkspace, WorkspaceContext } from '../model/context'
+import { EmptyState, LinkButton, Spinner } from '@/shared/ui'
+import { WorkspaceContext } from '../model/context'
 import { useChatWorkspace } from '../model/use-chat-workspace'
 import { RoomSidebar } from './RoomSidebar'
 import { RoomView } from './RoomView'
+import { SidebarToolbar } from './SidebarToolbar'
 import { WorkspaceDialogs } from './WorkspaceDialogs'
-
-/**
- * 왼쪽 위: 지금 워크스페이스 이름 (누르면 워크스페이스 정보 화면) + 새 1:1 채팅 · 새 채널 · 새 카테고리.
- * 다른 워크스페이스는 앱 왼쪽 사이드바의 "내 워크스페이스" 에서 고른다 (디스코드의 서버 목록처럼)
- */
-function SidebarToolbar() {
-  const { t } = useTranslation()
-  const ws = useWorkspace()
-  const name = ws.teams.find((tm) => tm.id === ws.activeTeamId)?.name ?? ''
-  return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 p-3 dark:border-gray-800">
-      <Link
-        to={ROUTES.team(ws.activeTeamId)}
-        title={t('chat.workspaceInfo')}
-        className="group flex items-center gap-2.5 rounded-lg px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-      >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
-          {name.slice(0, 1).toUpperCase()}
-        </span>
-        <span className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-white">{name}</span>
-        <span className="flex shrink-0 items-center gap-1 text-xs text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200">
-          <Info className="size-4" />
-          <span className="hidden sm:inline">{t('chat.workspaceInfo')}</span>
-        </span>
-      </Link>
-      <div className="flex gap-2">
-        <Button size="sm" variant="secondary" className="flex-1" icon={<MessageSquarePlus className="size-4" />} onClick={() => ws.dialogs.direct.show()}>
-          {t('chat.newDirect')}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          icon={<Plus className="size-4" />}
-          disabled={!ws.canManage}
-          title={ws.canManage ? undefined : t('chat.ownerOnlyGroup')}
-          onClick={() => ws.dialogs.channel.show(null)}
-        >
-          {t('chat.group')}
-        </Button>
-        {ws.canManage && (
-          <IconButton label={t('chat.newCategory')} title={t('chat.newCategory')} onClick={() => ws.dialogs.category.show(null)}>
-            <FolderPlus className="size-5" />
-          </IconButton>
-        )}
-        <IconButton label={t('chat.search.open')} title={t('chat.search.open')} onClick={() => ws.dialogs.search.show()}>
-          <Search className="size-5" />
-        </IconButton>
-      </div>
-    </div>
-  )
-}
 
 /** 방을 고르지 않았을 때 오른쪽 */
 function NoRoomSelected() {
@@ -86,14 +34,9 @@ export function ChatWorkspace() {
   const { t } = useTranslation()
   const ws = useChatWorkspace()
   const { teamId } = useParams()
-  const { sidebarCollapsed } = useAppShell()
-  // 방 목록은 보통 앱 사이드바 "내 팀" 아래에 있다. 여기 가운데 목록은
-  // 휴대폰에서 방을 고르기 전, 또는 데스크톱에서 사이드바를 접었을 때만 보인다
-  const listClass = cn(
-    'w-full flex-col border-gray-200 md:w-80 md:border-r dark:border-gray-800',
-    ws.activeRoom ? 'hidden' : 'flex',
-    sidebarCollapsed ? 'md:flex' : 'md:hidden',
-  )
+  // 방 목록은 앱 사이드바에 있다. 여기 목록은 휴대폰에서 방을 고르기 전에만 보인다
+  // (데스크톱에서 사이드바를 접으면 대화만 넓게)
+  const listClass = cn('w-full flex-col md:hidden', ws.activeRoom ? 'hidden' : 'flex')
 
   if (ws.teamsPending) {
     return (
