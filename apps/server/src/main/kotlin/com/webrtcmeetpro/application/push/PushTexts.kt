@@ -12,7 +12,7 @@ object PushTexts {
             "MEETING_REMINDER" to "「{title}」 회의가 곧 시작해요",
             "MEETING_STARTED" to "「{title}」 회의가 시작됐어요",
             "MEETING_SCHEDULED" to "「{title}」 회의가 예약됐어요",
-            "TEAM_INVITATION" to "{inviterName}님이 「{teamName}」 워크스페이스에 초대했어요",
+            "TEAM_INVITATION" to "{inviterName}님이 「{teamName}」 팀에 초대했어요",
             "CHAT_ROOM_INVITED" to "{inviterName}님이 「{roomName}」 채널에 초대했어요",
             "MEETING_NOTES_READY" to "「{title}」 AI 회의록이 준비됐어요",
             "other" to "새 알림이 있어요",

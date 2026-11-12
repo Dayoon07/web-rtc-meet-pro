@@ -51,11 +51,11 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     PAYMENT_CONSENT_REQUIRED(HttpStatus.BAD_REQUEST, "주문 내용과 자동결제·환불 안내를 확인하고 동의해 주세요."),
     OVERAGE_CONSENT_REQUIRED(HttpStatus.BAD_REQUEST, "초과 인원 요금 안내를 확인하고 동의해 주세요."),
     OVERAGE_IN_USE(HttpStatus.CONFLICT, "지금 한도를 넘은 멤버가 {{count}}명 있어요. 멤버를 정리한 뒤에 끌 수 있어요."),
-    OVERAGE_MAX_MEMBERS(HttpStatus.FORBIDDEN, "한 워크스페이스는 {{max}}명까지예요."),
+    OVERAGE_MAX_MEMBERS(HttpStatus.FORBIDDEN, "한 팀은 {{max}}명까지예요."),
     PLAN_GROUP_ROOM_LIMIT(HttpStatus.FORBIDDEN, "현재 플랜에서 만들 수 있는 그룹 채팅방 수를 넘었습니다."),
     PLAN_NOT_PURCHASABLE(HttpStatus.BAD_REQUEST, "무료 플랜은 결제할 필요가 없습니다."),
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "구독을 찾을 수 없습니다."),
-    CANNOT_MANAGE_CHANNELS(HttpStatus.FORBIDDEN, "채널과 카테고리는 워크스페이스 소유자나 관리자만 만들고 고칠 수 있습니다."),
+    CANNOT_MANAGE_CHANNELS(HttpStatus.FORBIDDEN, "채널과 카테고리는 팀 소유자나 관리자만 만들고 고칠 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
 
     // billing (토스페이먼츠 자동결제)

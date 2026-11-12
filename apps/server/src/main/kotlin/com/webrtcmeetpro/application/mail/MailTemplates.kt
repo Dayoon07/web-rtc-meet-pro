@@ -185,11 +185,11 @@ object MailTemplates {
         val extra = won(excess * perMember)
         val t = when (lang) {
             MailLanguage.KO -> Texts("[MQ] 「$teamName」 멤버가 플랜 한도를 넘었어요", "멤버가 플랜 한도를 넘었어요",
-                "「$teamName」 워크스페이스 멤버가 ${members}명으로, 플랜 한도(${limit}명)보다 ${excess}명 많아요. " +
+                "「$teamName」 팀 멤버가 ${members}명으로, 플랜 한도(${limit}명)보다 ${excess}명 많아요. " +
                     "동의하신 대로 다음 결제($d)에 초과 인원 요금 ${won(perMember)}원 × ${excess}명 = ${extra}원(부가세 포함)이 더해져요. " +
                     "결제일의 멤버 수로 계산하니, 그 전에 멤버를 정리하면 청구되지 않아요.", "요금제 보기",
-                "결제 3일 전에 금액을 다시 알려 드려요. 초과 허용은 워크스페이스 요금제 화면에서 끌 수 있어요 (초과한 멤버가 없을 때).")
-            MailLanguage.EN -> Texts("[MQ] \"$teamName\" is over its member limit", "Your workspace is over its member limit",
+                "결제 3일 전에 금액을 다시 알려 드려요. 초과 허용은 팀 요금제 화면에서 끌 수 있어요 (초과한 멤버가 없을 때).")
+            MailLanguage.EN -> Texts("[MQ] \"$teamName\" is over its member limit", "Your team is over its member limit",
                 "\"$teamName\" now has $members members, $excess more than the plan limit of $limit. " +
                     "As you agreed, your next payment ($d) will include ${won(perMember)} KRW × $excess = $extra KRW (VAT included). " +
                     "We count members on the payment date, so removing members before then means no extra charge.", "View billing",
