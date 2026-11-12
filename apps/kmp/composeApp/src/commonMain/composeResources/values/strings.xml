@@ -298,4 +298,21 @@
     <string name="presence_online">Online</string>
     <string name="presence_away">Away</string>
     <string name="presence_offline">Offline</string>
+    <string name="nav_invitations">Invites</string>
+    <string name="invitations_empty">No pending invitations</string>
+    <string name="chat_list_title">Chats</string>
+    <string name="chat_add">New chat</string>
+    <string name="chat_new_channel">New channel</string>
+    <string name="chat_new_direct">New 1:1 chat</string>
+    <string name="team_switch">Switch team</string>
+    <string name="team_mine">My team</string>
+    <string name="team_invited_section">Invited teams</string>
+    <string name="team_invited_badge">Invited</string>
+    <string name="team_info">Team info</string>
+    <string name="start_title">Create your team to get started</string>
+    <string name="start_subtitle">Create one team for your company or group, then add as many chat rooms as you like.</string>
+    <string name="start_invites_title">You have invitations</string>
+    <string name="start_invites_hint">Accept an invitation to join that team. You don’t need to create your own.</string>
+    <string name="start_create_title">Create a new team</string>
+    <string name="error_TEAM_ALREADY_OWNED">You can create only one team. Join other teams by invitation.</string>
 </resources>

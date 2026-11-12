@@ -1,5 +1,26 @@
 package com.webrtcmeetpro.feature.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.webrtcmeetpro.core.data.SettingsStore
+import com.webrtcmeetpro.core.model.TeamRole
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material.icons.outlined.UnfoldMore
+import com.webrtcmeetpro.resources.chat_list_title
+import com.webrtcmeetpro.resources.chat_add
+import com.webrtcmeetpro.resources.chat_new_channel
+import com.webrtcmeetpro.resources.chat_new_direct
+import com.webrtcmeetpro.resources.team_switch
+import com.webrtcmeetpro.resources.team_mine
+import com.webrtcmeetpro.resources.team_invited_section
+import com.webrtcmeetpro.resources.team_invited_badge
+import com.webrtcmeetpro.resources.team_info
 import com.webrtcmeetpro.resources.chat_voice_now
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,7 +28,6 @@ import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.LaunchedEffect
 import com.webrtcmeetpro.core.model.ChatMessage
 import com.webrtcmeetpro.core.model.ChatUser
 import com.webrtcmeetpro.core.model.PresenceStatus
@@ -25,7 +45,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.webrtcmeetpro.ui.ErrorSnackbarEffect
 import com.webrtcmeetpro.resources.chat_new_category
 import com.webrtcmeetpro.resources.chat_rename_category
@@ -36,7 +55,6 @@ import com.webrtcmeetpro.resources.chat_delete
 import com.webrtcmeetpro.resources.common_cancel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,19 +63,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Groups
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +90,6 @@ import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
 import com.webrtcmeetpro.core.designsystem.component.LimeetCard
-import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.resources.chat_directs
 import com.webrtcmeetpro.resources.chat_channels
@@ -88,9 +102,7 @@ import com.webrtcmeetpro.platform.formatChatTime
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.chat_empty
 import com.webrtcmeetpro.resources.chat_empty_body
-import com.webrtcmeetpro.resources.chat_new
 import com.webrtcmeetpro.resources.chat_no_message
-import com.webrtcmeetpro.resources.chat_title
 import com.webrtcmeetpro.resources.home_no_teams
 import com.webrtcmeetpro.resources.home_no_teams_body
 import com.webrtcmeetpro.ui.ErrorState
@@ -132,6 +144,7 @@ class ChatListViewModel(
     private val teams: TeamRepository,
     private val chat: ChatRepository,
     private val users: UserRepository,
+    private val settings: SettingsStore,
     realtime: RealtimeRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChatListUiState())
@@ -159,6 +172,15 @@ class ChatListViewModel(
         viewModelScope.launch {
             realtime.presence.collect { p -> _state.update { it.copy(presence = it.presence + (p.userId to p.status)) } }
         }
+        // 다른 화면에서 팀을 바꿨으면 (초대 수락 등) 그 팀으로. 모르는 팀이면 목록부터 다시
+        viewModelScope.launch {
+            settings.lastTeamId.drop(1).collect { id ->
+                if (id == null || id == _state.value.selectedTeamId) return@collect
+                if (_state.value.teams.data?.any { it.id == id } == true) selectTeam(id) else refresh()
+            }
+        }
+        // 팀을 만들거나 나가면 팀 목록 다시
+        viewModelScope.launch { teams.changed.collect { refresh() } }
     }
 
     private val typingTimers = mutableMapOf<Pair<Long, Long>, Job>()
@@ -208,7 +230,12 @@ class ChatListViewModel(
                 val me = users.me()
                 me.id to teams.teams()
             }.onSuccess { (myId, list) ->
-                val selected = _state.value.selectedTeamId?.takeIf { id -> list.any { it.id == id } } ?: list.firstOrNull()?.id
+                // 지금 팀: 보고 있던 팀 → 마지막에 본 팀 → 내가 만든 팀 → 첫 팀
+                val valid = { id: Long? -> id?.takeIf { v -> list.any { it.id == v } } }
+                val selected = valid(_state.value.selectedTeamId)
+                    ?: valid(settings.lastTeamId.first())
+                    ?: list.firstOrNull { it.myRole == TeamRole.OWNER }?.id
+                    ?: list.firstOrNull()?.id
                 _state.update { it.copy(teams = Loadable(list, loading = false), selectedTeamId = selected, myId = myId) }
                 loadRooms()
             }.onFailure { e -> _state.update { it.copy(teams = it.teams.copy(loading = false, errorCode = e.errorCode)) } }
@@ -216,6 +243,7 @@ class ChatListViewModel(
     }
 
     fun selectTeam(teamId: Long) {
+        viewModelScope.launch { settings.setLastTeam(teamId) }
         if (teamId == _state.value.selectedTeamId) return
         _state.update { it.copy(selectedTeamId = teamId, rooms = Loadable(), presence = emptyMap(), typing = emptyMap()) }
         loadRooms()
@@ -254,7 +282,10 @@ class ChatListViewModel(
 @Composable
 fun ChatListScreen(
     onOpenRoom: (Long) -> Unit,
-    onNewChat: (teamId: Long) -> Unit,
+    /** group = 채널 만들기로 바로 */
+    onNewChat: (teamId: Long, group: Boolean) -> Unit,
+    /** 팀 정보 화면 */
+    onOpenTeam: (teamId: Long) -> Unit,
     viewModel: ChatListViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -267,21 +298,21 @@ fun ChatListScreen(
     var searchOpen by remember { mutableStateOf(false) }
 
     ScreenList(refreshing = state.teams.loading && teams != null, onRefresh = viewModel::refresh) {
+        // 맨 위: 지금 팀 (팀이 둘 이상이면 눌러서 바꾼다) · 팀 정보
         item {
-            ScreenTitle(stringResource(Res.string.chat_title)) {
-                if (state.selectedTeamId != null) {
-                    IconButton(onClick = { searchOpen = true }) {
-                        Icon(Icons.Outlined.Search, contentDescription = stringResource(Res.string.chat_search))
-                    }
-                }
-                if (state.canManage) {
-                    IconButton(onClick = { creatingCategory = true }) {
-                        Icon(Icons.Outlined.CreateNewFolder, contentDescription = stringResource(Res.string.chat_new_category))
-                    }
-                }
-                state.selectedTeamId?.let { teamId ->
-                    SecondaryButton(stringResource(Res.string.chat_new), onClick = { onNewChat(teamId) }, icon = Icons.Outlined.Edit)
-                }
+            val current = teams?.firstOrNull { it.id == state.selectedTeamId }
+            if (current != null) TeamHeader(teams, current, onPick = viewModel::selectTeam, onInfo = { onOpenTeam(current.id) })
+            else ScreenTitle(stringResource(Res.string.chat_list_title))
+        }
+        // "채팅 목록" · 검색 · 추가 (채널·1:1·카테고리, 관리자가 아니면 바로 1:1)
+        state.selectedTeamId?.let { teamId ->
+            item {
+                ChatListHeader(
+                    canManage = state.canManage,
+                    onSearch = { searchOpen = true },
+                    onNew = { group -> onNewChat(teamId, group) },
+                    onNewCategory = { creatingCategory = true },
+                )
             }
         }
         when {
@@ -292,19 +323,6 @@ fun ChatListScreen(
                 }
             }
             else -> {
-                if (teams.size > 1) {
-                    item {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            teams.forEach { team ->
-                                FilterChip(
-                                    selected = team.id == state.selectedTeamId,
-                                    onClick = { viewModel.selectTeam(team.id) },
-                                    label = { Text(team.name) },
-                                )
-                            }
-                        }
-                    }
-                }
                 when {
                     rooms == null -> state.rooms.errorCode?.let { code -> item { ErrorState(code, onRetry = viewModel::refresh) } } ?: loadingItem()
                     rooms.isEmpty() -> item {
@@ -558,6 +576,116 @@ fun RoomAvatar(room: ChatRoom, myId: Long, size: androidx.compose.ui.unit.Dp = 4
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Outlined.Groups, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+/** 팀 첫 글자 네모 */
+@Composable
+private fun TeamMark(name: String, size: androidx.compose.ui.unit.Dp = 36.dp) {
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(name.take(1).uppercase(), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+    }
+}
+
+/**
+ * 지금 팀. 팀은 보통 하나 (내가 만든 팀, 또는 초대받아 들어간 팀) — 초대받은 팀이면 "초대받음".
+ * 팀이 둘 이상이면 눌러서 "내 팀" · "초대받은 팀" 중에 고른다
+ */
+@Composable
+private fun TeamHeader(teams: List<TeamSummary>, current: TeamSummary, onPick: (Long) -> Unit, onInfo: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            Row(
+                Modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = teams.size > 1) { open = true }.padding(vertical = 6.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TeamMark(current.name)
+                Text(
+                    current.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (current.myRole != TeamRole.OWNER) {
+                    Text(
+                        stringResource(Res.string.team_invited_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+                if (teams.size > 1) Icon(Icons.Outlined.UnfoldMore, contentDescription = stringResource(Res.string.team_switch), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                listOf(
+                    Res.string.team_mine to teams.filter { it.myRole == TeamRole.OWNER },
+                    Res.string.team_invited_section to teams.filter { it.myRole != TeamRole.OWNER },
+                ).filter { it.second.isNotEmpty() }.forEach { (title, list) ->
+                    Text(
+                        stringResource(title),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
+                    list.forEach { team ->
+                        DropdownMenuItem(
+                            text = { Text(team.name, fontWeight = if (team.id == current.id) FontWeight.Bold else FontWeight.Normal) },
+                            leadingIcon = { TeamMark(team.name, 24.dp) },
+                            onClick = {
+                                open = false
+                                onPick(team.id)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        IconButton(onClick = onInfo) { Icon(Icons.Outlined.Info, contentDescription = stringResource(Res.string.team_info)) }
+    }
+}
+
+/** "채팅 목록" 제목 줄: 검색 · 추가(+). 채널·카테고리는 팀 소유자·관리자만이라, 아니면 +가 바로 1:1 채팅 */
+@Composable
+private fun ChatListHeader(canManage: Boolean, onSearch: () -> Unit, onNew: (group: Boolean) -> Unit, onNewCategory: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(Res.string.chat_list_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f).padding(start = 4.dp),
+        )
+        IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, contentDescription = stringResource(Res.string.chat_search)) }
+        Box {
+            IconButton(onClick = { if (canManage) open = true else onNew(false) }) {
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(Res.string.chat_add))
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.chat_new_channel)) },
+                    leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null) },
+                    onClick = { open = false; onNew(true) },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.chat_new_direct)) },
+                    leadingIcon = { Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = null) },
+                    onClick = { open = false; onNew(false) },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.chat_new_category)) },
+                    leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, contentDescription = null) },
+                    onClick = { open = false; onNewCategory() },
+                )
+            }
         }
     }
 }

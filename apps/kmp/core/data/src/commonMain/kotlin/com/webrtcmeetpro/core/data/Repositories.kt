@@ -92,12 +92,13 @@ class UserRepository(private val api: LimeetApi) {
 
 class TeamRepository(private val api: LimeetApi) {
     private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    /** 팀을 나가거나 삭제하면 알린다 (팀 목록이 다시 불러오게) */
+    /** 팀을 만들거나·초대를 수락하거나·나가거나·삭제하면 알린다 (팀 목록이 다시 불러오게) */
     val changed: SharedFlow<Unit> = _changed
 
     suspend fun teams(): List<TeamSummary> = api.teams()
     suspend fun detail(teamId: Long): TeamDetail = api.team(teamId)
-    suspend fun create(name: String, description: String?): TeamSummary = api.createTeam(name.trim(), description?.trim()?.ifEmpty { null })
+    suspend fun create(name: String, description: String?): TeamSummary =
+        api.createTeam(name.trim(), description?.trim()?.ifEmpty { null }).also { _changed.tryEmit(Unit) }
     suspend fun invite(teamId: Long, email: String): Invitation = api.inviteToTeam(teamId, email.trim())
     suspend fun pendingInvitations(teamId: Long): List<Invitation> = api.teamInvitations(teamId)
     suspend fun cancelInvitation(teamId: Long, invitationId: Long) = api.cancelInvitation(teamId, invitationId)
@@ -106,7 +107,7 @@ class TeamRepository(private val api: LimeetApi) {
     suspend fun removeMember(teamId: Long, userId: Long) = api.removeTeamMember(teamId, userId)
     suspend fun delete(teamId: Long) = api.deleteTeam(teamId).also { _changed.tryEmit(Unit) }
     suspend fun myInvitations(): List<Invitation> = api.myInvitations()
-    suspend fun accept(invitationId: Long) = api.acceptInvitation(invitationId)
+    suspend fun accept(invitationId: Long) = api.acceptInvitation(invitationId).also { _changed.tryEmit(Unit) }
     suspend fun decline(invitationId: Long) = api.declineInvitation(invitationId)
 }
 

@@ -297,4 +297,21 @@
     <string name="presence_online">접속 중</string>
     <string name="presence_away">자리 비움</string>
     <string name="presence_offline">접속 안 함</string>
+    <string name="nav_invitations">초대</string>
+    <string name="invitations_empty">받은 초대가 없어요</string>
+    <string name="chat_list_title">채팅 목록</string>
+    <string name="chat_add">채팅 추가</string>
+    <string name="chat_new_channel">새 채널</string>
+    <string name="chat_new_direct">새 1:1 채팅</string>
+    <string name="team_switch">팀 바꾸기</string>
+    <string name="team_mine">내 팀</string>
+    <string name="team_invited_section">초대받은 팀</string>
+    <string name="team_invited_badge">초대받음</string>
+    <string name="team_info">팀 정보</string>
+    <string name="start_title">팀을 만들고 시작해요</string>
+    <string name="start_subtitle">회사나 모임 이름으로 팀을 하나 만들면, 그 안에 채팅방을 몇 개든 만들 수 있어요.</string>
+    <string name="start_invites_title">받은 초대가 있어요</string>
+    <string name="start_invites_hint">초대를 수락하면 그 팀으로 들어가요. 따로 팀을 만들지 않아도 돼요.</string>
+    <string name="start_create_title">새 팀 만들기</string>
+    <string name="error_TEAM_ALREADY_OWNED">팀은 한 사람당 하나만 만들 수 있어요. 다른 팀은 초대를 받아 들어가요.</string>
 </resources>

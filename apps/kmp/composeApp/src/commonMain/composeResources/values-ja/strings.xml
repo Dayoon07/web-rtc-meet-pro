@@ -297,4 +297,21 @@
     <string name="presence_online">オンライン</string>
     <string name="presence_away">離席中</string>
     <string name="presence_offline">オフライン</string>
+    <string name="nav_invitations">招待</string>
+    <string name="invitations_empty">届いている招待はありません</string>
+    <string name="chat_list_title">チャット一覧</string>
+    <string name="chat_add">チャットを追加</string>
+    <string name="chat_new_channel">新しいチャンネル</string>
+    <string name="chat_new_direct">新しい1対1チャット</string>
+    <string name="team_switch">チームを切り替え</string>
+    <string name="team_mine">マイチーム</string>
+    <string name="team_invited_section">招待されたチーム</string>
+    <string name="team_invited_badge">招待</string>
+    <string name="team_info">チーム情報</string>
+    <string name="start_title">チームを作って始めましょう</string>
+    <string name="start_subtitle">会社やグループの名前でチームを1つ作ると、その中にチャットルームをいくつでも作れます。</string>
+    <string name="start_invites_title">招待が届いています</string>
+    <string name="start_invites_hint">招待を承諾するとそのチームに参加します。自分でチームを作る必要はありません。</string>
+    <string name="start_create_title">新しいチームを作成</string>
+    <string name="error_TEAM_ALREADY_OWNED">チームは1人1つまで作成できます。ほかのチームには招待で参加します。</string>
 </resources>

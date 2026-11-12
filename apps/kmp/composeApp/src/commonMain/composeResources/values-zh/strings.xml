@@ -297,4 +297,21 @@
     <string name="presence_online">在线</string>
     <string name="presence_away">离开</string>
     <string name="presence_offline">离线</string>
+    <string name="nav_invitations">邀请</string>
+    <string name="invitations_empty">没有待处理的邀请</string>
+    <string name="chat_list_title">聊天列表</string>
+    <string name="chat_add">新建聊天</string>
+    <string name="chat_new_channel">新建频道</string>
+    <string name="chat_new_direct">新建单聊</string>
+    <string name="team_switch">切换团队</string>
+    <string name="team_mine">我的团队</string>
+    <string name="team_invited_section">受邀团队</string>
+    <string name="team_invited_badge">受邀</string>
+    <string name="team_info">团队信息</string>
+    <string name="start_title">创建团队开始使用</string>
+    <string name="start_subtitle">以公司或团体名称创建一个团队，然后可以在其中创建任意多个聊天室。</string>
+    <string name="start_invites_title">你收到了邀请</string>
+    <string name="start_invites_hint">接受邀请即可加入该团队，无需自己创建团队。</string>
+    <string name="start_create_title">创建新团队</string>
+    <string name="error_TEAM_ALREADY_OWNED">每人只能创建一个团队。其他团队可通过邀请加入。</string>
 </resources>

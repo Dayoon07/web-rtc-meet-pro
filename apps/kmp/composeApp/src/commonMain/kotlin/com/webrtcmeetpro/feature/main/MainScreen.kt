@@ -1,5 +1,13 @@
 package com.webrtcmeetpro.feature.main
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.webrtcmeetpro.core.data.TeamRepository
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.Alignment
 import com.webrtcmeetpro.platform.InAppMeeting
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -12,7 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
@@ -30,10 +38,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -60,13 +66,14 @@ import com.webrtcmeetpro.feature.notifications.NotificationTarget
 import com.webrtcmeetpro.feature.notifications.NotificationsScreen
 import com.webrtcmeetpro.feature.settings.SettingsScreen
 import com.webrtcmeetpro.feature.teams.TeamDetailScreen
-import com.webrtcmeetpro.feature.teams.TeamsScreen
+import com.webrtcmeetpro.feature.teams.InvitationsScreen
+import com.webrtcmeetpro.feature.teams.TeamStartScreen
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.nav_chat
 import com.webrtcmeetpro.resources.nav_home
 import com.webrtcmeetpro.resources.nav_meetings
 import com.webrtcmeetpro.resources.nav_settings
-import com.webrtcmeetpro.resources.nav_teams
+import com.webrtcmeetpro.resources.nav_invitations
 import com.webrtcmeetpro.ui.BrandLogo
 import com.webrtcmeetpro.ui.LocalSnackbar
 import kotlinx.serialization.Serializable
@@ -79,12 +86,12 @@ import kotlin.reflect.KClass
 @Serializable data object HomeRoute
 @Serializable data object ChatRoute
 @Serializable data object MeetingsRoute
-@Serializable data object TeamsRoute
+@Serializable data object InvitationsRoute
 @Serializable data object SettingsRoute
 
 // 하위 화면
 @Serializable data class ChatRoomRoute(val roomId: Long)
-@Serializable data class NewChatRoute(val teamId: Long)
+@Serializable data class NewChatRoute(val teamId: Long, val group: Boolean = false)
 @Serializable data class MeetingDetailRoute(val meetingId: Long)
 @Serializable data object ScheduleMeetingRoute
 @Serializable data class EditMeetingRoute(val meetingId: Long)
@@ -98,7 +105,8 @@ private enum class Tab(val route: Any, val routeClass: KClass<*>, val label: Str
     CHAT(ChatRoute, ChatRoute::class, Res.string.nav_chat, Icons.Outlined.ChatBubbleOutline),
     HOME(HomeRoute, HomeRoute::class, Res.string.nav_home, Icons.Outlined.Home),
     MEETINGS(MeetingsRoute, MeetingsRoute::class, Res.string.nav_meetings, Icons.Outlined.CalendarMonth),
-    TEAMS(TeamsRoute, TeamsRoute::class, Res.string.nav_teams, Icons.Outlined.Groups),
+    // 팀은 한 사람당 하나라 팀 목록 대신 받은 초대 (지금 팀은 채팅 탭 맨 위)
+    INVITATIONS(InvitationsRoute, InvitationsRoute::class, Res.string.nav_invitations, Icons.Outlined.MailOutline),
     SETTINGS(SettingsRoute, SettingsRoute::class, Res.string.nav_settings, Icons.Outlined.Settings),
 }
 
@@ -115,8 +123,37 @@ private fun NavHostController.openTab(tab: Tab) = navigate(tab.route) {
  * 로그인 후 메인. 같은 코드로 폭에 따라 모양만 바뀐다.
  * 폰(좁은 화면): 하단 NavigationBar (하위 화면에서는 숨김) / 태블릿·데스크톱 창: 왼쪽 NavigationRail
  */
+/** 로그인 후: 팀이 없으면 먼저 팀을 만들거나 받은 초대를 수락 (회사 하나 = 팀 하나), 있으면 메인 */
 @Composable
 fun MainScreen() {
+    val teams = koinInject<TeamRepository>()
+    var hasTeam by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(Unit) {
+        // 못 불러오면 일단 메인으로 (각 화면이 다시 시도한다)
+        suspend fun check() {
+            hasTeam = runCatching { teams.teams().isNotEmpty() }.getOrDefault(true)
+        }
+        check()
+        teams.changed.collect { check() }
+    }
+    when (hasTeam) {
+        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        false -> {
+            val snackbar = remember { SnackbarHostState() }
+            CompositionLocalProvider(LocalSnackbar provides snackbar) {
+                Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->
+                    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+                        Box(Modifier.widthIn(max = 640.dp)) { TeamStartScreen(onReady = { hasTeam = true }) }
+                    }
+                }
+            }
+        }
+        true -> MainContent()
+    }
+}
+
+@Composable
+private fun MainContent() {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentTab = backStack?.destination.tab()
@@ -194,7 +231,7 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
         composable<HomeRoute> {
             HomeScreen(
                 onOpenMeetings = { nav.openTab(Tab.MEETINGS) },
-                onOpenTeams = { nav.openTab(Tab.TEAMS) },
+                onOpenTeams = { nav.openTab(Tab.CHAT) },
                 onOpenMeeting = { nav.navigate(MeetingDetailRoute(it)) },
                 onOpenTeam = { nav.navigate(TeamDetailRoute(it)) },
                 onOpenNotifications = { nav.navigate(NotificationsRoute) },
@@ -204,13 +241,14 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
         composable<ChatRoute> {
             ChatListScreen(
                 onOpenRoom = { nav.navigate(ChatRoomRoute(it)) },
-                onNewChat = { nav.navigate(NewChatRoute(it)) },
+                onNewChat = { teamId, group -> nav.navigate(NewChatRoute(teamId, group)) },
+                onOpenTeam = { nav.navigate(TeamDetailRoute(it)) },
             )
         }
         composable<MeetingsRoute> {
             MeetingsScreen(onOpen = { nav.navigate(MeetingDetailRoute(it)) }, onSchedule = { nav.navigate(ScheduleMeetingRoute) })
         }
-        composable<TeamsRoute> { TeamsScreen(onOpen = { nav.navigate(TeamDetailRoute(it)) }) }
+        composable<InvitationsRoute> { InvitationsScreen(onJoined = { nav.openTab(Tab.CHAT) }) }
         composable<SettingsRoute> { SettingsScreen() }
 
         composable<ChatRoomRoute> {
@@ -222,8 +260,10 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
             )
         }
         composable<NewChatRoute> {
+            val route = it.toRoute<NewChatRoute>()
             NewChatScreen(
-                teamId = it.toRoute<NewChatRoute>().teamId,
+                teamId = route.teamId,
+                group = route.group,
                 onBack = back,
                 // 새 대화 화면은 스택에서 빼고 방으로 이동 (뒤로 가면 채팅 목록)
                 onOpened = { roomId -> nav.navigate(ChatRoomRoute(roomId)) { popUpTo<NewChatRoute> { inclusive = true } } },
@@ -263,7 +303,7 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
                         is NotificationTarget.Meeting -> nav.navigate(MeetingDetailRoute(target.id))
                         is NotificationTarget.ChatRoom -> nav.navigate(ChatRoomRoute(target.id))
                         is NotificationTarget.Team -> nav.navigate(TeamDetailRoute(target.id))
-                        NotificationTarget.Invitations -> nav.openTab(Tab.TEAMS)
+                        NotificationTarget.Invitations -> nav.openTab(Tab.INVITATIONS)
                     }
                 },
             )

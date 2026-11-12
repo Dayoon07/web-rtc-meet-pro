@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.core.data
 
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -80,8 +81,16 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         store.edit { if (language == null) it.remove(LANGUAGE) else it[LANGUAGE] = language.tag }
     }
 
+    /** 채팅 목록에서 마지막에 본 팀 (없으면 내가 만든 팀 → 첫 팀) */
+    val lastTeamId: Flow<Long?> = store.data.map { it[LAST_TEAM] }.distinctUntilChanged()
+
+    suspend fun setLastTeam(teamId: Long) {
+        store.edit { it[LAST_TEAM] = teamId }
+    }
+
     private companion object {
         val THEME = stringPreferencesKey("theme")
         val LANGUAGE = stringPreferencesKey("language")
+        val LAST_TEAM = longPreferencesKey("last_team_id")
     }
 }

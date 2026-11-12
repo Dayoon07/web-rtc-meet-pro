@@ -132,11 +132,14 @@ fun NewChatScreen(
     teamId: Long,
     onBack: () -> Unit,
     onOpened: (roomId: Long) -> Unit,
+    group: Boolean = false,
     viewModel: NewChatViewModel = koinViewModel(key = "new-chat-$teamId") { parametersOf(teamId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     ErrorSnackbarEffect(state.errorCode, viewModel::errorShown)
     LaunchedEffect(state.openedRoomId) { state.openedRoomId?.let(onOpened) }
+    // 채팅 목록 + 메뉴에서 "새 채널" 로 왔으면 채널 탭으로
+    LaunchedEffect(group) { if (group) viewModel.setGroupMode(true) }
 
     DetailScaffold(title = stringResource(Res.string.chat_new), subtitle = state.team?.team?.name, onBack = onBack) {
         val team = state.team
