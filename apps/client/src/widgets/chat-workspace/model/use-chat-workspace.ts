@@ -1,31 +1,31 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { chatApi, chatKeys, type ChatCategory, type ChatMessage, type ChatRoom, useChatCategoriesQuery, useChatRoomsQuery } from '@/entities/chat'
 import { hasTeamPermission, useTeamQuery, useTeamsQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
 import { toastError } from '@/shared/api'
 import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
-import { useChatRealtime } from './use-chat-realtime'
+import { useChatAddress } from './address'
 
 /**
- * 채팅 화면 전체의 상태: 주소의 워크스페이스·방, 방 목록·카테고리, 만들기 창들, 실시간 이벤트.
+ * 채팅 상태: 주소의 팀·방, 방 목록·카테고리, 만들기 창들 (채팅 화면과 앱 사이드바의 방 목록이 각각 쓴다).
+ * 실시간 이벤트(useChatRealtime)는 앱 틀(AppLayout)에서 한 번만 받는다.
  * 화면 조각들은 이 값을 WorkspaceContext 로 받아 쓴다 (props 로 줄줄이 넘기지 않게)
  */
 export function useChatWorkspace() {
   const { t } = useTranslation()
-  const params = useParams()
+  const address = useChatAddress()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { data: me } = useMeQuery()
   const { data: teams, isPending: teamsPending } = useTeamsQuery()
-  const activeTeamId = (params.teamId ? Number(params.teamId) : undefined) ?? teams?.[0]?.id ?? 0
-  const activeRoomId = params.roomId ? Number(params.roomId) : undefined
+  const activeTeamId = address.teamId ?? teams?.[0]?.id ?? 0
+  const activeRoomId = address.roomId
   const { data: team } = useTeamQuery(activeTeamId)
   const { data: rooms = [], isPending: roomsPending } = useChatRoomsQuery(activeTeamId)
   const { data: categories = [] } = useChatCategoriesQuery(activeTeamId)
-  useChatRealtime()
 
   const goTeam = (teamId: number) => navigate(ROUTES.chat(teamId))
   const openRoom = (room: ChatRoom) => navigate(ROUTES.chat(room.teamId, room.id))

@@ -1,9 +1,8 @@
 import { FolderPlus, Info, MessageSquarePlus, MessagesSquare, Plus, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useParams } from 'react-router'
-import { CategoryModal, CreateGroupRoomModal, StartDirectChatModal } from '@/features/chat-room-actions'
-import { MessageSearchModal } from '@/features/search-messages'
 import { VoiceBar } from '@/features/voice-chat'
+import { useAppShell } from '@/shared/lib/app-shell'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
 import { Button, EmptyState, IconButton, LinkButton, Spinner } from '@/shared/ui'
@@ -11,6 +10,7 @@ import { useWorkspace, WorkspaceContext } from '../model/context'
 import { useChatWorkspace } from '../model/use-chat-workspace'
 import { RoomSidebar } from './RoomSidebar'
 import { RoomView } from './RoomView'
+import { WorkspaceDialogs } from './WorkspaceDialogs'
 
 /**
  * 왼쪽 위: 지금 워크스페이스 이름 (누르면 워크스페이스 정보 화면) + 새 1:1 채팅 · 새 채널 · 새 카테고리.
@@ -78,20 +78,6 @@ function NoRoomSelected() {
   )
 }
 
-/** 새 1:1 채팅 · 새 채널 · 카테고리 창 */
-function WorkspaceDialogs() {
-  const ws = useWorkspace()
-  if (!ws.team || !ws.me) return null
-  return (
-    <>
-      <StartDirectChatModal teamId={ws.activeTeamId} dialog={ws.dialogs.direct} />
-      <CreateGroupRoomModal teamId={ws.activeTeamId} dialog={ws.dialogs.channel} />
-      <CategoryModal teamId={ws.activeTeamId} dialog={ws.dialogs.category} />
-      <MessageSearchModal teamId={ws.activeTeamId} dialog={ws.dialogs.search} />
-    </>
-  )
-}
-
 /**
  * 채팅 화면: 왼쪽 방 목록 (워크스페이스 선택 + 1:1/채널 만들기), 오른쪽 대화.
  * 워크스페이스·방은 주소(/app/chat/:teamId/:roomId)에서 읽는다. 실시간 메시지는 /user/queue/chat 으로 받는다.
@@ -100,6 +86,14 @@ export function ChatWorkspace() {
   const { t } = useTranslation()
   const ws = useChatWorkspace()
   const { teamId } = useParams()
+  const { sidebarCollapsed } = useAppShell()
+  // 방 목록은 보통 앱 사이드바 "내 팀" 아래에 있다. 여기 가운데 목록은
+  // 휴대폰에서 방을 고르기 전, 또는 데스크톱에서 사이드바를 접었을 때만 보인다
+  const listClass = cn(
+    'w-full flex-col border-gray-200 md:w-80 md:border-r dark:border-gray-800',
+    ws.activeRoom ? 'hidden' : 'flex',
+    sidebarCollapsed ? 'md:flex' : 'md:hidden',
+  )
 
   if (ws.teamsPending) {
     return (
@@ -128,7 +122,7 @@ export function ChatWorkspace() {
     <WorkspaceContext value={ws}>
       {/* 슬랙·디스코드처럼 화면에 붙인다: 왼쪽 앱 사이드바 바로 옆에 방 목록, 입력창은 맨 아래 */}
       <div className="flex min-h-0 flex-1 overflow-hidden border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
-        <aside className={cn('flex w-full flex-col border-gray-200 md:w-80 md:border-r dark:border-gray-800', ws.activeRoom && 'hidden md:flex')}>
+        <aside className={listClass}>
           <SidebarToolbar />
           <div className="flex-1 overflow-y-auto">
             {ws.roomsPending ? (

@@ -84,10 +84,18 @@ function PlanUsage() {
  * 휴대폰에서는 늘 펼친 서랍 (open 으로 열고 닫음).
  */
 /** 앱 사이드바의 상태: 휴대폰에서 열림 · 닫기 · 채팅 안 읽은 수 · 접힘 · 접기/펴기 */
-export type AppSidebarState = { open: boolean; onClose: () => void; chatUnread?: ChatUnread; collapsed?: boolean; onToggleCollapsed?: () => void }
+export type AppSidebarState = {
+  open: boolean
+  onClose: () => void
+  chatUnread?: ChatUnread
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
+  /** 바깥에서 끼워 넣는 내용: teamPanel = 지금 팀 아래 방 목록, footer = 아래쪽 (음성 막대) */
+  slots?: { teamPanel?: ReactNode; footer?: ReactNode }
+}
 
 export function AppSidebar({ state }: { state: AppSidebarState }) {
-  const { open, onClose, chatUnread, collapsed = false, onToggleCollapsed } = state
+  const { open, onClose, chatUnread, collapsed = false, onToggleCollapsed, slots } = state
   const mini = collapsed
   const { t } = useTranslation()
   const { data: teams } = useTeamsQuery()
@@ -167,25 +175,27 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             </div>
             {teams?.length ? (
               teams.map((team) => (
-                // 디스코드처럼 누르면 바로 그 워크스페이스 채팅으로 (정보 화면은 채팅 왼쪽 위 이름을 누르면)
-                <Link
-                  key={team.id}
-                  to={ROUTES.chat(team.id)}
-                  aria-current={team.id === currentTeamId ? 'page' : undefined}
-                  className={itemClass({ isActive: team.id === currentTeamId }, mini)}
-                  title={mini ? team.name : undefined}
-                >
-                  <span
-                    className={cn(
-                      'flex size-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-[11px] font-bold text-white',
-                      mini && 'md:size-7 md:text-xs',
-                    )}
+                // 누르면 바로 그 팀 채팅으로, 지금 팀이면 아래에 방 목록 (Slack 처럼). 팀 정보는 방 목록 위 (i) 버튼
+                <div key={team.id} className="flex flex-col">
+                  <Link
+                    to={ROUTES.chat(team.id)}
+                    aria-current={team.id === currentTeamId ? 'page' : undefined}
+                    className={itemClass({ isActive: team.id === currentTeamId }, mini)}
+                    title={mini ? team.name : undefined}
                   >
-                    {team.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className={cn('flex-1 truncate', mini && 'md:sr-only')}>{team.name}</span>
-                  <CountBadge count={chatUnread?.byTeam[team.id]} mini={mini} />
-                </Link>
+                    <span
+                      className={cn(
+                        'flex size-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-[11px] font-bold text-white',
+                        mini && 'md:size-7 md:text-xs',
+                      )}
+                    >
+                      {team.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className={cn('flex-1 truncate', mini && 'md:sr-only')}>{team.name}</span>
+                    <CountBadge count={chatUnread?.byTeam[team.id]} mini={mini} />
+                  </Link>
+                  {team.id === currentTeamId && slots?.teamPanel && <div className={cn(mini && 'md:hidden')}>{slots.teamPanel}</div>}
+                </div>
               ))
             ) : (
               <p className={cn('px-3 py-2 text-sm text-gray-400 dark:text-gray-500', mini && 'md:hidden')}>{t('sidebar.noTeams')}</p>
@@ -202,6 +212,7 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
           </div>
         </nav>
 
+        {slots?.footer && <div className={cn(mini && 'md:hidden')}>{slots.footer}</div>}
         <div className={cn('p-3', mini && 'md:hidden')}>
           <PlanUsage />
         </div>
