@@ -25,6 +25,8 @@ class SmtpMailSender(private val props: MailProperties) : MailSender {
         defaultEncoding = "UTF-8"
         javaMailProperties["mail.smtp.auth"] = props.username.isNotBlank().toString()
         javaMailProperties["mail.smtp.starttls.enable"] = props.starttls.toString()
+        // STARTTLS 를 켰으면 암호화 없이는 보내지 않는다 (Gmail 등)
+        javaMailProperties["mail.smtp.starttls.required"] = props.starttls.toString()
         javaMailProperties["mail.smtp.connectiontimeout"] = "10000"
         javaMailProperties["mail.smtp.timeout"] = "10000"
         javaMailProperties["mail.smtp.writetimeout"] = "10000"
@@ -47,6 +49,10 @@ class SmtpMailSender(private val props: MailProperties) : MailSender {
                 if (message.html != null) setText(message.text, message.html) else setText(message.text)
             }
             mailer.send(mime)
-        }.onFailure { log.warn("메일 발송 실패 to={} subject={}: {}", message.to, message.subject, it.message) }
+        }.onFailure { e ->
+            // 원인까지 (Gmail 은 "535-5.7.8 Username and Password not accepted" 처럼 안쪽 예외에 이유가 있다)
+            val causes = generateSequence(e) { it.cause }.mapNotNull { it.message?.lineSequence()?.firstOrNull() }.distinct().joinToString(" ← ")
+            log.warn("메일 발송 실패 to={} subject={}: {}", message.to, message.subject, causes)
+        }
     }
 }
