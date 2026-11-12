@@ -41,7 +41,7 @@ export type Row = Record<string, string | number | boolean | null>
 
 export type RowPage = { rows: Row[]; total: number; page: number; size: number }
 
-/** 목록 조건 = 주소의 ?q=&sort=&desc=&page=&size=&deleted=&filter=col:value (그대로 공유·새로고침 가능) */
+/** 목록 조건 = 주소의 ?q=&sort=&desc=&page=&size=&deleted=&filter=col:value&contains=col:value (그대로 공유·새로고침 가능) */
 export type RowQuery = {
   q?: string
   sort?: string
@@ -49,7 +49,10 @@ export type RowQuery = {
   page?: number
   size?: number
   deleted?: 'active' | 'deleted'
+  /** 컬럼 = 값 (같음, 값이 비면 NULL) */
   filters?: [string, string][]
+  /** 컬럼에 값이 들어 있음 (포함) */
+  contains?: [string, string][]
 }
 
 const qs = (query: RowQuery, withPaging = true) => {
@@ -63,6 +66,7 @@ const qs = (query: RowQuery, withPaging = true) => {
   }
   if (query.deleted) p.set('deleted', query.deleted)
   query.filters?.forEach(([c, v]) => p.append('filter', `${c}:${v}`))
+  query.contains?.forEach(([c, v]) => p.append('contains', `${c}:${v}`))
   return p.toString()
 }
 

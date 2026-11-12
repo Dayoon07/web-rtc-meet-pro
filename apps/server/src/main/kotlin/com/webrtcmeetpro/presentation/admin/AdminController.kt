@@ -1,5 +1,9 @@
 package com.webrtcmeetpro.presentation.admin
 
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.http.HttpStatus
+import com.webrtcmeetpro.application.admin.PendingSignupView
+import com.webrtcmeetpro.application.admin.AdminEmailVerificationService
 import com.webrtcmeetpro.application.admin.AdminErrorLogService
 import com.webrtcmeetpro.application.admin.SystemAdminAccess
 import com.webrtcmeetpro.common.web.userId
@@ -21,7 +25,31 @@ import org.springframework.web.bind.annotation.RestController
 class AdminController(
     private val errorLogs: AdminErrorLogService,
     private val admins: SystemAdminAccess,
+    private val verifications: AdminEmailVerificationService,
 ) {
+
+    /** 이메일 인증을 기다리는 가입 (최근 200명). q = 이메일·닉네임·이름 일부 */
+    @GetMapping("/signups/pending")
+    fun pendingSignups(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?): List<PendingSignupView> {
+        admins.require(jwt.userId)
+        return verifications.pending(q)
+    }
+
+    /** 이메일 인증 강제 승인 */
+    @PostMapping("/users/{userId}/verify-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun verifyEmail(@AuthenticationPrincipal jwt: Jwt, @PathVariable userId: Long) {
+        admins.require(jwt.userId)
+        verifications.approve(userId, jwt.userId)
+    }
+
+    /** 이메일 인증 거절 = 가입 취소 (개인정보 지우고 계정 닫기) */
+    @PostMapping("/users/{userId}/reject-signup")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun rejectSignup(@AuthenticationPrincipal jwt: Jwt, @PathVariable userId: Long) {
+        admins.require(jwt.userId)
+        verifications.reject(userId, jwt.userId)
+    }
 
     /** 로그인한 관리자 (관리자가 아니면 403 → 관리자 사이트가 로그인을 막는다) */
     @GetMapping("/me")

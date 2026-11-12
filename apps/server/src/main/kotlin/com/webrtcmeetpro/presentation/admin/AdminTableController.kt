@@ -26,7 +26,7 @@ data class AdminRowValues(val values: Map<String, Any?> = emptyMap())
 
 /**
  * 관리자 사이트 "데이터 관리" API. 어떤 테이블이든 같은 주소 모양으로 다룬다.
- *   목록 필터: ?filter=team_id:5&filter=status:ACTIVE (값이 비면 IS NULL), ?q=검색어, ?deleted=active|deleted
+ *   목록 필터: ?filter=team_id:5&filter=status:ACTIVE (같음, 값이 비면 IS NULL), ?contains=email:gmail (포함), ?q=검색어, ?deleted=active|deleted
  */
 @RestController
 @RequestMapping("/api/admin/tables")
@@ -50,8 +50,9 @@ class AdminTableController(
         @RequestParam(defaultValue = "true") desc: Boolean,
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) filter: List<String>?,
+        @RequestParam(required = false) contains: List<String>?,
         @RequestParam(required = false) deleted: String?,
-    ) = admin(jwt) { tables.rows(table, query(page, size, sort, desc, q, filter, deleted)) }
+    ) = admin(jwt) { tables.rows(table, query(page, size, sort, desc, q, filter, deleted, contains)) }
 
     @GetMapping("/{table}/rows/{id}")
     fun row(@AuthenticationPrincipal jwt: Jwt, @PathVariable table: String, @PathVariable id: String) =
@@ -74,9 +75,10 @@ class AdminTableController(
         @RequestParam(defaultValue = "true") desc: Boolean,
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) filter: List<String>?,
+        @RequestParam(required = false) contains: List<String>?,
         @RequestParam(required = false) deleted: String?,
     ): ResponseEntity<ByteArray> = admin(jwt) {
-        val csv = tables.exportCsv(table, query(0, 0, sort, desc, q, filter, deleted))
+        val csv = tables.exportCsv(table, query(0, 0, sort, desc, q, filter, deleted, contains))
         val name = "${table.lowercase()}-${LocalDate.now()}.csv"
         ResponseEntity.ok()
             .contentType(MediaType("text", "csv", StandardCharsets.UTF_8))
@@ -84,7 +86,7 @@ class AdminTableController(
             .body(csv.toByteArray(StandardCharsets.UTF_8))
     }
 
-    private fun query(page: Int, size: Int, sort: String?, desc: Boolean, q: String?, filter: List<String>?, deleted: String?) =
+    private fun query(page: Int, size: Int, sort: String?, desc: Boolean, q: String?, filter: List<String>?, deleted: String?, contains: List<String>?) =
         AdminRowQuery(
             page = page,
             size = size,
@@ -92,6 +94,7 @@ class AdminTableController(
             desc = desc,
             q = q,
             filters = filter.orEmpty().filter { ':' in it }.associate { it.substringBefore(':') to it.substringAfter(':') },
+            contains = contains.orEmpty().filter { ':' in it }.associate { it.substringBefore(':') to it.substringAfter(':') },
             deleted = when (deleted) {
                 "active" -> false
                 "deleted" -> true

@@ -17,6 +17,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     ADMIN_ROW_NOT_FOUND(HttpStatus.NOT_FOUND, "행을 찾을 수 없습니다."),
     ADMIN_READ_ONLY(HttpStatus.BAD_REQUEST, "고칠 수 없는 테이블이나 컬럼입니다."),
     ADMIN_INVALID_VALUE(HttpStatus.BAD_REQUEST, "값이 올바르지 않습니다."),
+    ADMIN_VERIFICATION_NOT_PENDING(HttpStatus.BAD_REQUEST, "이메일 인증을 기다리는 계정이 아닙니다 (이미 인증했거나 닫힌 계정)."),
     ADMIN_DATA_CONSTRAINT(HttpStatus.CONFLICT, "DB 규칙(중복·참조·허용 값)에 맞지 않아 저장하지 못했습니다."),
 
     // auth / user

@@ -119,6 +119,18 @@ export type ErrorLog = {
 
 export type AdminMe = { id: number; email: string; nickname: string }
 
+/** 이메일 인증을 기다리는 가입 */
+export type PendingSignup = {
+  id: number
+  email: string
+  nickname: string
+  realName: string | null
+  /** 이메일(비밀번호)로 가입 */
+  hasPassword: boolean
+  createdAt: string
+  lastLoginAt: string | null
+}
+
 export const adminApi = {
   login: async (email: string, password: string) => {
     const tokens = await http<AuthTokens>('/auth/login', { method: 'POST', json: { email, password }, auth: false })
@@ -134,6 +146,11 @@ export const adminApi = {
   errorLogs: (unresolved: boolean) => http<ErrorLog[]>(`/admin/error-logs?unresolved=${unresolved}`),
   errorLog: (code: string) => http<ErrorLog>(`/admin/error-logs/${encodeURIComponent(code)}`),
   resolve: (code: string) => http<ErrorLog>(`/admin/error-logs/${encodeURIComponent(code)}/resolve`, { method: 'POST' }),
+  pendingSignups: (q: string) => http<PendingSignup[]>(`/admin/signups/pending${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  /** 이메일 인증 강제 승인 */
+  verifyEmail: (userId: number) => http<void>(`/admin/users/${userId}/verify-email`, { method: 'POST' }),
+  /** 이메일 인증 거절 = 가입 취소 */
+  rejectSignup: (userId: number) => http<void>(`/admin/users/${userId}/reject-signup`, { method: 'POST' }),
 }
 
 /** CSV 같은 파일 내려받기 (토큰을 붙여야 해서 <a href> 로는 안 된다) */

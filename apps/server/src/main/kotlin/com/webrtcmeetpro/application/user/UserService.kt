@@ -118,6 +118,38 @@ class UserService(
         if (hash != null && (password.isNullOrEmpty() || !passwordEncoder.matches(password, hash))) {
             throw BusinessException(ErrorCode.INVALID_PASSWORD)
         }
+        erase(user)
+    }
+
+    /** 관리자: 이메일 인증을 기다리는 계정을 인증된 것으로. @return 그 계정 이메일 (기록용) */
+    @Transactional
+    fun verifyEmailByAdmin(userId: Long): String {
+        val user = findPendingSignup(userId)
+        user.verifyEmail()
+        return user.email
+    }
+
+    /**
+     * 관리자: 이메일 인증을 기다리는 가입을 거절 = 가입 취소. 탈퇴와 같이 개인정보를 지우고 계정을 닫는다
+     * (이메일이 비워져 같은 이메일로 다시 가입할 수 있다). @return 지우기 전 이메일 (기록용)
+     */
+    @Transactional
+    fun rejectSignup(userId: Long): String {
+        val user = findPendingSignup(userId)
+        val email = user.email
+        erase(user)
+        return email
+    }
+
+    private fun findPendingSignup(userId: Long): User {
+        val user = findUser(userId)
+        if (user.isEmailVerified || !user.isActive || user.isSystemAdmin) throw BusinessException(ErrorCode.ADMIN_VERIFICATION_NOT_PENDING)
+        return user
+    }
+
+    /** 탈퇴·가입 거절 공통: 팀·채팅방에서 나가고, 로그인 토큰·구독·카드·구글 연결을 정리한 뒤 개인정보를 지운다 */
+    private fun erase(user: User) {
+        val userId = user.id!!
         val owned = teamRepository.countByOwnerIdAndStatus(userId, TeamStatus.ACTIVE)
         if (owned > 0) throw BusinessException(ErrorCode.OWNED_TEAMS_EXIST, mapOf("count" to owned))
 

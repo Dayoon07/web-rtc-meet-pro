@@ -79,6 +79,8 @@ data class AdminRowQuery(
     val desc: Boolean = true,
     val q: String? = null,
     val filters: Map<String, String> = emptyMap(),
+    /** 컬럼 = 값을 "포함" (대소문자 무시). 숫자·날짜도 글자로 바꿔 찾는다 */
+    val contains: Map<String, String> = emptyMap(),
     /** deleted_yn 이 있는 테이블: null = 전부, false = 사용 중(N)만, true = 미사용(Y)만 */
     val deleted: Boolean? = null,
 )
@@ -343,7 +345,8 @@ class AdminTableService(
         }
     }
 
-    private fun recordChange(table: String, id: String, action: String, changes: Map<String, Any?>, adminId: Long) {
+    /** 관리자 변경 기록 (admin_data_changes). action = UPDATE | INSERT, changes = 컬럼 → {from, to} */
+    fun recordChange(table: String, id: String, action: String, changes: Map<String, Any?>, adminId: Long) {
         val log = props.tablePrefix + "admin_data_changes"
         if (log !in tableNames()) return
         jdbc.update(
@@ -376,6 +379,20 @@ class AdminTableService(
                 conds += if (col.kind == AdminColumnKind.DATETIME) "TRUNC(${q(name)}) = TRUNC(:$p)" else "${q(name)} = :$p"
                 params.addValue(p, convert(col, value))
             }
+        }
+        query.contains.forEach { (name, value) ->
+            val col = meta.columnOrNull(name)?.takeIf { !it.secret && it.kind != AdminColumnKind.BINARY }
+                ?: throw invalid(name, "이 컬럼으로는 찾을 수 없습니다.")
+            val text = value.trim().takeIf { it.isNotEmpty() } ?: return@forEach
+            val p = "c${conds.size}"
+            val expr = when (col.kind) {
+                AdminColumnKind.LONG_TEXT -> "UPPER(DBMS_LOB.SUBSTR(${q(name)}, 4000, 1))"
+                AdminColumnKind.DATETIME -> "TO_CHAR(${q(name)}, 'YYYY-MM-DD HH24:MI:SS')"
+                AdminColumnKind.NUMBER -> "TO_CHAR(${q(name)})"
+                else -> "UPPER(${q(name)})"
+            }
+            conds += "$expr LIKE :$p ESCAPE '\\'"
+            params.addValue(p, "%" + text.uppercase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
         }
         if (query.deleted != null && meta.softDelete) conds += "${q("deleted_yn")} = '${if (query.deleted) "Y" else "N"}'"
         val text = query.q?.trim()?.takeIf { it.isNotEmpty() }

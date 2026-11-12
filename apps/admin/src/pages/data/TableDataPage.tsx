@@ -6,12 +6,17 @@ import { toast } from 'sonner'
 import { type RowQuery, tableApi, tableKeys } from '@/lib/table-api'
 import { Badge, Button, Card, cx, inputClass, Spinner } from '@/ui'
 import { Cell } from './cells'
+import { type ColumnMatch, ColumnSearch } from './ColumnSearch'
 import { RowPanel } from './RowPanel'
 
 const number = new Intl.NumberFormat('ko-KR')
 const SIZES = [25, 50, 100, 200]
 
-/** 주소(?q=&sort=&desc=&page=&size=&deleted=&filter=col:value&row=)에서 조건을 읽는다 → 링크로 공유하고 새로고침해도 그대로 */
+/** "컬럼:값" 목록 */
+const pairs = (values: string[]) =>
+  values.filter((f) => f.includes(':')).map((f) => [f.slice(0, f.indexOf(':')), f.slice(f.indexOf(':') + 1)] as [string, string])
+
+/** 주소(?q=&sort=&desc=&page=&size=&deleted=&filter=col:value&contains=col:value&row=)에서 조건을 읽는다 → 링크로 공유하고 새로고침해도 그대로 */
 function readQuery(params: URLSearchParams): RowQuery {
   const deleted = params.get('deleted')
   return {
@@ -21,7 +26,8 @@ function readQuery(params: URLSearchParams): RowQuery {
     page: Number(params.get('page') ?? 0) || 0,
     size: Number(params.get('size') ?? 50) || 50,
     deleted: deleted === 'active' || deleted === 'deleted' ? deleted : undefined,
-    filters: params.getAll('filter').filter((f) => f.includes(':')).map((f) => [f.slice(0, f.indexOf(':')), f.slice(f.indexOf(':') + 1)] as [string, string]),
+    filters: pairs(params.getAll('filter')),
+    contains: pairs(params.getAll('contains')),
   }
 }
 
@@ -64,11 +70,21 @@ export function TableDataPage() {
     e.preventDefault()
     update((p) => (search.trim() ? p.set('q', search.trim()) : p.delete('q')))
   }
-  const removeFilter = (index: number) =>
+  /** 조건 하나 빼기 (key = filter | contains) */
+  const removeCondition = (key: 'filter' | 'contains', index: number) =>
     update((p) => {
-      const rest = p.getAll('filter').filter((_, i) => i !== index)
-      p.delete('filter')
-      rest.forEach((f) => p.append('filter', f))
+      const rest = p.getAll(key).filter((_, i) => i !== index)
+      p.delete(key)
+      rest.forEach((f) => p.append(key, f))
+    })
+  /** 컬럼 검색: 포함 → contains, 같음·비어 있음 → filter (같은 컬럼의 같은 조건은 바꿔 끼운다) */
+  const searchColumn = (column: string, match: ColumnMatch, value: string) =>
+    update((p) => {
+      const key = match === 'contains' ? 'contains' : 'filter'
+      const rest = p.getAll(key).filter((f) => !f.startsWith(`${column}:`))
+      p.delete(key)
+      rest.forEach((f) => p.append(key, f))
+      p.append(key, `${column}:${value}`)
     })
   const exportCsv = () => tableApi.exportCsv(table, query).catch((e: Error) => toast.error(e.message))
 
@@ -158,7 +174,8 @@ export function TableDataPage() {
             </div>
           )}
         </div>
-        {(query.filters?.length || query.q) && (
+        <ColumnSearch key={m.name} columns={m.columns} onSearch={searchColumn} />
+        {(query.filters?.length || query.contains?.length || query.q) && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-gray-500">조건</span>
             {query.q && (
@@ -170,10 +187,20 @@ export function TableDataPage() {
               <button
                 key={`${c}-${i}`}
                 type="button"
-                onClick={() => removeFilter(i)}
+                onClick={() => removeCondition('filter', i)}
                 className="inline-flex h-7 items-center gap-1 rounded-full bg-brand-50 px-2.5 font-mono text-xs text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"
               >
                 {c} = {v === '' ? 'NULL' : v} <X className="size-3.5" />
+              </button>
+            ))}
+            {query.contains?.map(([c, v], i) => (
+              <button
+                key={`contains-${c}-${i}`}
+                type="button"
+                onClick={() => removeCondition('contains', i)}
+                className="inline-flex h-7 items-center gap-1 rounded-full bg-brand-50 px-2.5 font-mono text-xs text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"
+              >
+                {c} ∋ “{v}” <X className="size-3.5" />
               </button>
             ))}
           </div>
