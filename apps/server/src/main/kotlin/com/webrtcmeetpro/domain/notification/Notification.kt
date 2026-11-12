@@ -17,6 +17,8 @@ enum class NotificationType {
     CHAT_ROOM_INVITED,
     /** 채팅에서 @멘션됨 (@모두 포함) */
     CHAT_MENTION,
+    /** 내가 시작했거나 답글을 단 스레드에 새 답글 */
+    THREAD_REPLY,
     MEETING_SCHEDULED,
     MEETING_REMINDER,
     MEETING_STARTED,

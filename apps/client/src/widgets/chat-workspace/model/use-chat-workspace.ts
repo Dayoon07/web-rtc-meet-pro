@@ -65,7 +65,10 @@ export function useChatWorkspace() {
       /** 카테고리 만들기·이름 바꾸기 (data = 고칠 카테고리) */
       category: useDialog<ChatCategory | null>(),
       /** 메시지 검색 → 고른 메시지가 있는 방으로 가서 그 메시지로 */
-      search: useDialog<undefined, ChatMessage>((m) => navigate(`${ROUTES.chat(activeTeamId, m.roomId)}?msg=${m.id}`)),
+      // 스레드 답글이면 그 스레드를 열고, 아니면 채널에서 그 메시지로
+      search: useDialog<undefined, ChatMessage>((m) =>
+        navigate(`${ROUTES.chat(activeTeamId, m.roomId)}?${m.threadRootId ? `thread=${m.threadRootId}` : `msg=${m.id}`}`),
+      ),
     },
   }
 }

@@ -1,4 +1,4 @@
-import { CornerUpLeft, Megaphone, Pencil, Trash2 } from 'lucide-react'
+import { CornerUpLeft, Megaphone, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { type ChatMessage, meetingNotesCard, systemText } from '@/entities/chat'
 import { cn } from '@/shared/lib/cn'
@@ -7,7 +7,7 @@ import { startReply } from '@/features/chat-room-actions'
 import { Avatar } from '@/shared/ui'
 import { bubbleClass } from '../lib/sections'
 import { useRoom } from '../model/context'
-import { QuickReactions, ReactionBar, ReplyQuote, UnreadCount } from './MessageExtras'
+import { QuickReactions, ReactionBar, ReplyQuote, ThreadSummary, UnreadCount } from './MessageExtras'
 import { EditBubble, MessageFiles, NotesCard } from './MessageParts'
 import { MessageText } from './MessageText'
 
@@ -16,17 +16,22 @@ export type MessageListItem = {
   message: ChatMessage
   /** 같은 사람이 5분 안에 이어서 보냄 → 이름·사진을 다시 안 그린다 */
   grouped: boolean
+  /** 스레드 창 안에 그림 (답장·공지·스레드 버튼과 "답글 N개"를 빼고) */
+  inThread?: boolean
 }
 
 const actionClass = 'rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
 
-/** 마우스를 올리면 나오는 버튼: 반응 · 답장 · 공지로 올리기 · 고치기 · 지우기 (터치 화면은 늘 보인다) */
-/** 넓은 화면: 말풍선 위에 떠 있다가 마우스를 올리면 보인다 (자리를 차지하지 않음). 좁은 화면: 말풍선 아래에 늘 보인다 */
-function MessageActions({ message }: { message: ChatMessage }) {
+/**
+ * 마우스를 올리면 나오는 버튼: 반응 · 스레드 · 답장 · 공지로 올리기 · 고치기 · 지우기 (스레드 창 안에서는 반응·고치기·지우기만).
+ * 넓은 화면: 말풍선 위에 떠 있다가 마우스를 올리면 보인다 (자리를 차지하지 않음). 좁은 화면: 말풍선 아래에 늘 보인다
+ */
+function MessageActions({ item }: { item: MessageListItem }) {
   const { t } = useTranslation()
-  const { myId, canModerate, canNotice, makeNotice, messages } = useRoom()
+  const { myId, canModerate, canNotice, makeNotice, messages, thread } = useRoom()
+  const { message, inThread } = item
   const mine = message.sender?.id === myId
-  const noticeable = canNotice && message.type === 'TEXT' && !!message.content
+  const noticeable = !inThread && canNotice && message.type === 'TEXT' && !!message.content
   if (message.deleted || messages.editingId === message.id) return null
   return (
     <span
@@ -36,9 +41,16 @@ function MessageActions({ message }: { message: ChatMessage }) {
       )}
     >
       <QuickReactions message={message} />
-      <button type="button" title={t('chat.reply')} aria-label={t('chat.reply')} onClick={() => startReply(message)} className={cn(actionClass, 'hover:text-gray-700 dark:hover:text-gray-200')}>
-        <CornerUpLeft className="size-3.5" />
-      </button>
+      {!inThread && (
+        <>
+          <button type="button" title={t('chat.thread.open')} aria-label={t('chat.thread.open')} onClick={() => thread.open(message)} className={cn(actionClass, 'hover:text-brand-700 dark:hover:text-brand-300')}>
+            <MessagesSquare className="size-3.5" />
+          </button>
+          <button type="button" title={t('chat.reply')} aria-label={t('chat.reply')} onClick={() => startReply(message)} className={cn(actionClass, 'hover:text-gray-700 dark:hover:text-gray-200')}>
+            <CornerUpLeft className="size-3.5" />
+          </button>
+        </>
+      )}
       {noticeable && (
         <button type="button" title={t('chat.notice.fromMessage')} aria-label={t('chat.notice.fromMessage')} onClick={() => makeNotice(message)} className={cn(actionClass, 'hover:text-brand-700 dark:hover:text-brand-300')}>
           <Megaphone className="size-3.5" />
@@ -109,9 +121,10 @@ export function MessageItem({ item }: { item: MessageListItem }) {
                 )}
                 {!m.content && m.replyTo && <ReplyQuote message={m} />}
                 <ReactionBar message={m} />
-                <MessageActions message={m} />
+                <MessageActions item={item} />
               </>
             )}
+            {!item.inThread && <ThreadSummary message={m} />}
           </div>
           <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
             <UnreadCount message={m} />

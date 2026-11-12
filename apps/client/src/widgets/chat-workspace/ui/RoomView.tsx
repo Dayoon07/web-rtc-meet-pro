@@ -19,6 +19,7 @@ import { useTypingUsers } from '../model/typing-store'
 import { type RoomViewModel, useRoomView } from '../model/use-room-view'
 import { MessageList } from './MessageList'
 import { RoomAvatar } from './RoomRow'
+import { ThreadPanel } from './ThreadPanel'
 
 /** 방 머리: 뒤로(좁은 화면) · 이름 · (채널) 음성 참여 · 설정 · 초대 · 나가기 */
 function RoomHeader() {
@@ -121,14 +122,15 @@ function useJumpFromAddress(view: RoomViewModel) {
   }, [target, ready])
 }
 
-/** 열린 방 하나: 머리 · 공지 · 메시지 · 입력창 + 창들 */
+/** 열린 방 하나: 머리 · 공지 · 메시지 · 입력창 + 창들, 오른쪽에 스레드 창 */
 export function RoomView({ room }: { room: ChatRoom }) {
   const view = useRoomView(room)
   useJumpFromAddress(view)
   const { dialogs, canNotice, canManageChannel } = view
   return (
     <RoomContext value={view}>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <RoomHeader />
         <NoticeBar key={room.id} room={room} onEdit={canNotice ? () => dialogs.notice.show() : undefined} />
         {view.messages.isPending ? (
@@ -140,12 +142,14 @@ export function RoomView({ room }: { room: ChatRoom }) {
         )}
         <TypingIndicator />
         <div className="shrink-0 border-t border-gray-200 p-3 sm:p-4 dark:border-gray-800">
-          <MessageComposer key={room.id} room={room} tools={<NoticeTool />} />
+          <MessageComposer key={room.id} target={{ room }} tools={<NoticeTool />} />
         </div>
         <InviteToRoomModal room={room} dialog={dialogs.invite} />
         {canNotice && <NoticeModal room={room} dialog={dialogs.notice} />}
         {canManageChannel && <ChannelSettingsModal room={room} dialog={dialogs.settings} />}
         <EmojiPickerModal dialog={dialogs.reaction} />
+      </div>
+      {view.thread.openId && <ThreadPanel key={view.thread.openId} rootId={view.thread.openId} />}
       </div>
     </RoomContext>
   )

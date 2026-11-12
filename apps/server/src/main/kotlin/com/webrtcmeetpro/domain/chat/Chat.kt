@@ -244,6 +244,9 @@ class ChatMessage(
 
     /** 답장한 원래 메시지 (같은 방) */
     val replyToId: Long? = null,
+
+    /** 스레드 답글이면 스레드 시작 글 (같은 방). 채널 본문에는 안 보이고 스레드 창에만 보인다 */
+    val threadRootId: Long? = null,
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -269,6 +272,36 @@ class ChatMessage(
         mentionAll = all
     }
 
+    /** 스레드 시작 글: 지우지 않은 답글 수 */
+    @Column(nullable = false)
+    var replyCount: Int = 0
+        protected set
+
+    /** 스레드 시작 글: 마지막 답글 시각 */
+    var lastReplyAt: LocalDateTime? = null
+        protected set
+
+    /** 스레드 시작 글: 답글 단 사람 user_id (최근 순, 쉼표, 최대 [THREAD_USERS]명). 시작 글 아래 얼굴 몇 개 */
+    @Column(name = "thread_user_ids")
+    var threadUserIdsText: String? = null
+        protected set
+
+    val threadUserIds: List<Long> get() = threadUserIdsText?.split(',')?.mapNotNull { it.trim().toLongOrNull() }.orEmpty()
+
+    val isThreadReply: Boolean get() = threadRootId != null
+
+    /** 이 메시지(시작 글)에 답글이 달림 */
+    fun addThreadReply(userId: Long, at: LocalDateTime) {
+        replyCount += 1
+        lastReplyAt = at
+        threadUserIdsText = (listOf(userId) + threadUserIds.filter { it != userId }).take(THREAD_USERS).joinToString(",")
+    }
+
+    /** 답글 하나가 지워짐 (얼굴·마지막 시각은 그대로 둔다) */
+    fun removeThreadReply() {
+        if (replyCount > 0) replyCount -= 1
+    }
+
     /** 보낸 사람이 글을 고친 시각 (화면에 "수정됨"). 공통 컬럼 edited_dt 는 삭제 표시에도 바뀌어서 따로 둔다 */
     var contentEditedAt: LocalDateTime? = null
         protected set
@@ -289,6 +322,7 @@ class ChatMessage(
 
     companion object {
         const val MAX_MENTIONS = 100
+        const val THREAD_USERS = 5
     }
 }
 
@@ -334,11 +368,17 @@ interface ChatMessageReactionRepository {
 interface ChatMessageRepository {
     fun save(message: ChatMessage): ChatMessage
     /** 커서 페이지네이션: beforeId 보다 오래된 메시지 최신순 */
-    fun findTop50ByRoomIdAndIdLessThanOrderByIdDesc(roomId: Long, beforeId: Long): List<ChatMessage>
-    fun findTop50ByRoomIdOrderByIdDesc(roomId: Long): List<ChatMessage>
-    fun findTopByRoomIdOrderByIdDesc(roomId: Long): ChatMessage?
+    /** 채널 본문 (스레드 답글 빼고) */
+    fun findTop50ByRoomIdAndThreadRootIdIsNullAndIdLessThanOrderByIdDesc(roomId: Long, beforeId: Long): List<ChatMessage>
+    fun findTop50ByRoomIdAndThreadRootIdIsNullOrderByIdDesc(roomId: Long): List<ChatMessage>
+    fun findTopByRoomIdAndThreadRootIdIsNullOrderByIdDesc(roomId: Long): ChatMessage?
     fun findMessageById(id: Long): ChatMessage?
-    fun countByRoomIdAndIdGreaterThan(roomId: Long, afterId: Long): Long
+    /** 안 읽은 수 (스레드 답글은 세지 않는다: 채널 본문에서 읽음 처리가 되지 않으니까) */
+    fun countByRoomIdAndThreadRootIdIsNullAndIdGreaterThan(roomId: Long, afterId: Long): Long
+    /** 스레드 답글 (오래된 순, 최대 500개) */
+    fun findTop500ByThreadRootIdOrderByIdAsc(threadRootId: Long): List<ChatMessage>
+    /** 스레드에 답글을 단 적 있는 사람 (알림 받을 사람) */
+    fun findAllByThreadRootIdAndDeletedFalse(threadRootId: Long): List<ChatMessage>
     fun findAllByIdIn(ids: Collection<Long>): List<ChatMessage>
     /** 검색: 여러 방에서 글이나 첨부파일 이름에 단어가 들어간 메시지 (최신순, limit 개) */
     fun search(roomIds: Collection<Long>, pattern: String, limit: Int): List<ChatMessage>

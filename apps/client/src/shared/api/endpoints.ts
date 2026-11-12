@@ -89,6 +89,7 @@ export const API = {
     files: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/files`,
     messages: (roomId: number, before?: number) => `${CHAT}/rooms/${part(roomId)}/messages${before ? `?before=${part(before)}` : ''}`,
     message: (messageId: number) => `${CHAT}/messages/${part(messageId)}`,
+    thread: (messageId: number) => `${CHAT}/messages/${part(messageId)}/thread`,
     mute: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/mute`,
     typing: (roomId: number) => `${CHAT}/rooms/${part(roomId)}/typing`,
     reactions: (messageId: number) => `${CHAT}/messages/${part(messageId)}/reactions`,

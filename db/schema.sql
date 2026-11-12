@@ -1,5 +1,6 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v1.9  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v1.10  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+--   v1.10: 채팅 스레드(chat_messages.thread_root_id, reply_count, last_reply_at, thread_user_ids), 스레드 답글 알림(THREAD_REPLY). 기존 DB 는 db/migrations/v1.10-chat-threads.sql
 --   v1.9: 환불(payments.refunded_amount, refund_reason, refunded_by), 환불 알림(PAYMENT_REFUNDED). 기존 DB 는 db/migrations/v1.9-refunds.sql
 --   v1.8: 팀 초대 링크(team_invite_links). 기존 DB 는 db/migrations/v1.8-team-invite-links.sql
 --   v1.7: 웹 푸시(push_subscriptions), 채널 알림 끄기(chat_room_members.muted_yn), 방해 금지 시간(users.dnd_*). 기존 DB 는 db/migrations/v1.7-push-mute-dnd.sql
@@ -525,6 +526,10 @@ CREATE TABLE chat_messages (
     reply_to_id         NUMBER(19),                       -- 답장한 원래 메시지
     mention_user_ids    VARCHAR2(2000),                   -- @멘션한 사람 user_id (쉼표로 구분)
     mention_all         CHAR(1)         DEFAULT 'N' NOT NULL,  -- @모두
+    thread_root_id      NUMBER(19),                       -- 스레드 답글이면 스레드 시작 글 (채널 본문에는 안 보인다) (v1.10)
+    reply_count         NUMBER(10)      DEFAULT 0 NOT NULL,    -- 스레드 시작 글: 지우지 않은 답글 수
+    last_reply_at       TIMESTAMP(6),                     -- 스레드 시작 글: 마지막 답글 시각
+    thread_user_ids     VARCHAR2(200),                    -- 스레드 시작 글: 답글 단 사람 (최근 순, 쉼표, 최대 5명)
     created_dt          TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
     created_us          NUMBER(19),
     edited_dt           TIMESTAMP(6)    DEFAULT SYSTIMESTAMP NOT NULL,
@@ -532,6 +537,8 @@ CREATE TABLE chat_messages (
     deleted_yn          CHAR(1)         DEFAULT 'N' NOT NULL,
     CONSTRAINT pk_chat_messages PRIMARY KEY (message_id),
     CONSTRAINT fk_chat_messages_reply FOREIGN KEY (reply_to_id) REFERENCES chat_messages (message_id),
+    CONSTRAINT fk_chat_messages_thread FOREIGN KEY (thread_root_id) REFERENCES chat_messages (message_id),
+    CONSTRAINT ck_chat_messages_reply_count CHECK (reply_count >= 0),
     CONSTRAINT ck_chat_messages_mention_all CHECK (mention_all IN ('Y', 'N')),
     CONSTRAINT fk_chat_messages_room FOREIGN KEY (room_id) REFERENCES chat_rooms (room_id),
     CONSTRAINT fk_chat_messages_sender FOREIGN KEY (sender_id) REFERENCES users (user_id),
@@ -542,6 +549,7 @@ CREATE TABLE chat_messages (
 -- 커서 기반 페이지네이션 (room_id, message_id DESC)
 CREATE INDEX idx_chat_messages_room ON chat_messages (room_id, message_id);
 CREATE INDEX idx_chat_messages_meeting ON chat_messages (meeting_id);
+CREATE INDEX idx_chat_messages_thread ON chat_messages (thread_root_id, message_id);
 
 -- 채팅 첨부파일. 파일은 서버 디스크(app.storage.chat-file-dir)에 stored_name 으로 저장하고,
 -- 내려받기는 서명된 짧은 수명 URL 로만 (공개 경로에 두지 않는다)
@@ -811,7 +819,7 @@ CREATE TABLE notifications (
     CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users (user_id),
     CONSTRAINT ck_notifications_type CHECK (type IN (
         'TEAM_INVITATION', 'TEAM_INVITATION_ACCEPTED',
-        'CHAT_ROOM_INVITED', 'CHAT_MENTION',
+        'CHAT_ROOM_INVITED', 'CHAT_MENTION', 'THREAD_REPLY',
         'MEETING_SCHEDULED', 'MEETING_REMINDER', 'MEETING_STARTED', 'MEETING_CANCELED', 'MEETING_UPDATED',
         'MEETING_NOTES_READY',
         'PLAN_EXPIRING', 'PLAN_EXPIRED', 'PAYMENT_FAILED', 'PAYMENT_REFUNDED',

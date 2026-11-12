@@ -26,7 +26,16 @@ export type ChatMessage = {
   mentions?: number[]
   /** @모두 */
   mentionAll?: boolean
+  /** 스레드 답글이면 스레드 시작 글 id (채널 본문이 아니라 스레드 창에 보인다) */
+  threadRootId?: number | null
+  /** 스레드 시작 글: 답글 수 · 마지막 답글 시각 · 답글 단 사람(최근 순 몇 명) */
+  replyCount?: number
+  lastReplyAt?: string | null
+  threadUsers?: ChatUser[]
 }
+
+/** 스레드 창: 시작 글 + 답글(오래된 순) */
+export type ChatThread = { root: ChatMessage; replies: ChatMessage[] }
 
 /** 답장한 원래 메시지 (지웠으면 content 없이 deleted) */
 export type ReplyPreview = { id: number; sender: ChatUser | null; content: string | null; type: ChatMessage['type']; fileCount: number; deleted: boolean }
@@ -94,7 +103,7 @@ export type CategoryRequest = { name: string }
 export type InviteMembersRequest = { userIds: number[] }
 /** content 가 null 이면 공지 내리기 */
 export type NoticeRequest = { content: string | null }
-export type SendMessageRequest = { content: string; replyToId?: number | null; mentionIds?: number[]; mentionAll?: boolean }
+export type SendMessageRequest = { content: string; replyToId?: number | null; mentionIds?: number[]; mentionAll?: boolean; threadRootId?: number | null }
 /** 보낼 때 함께: 답장할 메시지 · @멘션한 사람 · @모두 */
 export type SendOptions = Omit<SendMessageRequest, 'content'>
 export type ReactionRequest = { emoji: string }

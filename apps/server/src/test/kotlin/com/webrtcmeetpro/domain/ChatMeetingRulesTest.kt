@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.domain
 
+import com.webrtcmeetpro.domain.chat.ChatMessage
 import com.webrtcmeetpro.domain.chat.ChatRoom
 import com.webrtcmeetpro.domain.chat.ChatRoomMember
 import com.webrtcmeetpro.domain.chat.ChatRoomType
@@ -88,5 +89,27 @@ class ChatMeetingRulesTest {
         assertEquals("2026-11-06T10:00$offset", JacksonConfig.toOffsetString(local))
         val fromUtc = JacksonConfig.parse(local.atZone(ZoneId.systemDefault()).toInstant().toString())
         assertEquals(local, fromUtc)
+    }
+
+    @Test
+    fun `스레드 시작 글은 답글 수와 최근 답글 단 사람을 모은다`() {
+        val root = ChatMessage(1L, 10L, "시작 글")
+        val at = LocalDateTime.of(2026, 11, 13, 9, 0)
+        listOf(11L, 12L, 11L, 13L, 14L, 15L, 16L).forEachIndexed { i, u -> root.addThreadReply(u, at.plusMinutes(i.toLong())) }
+        assertEquals(7, root.replyCount)
+        assertEquals(at.plusMinutes(6), root.lastReplyAt)
+        // 최근 순, 같은 사람은 한 번, 최대 5명
+        assertEquals(listOf(16L, 15L, 14L, 13L, 11L), root.threadUserIds)
+        root.removeThreadReply()
+        assertEquals(6, root.replyCount)
+        assertFalse(root.isThreadReply)
+        assertTrue(ChatMessage(1L, 11L, "답글", threadRootId = 5L).isThreadReply)
+    }
+
+    @Test
+    fun `답글 수는 0 아래로 내려가지 않는다`() {
+        val root = ChatMessage(1L, 10L, "시작 글")
+        root.removeThreadReply()
+        assertEquals(0, root.replyCount)
     }
 }

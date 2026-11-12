@@ -79,6 +79,9 @@ class PushService(
         dispatch(userIds.filter { presence.status(it) == PresenceStatus.OFFLINE }, "normal") { lang ->
             if (type == NotificationType.CHAT_MENTION) {
                 PushPayload(PushTexts.text(lang, "mention", mapOf("sender" to params["senderName"])), params["preview"]?.toString().orEmpty(), link, "mention")
+            } else if (type == NotificationType.THREAD_REPLY) {
+                val body = params["preview"]?.toString() ?: PushTexts.text(lang, "file")
+                PushPayload(PushTexts.text(lang, "threadReply", mapOf("sender" to params["senderName"])), body, link, "thread-${params["rootId"]}")
             } else {
                 PushPayload("MQ", PushTexts.text(lang, type.name, params), link, type.name)
             }

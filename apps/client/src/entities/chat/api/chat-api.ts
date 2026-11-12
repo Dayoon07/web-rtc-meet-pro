@@ -13,6 +13,7 @@ import type {
   MuteRequest,
   ReactionRequest,
   SendOptions,
+  ChatThread,
   SendMessageRequest,
   ChatUnread,
   UnreadCountResponse,
@@ -25,6 +26,7 @@ export const chatKeys = {
   categories: (teamId: number) => ['chat', 'categories', teamId] as const,
   room: (roomId: number) => ['chat', 'room', roomId] as const,
   messages: (roomId: number) => ['chat', 'messages', roomId] as const,
+  thread: (rootId: number) => ['chat', 'thread', rootId] as const,
 }
 
 export const chatApi = {
@@ -57,7 +59,9 @@ export const chatApi = {
   setNotice: (roomId: number, content: string | null) =>
     request<ChatRoom>(API.chat.notice(roomId), { method: 'PUT', json: { content } satisfies NoticeRequest }),
   messages: (roomId: number, before?: number) => request<ChatMessage[]>(API.chat.messages(roomId, before)),
-  /** 글 보내기. options = 답장할 메시지 · @멘션한 사람 · @모두 */
+  /** 스레드 창: 시작 글 + 답글 (답글 id 를 줘도 그 스레드) */
+  thread: (messageId: number) => request<ChatThread>(API.chat.thread(messageId)),
+  /** 글 보내기. options = 답장할 메시지 · @멘션한 사람 · @모두 · 스레드 답글 */
   send: (roomId: number, content: string, options: SendOptions = {}) =>
     request<ChatMessage>(API.chat.messages(roomId), { method: 'POST', json: { content, ...options } satisfies SendMessageRequest }),
   /** 이 방 알림 끄기·켜기 (나만) */
@@ -69,11 +73,12 @@ export const chatApi = {
     request<ChatMessage>(API.chat.reactions(messageId), { method: 'POST', json: { emoji } satisfies ReactionRequest }),
   /** 워크스페이스에서 내가 들어간 방들의 메시지 검색 (최신 50개) */
   search: (teamId: number, q: string) => request<ChatMessage[]>(API.teams.chatSearch(teamId, q)),
-  /** 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개 */
-  sendFiles: (roomId: number, files: File[], content?: string) => {
+  /** 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개. threadRootId 가 있으면 그 스레드에 */
+  sendFiles: (roomId: number, files: File[], content?: string, threadRootId?: number | null) => {
     const form = new FormData()
     files.forEach((f) => form.append('files', f, f.name))
     if (content?.trim()) form.append('content', content.trim())
+    if (threadRootId) form.append('threadRootId', String(threadRootId))
     return request<ChatMessage>(API.chat.files(roomId), { method: 'POST', form })
   },
   /** 내가 보낸 글 메시지 고치기 */

@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '@/entities/chat'
 import { cn } from '@/shared/lib/cn'
+import { useFormat } from '@/shared/lib/format'
+import { Avatar } from '@/shared/ui'
 import { useRoom } from '../model/context'
 
 /** 자주 쓰는 반응 (빠르게 고르기) */
@@ -127,9 +129,35 @@ export function QuickReactions({ message }: { message: ChatMessage }) {
 /** 이 메시지를 아직 안 읽은 방 사람 수 (카카오톡처럼 시간 옆 숫자). 0 이면 안 그린다 */
 export function UnreadCount({ message }: { message: ChatMessage }) {
   const { room } = useRoom()
+  // 스레드 답글은 읽음 위치를 따지지 않는다 (채널 본문만 읽음 처리)
+  if (message.threadRootId) return null
   if (message.type === 'SYSTEM' || message.deleted) return null
   const reads = room.reads ?? []
   const count = reads.filter((r) => r.userId !== message.sender?.id && (r.lastReadMessageId ?? 0) < message.id).length
   if (!count) return null
   return <span className="mr-1 font-semibold text-brand-600 dark:text-brand-300">{count}</span>
+}
+
+/** 시작 글 아래 "답글 N개 · 마지막 답글" (답글 단 사람 얼굴 몇 개). 누르면 스레드 창 */
+export function ThreadSummary({ message }: { message: ChatMessage }) {
+  const { t } = useTranslation()
+  const fmt = useFormat()
+  const { thread } = useRoom()
+  const count = message.replyCount ?? 0
+  if (!count) return null
+  return (
+    <button
+      type="button"
+      onClick={() => thread.open(message)}
+      className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs whitespace-nowrap transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+    >
+      <span className="flex -space-x-1.5">
+        {(message.threadUsers ?? []).slice(0, 3).map((u) => (
+          <Avatar key={u.id} src={u.profileImageUrl} name={u.nickname} size="xs" className="ring-2 ring-white dark:ring-gray-950" />
+        ))}
+      </span>
+      <span className="font-semibold text-brand-700 dark:text-brand-300">{t('chat.thread.replies', { count })}</span>
+      {message.lastReplyAt && <span className="text-gray-400">{t('chat.thread.lastReply', { when: fmt.relative(message.lastReplyAt) })}</span>}
+    </button>
+  )
 }

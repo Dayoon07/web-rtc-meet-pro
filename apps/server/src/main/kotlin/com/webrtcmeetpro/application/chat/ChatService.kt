@@ -74,7 +74,16 @@ data class ChatMessageView(
     val mentions: List<Long> = emptyList(),
     /** @모두 */
     val mentionAll: Boolean = false,
+    /** 스레드 답글이면 스레드 시작 글 id (채널 본문이 아니라 스레드 창에 넣는다) */
+    val threadRootId: Long? = null,
+    /** 스레드 시작 글: 답글 수 · 마지막 답글 시각 · 답글 단 사람(최근 순 몇 명) */
+    val replyCount: Int = 0,
+    val lastReplyAt: LocalDateTime? = null,
+    val threadUsers: List<ChatUserView> = emptyList(),
 )
+
+/** 스레드 창: 시작 글 + 답글(오래된 순) */
+data class ThreadView(val root: ChatMessageView, val replies: List<ChatMessageView>)
 
 /** 답장한 원래 메시지 미리보기 (지운 메시지면 content 없이 deleted) */
 data class ReplyPreviewView(val id: Long, val sender: ChatUserView?, val content: String?, val type: MessageType, val fileCount: Int, val deleted: Boolean)
@@ -176,7 +185,7 @@ class ChatService(
         val result = linkedMapOf<Long, Long>()
         mine.forEach { m ->
             val teamId = teamOf[m.roomId] ?: return@forEach
-            val n = messageRepository.countByRoomIdAndIdGreaterThan(m.roomId, m.lastReadMessageId ?: 0)
+            val n = messageRepository.countByRoomIdAndThreadRootIdIsNullAndIdGreaterThan(m.roomId, m.lastReadMessageId ?: 0)
             if (n > 0) result.merge(teamId, n, Long::plus)
         }
         return result
@@ -343,8 +352,8 @@ class ChatService(
 
     fun messages(roomId: Long, userId: Long, beforeId: Long?): List<ChatMessageView> {
         requireRoomMember(roomId, userId)
-        val page = if (beforeId == null) messageRepository.findTop50ByRoomIdOrderByIdDesc(roomId)
-        else messageRepository.findTop50ByRoomIdAndIdLessThanOrderByIdDesc(roomId, beforeId)
+        val page = if (beforeId == null) messageRepository.findTop50ByRoomIdAndThreadRootIdIsNullOrderByIdDesc(roomId)
+        else messageRepository.findTop50ByRoomIdAndThreadRootIdIsNullAndIdLessThanOrderByIdDesc(roomId, beforeId)
         return views(page.reversed())
     }
 
@@ -360,12 +369,31 @@ class ChatService(
         return views(messageRepository.search(roomIds, "%$escaped%", SEARCH_LIMIT))
     }
 
+    /** 스레드 창: 시작 글과 답글 (messageId 가 답글이면 그 스레드) */
+    fun thread(messageId: Long, userId: Long): ThreadView {
+        val message = messageRepository.findMessageById(messageId) ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        val root = message.threadRootId?.let { messageRepository.findMessageById(it) } ?: message
+        requireRoomMember(root.roomId, userId)
+        if (root.messageType == MessageType.SYSTEM) throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        val all = views(listOf(root) + messageRepository.findTop500ByThreadRootIdOrderByIdAsc(root.id!!))
+        return ThreadView(all.first(), all.drop(1))
+    }
+
     /**
-     * 글 보내기. replyToId = 답장할 메시지(같은 방), mentionIds = @멘션한 방 사람, mentionAll = @모두.
-     * 멘션된 사람(나 빼고)에게 CHAT_MENTION 알림
+     * 글 보내기. replyToId = 답장할 메시지(같은 방), mentionIds = @멘션한 방 사람, mentionAll = @모두,
+     * threadRootId = 스레드에 답글 (채널 본문에는 안 보인다).
+     * 멘션된 사람(나 빼고)에게 CHAT_MENTION, 스레드에 있던 사람에게 THREAD_REPLY 알림
      */
     @Transactional
-    fun send(roomId: Long, userId: Long, rawContent: String, replyToId: Long? = null, mentionIds: Collection<Long> = emptyList(), mentionAll: Boolean = false): ChatMessageView {
+    fun send(
+        roomId: Long,
+        userId: Long,
+        rawContent: String,
+        replyToId: Long? = null,
+        mentionIds: Collection<Long> = emptyList(),
+        mentionAll: Boolean = false,
+        threadRootId: Long? = null,
+    ): ChatMessageView {
         val (room, me) = requireRoomMember(roomId, userId)
         val content = rawContent.trim()
         if (content.isEmpty()) throw BusinessException(ErrorCode.EMPTY_MESSAGE)
@@ -374,13 +402,14 @@ class ChatService(
             val original = messageRepository.findMessageById(replyToId)
             if (original == null || original.roomId != roomId || original.messageType == MessageType.SYSTEM) throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
         }
+        val root = threadRootIn(roomId, threadRootId)
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }.toSet()
         val mentioned = mentionIds.filter { it in members && it != userId }
 
-        val message = ChatMessage(roomId, userId, content, replyToId = replyToId)
+        val message = ChatMessage(roomId, userId, content, replyToId = replyToId, threadRootId = root?.id)
         message.mention(mentioned, mentionAll)
         val saved = messageRepository.save(message)
-        val view = publish(room, me, saved, emptyList())
+        val view = publish(room, me, saved, emptyList(), root)
 
         val targets = if (mentionAll) members - userId else mentioned.toSet()
         if (targets.isNotEmpty()) {
@@ -388,11 +417,42 @@ class ChatService(
                 targets,
                 NotificationType.CHAT_MENTION,
                 mapOf("roomName" to room.name, "senderName" to view.sender?.nickname, "preview" to content.take(80)),
-                "/app/chat/${room.teamId}/${room.id}",
+                chatLink(room, root?.id),
             )
         }
+        root?.let { notifyThread(room, it, saved, view, members, skip = targets) }
         return view
     }
+
+    /** 스레드 시작 글 (같은 방, 시스템 메시지·지운 글 안 됨). 답글을 고르면 그 스레드의 시작 글 */
+    private fun threadRootIn(roomId: Long, threadRootId: Long?): ChatMessage? {
+        if (threadRootId == null) return null
+        val picked = messageRepository.findMessageById(threadRootId)
+        val root = picked?.threadRootId?.let { messageRepository.findMessageById(it) } ?: picked
+        if (root == null || root.roomId != roomId || root.messageType == MessageType.SYSTEM || root.deleted) throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
+        return root
+    }
+
+    /**
+     * 스레드 답글 알림: 시작 글을 쓴 사람 + 그 스레드에 답글을 단 사람 (보낸 사람·멘션 알림을 받은 사람·방을 나간 사람 빼고).
+     * 방 알림을 꺼도 온다 (내가 끼어 있는 대화라서)
+     */
+    private fun notifyThread(room: ChatRoom, root: ChatMessage, saved: ChatMessage, view: ChatMessageView, members: Set<Long>, skip: Set<Long>) {
+        val repliers = messageRepository.findAllByThreadRootIdAndDeletedFalse(root.id!!).mapNotNull { it.senderId }
+        val participants = (listOfNotNull(root.senderId) + repliers).toSet()
+        val targets = participants.filter { it in members && it != saved.senderId && it !in skip }
+        if (targets.isEmpty()) return
+        val preview = saved.content?.replace(Regex("\\s+"), " ")?.take(80)
+        notifications.notify(
+            targets,
+            NotificationType.THREAD_REPLY,
+            mapOf("roomName" to room.name, "senderName" to view.sender?.nickname, "preview" to preview, "rootId" to root.id),
+            chatLink(room, root.id),
+        )
+    }
+
+    private fun chatLink(room: ChatRoom, threadRootId: Long?) =
+        "/app/chat/${room.teamId}/${room.id}" + (threadRootId?.let { "?thread=$it" } ?: "")
 
     /** "입력 중..." 알리기: 방의 다른 사람들에게만 (저장하지 않는다. 화면이 몇 초마다 다시 보낸다) */
     fun typing(roomId: Long, userId: Long) {
@@ -431,8 +491,9 @@ class ChatService(
      * 디스크에 먼저 쓰고 DB 에 기록한다. 트랜잭션이 롤백되면 디스크에 쓴 파일도 지운다.
      */
     @Transactional
-    fun sendFiles(roomId: Long, userId: Long, rawContent: String?, uploads: List<FileUpload>): ChatMessageView {
+    fun sendFiles(roomId: Long, userId: Long, rawContent: String?, uploads: List<FileUpload>, threadRootId: Long? = null): ChatMessageView {
         val (room, me) = requireRoomMember(roomId, userId)
+        val root = threadRootIn(roomId, threadRootId)
         if (uploads.isEmpty()) throw BusinessException(ErrorCode.EMPTY_MESSAGE)
         if (uploads.size > MAX_FILES) throw BusinessException(ErrorCode.TOO_MANY_FILES, mapOf("max" to MAX_FILES))
         if (uploads.sumOf { it.size } > MAX_TOTAL_MB * 1024L * 1024L) throw tooLarge()
@@ -448,11 +509,16 @@ class ChatService(
         })
         checked.forEach { (upload, _, _) -> upload.open().use { stored += fileStorage.store(it, upload.size) } }
 
-        val saved = messageRepository.save(ChatMessage(roomId, userId, content, MessageType.FILE))
+        val saved = messageRepository.save(ChatMessage(roomId, userId, content, MessageType.FILE, threadRootId = root?.id))
         val files = checked.mapIndexed { i, (upload, name, type) ->
             fileRepository.save(ChatMessageFile(saved.id!!, roomId, name, stored[i], type, upload.size))
         }
-        return publish(room, me, saved, files)
+        val view = publish(room, me, saved, files, root)
+        if (root != null) {
+            val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }.toSet()
+            notifyThread(room, root, saved, view, members, skip = emptySet())
+        }
+        return view
     }
 
     /** 서명이 맞고 지워지지 않은 파일만 내려준다. 서명이 틀리거나 만료되면 없는 파일처럼 보이게 한다 */
@@ -486,7 +552,14 @@ class ChatService(
         val (room, _) = requireRoomMember(message.roomId, userId)
         if (message.messageType == MessageType.SYSTEM) throw BusinessException(ErrorCode.CANNOT_DELETE_MESSAGE)
         if (message.senderId != userId) teamAccess.requirePermission(room.teamId, userId, TeamPermission.DELETE_ANY_MESSAGE)
-        if (!message.deleted) message.delete()
+        if (!message.deleted) {
+            message.delete()
+            // 스레드 답글이면 시작 글의 답글 수를 줄여 다시 보낸다
+            message.threadRootId?.let(messageRepository::findMessageById)?.let { root ->
+                root.removeThreadReply()
+                publishUpdate(room, root)
+            }
+        }
         return publishUpdate(room, message)
     }
 
@@ -514,14 +587,22 @@ class ChatService(
 
     // ---------------------------------------------------------------
 
-    private fun publish(room: ChatRoom, me: ChatRoomMember, saved: ChatMessage, files: List<ChatMessageFile>): ChatMessageView {
-        room.touch(saved.createdDt)
-        me.markRead(saved.id!!)
+    /**
+     * 새 메시지를 방 사람들에게. 스레드 답글이면 채널 순서·읽음 위치는 그대로 두고,
+     * 시작 글의 답글 수를 올려 MESSAGE_UPDATED 로 같이 보낸다 (새 메시지 푸시 대신 스레드 알림이 간다)
+     */
+    private fun publish(room: ChatRoom, me: ChatRoomMember, saved: ChatMessage, files: List<ChatMessageFile>, root: ChatMessage? = null): ChatMessageView {
+        if (root == null) {
+            room.touch(saved.createdDt)
+            me.markRead(saved.id!!)
+        } else {
+            root.addThreadReply(saved.senderId!!, saved.createdDt)
+        }
         val view = views(listOf(saved)).single()
         val roomMembers = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!)
         val members = roomMembers.map { it.userId }
         realtime.push(members, RealtimePublisher.CHAT, ChatEvent("MESSAGE", room.teamId, room.id!!, view))
-        pushNewMessage(room, saved, view, roomMembers)
+        if (root == null) pushNewMessage(room, saved, view, roomMembers) else publishUpdate(room, root)
         return view
     }
 
@@ -627,7 +708,7 @@ class ChatService(
         if (messages.isEmpty()) return emptyList()
         val replyIds = messages.mapNotNull { it.replyToId }
         val replies = if (replyIds.isEmpty()) emptyMap() else messageRepository.findAllByIdIn(replyIds).associateBy { it.id!! }
-        val users = usersById(messages.mapNotNull { it.senderId } + replies.values.mapNotNull { it.senderId })
+        val users = usersById(messages.mapNotNull { it.senderId } + replies.values.mapNotNull { it.senderId } + messages.flatMap { it.threadUserIds })
         val files = filesByMessage(messages + replies.values)
         val reactions = reactionRepository.findAllByMessageIdInAndDeletedFalse(messages.map { it.id!! }).groupBy { it.messageId }
         return messages.map { m ->
@@ -646,6 +727,10 @@ class ChatService(
                     .map { (emoji, list) -> ReactionView(emoji, list.size, list.map { it.userId }) },
                 mentions = if (m.deleted) emptyList() else m.mentionUserIds,
                 mentionAll = !m.deleted && m.mentionAll,
+                threadRootId = m.threadRootId,
+                replyCount = m.replyCount,
+                lastReplyAt = m.lastReplyAt,
+                threadUsers = m.threadUserIds.mapNotNull(users::get).map(::userView),
             )
         }
     }
@@ -676,7 +761,7 @@ class ChatService(
 
     private fun view(room: ChatRoom, me: ChatRoomMember, voice: VoicePresenceView? = if (room.isGroup) voicePresence(listOf(room.id!!))[room.id!!] else null): ChatRoomView {
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!)
-        val last = messageRepository.findTopByRoomIdOrderByIdDesc(room.id!!)
+        val last = messageRepository.findTopByRoomIdAndThreadRootIdIsNullOrderByIdDesc(room.id!!)
         val users = usersById(members.map { it.userId } + listOfNotNull(last?.senderId, room.noticeBy))
         return ChatRoomView(
             id = room.id!!,
@@ -690,7 +775,7 @@ class ChatService(
             lastMessage = last?.let { messageView(it, users, filesByMessage(listOf(it))[it.id!!].orEmpty()) },
             reads = members.map { ReadStateView(it.userId, it.lastReadMessageId) },
             muted = me.muted,
-            unreadCount = messageRepository.countByRoomIdAndIdGreaterThan(room.id!!, me.lastReadMessageId ?: 0),
+            unreadCount = messageRepository.countByRoomIdAndThreadRootIdIsNullAndIdGreaterThan(room.id!!, me.lastReadMessageId ?: 0),
             lastMessageAt = room.lastMessageAt,
             createdAt = room.createdDt,
             notice = room.noticeContent?.let { ChatNoticeView(it, room.noticeBy?.let(users::get)?.let(::userView), room.noticeAt) },

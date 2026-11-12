@@ -51,12 +51,13 @@ data class UpdateChannelRequest(
 
 data class CategoryRequest(@field:NotBlank @field:Size(max = 50) val name: String)
 data class InviteMembersRequest(@field:Size(min = 1, max = 200) val userIds: List<Long>)
-/** 글 보내기·고치기. 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두 */
+/** 글 보내기·고치기. 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두, threadRootId = 스레드 답글 */
 data class SendMessageRequest(
     @field:NotBlank @field:Size(max = 4000) val content: String,
     val replyToId: Long? = null,
     @field:Size(max = 100) val mentionIds: List<Long> = emptyList(),
     val mentionAll: Boolean = false,
+    val threadRootId: Long? = null,
 )
 data class MuteRequest(@field:NotNull val muted: Boolean?)
 data class ReactionRequest(@field:NotBlank @field:Size(max = 32) val emoji: String)
@@ -131,7 +132,11 @@ class ChatController(private val chat: ChatService) {
     @PostMapping("/chat/rooms/{roomId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageRequest) =
-        chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll)
+        chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll, req.threadRootId)
+
+    /** 스레드 창: 시작 글 + 답글 (답글 id 를 줘도 그 스레드) */
+    @GetMapping("/chat/messages/{messageId}/thread")
+    fun thread(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long) = chat.thread(messageId, jwt.userId)
 
     /** 이 방 알림 끄기·켜기 (나만) */
     @PutMapping("/chat/rooms/{roomId}/mute")
@@ -161,7 +166,7 @@ class ChatController(private val chat: ChatService) {
     @DeleteMapping("/chat/messages/{messageId}")
     fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long) = chat.delete(messageId, jwt.userId)
 
-    /** 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) */
+    /** 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) + threadRootId(스레드 답글, 선택) */
     @PostMapping("/chat/rooms/{roomId}/files", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @ResponseStatus(HttpStatus.CREATED)
     fun sendFiles(
@@ -169,7 +174,8 @@ class ChatController(private val chat: ChatService) {
         @PathVariable roomId: Long,
         @RequestPart("files") files: List<MultipartFile>,
         @RequestParam(required = false) content: String?,
-    ) = chat.sendFiles(roomId, jwt.userId, content, files.map { f -> FileUpload(f.originalFilename, f.contentType, f.size) { f.inputStream } })
+        @RequestParam(required = false) threadRootId: Long?,
+    ) = chat.sendFiles(roomId, jwt.userId, content, files.map { f -> FileUpload(f.originalFilename, f.contentType, f.size) { f.inputStream } }, threadRootId)
 
     /**
      * 첨부파일 내려받기. 로그인 토큰 대신 메시지 목록이 내려준 서명(exp, sig)으로 확인한다 (<img src> 로 바로 쓰려고).

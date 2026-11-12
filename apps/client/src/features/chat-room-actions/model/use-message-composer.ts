@@ -2,18 +2,22 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type DragEvent, type KeyboardEvent, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { chatApi, chatKeys, checkChatFiles, type ChatMessage, type ChatRoom } from '@/entities/chat'
+import { chatApi, chatKeys, checkChatFiles, type ChatMessage, type ChatRoom, type ChatThread } from '@/entities/chat'
 import { useMeQuery } from '@/entities/user'
 import { toastError } from '@/shared/api'
 import { useDialog } from '@/shared/lib/use-dialog'
 import { clearReply, useReplyTarget } from './reply-store'
 import { type MentionOption, useMentionPicker } from './use-mention-picker'
 
+/** 어디에 보내는 입력창인지: 방 본문, 또는 그 방의 스레드(threadRootId) */
+export type ComposerTarget = { room: ChatRoom; threadRootId?: number }
+
 /**
  * 메시지 입력창의 상태와 동작: 글·첨부파일·끌어다 놓기·이모지 넣기·@멘션·답장·보내기.
- * 보낸 메시지는 그 방 메시지 목록(캐시) 끝에 바로 붙인다 (실시간 이벤트가 늦게 와도 화면에 보이게)
+ * 보낸 메시지는 그 방 메시지 목록(스레드면 스레드 창) 끝에 바로 붙인다 (실시간 이벤트가 늦게 와도 화면에 보이게).
+ * 스레드 입력창은 "○○님에게 답장"을 쓰지 않는다 (방 본문 입력창의 것)
  */
-export function useMessageComposer(room: ChatRoom) {
+export function useMessageComposer({ room, threadRootId }: ComposerTarget) {
   const roomId = room.id
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -23,7 +27,8 @@ export function useMessageComposer(room: ChatRoom) {
   const [dragging, setDragging] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
-  const replyTo = useReplyTarget(roomId)
+  const roomReply = useReplyTarget(roomId)
+  const replyTo = threadRootId ? null : roomReply
   const mention = useMentionPicker(room, me?.id)
   // 이모지 창을 열면 입력칸 포커스가 빠지므로, 마지막 커서 위치를 기억해 그 자리에 넣는다
   const caret = useRef<{ start: number; end: number } | null>(null)
@@ -70,21 +75,28 @@ export function useMessageComposer(room: ChatRoom) {
     placeCaret(next.caret)
   }
 
-  const appendToRoom = (m: ChatMessage) =>
+  const appendToRoom = (m: ChatMessage) => {
+    if (threadRootId) {
+      queryClient.setQueryData<ChatThread>(chatKeys.thread(threadRootId), (cur) =>
+        cur && !cur.replies.some((x) => x.id === m.id) ? { ...cur, replies: [...cur.replies, m] } : cur,
+      )
+      return
+    }
     queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(roomId), (cur = []) => (cur.some((x) => x.id === m.id) ? cur : [...cur, m]))
+  }
 
   const send = useMutation({
     mutationFn: (v: { content: string; files: File[] }) =>
       v.files.length
-        ? chatApi.sendFiles(roomId, v.files, v.content)
-        : chatApi.send(roomId, v.content, { replyToId: replyTo?.id ?? null, ...mention.collect(v.content) }),
+        ? chatApi.sendFiles(roomId, v.files, v.content, threadRootId)
+        : chatApi.send(roomId, v.content, { replyToId: replyTo?.id ?? null, threadRootId: threadRootId ?? null, ...mention.collect(v.content) }),
     onSuccess: (m, v) => {
       // 파일은 올리는 동안 목록에 남겨 두고(무엇을 보내는 중인지 보이게) 성공하면 비운다
       if (v.files.length) {
         setFiles([])
         setTextState('')
       }
-      clearReply(roomId)
+      if (!threadRootId) clearReply(roomId)
       mention.reset()
       appendToRoom(m)
     },

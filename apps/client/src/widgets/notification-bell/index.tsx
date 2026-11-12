@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AtSign, Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, Sparkles, UserCheck, Users, Video, X } from 'lucide-react'
+import { AtSign, Bell, BellRing, CalendarClock, CreditCard, Mail, MessageSquare, MessagesSquare, Sparkles, UserCheck, Users, Video, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -15,6 +15,7 @@ const ICONS: Record<NotificationType, typeof Bell> = {
   TEAM_INVITATION_ACCEPTED: UserCheck,
   CHAT_ROOM_INVITED: MessageSquare,
   CHAT_MENTION: AtSign,
+  THREAD_REPLY: MessagesSquare,
   MEETING_SCHEDULED: CalendarClock,
   MEETING_REMINDER: BellRing,
   MEETING_STARTED: Video,
@@ -176,11 +177,13 @@ export function useNotificationSideEffects(subscribe: (cb: (payload: unknown) =>
         const me = queryClient.getQueryData<Me>(userKeys.me)
         if (me && inQuietHours(me.dndStart, me.dndEnd, me.dndTimeZone)) return
         const mention = n.type === 'CHAT_MENTION'
+        const threadReply = n.type === 'THREAD_REPLY'
+        const name = String(n.params.senderName ?? '')
         void showDesktopNotification(
           {
-            title: mention ? t('notifications.desktop.mention', { name: String(n.params.senderName ?? '') }) : 'MQ',
-            body: mention ? String(n.params.preview ?? '') : notificationText(n, t, fmt.dateTime),
-            tag: mention ? 'mention' : `notif-${n.id}`,
+            title: mention ? t('notifications.desktop.mention', { name }) : threadReply ? t('notifications.desktop.threadReply', { name }) : 'MQ',
+            body: mention || threadReply ? String(n.params.preview ?? t('notifications.desktop.file')) : notificationText(n, t, fmt.dateTime),
+            tag: mention ? 'mention' : threadReply ? `thread-${n.params.rootId}` : `notif-${n.id}`,
             link: n.link ?? '/',
           },
           (link) => navigate(link),

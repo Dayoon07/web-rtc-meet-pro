@@ -9,6 +9,7 @@ object PushTexts {
         "ko" to mapOf(
             "file" to "파일을 보냈어요",
             "mention" to "{sender}님이 회원님을 언급했어요",
+            "threadReply" to "{sender}님이 스레드에 답글을 남겼어요",
             "MEETING_REMINDER" to "「{title}」 회의가 곧 시작해요",
             "MEETING_STARTED" to "「{title}」 회의가 시작됐어요",
             "MEETING_SCHEDULED" to "「{title}」 회의가 예약됐어요",
@@ -20,6 +21,7 @@ object PushTexts {
         "en" to mapOf(
             "file" to "Sent a file",
             "mention" to "{sender} mentioned you",
+            "threadReply" to "{sender} replied in a thread",
             "MEETING_REMINDER" to "“{title}” is starting soon",
             "MEETING_STARTED" to "“{title}” has started",
             "MEETING_SCHEDULED" to "“{title}” was scheduled",
@@ -31,6 +33,7 @@ object PushTexts {
         "ja" to mapOf(
             "file" to "ファイルを送信しました",
             "mention" to "{sender}さんがあなたをメンションしました",
+            "threadReply" to "{sender}さんがスレッドに返信しました",
             "MEETING_REMINDER" to "「{title}」がまもなく始まります",
             "MEETING_STARTED" to "「{title}」が始まりました",
             "MEETING_SCHEDULED" to "「{title}」が予約されました",
@@ -42,6 +45,7 @@ object PushTexts {
         "zh" to mapOf(
             "file" to "发送了文件",
             "mention" to "{sender} 提及了你",
+            "threadReply" to "{sender} 在话题中回复了",
             "MEETING_REMINDER" to "「{title}」即将开始",
             "MEETING_STARTED" to "「{title}」已开始",
             "MEETING_SCHEDULED" to "「{title}」已预约",

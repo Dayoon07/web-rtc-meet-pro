@@ -23,7 +23,8 @@ export function useChatDesktopNotifications() {
       realtime.on('chat', (payload) => {
         const ev = payload as ChatEvent
         const m = ev.message
-        if (ev.type !== 'MESSAGE' || !m?.sender) return
+        // 스레드 답글은 스레드 알림(THREAD_REPLY)으로 따로 뜬다
+        if (ev.type !== 'MESSAGE' || !m?.sender || m.threadRootId) return
         const me = queryClient.getQueryData<Me>(userKeys.me)
         if (!me || m.sender.id === me.id) return
         if (m.mentionAll || m.mentions?.includes(me.id)) return

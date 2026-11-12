@@ -1,5 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { chatApi, chatKeys, type ChatMessage, type ChatRoom, useChatCategoriesQuery } from '@/entities/chat'
 import { hasTeamPermission, useTeamQuery } from '@/entities/team'
 import { useMeQuery } from '@/entities/user'
@@ -30,6 +32,24 @@ export function useRoomView(room: ChatRoom) {
   const setNotice = useSetNotice(room)
   const messages = useRoomMessages(room, me?.id)
 
+  // 열린 스레드는 주소에 둔다 (?thread=시작 글) → 알림·검색 결과에서 바로 그 스레드로 올 수 있다
+  const [params, setParams] = useSearchParams()
+  const threadId = Number(params.get('thread')) || null
+  const setThread = useCallback(
+    (id: number | null, replace = false) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (id) next.set('thread', String(id))
+          else next.delete('thread')
+          return next
+        },
+        { replace },
+      ),
+    [setParams],
+  )
+  const replaceRoot = useCallback((id: number) => setThread(id, true), [setThread])
+
   return {
     room,
     myId: me?.id,
@@ -59,6 +79,13 @@ export function useRoomView(room: ChatRoom) {
       reaction: useDialog<ChatMessage, string>((emoji, message) => message && messages.react(message, emoji)),
     },
     messages,
+    /** 스레드 창: 열린 시작 글 id, 열기(답글이면 그 스레드), 닫기 */
+    thread: {
+      openId: threadId,
+      open: (m: ChatMessage) => setThread(m.threadRootId ?? m.id),
+      close: () => setThread(null),
+      replaceRoot,
+    },
   }
 }
 
