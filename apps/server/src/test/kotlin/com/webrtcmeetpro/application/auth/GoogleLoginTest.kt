@@ -115,27 +115,79 @@ class GoogleLoginTest {
     private val profile = UserProfile("민지", "김민지", "+821012345678", "KR", 1996, null)
 
     @Test
-    fun `같은 이메일의 이메일 인증된 기존 계정이 있으면 새로 만들지 않고 연결한다`() {
+    fun `같은 이메일로 이메일 가입한 계정이 있으면 구글 로그인을 거절하고 이메일 로그인을 안내한다`() {
         val existing = userRepo.save(User.register("kim@gmail.com", encoder.encode("abcd1234")!!, profile, false).apply { verifyEmail() })
 
-        val userId = service.loginWithGoogle(google(email = "KIM@gmail.com"), client)
+        val e = assertThrows<BusinessException> { service.loginWithGoogle(google(email = "KIM@gmail.com"), client) }
 
-        assertEquals(existing.id, userId)
-        assertEquals(1, users.size)
-        assertTrue(existing.hasPassword, "기존 비밀번호 로그인은 그대로 유지")
-        assertEquals(existing.id, socials.single().userId)
+        assertEquals(ErrorCode.EMAIL_REGISTERED_WITH_PASSWORD, e.errorCode)
+        assertEquals(1, users.size, "새 계정을 만들지 않는다")
+        assertTrue(socials.isEmpty(), "자동으로 연결하지 않는다")
+        assertTrue(existing.hasPassword)
+        service.login(LoginCommand("kim@gmail.com", "abcd1234"), client)
     }
 
     @Test
-    fun `이메일 인증 전인 기존 계정에 구글로 연결하면 그 비밀번호를 지운다 (남이 먼저 가입했을 수 있다)`() {
+    fun `이메일 인증 전인 계정이 있어도 구글로 가로채지 않고 거절한다`() {
         val existing = userRepo.save(User.register("kim@gmail.com", encoder.encode("abcd1234")!!, profile, false))
 
+        val e = assertThrows<BusinessException> { service.loginWithGoogle(google(email = "kim@gmail.com"), client) }
+
+        assertEquals(ErrorCode.EMAIL_REGISTERED_WITH_PASSWORD, e.errorCode)
+        assertTrue(existing.hasPassword)
+        assertFalse(existing.isEmailVerified)
+    }
+
+    @Test
+    fun `구글로 가입한 이메일로 이메일 회원가입하면 구글 로그인을 안내한다`() {
         service.loginWithGoogle(google(email = "kim@gmail.com"), client)
 
-        assertFalse(existing.hasPassword, "이메일 주인이 아닌 사람이 만든 비밀번호일 수 있다")
-        assertTrue(existing.isEmailVerified)
-        val e = assertThrows<BusinessException> { service.login(LoginCommand("kim@gmail.com", "abcd1234"), client) }
-        assertEquals(ErrorCode.SOCIAL_ACCOUNT_ONLY, e.errorCode)
+        val e = assertThrows<BusinessException> { service.signUp(SignUpCommand("Kim@gmail.com", "abcd1234", profile, true, true, false), client) }
+
+        assertEquals(ErrorCode.EMAIL_REGISTERED_WITH_GOOGLE, e.errorCode)
+        assertEquals("GOOGLE", service.registeredSignInMethod("kim@gmail.com"))
+        assertEquals(1, users.size)
+    }
+
+    @Test
+    fun `이메일로 가입한 이메일로 다시 가입하면 이메일 로그인을 안내한다`() {
+        service.signUp(SignUpCommand("lee@test.com", "abcd1234", profile, true, true, false), client)
+
+        val e = assertThrows<BusinessException> { service.signUp(SignUpCommand("lee@test.com", "abcd1234", profile, true, true, false), client) }
+
+        assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, e.errorCode)
+        assertEquals("PASSWORD", service.registeredSignInMethod("LEE@test.com"))
+        assertNull(service.registeredSignInMethod("nobody@test.com"))
+    }
+
+    /** 관리자 데이터 관리에서 deleted_yn 만 'Y' 로 바꾼 것과 같다 */
+    private fun markDeletedOnly(user: User) {
+        val field = generateSequence<Class<*>>(user.javaClass) { it.superclass }.firstNotNullOf { c -> c.declaredFields.firstOrNull { it.name == "deleted" } }
+        field.isAccessible = true
+        field.set(user, true)
+    }
+
+    @Test
+    fun `deleted_yn 이 Y 인 계정은 구글 로그인 · 비밀번호 로그인 · 토큰 갱신이 모두 막힌다`() {
+        val googleId = service.loginWithGoogle(google(), client)
+        val tokens = service.signUp(SignUpCommand("lee@test.com", "abcd1234", profile, true, true, false), client)
+        users.forEach(::markDeletedOnly)
+
+        assertEquals(ErrorCode.USER_NOT_ACTIVE, assertThrows<BusinessException> { service.loginWithGoogle(google(), client) }.errorCode)
+        assertEquals(ErrorCode.USER_NOT_ACTIVE, assertThrows<BusinessException> { service.login(LoginCommand("lee@test.com", "abcd1234"), client) }.errorCode)
+        assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, assertThrows<BusinessException> { service.refresh(tokens.refreshToken, client) }.errorCode)
+        assertEquals(ErrorCode.OAUTH_CODE_INVALID, assertThrows<BusinessException> { service.issueTokensFor(googleId, client) }.errorCode)
+    }
+
+    @Test
+    fun `지운 계정과 같은 이메일의 새 구글 계정도 들어오지 못한다`() {
+        val existing = userRepo.save(User.register("kim@gmail.com", encoder.encode("abcd1234")!!, profile, false))
+        markDeletedOnly(existing)
+
+        val e = assertThrows<BusinessException> { service.loginWithGoogle(google(email = "kim@gmail.com"), client) }
+
+        assertEquals(ErrorCode.USER_NOT_ACTIVE, e.errorCode)
+        assertEquals(1, users.size)
     }
 
     @Test

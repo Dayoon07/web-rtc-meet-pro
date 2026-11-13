@@ -12,7 +12,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.type.YesNoConverter
 
-enum class LoginFailureReason { USER_NOT_FOUND, WRONG_PASSWORD, USER_NOT_ACTIVE, SOCIAL_ACCOUNT_ONLY, EMAIL_NOT_VERIFIED }
+/** EMAIL_REGISTERED: 구글 로그인인데 그 이메일은 이메일·비밀번호로 가입돼 있음 */
+enum class LoginFailureReason { USER_NOT_FOUND, WRONG_PASSWORD, USER_NOT_ACTIVE, SOCIAL_ACCOUNT_ONLY, EMAIL_NOT_VERIFIED, EMAIL_REGISTERED }
 enum class LoginMethod { PASSWORD, GOOGLE }
 
 /** 로그인 시도 1회 = 1행. 시도 시각은 created_dt */

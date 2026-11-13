@@ -21,7 +21,11 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     ADMIN_DATA_CONSTRAINT(HttpStatus.CONFLICT, "DB 규칙(중복·참조·허용 값)에 맞지 않아 저장하지 못했습니다."),
 
     // auth / user
-    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일입니다. 이메일로 로그인해 주세요."),
+    /** 이메일 회원가입: 그 이메일은 구글로 가입돼 있다 */
+    EMAIL_REGISTERED_WITH_GOOGLE(HttpStatus.CONFLICT, "이미 구글로 가입된 이메일입니다. 구글로 로그인해 주세요."),
+    /** 구글 로그인: 그 이메일은 이메일·비밀번호로 가입돼 있다 (자동으로 합치지 않는다) */
+    EMAIL_REGISTERED_WITH_PASSWORD(HttpStatus.CONFLICT, "이미 이메일로 가입된 계정입니다. 이메일과 비밀번호로 로그인해 주세요."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "다시 로그인해 주세요."),
     USER_NOT_ACTIVE(HttpStatus.FORBIDDEN, "사용할 수 없는 계정입니다."),

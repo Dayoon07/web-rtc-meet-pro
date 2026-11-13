@@ -83,7 +83,8 @@
     <string name="chat_leave_confirm">确定退出此群组吗？已发送的消息会保留。</string>
     <string name="chat_input_hint">输入消息</string>
     <string name="chat_send">发送</string>
-    <string name="error_EMAIL_ALREADY_EXISTS">该邮箱已注册。</string>
+    <string name="error_EMAIL_ALREADY_EXISTS">该邮箱已注册，请使用邮箱登录。</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">该邮箱已通过 Google 注册，请在网页上使用 Google 登录。</string>
     <string name="error_UNDERAGE">年满 14 岁才能注册。</string>
     <string name="error_INVALID_PHONE">手机号格式不正确。</string>
     <string name="error_INVALID_INPUT">请检查输入内容。</string>

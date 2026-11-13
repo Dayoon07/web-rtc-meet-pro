@@ -104,8 +104,9 @@ export function SignupForm() {
     setAccountErrors(errors)
     if (Object.keys(errors).length) return
 
-    const { available } = await checkEmail.mutateAsync()
-    if (!available) return setAccountErrors({ email: t('auth.validation.emailTaken') })
+    // 한 이메일 = 계정 하나: 이미 있으면 어떤 방법(이메일·구글)으로 로그인하면 되는지 알려 준다
+    const { available, signInMethod } = await checkEmail.mutateAsync()
+    if (!available) return setAccountErrors({ email: t(signInMethod === 'GOOGLE' ? 'auth.validation.emailTakenGoogle' : 'auth.validation.emailTaken') })
     setStep(1)
   }
 

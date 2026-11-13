@@ -73,6 +73,7 @@ import com.webrtcmeetpro.resources.common_retry
 import com.webrtcmeetpro.resources.error_ALREADY_TEAM_MEMBER
 import com.webrtcmeetpro.resources.error_CANNOT_INVITE_SELF
 import com.webrtcmeetpro.resources.error_EMAIL_ALREADY_EXISTS
+import com.webrtcmeetpro.resources.error_EMAIL_REGISTERED_WITH_GOOGLE
 import com.webrtcmeetpro.resources.error_FORBIDDEN
 import com.webrtcmeetpro.resources.error_INVALID_CREDENTIALS
 import com.webrtcmeetpro.resources.error_INVALID_INPUT
@@ -105,6 +106,7 @@ fun errorMessage(code: String): String = stringResource(
         "USER_NOT_ACTIVE" -> Res.string.error_USER_NOT_ACTIVE
         "SOCIAL_ACCOUNT_ONLY" -> Res.string.error_SOCIAL_ACCOUNT_ONLY
         "EMAIL_ALREADY_EXISTS" -> Res.string.error_EMAIL_ALREADY_EXISTS
+        "EMAIL_REGISTERED_WITH_GOOGLE" -> Res.string.error_EMAIL_REGISTERED_WITH_GOOGLE
         "UNDERAGE" -> Res.string.error_UNDERAGE
         "INVALID_PHONE" -> Res.string.error_INVALID_PHONE
         "INVALID_INPUT" -> Res.string.error_INVALID_INPUT

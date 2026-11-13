@@ -83,7 +83,8 @@
     <string name="chat_leave_confirm">このルームから退出しますか？送信したメッセージは残ります。</string>
     <string name="chat_input_hint">メッセージを入力</string>
     <string name="chat_send">送信</string>
-    <string name="error_EMAIL_ALREADY_EXISTS">このメールアドレスはすでに登録されています。</string>
+    <string name="error_EMAIL_ALREADY_EXISTS">このメールアドレスは登録済みです。メールアドレスでログインしてください。</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">このメールアドレスはGoogleで登録済みです。WebからGoogleでログインしてください。</string>
     <string name="error_UNDERAGE">14歳以上のみ登録できます。</string>
     <string name="error_INVALID_PHONE">電話番号の形式が正しくありません。</string>
     <string name="error_INVALID_INPUT">入力内容を確認してください。</string>

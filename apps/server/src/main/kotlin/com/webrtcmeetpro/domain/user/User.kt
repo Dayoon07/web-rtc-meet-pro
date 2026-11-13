@@ -143,7 +143,11 @@ class User(
     var dndTimeZone: String? = null
         protected set
 
-    val isActive: Boolean get() = status == UserStatus.ACTIVE
+    /** 쓸 수 있는 계정: 상태가 ACTIVE 이고 지우지(deleted_yn) 않았다. 관리자가 deleted_yn 만 바꿔도 로그인·토큰 갱신이 막힌다 */
+    val isActive: Boolean get() = status == UserStatus.ACTIVE && !deleted
+
+    /** 어떤 방법으로 가입한 이메일인지 (비밀번호가 있으면 이메일 로그인, 없으면 구글로만 가입) */
+    val signInMethod: String get() = if (passwordHash != null) "PASSWORD" else "GOOGLE"
 
     /** 방해 금지 시간 정하기 (start·end 가 비면 끄기). 모양이 틀리면 false */
     fun setQuietHours(start: String?, end: String?, timeZone: String?): Boolean {
@@ -229,19 +233,6 @@ class User(
 
     fun verifyEmail(at: LocalDateTime = LocalDateTime.now()) {
         if (emailVerifiedAt == null) emailVerifiedAt = at
-    }
-
-    /**
-     * 구글이 확인한 같은 이메일로 이 계정에 연결할 때 (= 이메일 주인이 왔다).
-     * 아직 이메일 인증 전인 계정이면, 비밀번호는 이메일 주인이 아닌 사람이 만들었을 수 있으므로 지운다.
-     * @return 비밀번호를 지웠으면 true → 호출한 쪽이 그 비밀번호로 로그인한 세션도 끊는다
-     */
-    fun verifyEmailByProvider(): Boolean {
-        if (isEmailVerified) return false
-        val hadPassword = passwordHash != null
-        passwordHash = null
-        verifyEmail()
-        return hadPassword
     }
 
     /** 비밀번호 바꾸기·만들기 (구글로만 가입한 사람도 비밀번호를 만들 수 있다). 해시는 서비스가 만든다 */

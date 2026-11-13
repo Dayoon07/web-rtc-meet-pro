@@ -68,7 +68,10 @@ class AuthService(
     fun signUp(command: SignUpCommand, client: ClientInfo): AuthTokens {
         if (!command.termsAgreed || !command.privacyAgreed) throw BusinessException(ErrorCode.TERMS_NOT_AGREED)
         val email = command.email.trim().lowercase()
-        if (userRepository.existsByEmail(email)) throw BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS)
+        // 한 이메일 = 계정 하나. 이미 있으면 어떤 방법으로 로그인하면 되는지 알려 준다
+        userRepository.findByEmail(email)?.let { existing ->
+            throw BusinessException(if (existing.signInMethod == "GOOGLE") ErrorCode.EMAIL_REGISTERED_WITH_GOOGLE else ErrorCode.EMAIL_ALREADY_EXISTS)
+        }
 
         val user = userRepository.save(
             User.register(email, passwordEncoder.encode(command.password)!!, command.profile, command.marketingAgreed),
@@ -97,8 +100,9 @@ class AuthService(
         return issueTokens(user, client)
     }
 
+    /** 회원가입 화면의 이메일 확인: 이미 있으면 그 이메일의 로그인 방법 (PASSWORD · GOOGLE), 없으면 null */
     @Transactional(readOnly = true)
-    fun isEmailAvailable(email: String): Boolean = !userRepository.existsByEmail(email.trim().lowercase())
+    fun registeredSignInMethod(email: String): String? = userRepository.findByEmail(email.trim().lowercase())?.signInMethod
 
     @Transactional
     fun login(command: LoginCommand, client: ClientInfo): AuthTokens {
@@ -118,7 +122,9 @@ class AuthService(
     }
 
     /**
-     * 구글 로그인. 연결된 계정 → 같은 이메일의 기존 계정에 연결 → 신규 가입 순서로 찾는다.
+     * 구글 로그인. 이 구글 계정이 연결된 계정 → 없으면 신규 가입.
+     * 같은 이메일로 이미 이메일·비밀번호 가입한 계정이 있으면 자동으로 합치지 않고 거절한다 (이메일로 로그인하라고 안내).
+     * 한 이메일 = 계정 하나라서, 어느 쪽으로 먼저 가입했든 그 방법으로만 로그인한다.
      * 신규 가입자는 실명·전화번호 등이 비어 있으므로 프론트가 온보딩 화면으로 보낸다.
      * @return 로그인한 user_id (토큰은 1회용 코드 교환 시 발급)
      */
@@ -135,15 +141,14 @@ class AuthService(
             if (!info.emailVerified) {
                 fail(null, email, LoginFailureReason.EMAIL_NOT_VERIFIED, ErrorCode.OAUTH_EMAIL_NOT_VERIFIED, client, LoginMethod.GOOGLE)
             }
-            val existing = userRepository.findByEmail(email)
-            // 이메일 인증 전인 기존 계정이면, 그 비밀번호는 이메일 주인이 만든 게 아닐 수 있다 → 지우고 그 세션도 끊는다
-            if (existing != null && existing.verifyEmailByProvider()) {
-                refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(existing.id!!).forEach { it.revoke() }
+            userRepository.findByEmail(email)?.let { existing ->
+                if (!existing.isActive) {
+                    fail(existing.id, email, LoginFailureReason.USER_NOT_ACTIVE, ErrorCode.USER_NOT_ACTIVE, client, LoginMethod.GOOGLE)
+                }
+                fail(existing.id, email, LoginFailureReason.EMAIL_REGISTERED, ErrorCode.EMAIL_REGISTERED_WITH_PASSWORD, client, LoginMethod.GOOGLE)
             }
-            val user = existing
-                ?: userRepository.save(User.registerSocial(email, info.name, info.pictureUrl))
-                    .also { planService.startFreeSubscription(it.id!!) }
-            if (user.profileImageUrl == null && info.pictureUrl != null) user.changeProfileImage(info.pictureUrl)
+            val user = userRepository.save(User.registerSocial(email, info.name, info.pictureUrl))
+                .also { planService.startFreeSubscription(it.id!!) }
             socialAccountRepository.save(
                 SocialAccount(user.id!!, SocialProvider.GOOGLE, info.subject, email).apply { recordLogin() },
             )

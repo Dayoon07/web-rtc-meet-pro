@@ -101,10 +101,12 @@ class AuthController(
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun logout(@Valid @RequestBody request: RefreshRequest) = authService.logout(request.refreshToken)
 
-    /** 회원가입 1단계에서 이메일 중복 확인 */
+    /** 회원가입 1단계에서 이메일 중복 확인. 이미 있으면 signInMethod(PASSWORD · GOOGLE)로 어떻게 로그인하면 되는지 */
     @GetMapping("/email-availability")
-    fun emailAvailability(@RequestParam email: String) =
-        mapOf("available" to authService.isEmailAvailable(email))
+    fun emailAvailability(@RequestParam email: String): Map<String, Any?> {
+        val method = authService.registeredSignInMethod(email)
+        return mapOf("available" to (method == null), "signInMethod" to method)
+    }
 
     /** 로그인 화면에서 구글 버튼 활성 여부 */
     @GetMapping("/providers")

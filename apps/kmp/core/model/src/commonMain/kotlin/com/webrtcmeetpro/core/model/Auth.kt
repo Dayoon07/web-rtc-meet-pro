@@ -29,7 +29,7 @@ data class SignUpRequest(
 )
 
 @Serializable
-data class EmailAvailability(val available: Boolean)
+data class EmailAvailability(val available: Boolean, val signInMethod: String? = null)
 
 @Serializable
 data class AuthTokens(

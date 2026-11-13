@@ -83,7 +83,8 @@
     <string name="chat_leave_confirm">이 채팅방에서 나갈까요? 보낸 메시지는 방에 남아요.</string>
     <string name="chat_input_hint">메시지 입력</string>
     <string name="chat_send">보내기</string>
-    <string name="error_EMAIL_ALREADY_EXISTS">이미 가입된 이메일입니다.</string>
+    <string name="error_EMAIL_ALREADY_EXISTS">이미 가입된 이메일이에요. 이메일로 로그인해 주세요.</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">이미 구글로 가입된 이메일이에요. 웹에서 구글로 로그인해 주세요.</string>
     <string name="error_UNDERAGE">만 14세 이상만 가입할 수 있습니다.</string>
     <string name="error_INVALID_PHONE">전화번호 형식이 올바르지 않습니다.</string>
     <string name="error_INVALID_INPUT">입력값을 확인해 주세요.</string>

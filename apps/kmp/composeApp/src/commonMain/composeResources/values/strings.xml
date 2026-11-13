@@ -84,7 +84,8 @@
     <string name="chat_leave_confirm">Leave this chat room? Your messages stay in the room.</string>
     <string name="chat_input_hint">Write a message</string>
     <string name="chat_send">Send</string>
-    <string name="error_EMAIL_ALREADY_EXISTS">This email is already registered.</string>
+    <string name="error_EMAIL_ALREADY_EXISTS">This email is already registered. Please log in with your email.</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">This email is already registered with Google. Please continue with Google on the web.</string>
     <string name="error_UNDERAGE">You must be 14 or older to sign up.</string>
     <string name="error_INVALID_PHONE">Check the phone number format.</string>
     <string name="error_INVALID_INPUT">Please check what you entered.</string>

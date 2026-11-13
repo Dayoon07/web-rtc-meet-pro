@@ -9,7 +9,8 @@ export type EmailRequest = { email: string }
 export type TokenRequest = { token: string }
 export type ResetPasswordRequest = { token: string; password: string }
 export type OAuthExchangeRequest = { code: string }
-export type EmailAvailabilityResponse = { available: boolean }
+/** signInMethod: 이미 가입된 이메일이면 그 로그인 방법 (PASSWORD 이메일 · GOOGLE 구글) */
+export type EmailAvailabilityResponse = { available: boolean; signInMethod?: 'PASSWORD' | 'GOOGLE' | null }
 export type ProvidersResponse = { google: boolean }
 
 export const authApi = {
