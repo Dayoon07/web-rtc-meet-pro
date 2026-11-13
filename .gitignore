@@ -26,3 +26,6 @@ chat-files/
 /.gradle/
 /build/
 /.kotlin/
+
+# 부하 테스트 결과(테스트 계정 토큰 포함)는 올리지 않는다
+scripts/load-test/results/
