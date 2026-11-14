@@ -6,7 +6,6 @@ import { LinkButton } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 import { useMeQuery } from '@/entities/user'
 
-/** 참여 버튼: 입장 가능하면 /meet/:id 로, 아니면 "HH:MM 부터 입장 가능" */
 export function JoinMeetingButton({ meeting, size = 'sm' }: { meeting: Meeting; size?: 'sm' | 'md' }) {
   const { t } = useTranslation()
   const myId = useMeQuery().data?.id

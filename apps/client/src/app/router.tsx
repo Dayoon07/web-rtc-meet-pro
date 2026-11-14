@@ -26,10 +26,8 @@ import { GuestOnly, OnboardingOnly, RequireAuth, RequireCompletedProfile, Requir
 import { AppLayout, AuthLayout, MarketingLayout } from './layouts'
 import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
 
-/** handle.title 은 번역 키 (AppLayout 이 현재 언어로 표시) */
 export const router = createBrowserRouter([
   {
-    // 어느 화면에서든 처리 못 한 에러는 이 화면으로 (React Router 기본 개발자 화면 대신)
     errorElement: <RouteErrorPage />,
     children: [
       {
@@ -53,7 +51,6 @@ export const router = createBrowserRouter([
               { path: ROUTES.forgotPassword, element: <ForgotPasswordPage /> },
             ],
           },
-          // 메일 링크로 들어온다. 다른 계정으로 로그인한 상태여도 열 수 있게 GuestOnly 밖에 둔다
           { path: ROUTES.resetPassword, element: <ResetPasswordPage /> },
           { path: ROUTES.verifyEmailConfirm, element: <ConfirmEmailPage /> },
         ],
@@ -72,24 +69,19 @@ export const router = createBrowserRouter([
           {
             element: <RequireCompletedProfile />,
             children: [
-              // 팀 초대 링크: 팀이 없어도 열 수 있다 (수락하면 그 팀 채팅으로)
               { element: <AuthLayout />, children: [{ path: ROUTES.joinPattern, element: <JoinTeamPage />, handle: { title: 'join.title' } }] },
-              // 회의실(mediasoup-client, socket.io)은 들어갈 때만 내려받는다
               { path: ROUTES.meetPattern, lazy: async () => ({ Component: (await import('@/pages/meet')).MeetPage }) },
               {
                 path: ROUTES.app,
                 element: <AppLayout />,
                 children: [
                   {
-                    // 플랜이 만료되면 앱 화면 위에 안내 창
                     element: <PlanExpiryGate />,
                     children: [
-                  // 팀이 없어도 되는 화면: 시작(팀 만들기·초대 수락) · 받은 초대 · 설정(탈퇴 등)
                   { path: APP_CHILD_ROUTES.start, element: <TeamStartPage />, handle: { title: 'start.title' } },
                   { path: APP_CHILD_ROUTES.invitations, element: <InvitationsPage />, handle: { title: 'nav.invitations' } },
                   { path: APP_CHILD_ROUTES.settings, element: <SettingsPage />, handle: { title: 'nav.settings' } },
                   {
-                    // 나머지는 팀이 있어야: 없으면 시작 화면으로
                     element: <RequireTeam />,
                     children: [
                       { index: true, element: <AppHomePage />, handle: { title: 'nav.home' } },

@@ -10,20 +10,11 @@ import { Spinner } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 import { returnToPath } from '@/shared/lib/return-to'
 
-/**
- * 앱(Android·Windows)이 넘긴 이동 경로. 같은 사이트 안의 경로만 허용한다 (open redirect 방지).
- * "//evil.com", "/\evil.com" 처럼 다른 사이트로 해석될 수 있는 값은 버린다.
- */
 function safeNext(next: string | null): string | null {
   if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null
   return next
 }
 
-/**
- * ?code= 로 받은 1회용 코드를 토큰으로 교환하고 프로필 완성 여부에 따라 이동.
- * - 구글 로그인: 서버가 리다이렉트로 보내준다
- * - 앱 → 브라우저 이동(화상회의 등): 앱이 ?code=…&next=/meet/12 로 연다
- */
 export function OAuthCallbackPage() {
   const { t } = useTranslation()
   const [params] = useSearchParams()
@@ -33,7 +24,6 @@ export function OAuthCallbackPage() {
   const started = useRef(false)
 
   useEffect(() => {
-    // StrictMode 에서 effect 가 두 번 돌아도 1회용 코드는 한 번만 교환
     if (started.current) return
     started.current = true
 
@@ -46,7 +36,6 @@ export function OAuthCallbackPage() {
         setTokens(await authApi.exchangeOAuthCode(code))
         const me = await userApi.me()
         queryClient.setQueryData(userKeys.me, me)
-        // 구글로 처음 가입하면 프로필 입력을 거쳐 기억해 둔 주소(초대 링크 등)로
         navigate(me.profileCompleted ? (safeNext(params.get('next')) ?? returnToPath()) : ROUTES.onboarding, { replace: true })
       } catch (e) {
         const error = e instanceof ApiError ? e.code : 'OAUTH_FAILED'

@@ -7,7 +7,6 @@ import type { MemberSelection } from '../model/types'
 
 const rowClass = 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors disabled:opacity-40'
 
-/** 팀원 한 줄: 프로필 사진 · 닉네임 · 이메일 (+ 오른쪽에 붙일 것) */
 function MemberInfo({ member, children }: { member: TeamMember; children?: ReactNode }) {
   return (
     <>
@@ -21,7 +20,6 @@ function MemberInfo({ member, children }: { member: TeamMember; children?: React
   )
 }
 
-/** 팀원 한 명 고르기 (누르면 바로 onPick) */
 export function MemberPicker({ members, onPick }: { members: TeamMember[]; onPick: (member: TeamMember) => void }) {
   return (
     <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">
@@ -36,7 +34,6 @@ export function MemberPicker({ members, onPick }: { members: TeamMember[]; onPic
   )
 }
 
-/** 팀원 여러 명 고르기 (체크 표시) */
 export function MemberChecklist({ members, selection }: { members: TeamMember[]; selection: MemberSelection }) {
   return (
     <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">

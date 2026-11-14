@@ -24,7 +24,6 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       <Toaster position="top-center" theme={theme} richColors closeButton />
-      {/* 서버 500·서버 연결 실패 안내 (에러 코드 + 문의 이메일) */}
       <UnexpectedErrorDialog />
     </QueryClientProvider>
   )

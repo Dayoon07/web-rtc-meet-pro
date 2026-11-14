@@ -7,7 +7,6 @@ import { Spinner } from '@/shared/ui'
 
 type License = { name: string; version: string; license: string; url: string; copyleft: boolean }
 
-/** 오픈소스 라이선스 고지: 웹 화면과 앱에 들어간 라이브러리 (scripts/oss-licenses.py 가 만든 /oss-licenses.json) */
 export function LicensesPage() {
   const { t } = useTranslation()
   const [tab, setTab] = useState<'web' | 'app'>('web')

@@ -7,14 +7,9 @@ import { useRoom } from '../model/context'
 import { useThread } from '../model/use-thread'
 import { MessageItem } from './MessageItem'
 
-/** 같은 사람이 5분 안에 이어서 쓴 답글은 이름·사진을 다시 안 그린다 */
 const groupedWith = (prev: ChatMessage | undefined, m: ChatMessage) =>
   !!prev && prev.sender?.id === m.sender?.id && new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60_000
 
-/**
- * 스레드 창 (슬랙처럼 방 오른쪽, 1280px 보다 좁은 화면에서는 방 위를 덮는다): 시작 글 · "답글 N개" · 답글 · 스레드 입력창.
- * 답글은 채널 본문에 안 보이고 여기에만 보인다
- */
 export function ThreadPanel({ rootId }: { rootId: number }) {
   const { t } = useTranslation()
   const { room, myId, thread: control } = useRoom()

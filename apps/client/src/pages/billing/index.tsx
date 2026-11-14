@@ -28,10 +28,6 @@ import { PricingTable } from '@/widgets/pricing-table'
 import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
 
-/**
- * 요금제 화면. 플랜은 팀 소유자(회사 계정)의 것 → 내가 만든 팀들은 "내 플랜" 하나로 묶어 보이고,
- * 남이 만든 팀은 그 소유자의 플랜을 보기만 한다. ?team={id} 로 바로 고를 수 있다 (만료 알림·메일의 링크).
- */
 export function BillingPage() {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -40,7 +36,6 @@ export function BillingPage() {
   const fromUrl = Number(params.get('team')) || undefined
   const owned = teams?.filter((tm) => tm.myRole === 'OWNER') ?? []
   const picked = teams?.some((tm) => tm.id === fromUrl) ? fromUrl : (owned[0] ?? teams?.[0])?.id
-  // 내가 만든 팀은 어느 것이든 같은 플랜 → 첫 팀 하나로
   const teamId = owned.some((tm) => tm.id === picked) ? owned[0].id : picked
   const others = teams?.filter((tm) => tm.myRole !== 'OWNER') ?? []
   const { data: sub } = useWorkspaceSubscriptionQuery(teamId)
@@ -203,7 +198,6 @@ function PaymentHistory() {
                     <PaymentStatusCell payment={p} />
                   </td>
                   <td className="py-2.5 pl-4 text-right whitespace-nowrap">
-                    {/* 승인된 플랜 결제만 (초과 인원 요금은 고객센터로) */}
                     {p.status === 'DONE' && p.kind !== 'OVERAGE' && (
                       <button
                         type="button"
@@ -250,11 +244,6 @@ function PaymentStatusCell({ payment }: { payment: Payment }) {
   )
 }
 
-/**
- * 토스 카드 등록창에서 돌아오는 화면 (/app/billing/card).
- * 성공: ?customerKey=&authKey= (+ 결제할 plan, cycle, autoRenew) → 카드 등록 → 있으면 바로 결제 → 요금제 화면
- * 실패: ?failed=1&code=&message=
- */
 export function CardReturnPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -273,7 +262,6 @@ export function CardReturnPage() {
       const team = Number(params.get('team'))
       if (!plan || !team) return null
       const cycle = (params.get('cycle') === 'YEARLY' ? 'YEARLY' : 'MONTHLY') as BillingCycle
-      // 결제 창에서 동의하고 카드 등록 창을 열었다
       return planApi.purchase(team, plan, cycle, params.get('autoRenew') !== '0', true)
     },
     onSuccess: (subscription) => {
@@ -284,7 +272,6 @@ export function CardReturnPage() {
       toast.success(subscription ? t('billing.purchased', { name: planName(subscription.plan) }) : t('billing.card.registered'))
       navigate(subscription ? `${ROUTES.billing}?team=${subscription.team.id}` : ROUTES.billing, { replace: true })
     },
-    // 카드는 등록됐는데 결제가 실패했을 수도 있다 → 요금제 화면에서 다시 결제할 수 있게 안내
     onError: (e) => setError(errorMessage(e)),
   })
 

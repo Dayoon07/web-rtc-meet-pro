@@ -14,8 +14,6 @@ import { useFormat } from '@/shared/lib/format'
 import { Avatar, Button, Spinner } from '@/shared/ui'
 import { type RemotePeer, useMeetingRoom } from './model/use-meeting-room'
 
-/** srcObject 는 JSX 속성이 아니라서 ref 로 연결 */
-/** media = 보여 줄 트랙이나 스트림, look = 소리 끄기 · 거울처럼 뒤집기 · 잘리지 않게 */
 function MediaVideo({ media, look = {} }: { media: { track?: MediaStreamTrack; stream?: MediaStream | null }; look?: { muted?: boolean; mirror?: boolean; contain?: boolean } }) {
   const { track, stream } = media
   const { muted, mirror, contain } = look
@@ -42,7 +40,6 @@ function RemoteAudio({ track }: { track?: MediaStreamTrack }) {
   return <audio ref={ref} autoPlay />
 }
 
-/** 화면 한 칸에 그릴 사람: 이름·사진·영상·마이크·손들기·나인지 */
 type TileData = {
   name: string
   avatar: string | null
@@ -54,7 +51,6 @@ type TileData = {
   self?: boolean
 }
 
-/** small = 옆줄의 작은 칸 */
 function Tile({ tile, small }: { tile: TileData; small?: boolean }) {
   const { name, avatar, video, stream, videoOn, micOn, hand, self } = tile
   return (
@@ -77,7 +73,6 @@ function Tile({ tile, small }: { tile: TileData; small?: boolean }) {
   )
 }
 
-/** control = 이름 · 누를 때 · 켜짐/꺼짐 · 빨간 버튼 · 숫자 배지, children = 아이콘 */
 function ControlButton({ control, children }: { control: { label: string; onClick: () => void; on?: boolean; danger?: boolean; badge?: number }; children: ReactNode }) {
   const { on, danger, label, onClick, badge } = control
   return (
@@ -100,7 +95,6 @@ function ControlButton({ control, children }: { control: { label: string; onClic
   )
 }
 
-/** 폭이 좁거나 세로로 긴 화면(휴대폰·세로 태블릿) */
 const narrowQuery = '(max-width: 639px), (max-aspect-ratio: 4/5)'
 function useNarrowScreen() {
   return useSyncExternalStore(
@@ -113,8 +107,6 @@ function useNarrowScreen() {
   )
 }
 
-/** Google Meet / Zoom 같은 회의 화면 */
-/** entry = 들어갈 회의 · 내 이름 · 내 사진 · (채널 음성방이면) 카메라를 끈 채로 시작, onExit = 나가기 */
 export function MeetingRoom({
   entry,
   onExit,
@@ -137,9 +129,7 @@ export function MeetingRoom({
     if (room.state.phase === 'left') onExit()
   }, [room.state.phase, onExit])
 
-  // 녹화: 주최자(또는 팀 관리자)가 이 브라우저로 녹화. "녹화 중" 표시는 모두에게 (서버 이벤트)
   const recorder = useMeetingRecorder(meetingId, room.getMicTrack)
-  // 이벤트 처리기가 지금 녹화 상태를 보도록 (내가 시작한 녹화인지)
   const recorderRef = useRef(false)
   recorderRef.current = recorder.status !== 'idle'
   const [othersRecording, setOthersRecording] = useState<boolean | null>(null)
@@ -150,7 +140,6 @@ export function MeetingRoom({
         const ev = payload as MeetingRoomEvent
         if (ev.type !== 'RECORDING' || ev.meetingId !== meetingId) return
         setOthersRecording(ev.recording)
-        // 내가 시작한 녹화는 알리지 않는다
         if (ev.recording && ev.by && !recorderRef.current) toast(t('room.recordingStartedBy', { name: ev.by }))
       }),
     [meetingId, t],
@@ -164,9 +153,6 @@ export function MeetingRoom({
     if (recordingOn) return toast(t('room.recordingByOther'))
     void recorder.start()
   }
-  // 녹화할 수 있는 사람에게만. 플랜에 녹화가 없으면 관리자에게 잠긴 버튼(누르면 플랜 안내)
-  // AI 회의록·실시간 자막: 둘 중 하나라도 켜져 있으면 내 마이크를 한 번만 받아써서 보낸다 (마이크를 끄면 멈춤).
-  // 자막이 켜져 있으면 자막으로 보내고(서버가 회의록에도 넣는다), 아니면 회의록으로
   const notes = useMeetingNotes(room.meeting)
   const captions = useLiveCaptions(room.meeting)
   const [interim, setInterim] = useState('')
@@ -186,7 +172,6 @@ export function MeetingRoom({
     if (room.deviceError) toast.warning(t('room.noDevice'))
   }, [room.deviceError, t])
 
-  // 다른 사람이 손을 들면 토스트
   useEffect(() => {
     room.peers.forEach((p) => {
       if (p.handRaised && !handsSeen.current.has(p.peerId)) toast(t('room.handRaised', { name: p.name }))
@@ -237,7 +222,6 @@ export function MeetingRoom({
   const sharer = room.local.screen ? null : room.peers.find((p) => p.tracks.screen)
   const sharing = room.local.screen || !!sharer
   const total = room.peers.length + 1
-  // 휴대폰 세로 화면은 Meet 처럼 위아래로 쌓는다
   const cols = narrow ? (total <= 2 ? 1 : 2) : total <= 1 ? 1 : total <= 4 ? 2 : total <= 9 ? 3 : 4
 
   const selfTile = (small?: boolean) => (
@@ -386,7 +370,6 @@ export function MeetingRoom({
         <ControlButton control={{ label: t(notes.on ? 'notes.stop' : 'notes.start'), onClick: () => void notes.toggle() }}>
           <NotebookPen className={cn(notes.on && 'text-brand-300', notes.busy && 'animate-pulse', !notes.available && !notes.on && 'opacity-50')} />
         </ControlButton>
-        {/* 실시간 자막: 서버가 꺼 두었으면(app.ai.live-captions) 버튼을 숨긴다 */}
         {(captions.available || captions.on) && (
           <ControlButton control={{ label: t(captions.on ? 'captions.stop' : 'captions.start'), onClick: () => void captions.toggle() }}>
             <Captions className={cn(captions.on && 'text-brand-300', captions.busy && 'animate-pulse')} />

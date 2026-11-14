@@ -9,7 +9,6 @@ type ThemeState = {
   setPreference: (preference: ThemePreference) => void
 }
 
-/** index.html 의 초기 스크립트도 같은 키('wrmp-theme')를 읽는다 */
 export const useThemeStore = create<ThemeState>()(
   persist((set) => ({ preference: 'system', setPreference: (preference) => set({ preference }) }), {
     name: 'wrmp-theme',
@@ -29,14 +28,12 @@ function useSystemDark() {
   )
 }
 
-/** 실제로 적용되는 테마 (system 이면 OS 설정을 따른다) */
 export function useResolvedTheme(): 'light' | 'dark' {
   const preference = useThemeStore((s) => s.preference)
   const systemDark = useSystemDark()
   return preference === 'system' ? (systemDark ? 'dark' : 'light') : preference
 }
 
-/** app 레이어에서 한 번 호출: <html class="dark"> 동기화 */
 export function useApplyTheme() {
   const resolved = useResolvedTheme()
   useEffect(() => {

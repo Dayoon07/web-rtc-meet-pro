@@ -5,7 +5,6 @@ import { cn } from '@/shared/lib/cn'
 import { Avatar, LinkButton } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 
-/** 채팅 화면 미리보기: 채널 목록 · 대화 · 채팅 속 음성 막대 · AI 회의록 카드 (실제 앱과 같은 배치) */
 function ChatPreview() {
   const { t } = useTranslation()
   const messages = [

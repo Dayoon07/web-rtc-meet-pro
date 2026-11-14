@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormat } from '@/shared/lib/format'
 
-/** 보내기 전 첨부파일 한 개: 이미지는 작은 미리보기, 나머지는 아이콘 */
-export function PendingFile({ file, onRemove }: { file: File; /** null = 보내는 중이라 뺄 수 없음 */ onRemove: (() => void) | null }) {
+export function PendingFile({ file, onRemove }: { file: File; onRemove: (() => void) | null }) {
   const { t } = useTranslation()
   const fmt = useFormat()
   const [preview, setPreview] = useState<string | null>(null)

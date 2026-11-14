@@ -16,7 +16,6 @@ const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
     element: <AdminLayout />,
-    // 화면 목록은 app/screens.tsx 한 곳에서 관리한다 (메뉴도 거기서 만들어진다)
     children: SCREENS.map(({ path, element }) => ({ path, element })),
   },
   { path: '*', element: <Navigate to="/" replace /> },

@@ -9,7 +9,6 @@ import { ROUTES } from '@/shared/config/routes'
 import { useFormat } from '@/shared/lib/format'
 import { Badge, Button, Checkbox, FieldError, IconButton, Input } from '@/shared/ui'
 
-/** 링크 주소 (이 사이트 주소 + /join/토큰) */
 const inviteUrl = (link: InviteLink) => `${window.location.origin}${ROUTES.join(link.token)}`
 
 async function copy(text: string, done: string) {
@@ -17,12 +16,10 @@ async function copy(text: string, done: string) {
     await navigator.clipboard.writeText(text)
     toast.success(done)
   } catch {
-    // 클립보드를 못 쓰면 (http·권한) 주소를 그대로 보여 준다
     toast(text)
   }
 }
 
-/** 링크 한 줄: 주소 · 비밀번호 여부 · 들어온 사람 수 · 복사 · 지우기 */
 function LinkRow({ link, onDelete }: { link: InviteLink; onDelete: () => void }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -58,10 +55,6 @@ function LinkRow({ link, onDelete }: { link: InviteLink; onDelete: () => void })
   )
 }
 
-/**
- * 팀 초대 링크 (팀 소유자·관리자): 링크를 받은 사람은 그 링크로 팀에 들어온다.
- * 비밀번호를 걸면 들어올 때 비밀번호를 물어본다. 기간 제한은 없고, 지우면 그 링크로는 더 못 들어온다
- */
 export function InviteLinkPanel({ teamId }: { teamId: number }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -76,7 +69,6 @@ export function InviteLinkPanel({ teamId }: { teamId: number }) {
       setPassword('')
       setUsePassword(false)
       refresh()
-      // 만들자마자 복사해 둔다 (바로 붙여 넣어 보낼 수 있게)
       void copy(inviteUrl(link), t('teams.inviteLink.created'))
     },
   })

@@ -23,7 +23,6 @@ const RULE: Record<string, string> = {
   NONE: '약관상 환불 불가',
 }
 
-/** 환불 창: 약관대로 계산한 금액을 보여 주고, 금액·사유를 정해서 환불 (그 플랜은 바로 끝난다) */
 function RefundDialog({ payment, onClose }: { payment: AdminPayment; onClose: () => void }) {
   const queryClient = useQueryClient()
   const quote = useQuery({ queryKey: [...KEY, payment.orderId, 'quote'], queryFn: () => adminApi.refundQuote(payment.orderId), staleTime: 0 })
@@ -115,7 +114,6 @@ function RefundDialog({ payment, onClose }: { payment: AdminPayment; onClose: ()
   )
 }
 
-/** 결제·환불: 최근 결제 200건 (주문번호·이메일·주문명·팀 이름으로 찾기, 상태로 거르기), 환불 */
 export function PaymentsPage() {
   const [search, setSearch] = useState('')
   const [q, setQ] = useState('')

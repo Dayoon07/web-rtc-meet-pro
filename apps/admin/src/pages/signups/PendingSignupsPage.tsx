@@ -8,7 +8,6 @@ import { Badge, Button, Card, cx, inputClass, Spinner } from '@/ui'
 
 const KEY = ['admin', 'signups', 'pending'] as const
 
-/** 한 줄의 승인·거절 버튼 */
 function Actions({ user }: { user: PendingSignup }) {
   const queryClient = useQueryClient()
   const done = (message: string) => {
@@ -54,11 +53,6 @@ function Actions({ user }: { user: PendingSignup }) {
   )
 }
 
-/**
- * 이메일 인증: 인증 메일을 못 받았거나(스팸·회사 메일 차단) 잘못된 메일로 가입한 사람을 처리한다.
- * 승인 = 인증된 것으로, 거절 = 가입 취소 (개인정보를 지우고 계정을 닫는다 → 같은 이메일로 다시 가입 가능).
- * 처리한 내용은 데이터 변경 기록에 남는다.
- */
 export function PendingSignupsPage() {
   const [search, setSearch] = useState('')
   const [q, setQ] = useState('')

@@ -9,7 +9,6 @@ import { refLink } from './cells'
 
 type Draft = Record<string, string>
 
-/** 행 값 → 입력칸 값 (모두 글자로 다룬다) */
 function toDraft(meta: TableMeta, row: Row | null): Draft {
   const d: Draft = {}
   meta.columns.forEach((c) => {
@@ -19,17 +18,12 @@ function toDraft(meta: TableMeta, row: Row | null): Draft {
   return d
 }
 
-/** 입력칸 값 → 서버로 보낼 값 (빈 칸 = null) */
 function toValue(col: TableColumn, text: string): unknown {
   if (text === '') return null
   if (col.kind === 'DATETIME') return fromLocalInput(text)
   return text
 }
 
-/**
- * 오른쪽에서 나오는 행 상세·수정 창. rowId 가 'new' 면 새 행 추가 (행 추가가 허용된 테이블만).
- * 바꾼 칸만 서버로 보낸다. 서버가 길이·허용 값·DB 제약을 다시 확인한다.
- */
 export function RowPanel({
   meta,
   rowId,
@@ -39,7 +33,6 @@ export function RowPanel({
 }: {
   meta: TableMeta
   rowId: string
-  /** 변경 기록 테이블 이름 (없으면 링크를 숨긴다) */
   historyTable: string | null
   onClose: () => void
   onSaved: (row: Row) => void
@@ -66,7 +59,6 @@ export function RowPanel({
     },
   })
 
-  // Esc 로 닫기
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -146,7 +138,6 @@ export function RowPanel({
   )
 }
 
-/** 이 행을 가리키는 다른 테이블들 (회원이면 20개가 넘어서 접어 둔다) */
 function RelatedLinks({ refs, rowId }: { refs: ColumnRef[]; rowId: string }) {
   if (!refs.length) return null
   return (
@@ -204,7 +195,6 @@ function FieldRow({
   if (col.secret) {
     control = <p className="text-sm text-gray-400">{original ? '●●●● 값이 있어요 (보안상 보여 주지 않아요)' : '값 없음'}</p>
   } else if (!col.editable) {
-    // 새 행에서 고칠 수 없는 칸(PK, 생성 기록)은 DB 가 채운다
     control = isNew ? (
       <p className="text-sm text-gray-400">자동으로 채워져요</p>
     ) : (

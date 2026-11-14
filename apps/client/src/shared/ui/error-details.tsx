@@ -6,10 +6,6 @@ import { type ErrorReason, useUnexpectedErrorStore } from '@/shared/lib/unexpect
 import { Button } from './button'
 import { Modal } from './modal'
 
-/**
- * 예상하지 못한 에러의 원인 + 문의 이메일 + 에러 코드.
- * 원인은 쉬운 말로만 보여 준다 (예외 내용·테이블 이름 같은 내부 정보는 서버 admin_error_logs 에만 있다).
- */
 export function ErrorDetails({ errorCode, reason }: { errorCode: string; reason: ErrorReason }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
@@ -70,7 +66,6 @@ export function ErrorDetails({ errorCode, reason }: { errorCode: string; reason:
   )
 }
 
-/** 화면 전체에 하나: 서버 500 이나 서버 연결 실패 때 request() 가 띄운다 */
 export function UnexpectedErrorDialog() {
   const { t } = useTranslation()
   const current = useUnexpectedErrorStore((s) => s.current)

@@ -5,14 +5,12 @@ import type { Dialog } from '@/shared/lib/use-dialog'
 import { Button, Modal } from '@/shared/ui'
 import { useSetNotice } from '../model/use-set-notice'
 
-/** 공지 쓰기·고치기 창 */
 export function NoticeModal({ room, dialog }: { room: ChatRoom; dialog: Dialog }) {
   const { open, close: onClose } = dialog
   const { t } = useTranslation()
   const setNotice = useSetNotice(room)
   const [text, setText] = useState(room.notice?.content ?? '')
   const [wasOpen, setWasOpen] = useState(open)
-  // 창을 열 때마다 지금 공지로 채운다
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) setText(room.notice?.content ?? '')

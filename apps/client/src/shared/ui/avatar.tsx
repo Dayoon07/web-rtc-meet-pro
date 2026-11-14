@@ -22,9 +22,7 @@ const palette = [
 const initials = (name: string) => {
   const t = name.trim()
   if (!t) return '?'
-  // 한글 이름은 앞 글자 하나, 영문은 이니셜 두 글자
   if (/[가-힣]/.test(t[0])) return t[0]
-  // 글자로 시작하는 단어만 쓴다 (회의실의 "이름 (나)" 처럼 괄호·기호로 시작하는 단어는 빼고)
   const words = t.split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w))
   return (words.length ? words : [t])
     .slice(0, 2)
@@ -42,7 +40,6 @@ type Props = {
   ring?: boolean
 }
 
-/** 프로필 이미지. 없거나 로드 실패 시 이름 이니셜 */
 export function Avatar({ src, name, size = 'md', className, ring }: Props) {
   const { t } = useTranslation()
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
@@ -62,7 +59,6 @@ export function Avatar({ src, name, size = 'md', className, ring }: Props) {
         <img
           src={src}
           alt={t('profile.photo.alt', { name })}
-          // 구글 프로필 사진은 Referer 가 있으면 403 이 나는 경우가 있다
           referrerPolicy="no-referrer"
           className="size-full object-cover"
           onError={() => setFailedSrc(src)}

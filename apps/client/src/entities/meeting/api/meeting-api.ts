@@ -28,7 +28,6 @@ export const meetingApi = {
   list: (scope: 'upcoming' | 'past') => request<Meeting[]>(API.meetings.list(scope)),
   detail: (id: number) => request<Meeting>(API.meetings.item(id)),
   schedule: (teamId: number, body: ScheduleMeetingRequest) => request<Meeting>(API.teams.meetings(teamId), { method: 'POST', json: body }),
-  /** 예약 회의 고치기 (시작 전만). inviteeIds 를 비우면 팀원 전체 */
   update: (id: number, body: ScheduleMeetingRequest & { scheduledAt: string }) =>
     request<Meeting>(API.meetings.item(id), { method: 'PUT', json: body }),
   cancel: (id: number) => request<void>(API.meetings.cancel(id), { method: 'POST' }),
@@ -51,7 +50,6 @@ export const meetingApi = {
   transcript: (id: number) => request<TranscriptLine[]>(API.meetings.notesTranscript(id)),
   startNotes: (id: number) => request<NotesState>(API.meetings.notesStart(id), { method: 'POST' }),
   stopNotes: (id: number) => request<NotesState>(API.meetings.notesStop(id), { method: 'POST' }),
-  /** 받아쓴 한 문장. on=false 면 꺼졌으니 받아쓰기를 멈춘다 */
   sendNotesLine: (id: number, text: string, lang: string) =>
     request<LineResponse>(API.meetings.notesLines(id), { method: 'POST', json: { text, lang } satisfies NotesLineRequest }),
   regenerateNotes: (id: number) => request<MeetingNotes>(API.meetings.notesRegenerate(id), { method: 'POST' }),
@@ -59,10 +57,8 @@ export const meetingApi = {
   startCaptions: (id: number, lang: string) =>
     request<CaptionState>(API.meetings.captionsStart(id), { method: 'POST', json: { lang } satisfies CaptionLangRequest }),
   stopCaptions: (id: number) => request<CaptionState>(API.meetings.captionsStop(id), { method: 'POST' }),
-  /** 내가 볼 자막 언어 알리기 */
   watchCaptions: (id: number, lang: string) =>
     request<void>(API.meetings.captionsWatch(id), { method: 'POST', json: { lang } satisfies CaptionLangRequest }),
-  /** 받아쓴 한 문장 (자막 + AI 회의록이 켜져 있으면 회의록에도). on=false 면 자막이 꺼짐 */
   sendCaptionLine: (id: number, text: string, lang: string) =>
     request<LineResponse>(API.meetings.captionsLines(id), { method: 'POST', json: { text, lang } satisfies NotesLineRequest }),
 }

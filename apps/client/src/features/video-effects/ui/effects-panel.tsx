@@ -8,10 +8,8 @@ import type { EffectsStatus } from '../model/processor'
 import { BACKGROUNDS, type BackgroundId, type EffectSettings, STICKERS, type StickerId } from '../model/presets'
 import { imageFileToDataUrl } from '../model/settings'
 
-/** 지금 효과 설정 · 불러오는 상태 · 카메라 켜짐 */
 type EffectsView = { settings: EffectSettings; status: EffectsStatus; cameraOn: boolean }
 
-/** choice = 이름 · 골라져 있는지 · 누를 때, children = 미리보기 */
 function Choice({ choice, children }: { choice: { label: string; selected: boolean; onClick: () => void }; children: ReactNode }) {
   const { selected, label, onClick } = choice
   return (
@@ -31,7 +29,6 @@ function Choice({ choice, children }: { choice: { label: string; selected: boole
   )
 }
 
-/** 회의 중 배경(흐림·그라데이션·사진)과 얼굴 스티커 고르기 */
 export function EffectsPanel({ effects, onChange }: { effects: EffectsView; onChange: (settings: EffectSettings) => void }) {
   const { settings, status, cameraOn } = effects
   const { t } = useTranslation()

@@ -7,7 +7,6 @@ import { Badge, Button, Card, inputClass, Spinner } from '@/ui'
 
 const number = new Intl.NumberFormat('ko-KR')
 
-/** 데이터 관리: DB 의 모든 테이블 (묶음별). 새로 만든 테이블은 "기타" 묶음에 자동으로 나타난다 */
 export function TablesPage() {
   const tables = useQuery({ queryKey: tableKeys.list, queryFn: tableApi.list })
   const [search, setSearch] = useState('')

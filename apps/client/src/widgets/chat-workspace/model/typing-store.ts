@@ -1,10 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { ChatUser } from '@/entities/chat'
 
-/** "입력 중" 이벤트를 받은 뒤 이만큼 지나면 지운다 (보내는 쪽은 3초마다 다시 알린다) */
 const TTL_MS = 5000
 
-/** 방마다 지금 입력 중인 사람 (userId → 사람, 언제까지) */
 const typing = new Map<number, Map<number, { user: ChatUser; until: number }>>()
 const listeners = new Set<() => void>()
 let version = 0
@@ -20,13 +18,11 @@ export const typingStore = {
     typing.set(roomId, room)
     emit()
   },
-  /** 그 사람이 메시지를 보내면 바로 지운다 */
   remove(roomId: number, userId: number) {
     if (typing.get(roomId)?.delete(userId)) emit()
   },
 }
 
-/** 이 방에서 지금 입력 중인 사람들 (시간이 지나면 저절로 사라진다) */
 export function useTypingUsers(roomId: number): ChatUser[] {
   useSyncExternalStore(
     (l) => {
@@ -35,7 +31,6 @@ export function useTypingUsers(roomId: number): ChatUser[] {
     },
     () => version,
   )
-  // 1초마다 다시 그려서 시간이 지난 사람을 뺀다
   const [now, setNow] = useState(() => Date.now())
   const room = typing.get(roomId)
   const active = room ? [...room.values()].filter((t) => t.until > now) : []

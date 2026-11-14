@@ -1,7 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/shared/lib/cn'
 
-/** 아바타 클릭 → 드롭다운 같은 간단한 메뉴. 바깥 클릭 / Esc 로 닫힘 */
 export function Menu({
   trigger,
   children,
@@ -13,7 +12,6 @@ export function Menu({
   children: (close: () => void) => ReactNode
   align?: 'start' | 'end'
   label: string
-  /** 기본 w-64 p-1.5 대신 쓸 패널 클래스 (알림 패널처럼 넓은 메뉴) */
   panelClassName?: string
 }) {
   const [open, setOpen] = useState(false)

@@ -5,7 +5,6 @@ import { Badge, cx } from '@/ui'
 
 const number = new Intl.NumberFormat('ko-KR')
 
-/** 상태값 배지 색: 이름으로 대충 맞춘다 (새 상태값이 생겨도 회색으로 보인다) */
 function toneOf(value: string) {
   if (/^(ACTIVE|ACCEPTED|ONGOING|LIVE|PAID|DONE|SUCCESS|ADMIN|OWNER)$/.test(value)) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'
   if (/^(PENDING|SCHEDULED|READY|WAITING)$/.test(value)) return 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
@@ -13,13 +12,11 @@ function toneOf(value: string) {
   return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
 }
 
-/** 다른 테이블을 가리키는 값(FK)이면 그 행으로 가는 링크 */
 export function refLink(col: TableColumn, value: Row[string]) {
   if (!col.references || value === null || value === '') return null
   return `/data/${col.references.table}?row=${encodeURIComponent(String(value))}`
 }
 
-/** 목록 칸 하나 */
 export function Cell({ col, value }: { col: TableColumn; value: Row[string] }) {
   if (col.secret) return value ? <span className="text-gray-400">●●●● 있음</span> : <span className="text-gray-300 dark:text-gray-600">-</span>
   if (value === null || value === '') return <span className="text-gray-300 dark:text-gray-600">-</span>

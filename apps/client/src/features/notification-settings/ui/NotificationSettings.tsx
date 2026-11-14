@@ -9,7 +9,6 @@ import { useQuietHours } from '../model/use-quiet-hours'
 const timeInput =
   'h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
 
-/** 브라우저 푸시 켜기·끄기 (이 브라우저에만) */
 function PushRow() {
   const { t } = useTranslation()
   const push = usePushToggle()
@@ -39,7 +38,6 @@ function PushRow() {
   )
 }
 
-/** 방해 금지 시간: 이 시간에는 푸시를 보내지 않는다 (알림 목록에는 쌓인다) */
 function QuietHoursRow({ me }: { me: Me }) {
   const { t } = useTranslation()
   const q = useQuietHours(me)
@@ -68,7 +66,6 @@ function QuietHoursRow({ me }: { me: Me }) {
   )
 }
 
-/** 설정 화면의 "알림" 칸 */
 export function NotificationSettings({ me }: { me: Me }) {
   return (
     <div className="flex flex-col gap-5">

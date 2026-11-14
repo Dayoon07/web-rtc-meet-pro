@@ -9,11 +9,6 @@ import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
 import { useChatAddress } from './address'
 
-/**
- * 채팅 상태: 주소의 팀·방, 방 목록·카테고리, 만들기 창들 (채팅 화면과 앱 사이드바의 방 목록이 각각 쓴다).
- * 실시간 이벤트(useChatRealtime)는 앱 틀(AppLayout)에서 한 번만 받는다.
- * 화면 조각들은 이 값을 WorkspaceContext 로 받아 쓴다 (props 로 줄줄이 넘기지 않게)
- */
 export function useChatWorkspace() {
   const { t } = useTranslation()
   const address = useChatAddress()
@@ -51,21 +46,15 @@ export function useChatWorkspace() {
     categories,
     activeRoom: rooms.find((r) => r.id === activeRoomId),
     activeRoomId,
-    /** 채널·카테고리를 만들고 고칠 수 있는지 (워크스페이스 OWNER·ADMIN) */
     canManage: hasTeamPermission(team?.team, 'CREATE_GROUP_ROOM'),
     goTeam,
     openRoom,
     backToList,
     deleteCategory,
     dialogs: {
-      /** 새 1:1 채팅 → 열린 방으로 */
       direct: useDialog<undefined, ChatRoom>(openRoom),
-      /** 새 채널 (data = 미리 고를 카테고리) → 만든 방으로 */
       channel: useDialog<number | null, ChatRoom>(openRoom),
-      /** 카테고리 만들기·이름 바꾸기 (data = 고칠 카테고리) */
       category: useDialog<ChatCategory | null>(),
-      /** 메시지 검색 → 고른 메시지가 있는 방으로 가서 그 메시지로 */
-      // 스레드 답글이면 그 스레드를 열고, 아니면 채널에서 그 메시지로
       search: useDialog<undefined, ChatMessage>((m) =>
         navigate(`${ROUTES.chat(activeTeamId, m.roomId)}?${m.threadRootId ? `thread=${m.threadRootId}` : `msg=${m.id}`}`),
       ),

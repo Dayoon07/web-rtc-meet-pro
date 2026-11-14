@@ -47,7 +47,6 @@ export function MarketingFooter() {
             <Link to={ROUTES.terms} className="hover:text-gray-900 dark:hover:text-white">
               {t('legal.terms')}
             </Link>
-            {/* 개인정보처리방침은 다른 링크보다 눈에 띄게 (개인정보보호위원회 작성지침) */}
             <Link to={ROUTES.privacy} className="font-bold text-gray-900 hover:underline dark:text-white">
               {t('legal.privacy')}
             </Link>
@@ -55,7 +54,6 @@ export function MarketingFooter() {
               {t('legal.licenses')}
             </Link>
           </nav>
-          {/* 사업자 정보 (전자상거래법 제10조) */}
           <p className="leading-relaxed">
             {t('legal.company.name')} {COMPANY.name} · {t('legal.company.ceo')} {COMPANY.ceo} · {t('legal.company.bizNo')} {COMPANY.bizNo} ·{' '}
             {t('legal.company.mailOrderNo')} {COMPANY.mailOrderNo}

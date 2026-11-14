@@ -6,8 +6,7 @@ import { errorMessage } from '@/shared/api'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 import type { Dialog } from '@/shared/lib/use-dialog'
 
-/** 팀 삭제는 되돌릴 수 없어서 팀 이름을 그대로 입력해야 지울 수 있다 */
-export function DeleteTeamModal({ team, dialog }: { team: TeamSummary; /** done() = 지웠음 */ dialog: Dialog }) {
+export function DeleteTeamModal({ team, dialog }: { team: TeamSummary; dialog: Dialog }) {
   const { open, close: onClose } = dialog
   const { t } = useTranslation()
   const [typed, setTyped] = useState('')

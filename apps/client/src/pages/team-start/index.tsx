@@ -8,7 +8,6 @@ import { ROUTES } from '@/shared/config/routes'
 import { useFormat } from '@/shared/lib/format'
 import { Card, FullPageSpinner } from '@/shared/ui'
 
-/** 받은 초대 (수락하면 그 팀으로 들어가고, 따로 팀을 만들지 않아도 된다) */
 function PendingInvitations() {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -41,10 +40,6 @@ function PendingInvitations() {
   )
 }
 
-/**
- * 처음 시작 화면: 팀이 하나도 없으면 여기로 온다 (회사 하나 = 팀 하나, 그 안에 채팅방은 몇 개든).
- * 받은 초대를 수락하거나, 내 팀을 만든다. 팀이 생기면 채팅으로
- */
 export function TeamStartPage() {
   const { t } = useTranslation()
   const { data: teams } = useTeamsQuery()

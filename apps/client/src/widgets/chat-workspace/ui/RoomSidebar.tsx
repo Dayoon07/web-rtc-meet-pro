@@ -8,7 +8,6 @@ import { RoomRow } from './RoomRow'
 
 const sectionIcon = 'rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200'
 
-/** 묶음 접기 상태 (이 화면에서만 기억) */
 type Collapse = { isCollapsed: (key: string) => boolean; toggle: (key: string) => void }
 
 function useCollapse(): Collapse {
@@ -25,7 +24,6 @@ function useCollapse(): Collapse {
   }
 }
 
-/** 묶음 제목 옆 버튼: 채널 더하기 · (카테고리면) 이름 바꾸기 · 지우기 — 워크스페이스 OWNER·ADMIN */
 function SectionActions({ section }: { section: RoomSectionData }) {
   const { t } = useTranslation()
   const ws = useWorkspace()
@@ -50,7 +48,6 @@ function SectionActions({ section }: { section: RoomSectionData }) {
   )
 }
 
-/** 묶음 하나: 제목(누르면 접기) + 방 목록 */
 function RoomSection({ section, collapse }: { section: RoomSectionData; collapse: Collapse }) {
   const collapsed = collapse.isCollapsed(section.key)
   const unread = section.rooms.reduce((n, r) => n + r.unreadCount, 0)
@@ -83,10 +80,6 @@ function RoomSection({ section, collapse }: { section: RoomSectionData; collapse
   )
 }
 
-/**
- * 워크스페이스 사이드바 (디스코드처럼): 카테고리(부서) → 채널, 카테고리 없는 채널, 1:1 대화.
- * 카테고리·채널은 워크스페이스 OWNER·ADMIN 이 만들고 고친다.
- */
 export function RoomSidebar() {
   const { t } = useTranslation()
   const ws = useWorkspace()

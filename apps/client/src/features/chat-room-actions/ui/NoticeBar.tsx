@@ -8,11 +8,6 @@ import { LinkifiedText } from '@/shared/ui'
 import { readHidden, saveHidden } from '../lib/notice-hidden'
 import { barIcon } from '../lib/styles'
 
-/**
- * 방 위쪽에 고정된 공지. 한 줄로 보이고 누르면 펼친다.
- * 숨기면 이 브라우저에서만 숨기고, 새 공지가 올라오면 다시 보인다.
- * onEdit 이 없으면 고치기 버튼을 안 보인다 (공지를 올릴 수 없는 사람)
- */
 export function NoticeBar({ room, onEdit }: { room: ChatRoom; onEdit?: () => void }) {
   const { t } = useTranslation()
   const fmt = useFormat()

@@ -5,16 +5,11 @@ import { type CaptionLine, type CaptionState, type Meeting, meetingApi, type Mee
 import { realtime, toastError } from '@/shared/api'
 import { speechLang } from '@/shared/lib/speech'
 
-/** 화면에 남겨 둘 자막 줄 수와 시간 */
 const MAX_LINES = 3
 const SHOW_MS = 9_000
 
 export type ShownCaption = { id: number; speaker: string; text: string; translated: boolean; pending: boolean; at: number }
 
-/**
- * 실시간 자막·번역 (Business): 켜고 끄기, 내 자막 언어 알리기, 들어오는 자막을 내 언어로 보여 주기.
- * 받아쓰기는 회의실이 한 번만 돌리고, 자막이 켜져 있으면 문장마다 send 를 부른다.
- */
 export function useLiveCaptions(meeting: Meeting | null | undefined) {
   const { t, i18n } = useTranslation()
   const meetingId = meeting?.id
@@ -31,7 +26,6 @@ export function useLiveCaptions(meeting: Meeting | null | undefined) {
     meetingApi.captionsState(meetingId).then(setState, () => setState(null))
   }, [meetingId])
 
-  // 자막이 켜져 있으면 내 언어를 알려서 번역 대상에 넣는다 (언어를 바꿔도)
   useEffect(() => {
     if (meetingId && on) void meetingApi.watchCaptions(meetingId, myLang).catch(() => undefined)
   }, [meetingId, on, myLang])
@@ -53,7 +47,6 @@ export function useLiveCaptions(meeting: Meeting | null | undefined) {
     [meetingId, t, myLang],
   )
 
-  // 오래된 줄은 사라지게
   useEffect(() => {
     if (!lines.length) return
     const timer = setTimeout(() => setLines((prev) => prev.filter((l) => Date.now() - l.at < SHOW_MS)), 1_000)
@@ -67,7 +60,6 @@ export function useLiveCaptions(meeting: Meeting | null | undefined) {
         const r = await meetingApi.sendCaptionLine(meetingId, text, speechLang(i18n.language))
         if (!r.on) setState((s) => (s ? { ...s, on: false } : s))
       } catch {
-        // 한 문장을 놓쳐도 회의는 계속
       }
     })
   }
@@ -93,7 +85,6 @@ export function useLiveCaptions(meeting: Meeting | null | undefined) {
   return { on, busy, toggle, send, lines, available: !!state?.available }
 }
 
-/** 같은 id 면 바꿔 끼우고(번역 도착), 아니면 뒤에 붙인다. 내 언어 번역이 있으면 번역, 없으면 원문 */
 function show(prev: ShownCaption[], ev: CaptionLine, myLang: string): ShownCaption[] {
   const translation = ev.lang === myLang ? undefined : ev.translations[myLang]
   const line: ShownCaption = {
@@ -101,7 +92,6 @@ function show(prev: ShownCaption[], ev: CaptionLine, myLang: string): ShownCapti
     speaker: ev.speaker,
     text: translation ?? ev.text,
     translated: !!translation,
-    // 다른 언어인데 아직 번역 전이면 흐리게
     pending: ev.pending && ev.lang !== myLang,
     at: Date.now(),
   }

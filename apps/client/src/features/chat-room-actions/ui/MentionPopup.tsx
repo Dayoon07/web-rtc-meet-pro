@@ -4,7 +4,6 @@ import { cn } from '@/shared/lib/cn'
 import { Avatar } from '@/shared/ui'
 import type { MentionOption, MentionPicker } from '../model/use-mention-picker'
 
-/** "@" 를 치면 입력창 위에 뜨는 방 사람 목록. 누르거나 Enter·Tab 으로 고른다 */
 export function MentionPopup({ picker, onPick }: { picker: MentionPicker; onPick: (option: MentionOption) => void }) {
   const { t } = useTranslation()
   if (!picker.open) return null

@@ -10,12 +10,6 @@ import { EmojiPickerModal } from './EmojiPickerModal'
 import { MentionPopup } from './MentionPopup'
 import { PendingFile } from './PendingFile'
 
-/**
- * 메시지 입력창. Enter 보내기, Shift+Enter 줄바꿈, 한글 조합 중 Enter 무시.
- * 파일은 클립 버튼 · 붙여넣기(스크린샷) · 끌어다 놓기로 첨부하고, 함께 쓴 글과 한 메시지로 보낸다.
- * "@" 를 치면 방 사람 목록(멘션), 메시지의 답장 버튼을 누르면 입력칸 위에 "○○님에게 답장".
- * target: 방 본문 또는 스레드(threadRootId), tools: 입력칸 아래 버튼 줄에 더 붙일 버튼 (예: 공지)
- */
 export function MessageComposer({ target, tools }: { target: ComposerTarget; tools?: ReactNode }) {
   const { t } = useTranslation()
   const c = useMessageComposer(target)
@@ -95,7 +89,6 @@ export function MessageComposer({ target, tools }: { target: ComposerTarget; too
           {!c.sending && <SendHorizonal className="size-4.5" />}
         </Button>
       </div>
-      {/* 기능 버튼 줄: 첨부 · 이모지 · (방에 따라) 공지 */}
       <div className="flex items-center gap-0.5 border-t border-gray-100 px-0.5 pt-1.5 dark:border-gray-800">
         <button type="button" disabled={c.sending} onClick={() => c.picker.current?.click()} aria-label={t('chat.attach')} title={attachTitle} className={toolClass}>
           <Paperclip className="size-4" />

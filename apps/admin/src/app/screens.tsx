@@ -8,11 +8,6 @@ import { ErrorLogsPage } from '@/pages/error-logs/ErrorLogsPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { PendingSignupsPage } from '@/pages/signups/PendingSignupsPage'
 
-/**
- * 관리자 사이트 화면 목록. 화면을 새로 만들면 여기에 한 줄만 추가한다 → 주소(라우터)와 왼쪽 메뉴가 같이 생긴다.
- *   menu 가 없으면 메뉴에는 안 보이는 화면 (상세 화면 등)
- *   activeFor: 이 주소들로 시작하면 메뉴를 선택된 것으로 보여 준다 (상세 화면에서도 메뉴가 켜져 있게)
- */
 export type Screen = {
   path: string
   element: ReactNode
@@ -29,7 +24,6 @@ export const SCREENS: Screen[] = [
   { path: '/data/:table', element: <TableDataPage /> },
 ]
 
-/** 메뉴를 묶음(section) 순서대로 */
 export const MENU_SECTIONS = SCREENS.filter((s) => s.menu).reduce<{ title: string; items: Screen[] }[]>((acc, s) => {
   const section = acc.find((x) => x.title === s.menu!.section)
   if (section) section.items.push(s)

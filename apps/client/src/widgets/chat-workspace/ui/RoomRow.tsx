@@ -10,7 +10,6 @@ import { Avatar } from '@/shared/ui'
 import { useWorkspace } from '../model/context'
 import { useTypingUsers } from '../model/typing-store'
 
-/** 1:1 방은 상대방 사진, 채널은 # 아이콘 */
 export function RoomAvatar({ room }: { room: ChatRoom }) {
   const { data: me } = useMeQuery()
   const statusOf = usePresence(room.teamId)
@@ -30,10 +29,8 @@ export function RoomAvatar({ room }: { room: ChatRoom }) {
   )
 }
 
-/** 채널 음성방에 들어와 있는 사람 (디스코드처럼 채널 아래에) */
 function VoicePresence({ room }: { room: ChatRoom }) {
   const { t } = useTranslation()
-  // 내가 이 채널 음성에 들어가 있으면 지금 말하는 사람에게 초록 테두리
   const voice = useVoice()
   const participants = room.voice?.participants ?? []
   if (!participants.length) return null
@@ -51,7 +48,6 @@ function VoicePresence({ room }: { room: ChatRoom }) {
   )
 }
 
-/** 방 목록 한 줄: 이름·마지막 메시지·시간·안 읽은 개수, 누르면 그 방으로 */
 export function RoomRow({ room }: { room: ChatRoom }) {
   const { t } = useTranslation()
   const fmt = useFormat()

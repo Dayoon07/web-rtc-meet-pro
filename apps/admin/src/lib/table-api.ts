@@ -1,6 +1,5 @@
 import { downloadFile, http } from './api'
 
-/** 서버 AdminTableService 와 같은 모양 */
 export type ColumnKind = 'TEXT' | 'LONG_TEXT' | 'NUMBER' | 'DATETIME' | 'YN' | 'ENUM' | 'BINARY'
 
 export type ColumnRef = { table: string; column: string }
@@ -14,7 +13,6 @@ export type TableColumn = {
   nullable: boolean
   primaryKey: boolean
   editable: boolean
-  /** 비밀값: 값 대신 true(있음)/false(없음) */
   secret: boolean
   options: string[]
   references: ColumnRef | null
@@ -41,7 +39,6 @@ export type Row = Record<string, string | number | boolean | null>
 
 export type RowPage = { rows: Row[]; total: number; page: number; size: number }
 
-/** 목록 조건 = 주소의 ?q=&sort=&desc=&page=&size=&deleted=&filter=col:value&contains=col:value (그대로 공유·새로고침 가능) */
 export type RowQuery = {
   q?: string
   sort?: string
@@ -49,9 +46,7 @@ export type RowQuery = {
   page?: number
   size?: number
   deleted?: 'active' | 'deleted'
-  /** 컬럼 = 값 (같음, 값이 비면 NULL) */
   filters?: [string, string][]
-  /** 컬럼에 값이 들어 있음 (포함) */
   contains?: [string, string][]
 }
 
@@ -90,7 +85,6 @@ export const tableKeys = {
   row: (t: string, id: string) => ['admin', 'tables', t, 'row', id] as const,
 }
 
-/** 서버가 주는 "2026-11-07T10:00:00+09:00" → <input type="datetime-local"> 값 (이 브라우저 시간 기준) */
 export function toLocalInput(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -99,7 +93,6 @@ export function toLocalInput(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-/** datetime-local 값 + 이 브라우저의 시간대 오프셋 (서버가 서버 시간으로 바꿔 저장한다) */
 export function fromLocalInput(value: string): string {
   if (!value) return ''
   const withSeconds = value.length === 16 ? `${value}:00` : value

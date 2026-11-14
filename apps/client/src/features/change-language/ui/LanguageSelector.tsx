@@ -4,7 +4,6 @@ import { currentLanguage, LANGUAGES } from '@/shared/i18n'
 import { cn } from '@/shared/lib/cn'
 import { NATIVE_NAMES } from '../lib/change-language'
 
-/** 설정 화면용: 4개 언어 버튼 */
 export function LanguageSelector() {
   const { i18n } = useTranslation()
   const current = currentLanguage()

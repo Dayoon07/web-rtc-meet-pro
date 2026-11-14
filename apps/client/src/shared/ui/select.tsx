@@ -27,7 +27,6 @@ const textOf = (node: ReactNode): string => {
   return ''
 }
 
-/** <option> 자식(배열·Fragment·optgroup 안도)을 선택지 목록으로 */
 function collect(children: ReactNode, out: Option[] = []): Option[] {
   Children.forEach(children, (child) => {
     if (!isValidElement(child)) return
@@ -44,20 +43,13 @@ function collect(children: ReactNode, out: Option[] = []): Option[] {
 type Props = SelectHTMLAttributes<HTMLSelectElement> & {
   invalid?: boolean
   compact?: boolean
-  /** 버튼 모양 (field.tsx 의 입력칸 클래스) */
   controlClass: string
 }
 
-/**
- * 브라우저 기본 드롭다운 대신 화면 테마에 맞춘 선택 상자.
- * 쓰는 쪽은 <select> 와 똑같이: value · onChange(e.target.value) · <option> 자식.
- * 목록은 body 에 띄워서 모달·스크롤 영역에 잘리지 않는다. 키보드: ↑↓ Home End Enter Esc, 글자 입력으로 찾기
- */
 export function CustomSelect({ className, controlClass, invalid, compact, children, value, onChange, disabled, id, name, ...rest }: Props) {
   const all = collect(children)
   const current = String(value ?? '')
   const selected = all.find((o) => o.value === current)
-  // "선택하세요" 같은 비활성 빈 값은 버튼에만 보이고 목록에는 넣지 않는다
   const options = all.filter((o) => !(o.disabled && o.value === ''))
 
   const [open, setOpen] = useState(false)
@@ -134,7 +126,6 @@ export function CustomSelect({ className, controlClass, invalid, compact, childr
     const key = e.key
     if (key === 'Tab') return setOpen(false)
     if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && key !== ' ') {
-      // 글자를 치면 그 글자로 시작하는 선택지로
       const now = Date.now()
       typed.current = { text: (now - typed.current.at < 700 ? typed.current.text : '') + key.toLowerCase(), at: now }
       const hit = options.findIndex((o) => !o.disabled && o.text.toLowerCase().startsWith(typed.current.text))
@@ -152,7 +143,7 @@ export function CustomSelect({ className, controlClass, invalid, compact, childr
     }
     if (key === 'Escape') {
       e.preventDefault()
-      e.stopPropagation() // 모달 안에서도 목록만 닫히게
+      e.stopPropagation()
       setOpen(false)
     } else if (key === 'ArrowDown' || key === 'ArrowUp') {
       e.preventDefault()

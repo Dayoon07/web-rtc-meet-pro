@@ -8,10 +8,6 @@ import { cn } from '@/shared/lib/cn'
 import { useFormat } from '@/shared/lib/format'
 import { Badge, Button, Card } from '@/shared/ui'
 
-/**
- * 워크스페이스 요금제 화면의 "멤버 한도 초과" 칸.
- * 소유자가 안내(1명당 월 요금, 결제일의 멤버 수 기준, 결제 3일 전 안내)를 읽고 동의해야 켜진다 (동의 시각은 서버에 남는다).
- */
 export function OverageCard({ teamId }: { teamId: number }) {
   const { t } = useTranslation()
   const fmt = useFormat()

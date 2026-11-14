@@ -36,7 +36,6 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** 에러 1건: 원인 분류 설명, 요청 정보, 메시지, 스택, 해결 표시 */
 export function ErrorLogDetailPage() {
   const { code = '' } = useParams()
   const queryClient = useQueryClient()
@@ -46,7 +45,6 @@ export function ErrorLogDetailPage() {
   const resolve = useMutation({
     mutationFn: () => adminApi.resolve(code),
     onSuccess: (updated) => {
-      // 해결 응답에는 스택이 없으니 이미 받은 스택은 그대로 둔다
       queryClient.setQueryData<ErrorLog>(key, (old) => ({ ...updated, stackTrace: old?.stackTrace ?? null }))
       void queryClient.invalidateQueries({ queryKey: ['admin', 'error-logs'] })
       toast.success('해결 표시했어요')

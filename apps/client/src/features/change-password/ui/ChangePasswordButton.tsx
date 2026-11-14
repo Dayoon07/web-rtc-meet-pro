@@ -7,10 +7,6 @@ import { type Me, userApi, userKeys } from '@/entities/user'
 import { errorMessage } from '@/shared/api'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 
-/**
- * 설정 > 로그인 방법의 "비밀번호 바꾸기"(구글 전용 계정은 "비밀번호 만들기").
- * 바꾸면 다른 기기는 로그아웃되고, 이 기기는 서버가 준 새 토큰으로 계속 로그인 상태다.
- */
 export function ChangePasswordButton({ me }: { me: Me }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -38,7 +34,6 @@ export function ChangePasswordButton({ me }: { me: Me }) {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (form.next.length < 8) return setError(t('auth.validation.passwordLength'))
-    // 가입 화면과 같은 규칙 (영문·숫자 함께)
     if (!/[A-Za-z]/.test(form.next) || !/\d/.test(form.next)) return setError(t('auth.validation.passwordMix'))
     if (form.next !== form.confirm) return setError(t('auth.validation.passwordMismatch'))
     setError(null)

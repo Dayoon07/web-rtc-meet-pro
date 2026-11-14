@@ -3,7 +3,6 @@ import { type FormEvent, useState } from 'react'
 import type { TableColumn } from '@/lib/table-api'
 import { Button, cx, inputClass } from '@/ui'
 
-/** contains = 포함 (대소문자 무시, 숫자·날짜도 글자로), equals = 같음, empty = 비어 있음(NULL) */
 export type ColumnMatch = 'contains' | 'equals' | 'empty'
 
 const MATCHES: [ColumnMatch, string][] = [
@@ -12,21 +11,14 @@ const MATCHES: [ColumnMatch, string][] = [
   ['empty', '비어 있음'],
 ]
 
-/** 컬럼 이름 옆 설명 (주석이 있으면 주석) */
 const columnLabel = (c: TableColumn) => (c.comment ? `${c.name} — ${c.comment}` : c.name)
 
-/**
- * 특정 컬럼에서 값 찾기: 컬럼 고르기 · 찾는 방식 · 값 → 조회. 조건은 주소에 쌓여서 여러 개를 함께 걸 수 있다.
- * onSearch(컬럼, 방식, 값)
- */
 export function ColumnSearch({ columns, onSearch }: { columns: TableColumn[]; onSearch: (column: string, match: ColumnMatch, value: string) => void }) {
-  // 비밀값·파일 컬럼은 못 찾는다
   const searchable = columns.filter((c) => !c.secret && c.kind !== 'BINARY')
   const [column, setColumn] = useState(searchable[0]?.name ?? '')
   const [match, setMatch] = useState<ColumnMatch>('contains')
   const [value, setValue] = useState('')
   const col = searchable.find((c) => c.name === column)
-  // 긴 글은 "같음" 으로는 못 찾는다 (서버도 막는다)
   const matches = MATCHES.filter(([m]) => !(m === 'equals' && col?.kind === 'LONG_TEXT'))
   const pickOption = match === 'equals' && !!col?.options.length
 

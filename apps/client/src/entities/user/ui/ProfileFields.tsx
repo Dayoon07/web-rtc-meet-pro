@@ -13,7 +13,6 @@ type Props = {
   disabled?: boolean
 }
 
-/** 회원가입 2단계 / 구글 가입 온보딩 / 프로필 설정에서 함께 쓰는 개인정보 입력 */
 export function ProfileFields({ value, onChange, errors = {}, disabled }: Props) {
   const { t, i18n } = useTranslation()
   const fmt = useFormat()
@@ -21,7 +20,6 @@ export function ProfileFields({ value, onChange, errors = {}, disabled }: Props)
   const set = <K extends keyof ProfileDraft>(key: K, v: ProfileDraft[K]) => onChange({ ...value, [key]: v })
   const country = findCountry(value.countryCode)
 
-  // 국가명은 현재 언어로, 가나다/ABC 순 (선택한 국가는 맨 위)
   const countries = useMemo(
     () =>
       COUNTRIES.map((c) => ({ ...c, name: fmt.region(c.code) })).sort((a, b) =>

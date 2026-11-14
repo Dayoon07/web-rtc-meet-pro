@@ -10,7 +10,6 @@ import { ROUTES } from '@/shared/config/routes'
 import { DeleteTeamModal } from './DeleteTeamModal'
 import { useDialog } from '@/shared/lib/use-dialog'
 
-/** 팀 상세 머리의 버튼: 삭제 권한(OWNER)이 있으면 "팀 삭제", 아니면 "팀 나가기" */
 export function TeamExitButton({ team }: { team: TeamSummary }) {
   const { t } = useTranslation()
   const navigate = useNavigate()

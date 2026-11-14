@@ -14,10 +14,6 @@ const wasDismissed = () => {
   }
 }
 
-/**
- * 채팅 화면 위 "크롬 알림 켜기" 안내. 아직 브라우저에 알림을 허용할지 묻지 않았을 때만 보인다.
- * 켜면 이 브라우저를 푸시 구독까지 한다 (탭을 닫아도 알림). 닫으면 다시 보이지 않는다 (설정 화면에서 켤 수 있음)
- */
 export function PushPromptBanner() {
   const { t } = useTranslation()
   const push = usePushToggle()
@@ -30,7 +26,6 @@ export function PushPromptBanner() {
     try {
       localStorage.setItem(DISMISSED_KEY, '1')
     } catch {
-      // 이번 화면에서만 숨긴다
     }
   }
 

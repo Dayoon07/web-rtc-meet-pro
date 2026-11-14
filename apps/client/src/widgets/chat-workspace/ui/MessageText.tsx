@@ -7,10 +7,6 @@ import { useRoom } from '../model/context'
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/**
- * 메시지 글: "@닉네임"·"@모두" 는 강조(나를 부르면 노랗게), 주소는 파란 링크.
- * 강조할 이름은 메시지에 기록된 멘션(mentions·mentionAll)만 쓴다 (그냥 @ 를 쓴 글은 강조하지 않음)
- */
 export function MessageText({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const { room, myId } = useRoom()

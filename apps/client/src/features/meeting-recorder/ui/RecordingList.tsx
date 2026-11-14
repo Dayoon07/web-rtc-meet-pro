@@ -8,7 +8,6 @@ import { useFormat } from '@/shared/lib/format'
 import { Badge, Button, Card } from '@/shared/ui'
 import { duration, mb } from '../lib/meeting-recorder'
 
-/** 회의 상세의 "녹화" 칸: 재생(누르면 펼쳐짐)·내려받기·지우기. 녹화가 없으면 아무것도 안 그린다 */
 export function RecordingList({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -17,7 +16,6 @@ export function RecordingList({ meeting }: { meeting: Meeting }) {
   const { data: recordings = [] } = useQuery({
     queryKey: meetingKeys.recordings(meeting.id),
     queryFn: () => meetingApi.recordings(meeting.id),
-    // 녹화 중이면 끝날 때까지 가끔 다시 확인
     refetchInterval: (q) => ((q.state.data ?? []).some((r) => r.status === 'RECORDING') ? 15_000 : false),
   })
   const remove = useMutation({

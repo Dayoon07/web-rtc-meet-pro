@@ -8,7 +8,6 @@ import { Spinner } from './spinner'
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_BYTES = 5 * 1024 * 1024
 
-/** 아바타 + 카메라 버튼. 파일 형식·크기는 여기서 먼저 거르고, 서버가 한 번 더 검증한다 */
 export function AvatarPicker({
   src,
   name,

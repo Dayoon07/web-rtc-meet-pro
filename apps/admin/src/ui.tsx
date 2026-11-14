@@ -1,7 +1,6 @@
 import { LoaderCircle } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-/** 클래스 이어 붙이기 (겹치는 색은 variant 로만 바꾼다) */
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ')
 
 export function Spinner({ className = 'size-5' }: { className?: string }) {
@@ -62,7 +61,6 @@ export function Card({ className, children }: { className?: string; children: Re
   )
 }
 
-/** 서비스 웹 로고와 같은 모양 + "관리자" 표시. compact 면 좁은 화면에서 이름을 숨긴다 (헤더용) */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex shrink-0 items-center gap-2.5">

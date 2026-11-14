@@ -11,7 +11,6 @@ export function TeamsPage() {
   const { t } = useTranslation()
   const { data: teams, isPending } = useTeamsQuery()
   const [creating, setCreating] = useState(false)
-  // 팀은 한 사람당 하나: 이미 만든 팀이 있으면 만들기 버튼을 숨긴다
   const ownsTeam = teams?.some((tm) => tm.myRole === 'OWNER') ?? false
 
   return (

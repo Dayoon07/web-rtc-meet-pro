@@ -7,7 +7,6 @@ export type LegalSection = {
   table?: { head: string[]; rows: string[][] }
 }
 
-/** 약관·처리방침 문서. 한국어가 기준 (다른 언어로 볼 때 안내) */
 export function LegalDoc({ titleKey, sections }: { titleKey: 'legal.privacy' | 'legal.terms'; sections: LegalSection[] }) {
   const { t, i18n } = useTranslation()
   return (

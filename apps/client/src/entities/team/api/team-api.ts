@@ -33,25 +33,18 @@ export const teamApi = {
   teamInvitations: (teamId: number) => request<Invitation[]>(API.teams.invitations(teamId)),
   cancelInvitation: (teamId: number, invitationId: number) => request<void>(API.teams.invitation(teamId, invitationId), { method: 'DELETE' }),
   myInvitations: () => request<Invitation[]>(API.invitations.mine),
-  /** 팀원 역할 바꾸기 (ADMIN 지정·해제). MANAGE_ROLES 권한(팀 OWNER)만 */
   changeRole: (teamId: number, userId: number, role: Exclude<TeamRole, 'OWNER'>) =>
     request<TeamMember>(API.teams.memberRole(teamId, userId), { method: 'PATCH', json: { role } satisfies ChangeRoleRequest }),
-  /** 팀 나가기 (OWNER 는 못 나간다. 팀을 삭제해야 한다) */
   leave: (teamId: number) => request<void>(API.teams.leave(teamId), { method: 'POST' }),
-  /** 팀원 내보내기. REMOVE_MEMBER 권한 */
   removeMember: (teamId: number, userId: number) => request<void>(API.teams.member(teamId, userId), { method: 'DELETE' }),
-  /** 팀 삭제. DELETE_TEAM 권한(OWNER)만 */
   remove: (teamId: number) => request<void>(API.teams.item(teamId), { method: 'DELETE' }),
   accept: (id: number) => request<TeamSummary>(API.invitations.accept(id), { method: 'POST' }),
   decline: (id: number) => request<void>(API.invitations.decline(id), { method: 'POST' }),
-  /** 초대 링크 (INVITE_MEMBER 권한: 팀 소유자·관리자) */
   inviteLinks: (teamId: number) => request<InviteLink[]>(API.teams.inviteLinks(teamId)),
   createInviteLink: (teamId: number, password?: string) =>
     request<InviteLink>(API.teams.inviteLinks(teamId), { method: 'POST', json: { password } satisfies InviteLinkPasswordRequest }),
   deleteInviteLink: (teamId: number, linkId: number) => request<void>(API.teams.inviteLink(teamId, linkId), { method: 'DELETE' }),
-  /** 링크를 연 사람: 어떤 팀인지 · 비밀번호가 필요한지 */
   inviteLinkPreview: (token: string) => request<InviteLinkPreview>(API.inviteLinks.item(token)),
-  /** 링크로 팀에 들어가기 */
   joinByInviteLink: (token: string, password?: string) =>
     request<InviteLinkJoined>(API.inviteLinks.join(token), { method: 'POST', json: { password } satisfies InviteLinkPasswordRequest }),
 }
@@ -62,6 +55,5 @@ export const useTeamInvitationsQuery = (id: number, enabled: boolean) =>
   useQuery({ queryKey: teamKeys.invitations(id), queryFn: () => teamApi.teamInvitations(id), enabled })
 export const useMyInvitationsQuery = () => useQuery({ queryKey: teamKeys.myInvitations, queryFn: teamApi.myInvitations })
 export const useInviteLinksQuery = (teamId: number) => useQuery({ queryKey: teamKeys.inviteLinks(teamId), queryFn: () => teamApi.inviteLinks(teamId) })
-/** 지운 링크는 404 → 다시 시도하지 않는다 */
 export const useInviteLinkPreviewQuery = (token: string) =>
   useQuery({ queryKey: teamKeys.inviteLinkPreview(token), queryFn: () => teamApi.inviteLinkPreview(token), enabled: !!token, retry: false })

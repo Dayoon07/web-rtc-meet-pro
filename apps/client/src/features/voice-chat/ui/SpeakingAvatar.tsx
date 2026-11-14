@@ -2,7 +2,6 @@ import { MicOff } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Avatar } from '@/shared/ui'
 
-/** person = 이름 · 사진 · 지금 말하는 중 · 마이크 끔 */
 export function SpeakingAvatar({ person }: { person: { name: string; src: string | null; speaking: boolean; muted: boolean } }) {
   const { name, src, speaking, muted } = person
   return (

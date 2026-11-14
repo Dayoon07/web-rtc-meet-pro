@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useResolvedTheme, useThemeStore } from '@/shared/lib/theme'
 import { IconButton } from '@/shared/ui'
 
-/** 헤더용: 해/달 아이콘 한 번 클릭으로 라이트 ↔ 다크 */
 export function ThemeToggle() {
   const { t } = useTranslation()
   const resolved = useResolvedTheme()

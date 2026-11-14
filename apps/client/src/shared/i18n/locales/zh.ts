@@ -1,6 +1,5 @@
 import type { Messages } from './ko'
 
-/** 简体中文 */
 const zh: Messages = {
   common: {
     loading: '加载中…',

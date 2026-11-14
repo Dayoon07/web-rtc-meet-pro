@@ -11,8 +11,6 @@ import { ROUTES } from '@/shared/config/routes'
 import { cardLabel, isUserCancel, openCardRegistration } from '../lib/purchase-plan'
 import { useInvalidateBilling } from '../model/use-invalidate-billing'
 
-/** 결제 창: 월/연 선택, 자동결제 체크, 등록한 카드로 결제 (카드가 없으면 카드 등록부터) */
-/** 결제 창 (열 때만 그린다). order = 고른 플랜 · 처음 고른 월/연 · 워크스페이스 요금제 */
 export function PurchasePlanModal({ order, onClose }: { order: PlanOrder & { subscription: Subscription }; onClose: () => void }) {
   const { plan, cycle: initialCycle, subscription } = order
   const open = true
@@ -20,7 +18,6 @@ export function PurchasePlanModal({ order, onClose }: { order: PlanOrder & { sub
   const invalidate = useInvalidateBilling()
   const [cycle, setCycle] = useState<BillingCycle>(initialCycle)
   const [autoRenew, setAutoRenew] = useState(true)
-  // 결제 전 확인·동의 (전자상거래법 제8조)
   const [agree, setAgree] = useState(false)
   const [opening, setOpening] = useState(false)
   const amount = planPrice(plan, cycle)

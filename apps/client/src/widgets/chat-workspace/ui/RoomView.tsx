@@ -21,7 +21,6 @@ import { MessageList } from './MessageList'
 import { RoomAvatar } from './RoomRow'
 import { ThreadPanel } from './ThreadPanel'
 
-/** 방 머리: 뒤로(좁은 화면) · 이름 · (채널) 음성 참여 · 설정 · 초대 · 나가기 */
 function RoomHeader() {
   const { t } = useTranslation()
   const ws = useWorkspace()
@@ -71,7 +70,6 @@ function RoomHeader() {
   )
 }
 
-/** 입력창 위 "○○님이 입력 중..." (점 세 개가 움직인다) */
 function TypingIndicator() {
   const { t } = useTranslation()
   const { room } = useRoom()
@@ -92,7 +90,6 @@ function TypingIndicator() {
   )
 }
 
-/** 입력칸 아래 "공지" 버튼 (공지를 올릴 수 있는 사람만) */
 function NoticeTool() {
   const { t } = useTranslation()
   const { canNotice, dialogs } = useRoom()
@@ -105,7 +102,6 @@ function NoticeTool() {
   )
 }
 
-/** 주소에 ?msg=메시지 가 있으면 (검색 결과에서 왔을 때) 메시지를 다 불러온 뒤 그 메시지로 간다 */
 function useJumpFromAddress(view: RoomViewModel) {
   const [params, setParams] = useSearchParams()
   const target = Number(params.get('msg')) || null
@@ -117,12 +113,10 @@ function useJumpFromAddress(view: RoomViewModel) {
       params.delete('msg')
       setParams(params, { replace: true })
     })
-    // 주소의 msg 가 바뀔 때만 (jumpTo 는 렌더마다 새로 만들어진다)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, ready])
 }
 
-/** 열린 방 하나: 머리 · 공지 · 메시지 · 입력창 + 창들, 오른쪽에 스레드 창 */
 export function RoomView({ room }: { room: ChatRoom }) {
   const view = useRoomView(room)
   useJumpFromAddress(view)

@@ -6,7 +6,6 @@ import { cn } from '@/shared/lib/cn'
 import { Badge } from '@/shared/ui'
 import type { BillingCycle, Plan } from '../model/types'
 
-/** DB 의 플랜 이름(한국어) 대신 코드로 번역. 새 플랜 코드면 DB 값 그대로 */
 export const planName = (plan: Pick<Plan, 'code' | 'name'>) => translateDynamic(`plan.names.${plan.code}`, undefined, plan.name)
 const planDescription = (plan: Plan) => translateDynamic(`plan.descriptions.${plan.code}`, undefined, plan.description ?? '')
 
@@ -14,10 +13,8 @@ export const formatPrice = (won: number) => new Intl.NumberFormat(intlLocale(), 
 
 export const planPrice = (plan: Plan, cycle: BillingCycle) => (cycle === 'YEARLY' ? plan.yearlyPrice : plan.monthlyPrice)
 
-/** 카드에 그릴 플랜. current = 지금 쓰는 플랜, highlighted = "가장 인기" 강조 */
 export type PlanCardData = { plan: Plan; cycle?: BillingCycle; current?: boolean; highlighted?: boolean }
 
-/** action: features/purchase-plan 의 버튼 등을 슬롯으로 받는다 (entities 는 features 를 import 하지 않음) */
 export function PlanCard({ card, action }: { card: PlanCardData; action?: ReactNode }) {
   const { plan, cycle = 'MONTHLY', current, highlighted } = card
   const { t } = useTranslation()
@@ -44,7 +41,6 @@ export function PlanCard({ card, action }: { card: PlanCardData; action?: ReactN
       on: true,
       text: t('plan.features.overage', { price: formatPrice(plan.overagePricePerMember) }),
     },
-    // 실시간 자막: 서버가 꺼 두면(app.ai.live-captions) 모든 플랜이 0 분으로 와서 줄이 빠진다
     ...(plan.liveCaptionMinutes > 0 ? [{ on: true, text: t('plan.features.captionsDetail', { minutes: plan.liveCaptionMinutes }) }] : []),
   ]
 

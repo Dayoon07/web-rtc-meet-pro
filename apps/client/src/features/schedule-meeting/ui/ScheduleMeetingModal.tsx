@@ -14,12 +14,7 @@ import { DURATIONS, nextSlot, slotOf } from '../lib/schedule-meeting'
 import type { Dialog } from '@/shared/lib/use-dialog'
 import type { ScheduleTarget } from '../model/types'
 
-/**
- * mode=now: 지금 회의 시작 → 만들고 바로 회의실로
- * mode=schedule: 날짜·시간·참석자 지정 → 시작 10분 전 알림
- * mode=edit: 예약 회의 고치기 (meeting 필수, 팀은 바꿀 수 없다)
- */
-export function ScheduleMeetingModal({ dialog }: { /** data = 지금 시작 / 예약 / 고치기 (+ 워크스페이스, 고칠 회의) */ dialog: Dialog<ScheduleTarget> }) {
+export function ScheduleMeetingModal({ dialog }: { dialog: Dialog<ScheduleTarget> }) {
   const { open, close: onClose } = dialog
   const { mode, teamId: defaultTeamId, meeting } = dialog.data ?? { mode: 'schedule' as const }
   const editing = mode === 'edit' ? meeting : undefined
@@ -44,7 +39,6 @@ export function ScheduleMeetingModal({ dialog }: { /** data = 지금 시작 / �
     if (open && !editing) setSlot(nextSlot())
   }, [open, editing])
 
-  // 고치기: 열 때마다 지금 회의 값으로 채운다
   useEffect(() => {
     if (!open || !editing) return
     setTeamId(editing.teamId)
@@ -54,7 +48,6 @@ export function ScheduleMeetingModal({ dialog }: { /** data = 지금 시작 / �
     setSlot(slotOf(editing.scheduledAt))
     setInvitees(new Set(editing.invitees.map((u) => u.id)))
   }, [open, editing])
-  // 팀원 전체가 초대돼 있으면 "팀원 전체" 로 보여 준다
   useEffect(() => {
     if (!open || !editing || !team) return
     const ids = new Set(editing.invitees.map((u) => u.id))
@@ -69,7 +62,6 @@ export function ScheduleMeetingModal({ dialog }: { /** data = 지금 시작 / �
         durationMinutes: duration,
         inviteeIds: everyone ? [] : [...invitees],
       }
-      // 사용자 시간대 → 오프셋 포함 ISO (서버가 자기 시간대로 변환)
       const at = new Date(`${slot.date}T${slot.time}:00`).toISOString()
       if (editing) return meetingApi.update(editing.id, { ...body, scheduledAt: at })
       return meetingApi.schedule(teamId, { ...body, scheduledAt: mode === 'schedule' ? at : undefined })

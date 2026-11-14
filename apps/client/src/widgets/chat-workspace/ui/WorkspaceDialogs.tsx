@@ -2,7 +2,6 @@ import { CategoryModal, CreateGroupRoomModal, StartDirectChatModal } from '@/fea
 import { MessageSearchModal } from '@/features/search-messages'
 import { useWorkspace } from '../model/context'
 
-/** 새 1:1 채팅 · 새 채널 · 카테고리 · 메시지 검색 창 (창은 화면 맨 위에 뜬다) */
 export function WorkspaceDialogs() {
   const ws = useWorkspace()
   if (!ws.team || !ws.me) return null

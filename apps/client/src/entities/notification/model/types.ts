@@ -1,5 +1,3 @@
-// 알림 자료 모양 (서버는 type + params 만 보내고, 문장은 화면이 사용자 언어로 만든다)
-
 export type NotificationType =
   | 'TEAM_INVITATION'
   | 'TEAM_INVITATION_ACCEPTED'

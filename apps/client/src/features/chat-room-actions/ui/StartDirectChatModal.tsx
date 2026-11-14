@@ -8,8 +8,7 @@ import type { Dialog } from '@/shared/lib/use-dialog'
 import { Modal } from '@/shared/ui'
 import { MemberPicker } from './MemberList'
 
-/** 새 1:1 채팅: 팀원을 고르면 바로 방이 열린다 (이미 있으면 그 방) */
-export function StartDirectChatModal({ teamId, dialog }: { teamId: number; /** done(방) = 열린 방으로 가기 */ dialog: Dialog<undefined, ChatRoom> }) {
+export function StartDirectChatModal({ teamId, dialog }: { teamId: number; dialog: Dialog<undefined, ChatRoom> }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: team } = useTeamQuery(teamId)

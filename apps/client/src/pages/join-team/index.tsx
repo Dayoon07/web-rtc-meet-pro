@@ -9,10 +9,6 @@ import { errorMessage } from '@/shared/api'
 import { ROUTES } from '@/shared/config/routes'
 import { Button, Card, EmptyState, Field, FieldError, Input, LinkButton, Spinner } from '@/shared/ui'
 
-/**
- * 팀 초대 링크로 들어온 화면 (/join/:token). 로그인 안 했으면 로그인 뒤 다시 여기로 온다.
- * 어떤 팀인지 보여 주고, 비밀번호를 걸어 둔 링크면 비밀번호를 받는다. "팀 초대 수락" → 그 팀 채팅으로
- */
 export function JoinTeamPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()

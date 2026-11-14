@@ -52,9 +52,7 @@ export function TeamDetailPage() {
   if (isError || !detail) return <EmptyState icon={<Video />} title={t('teams.notFound')} />
 
   const { team, members } = detail
-  // 역할 바꾸기는 MANAGE_ROLES 권한(팀 OWNER)만. OWNER 와 나 자신은 바꿀 수 없다
   const canManageRoles = hasTeamPermission(team, 'MANAGE_ROLES')
-  // 멤버 초대(이메일·초대 링크)는 팀 소유자·관리자만
   const canInvite = hasTeamPermission(team, 'INVITE_MEMBER')
   const meetings = upcoming.filter((m) => m.teamId === teamId)
 
@@ -64,7 +62,6 @@ export function TeamDetailPage() {
         <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 text-2xl font-bold text-white">
           {team.name.slice(0, 1).toUpperCase()}
         </span>
-        {/* 이름 칸이 좁아지면(14rem 미만) 버튼 줄이 아래로 내려간다 */}
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{team.name}</h2>
@@ -87,7 +84,6 @@ export function TeamDetailPage() {
       </div>
 
       <div role="tablist" className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
-        {/* 멤버 초대 탭은 초대할 수 있는 사람(팀 소유자·관리자)에게만 */}
         {(canInvite ? (['members', 'invite', 'meetings'] as const) : (['members', 'meetings'] as const)).map((key) => (
           <button
             key={key}

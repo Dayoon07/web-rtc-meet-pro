@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/cn'
 import type { ShownCaption } from '../model/use-live-captions'
 
-/** 영상 아래쪽에 겹쳐 보이는 자막 (최근 몇 줄). interim = 내가 말하는 중인 문장 */
-/** captions = 보여 줄 줄들 · 내가 지금 말하는 중인 문장 · 내 이름 */
 export function CaptionOverlay({ captions }: { captions: { lines: ShownCaption[]; interim?: string; selfName: string } }) {
   const { lines, interim, selfName } = captions
   const { t } = useTranslation()

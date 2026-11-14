@@ -12,8 +12,6 @@ const ITEMS = [
 export const emptyAgreements = (): Agreements => ({ termsAgreed: false, privacyAgreed: false, marketingAgreed: false })
 export const requiredAgreed = (a: Agreements) => a.termsAgreed && a.privacyAgreed
 
-/** 국내 서비스에서 익숙한 "전체 동의 + 필수/선택" 약관 체크 */
-/** field = 지금 동의 값 · 바꿀 때 · 오류 문장 */
 export function TermsAgreement({ field }: { field: { value: Agreements; onChange: (v: Agreements) => void; error?: string | null } }) {
   const { value, onChange, error } = field
   const { t } = useTranslation()

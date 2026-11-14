@@ -12,11 +12,9 @@ import { RowPanel } from './RowPanel'
 const number = new Intl.NumberFormat('ko-KR')
 const SIZES = [25, 50, 100, 200]
 
-/** "컬럼:값" 목록 */
 const pairs = (values: string[]) =>
   values.filter((f) => f.includes(':')).map((f) => [f.slice(0, f.indexOf(':')), f.slice(f.indexOf(':') + 1)] as [string, string])
 
-/** 주소(?q=&sort=&desc=&page=&size=&deleted=&filter=col:value&contains=col:value&row=)에서 조건을 읽는다 → 링크로 공유하고 새로고침해도 그대로 */
 function readQuery(params: URLSearchParams): RowQuery {
   const deleted = params.get('deleted')
   return {
@@ -31,7 +29,6 @@ function readQuery(params: URLSearchParams): RowQuery {
   }
 }
 
-/** 한 테이블의 행 목록: 검색·정렬·필터·페이지, 행을 누르면 오른쪽 창에서 보고 고친다 */
 export function TableDataPage() {
   const { table = '' } = useParams()
   const [params, setParams] = useSearchParams()
@@ -49,7 +46,6 @@ export function TableDataPage() {
   })
   const historyTable = tables.data?.find((t) => t.name.endsWith('admin_data_changes'))?.name ?? null
 
-  /** 조건을 바꾸면 첫 페이지로 (페이지 이동만 예외) */
   const update = (change: (p: URLSearchParams) => void, keepPage = false) => {
     const next = new URLSearchParams(params)
     change(next)
@@ -70,14 +66,12 @@ export function TableDataPage() {
     e.preventDefault()
     update((p) => (search.trim() ? p.set('q', search.trim()) : p.delete('q')))
   }
-  /** 조건 하나 빼기 (key = filter | contains) */
   const removeCondition = (key: 'filter' | 'contains', index: number) =>
     update((p) => {
       const rest = p.getAll(key).filter((_, i) => i !== index)
       p.delete(key)
       rest.forEach((f) => p.append(key, f))
     })
-  /** 컬럼 검색: 포함 → contains, 같음·비어 있음 → filter (같은 컬럼의 같은 조건은 바꿔 끼운다) */
   const searchColumn = (column: string, match: ColumnMatch, value: string) =>
     update((p) => {
       const key = match === 'contains' ? 'contains' : 'filter'

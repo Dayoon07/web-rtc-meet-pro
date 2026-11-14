@@ -7,10 +7,8 @@ import { useFormat } from '@/shared/lib/format'
 import { Avatar } from '@/shared/ui'
 import { useRoom } from '../model/context'
 
-/** 자주 쓰는 반응 (빠르게 고르기) */
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
-/** 답장한 원래 메시지: 보낸 사람 · 한 줄 미리보기. 누르면 그 메시지로 간다 */
 export function ReplyQuote({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const { myId, messages } = useRoom()
@@ -39,7 +37,6 @@ export function ReplyQuote({ message }: { message: ChatMessage }) {
   )
 }
 
-/** 메시지 아래 반응: 👍 3 처럼 이모지·개수. 내가 단 것은 진하게, 누르면 달기·떼기 */
 export function ReactionBar({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const { myId, room, messages } = useRoom()
@@ -74,7 +71,6 @@ export function ReactionBar({ message }: { message: ChatMessage }) {
   )
 }
 
-/** 반응 버튼: 누르면 자주 쓰는 이모지 6개 + "다른 이모지" */
 export function QuickReactions({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const { messages, dialogs } = useRoom()
@@ -126,10 +122,8 @@ export function QuickReactions({ message }: { message: ChatMessage }) {
   )
 }
 
-/** 이 메시지를 아직 안 읽은 방 사람 수 (카카오톡처럼 시간 옆 숫자). 0 이면 안 그린다 */
 export function UnreadCount({ message }: { message: ChatMessage }) {
   const { room } = useRoom()
-  // 스레드 답글은 읽음 위치를 따지지 않는다 (채널 본문만 읽음 처리)
   if (message.threadRootId) return null
   if (message.type === 'SYSTEM' || message.deleted) return null
   const reads = room.reads ?? []
@@ -138,7 +132,6 @@ export function UnreadCount({ message }: { message: ChatMessage }) {
   return <span className="mr-1 font-semibold text-brand-600 dark:text-brand-300">{count}</span>
 }
 
-/** 시작 글 아래 "답글 N개 · 마지막 답글" (답글 단 사람 얼굴 몇 개). 누르면 스레드 창 */
 export function ThreadSummary({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const fmt = useFormat()

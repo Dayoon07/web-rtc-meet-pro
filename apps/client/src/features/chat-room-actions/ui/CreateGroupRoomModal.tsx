@@ -11,13 +11,11 @@ import { useMemberSelection } from '../model/use-member-selection'
 import { CategorySelect } from './CategorySelect'
 import { MemberChecklist } from './MemberList'
 
-/** 채널(그룹 채팅방) 만들기 — 워크스페이스 OWNER·ADMIN. 카테고리(부서)를 고르면 그 안에 */
 export function CreateGroupRoomModal({
   teamId,
   dialog,
 }: {
   teamId: number
-  /** data = 미리 고를 카테고리 (카테고리 옆 + 로 열면), done(방) = 만든 방으로 가기 */
   dialog: Dialog<number | null, ChatRoom>
 }) {
   const { t } = useTranslation()

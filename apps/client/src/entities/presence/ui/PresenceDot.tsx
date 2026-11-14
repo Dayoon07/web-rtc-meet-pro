@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/cn'
 import type { PresenceStatus } from '../model/types'
 
-/** 프로필 사진 오른쪽 아래의 점: 초록 = 접속 중, 노랑 = 자리 비움, 회색 = 접속 안 함 (부모에 relative 가 있어야 한다) */
 export function PresenceDot({ status }: { status: PresenceStatus }) {
   const { t } = useTranslation()
   return (

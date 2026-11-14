@@ -8,7 +8,6 @@ import { cn } from '@/shared/lib/cn'
 import { Button, IconButton, Menu, MenuItem } from '@/shared/ui'
 import { useWorkspace } from '../model/context'
 
-/** 팀 첫 글자 네모 */
 function TeamMark({ name }: { name: string }) {
   return (
     <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
@@ -17,7 +16,6 @@ function TeamMark({ name }: { name: string }) {
   )
 }
 
-/** 지금 팀 이름 (+ 초대받은 팀이면 "초대받음") */
 function TeamLabel({ team }: { team?: TeamSummary }) {
   const { t } = useTranslation()
   const name = team?.name ?? ''
@@ -32,7 +30,6 @@ function TeamLabel({ team }: { team?: TeamSummary }) {
   )
 }
 
-/** 팀이 둘 이상일 때 (예전에 만든 팀·초대받은 팀): 눌러서 바꾼다. "내 팀" 과 "초대받은 팀" 을 나눠 보여 준다 */
 function TeamPicker({ current }: { current?: TeamSummary }) {
   const { t } = useTranslation()
   const ws = useWorkspace()
@@ -92,10 +89,6 @@ function TeamPicker({ current }: { current?: TeamSummary }) {
   )
 }
 
-/**
- * 방 목록 위: 지금 팀 (팀이 둘 이상이면 눌러서 바꾸기) · 팀 정보 + 새 1:1 채팅 · 새 채널 · 새 카테고리 · 메시지 검색.
- * 앱 사이드바와 휴대폰 채팅 화면의 방 목록이 같이 쓴다
- */
 export function SidebarToolbar() {
   const { t } = useTranslation()
   const ws = useWorkspace()

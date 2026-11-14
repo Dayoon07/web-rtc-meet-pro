@@ -10,10 +10,6 @@ import { errorMessage } from '@/shared/api'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 
-/**
- * 회원 탈퇴. 비밀번호가 있는 계정은 비밀번호로, 구글로만 가입한 계정은 확인 문구로 한 번 더 확인한다.
- * 내가 만든 팀이 있으면 서버가 막는다 (OWNED_TEAMS_EXIST → 안내 문구).
- */
 export function WithdrawAccount({ me }: { me: Me }) {
   const { t } = useTranslation()
   const navigate = useNavigate()

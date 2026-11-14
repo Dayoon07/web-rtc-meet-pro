@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/cn'
 
-/** 가운데 다이얼로그. 바깥 클릭 / Esc 로 닫힘 */
 export function Modal({
   open,
   onClose,

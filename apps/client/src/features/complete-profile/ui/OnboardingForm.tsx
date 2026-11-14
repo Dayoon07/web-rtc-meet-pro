@@ -8,7 +8,6 @@ import { errorMessage } from '@/shared/api'
 import { Button, FieldError } from '@/shared/ui'
 import { returnToPath } from '@/shared/lib/return-to'
 
-/** 구글로 처음 가입한 사용자: 실명·전화번호·국가·출생년도 + 약관 동의를 받는다 */
 export function OnboardingForm({ me }: { me: Me }) {
   const { t } = useTranslation()
   const navigate = useNavigate()

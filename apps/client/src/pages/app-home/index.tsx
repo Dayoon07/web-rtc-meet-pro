@@ -15,8 +15,6 @@ import { Card, EmptyState } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
 
-/** Zoom 홈 화면처럼 큰 아이콘 타일로 주요 동작을 바로 보이게 */
-/** tile = 아이콘 · 이름 · 설명 · 색 */
 function ActionTile({ tile, onClick }: { tile: { icon: ReactNode; label: string; hint: string; tone: 'brand' | 'blue' | 'gray' }; onClick: () => void }) {
   const { icon, label, hint, tone } = tile
   return (
@@ -84,7 +82,6 @@ export function AppHomePage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {/* 채팅 중심: 채팅 → 워크스페이스 → 회의 */}
           <ActionTile tile={{ icon: <MessageSquare />, label: t('dashboard.actions.chat'), hint: t('dashboard.actions.chatHint'), tone: 'brand' }} onClick={() => navigate(ROUTES.chat())} />
           <ActionTile tile={{ icon: <Users />, label: t('dashboard.actions.createTeam'), hint: t('dashboard.actions.createTeamHint', { count: teams?.length ?? 0 }), tone: 'blue' }} onClick={() => setCreatingTeam(true)} />
           <ActionTile tile={{ icon: <Video />, label: t('dashboard.actions.newMeeting'), hint: t('dashboard.actions.newMeetingHint'), tone: 'gray' }} onClick={() => scheduling.show({ mode: 'now' })} />

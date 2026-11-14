@@ -1,9 +1,3 @@
-/**
- * 배경·얼굴 스티커 목록. 이미지는 public/effects 에 있다.
- * 좌표는 MediaPipe Face Landmarker 의 478개 점 번호 기준
- * (https://storage.googleapis.com/mediapipe-assets/documentation/mediapipe_face_landmark_fullsize.png)
- */
-
 export type BackgroundId = 'none' | 'blur' | 'blur-strong' | 'violet' | 'sunset' | 'night' | 'christmas' | 'custom'
 
 export type BackgroundPreset =
@@ -22,7 +16,6 @@ export const BACKGROUNDS: BackgroundPreset[] = [
   { id: 'christmas', kind: 'image', src: '/effects/christmas_bg.png' },
 ]
 
-/** 랜드마크 번호 */
 export const LM = {
   noseTip: 1,
   foreheadTop: 10,
@@ -35,10 +28,6 @@ export const LM = {
   rightIris: 473,
 } as const
 
-/**
- * 스티커 한 조각: 얼굴의 anchor 점에 이미지의 (ax, ay) 지점을 맞추고,
- * 폭은 얼굴 폭(양 볼 사이) × width, 얼굴 기울기만큼 함께 돌린다.
- */
 export type StickerPart = { src: string; anchor: number; ax: number; ay: number; width: number }
 
 export type StickerId = 'cat' | 'dog' | 'bear' | 'sunglasses' | 'cowboy' | 'graduation' | 'heart-eyes'
@@ -69,7 +58,6 @@ export const STICKERS: { id: StickerId; thumb: string; parts: StickerPart[] }[] 
 
 export type EffectSettings = {
   background: BackgroundId
-  /** background 가 'custom' 일 때 쓰는 사용자 이미지 (data URL, 이 기기에만 저장) */
   customImage: string | null
   sticker: StickerId | null
 }

@@ -11,21 +11,14 @@ import { QuickReactions, ReactionBar, ReplyQuote, ThreadSummary, UnreadCount } f
 import { EditBubble, MessageFiles, NotesCard } from './MessageParts'
 import { MessageText } from './MessageText'
 
-/** 목록 안의 메시지 한 개와 그 앞 메시지와의 관계 */
 export type MessageListItem = {
   message: ChatMessage
-  /** 같은 사람이 5분 안에 이어서 보냄 → 이름·사진을 다시 안 그린다 */
   grouped: boolean
-  /** 스레드 창 안에 그림 (답장·공지·스레드 버튼과 "답글 N개"를 빼고) */
   inThread?: boolean
 }
 
 const actionClass = 'rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
 
-/**
- * 마우스를 올리면 나오는 버튼: 반응 · 스레드 · 답장 · 공지로 올리기 · 고치기 · 지우기 (스레드 창 안에서는 반응·고치기·지우기만).
- * 넓은 화면: 말풍선 위에 떠 있다가 마우스를 올리면 보인다 (자리를 차지하지 않음). 좁은 화면: 말풍선 아래에 늘 보인다
- */
 function MessageActions({ item }: { item: MessageListItem }) {
   const { t } = useTranslation()
   const { myId, canModerate, canNotice, makeNotice, messages, thread } = useRoom()
@@ -70,7 +63,6 @@ function MessageActions({ item }: { item: MessageListItem }) {
   )
 }
 
-/** 메시지 한 개: 고치는 중 / AI 회의록 카드 / 안내 문장 / 말풍선 */
 export function MessageItem({ item }: { item: MessageListItem }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -81,7 +73,6 @@ export function MessageItem({ item }: { item: MessageListItem }) {
   const gap = grouped ? 'mt-1' : 'mt-4'
 
   if (messages.editingId === m.id) {
-    // 고치는 중: 말풍선 대신 방 너비에 맞춘 입력칸 (좁은 화면에서도 잘리지 않게)
     return (
       <div className={cn('flex justify-end', gap)}>
         <EditBubble message={m} />

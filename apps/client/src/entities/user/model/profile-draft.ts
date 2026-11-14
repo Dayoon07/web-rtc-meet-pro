@@ -3,7 +3,6 @@ import { findCountry, guessCountry, splitPhone, toE164 } from '@/shared/config/c
 import { currentLanguage } from '@/shared/i18n'
 import type { Gender, Me, ProfileRequest } from './types'
 
-/** 폼 입력 상태 (문자열 위주) */
 export type ProfileDraft = {
   nickname: string
   realName: string

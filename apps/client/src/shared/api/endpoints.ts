@@ -1,9 +1,3 @@
-/**
- * 화면이 부르는 서버 주소를 한곳에 모은다. 주소가 바뀌면 이 파일만 고친다.
- * 값은 /api 뒤의 경로 (앞의 /api 는 request() 가 붙인다). 예외: 웹소켓·구글 로그인처럼 /api 밖의 주소는 맨 아래 SERVER_PATHS
- */
-
-/** 주소 한 칸에 넣을 값: '/' 같은 글자가 주소를 망가뜨리지 않게 */
 const part = (value: string | number) => encodeURIComponent(String(value))
 
 const AUTH = '/auth'
@@ -17,7 +11,6 @@ const SUBSCRIPTIONS = '/subscriptions'
 const BILLING = '/billing'
 
 export const API = {
-  // ---- 로그인·가입 ----
   auth: {
     login: `${AUTH}/login`,
     signup: `${AUTH}/signup`,
@@ -31,7 +24,6 @@ export const API = {
     oauthExchange: `${AUTH}/oauth/exchange`,
   },
 
-  // ---- 내 정보 ----
   me: {
     root: USERS_ME,
     profile: `${USERS_ME}/profile`,
@@ -42,7 +34,6 @@ export const API = {
     quietHours: `${USERS_ME}/quiet-hours`,
   },
 
-  // ---- 워크스페이스(팀) ----
   teams: {
     root: TEAMS,
     item: (teamId: number) => `${TEAMS}/${part(teamId)}`,
@@ -65,8 +56,6 @@ export const API = {
     chatSearch: (teamId: number, q: string) => `${TEAMS}/${part(teamId)}/chat/search?q=${part(q)}`,
   },
 
-  // ---- 받은 초대 ----
-  /** 팀 초대 링크로 들어온 사람: 팀 소개 · 들어가기 */
   inviteLinks: {
     item: (token: string) => `/invite-links/${part(token)}`,
     join: (token: string) => `/invite-links/${part(token)}/join`,
@@ -77,7 +66,6 @@ export const API = {
     decline: (id: number) => `${INVITATIONS}/${part(id)}/decline`,
   },
 
-  // ---- 채팅 ----
   chat: {
     unreadCount: `${CHAT}/unread-count`,
     room: (roomId: number) => `${CHAT}/rooms/${part(roomId)}`,
@@ -96,7 +84,6 @@ export const API = {
     category: (categoryId: number) => `${CHAT}/categories/${part(categoryId)}`,
   },
 
-  // ---- 회의 ----
   meetings: {
     list: (scope: 'upcoming' | 'past') => `${MEETINGS}?scope=${part(scope)}`,
     item: (id: number) => `${MEETINGS}/${part(id)}`,
@@ -121,7 +108,6 @@ export const API = {
     captionsLines: (id: number) => `${MEETINGS}/${part(id)}/captions/lines`,
   },
 
-  // ---- 알림 ----
   notifications: {
     list: NOTIFICATIONS,
     unreadCount: `${NOTIFICATIONS}/unread-count`,
@@ -129,7 +115,6 @@ export const API = {
     readAll: `${NOTIFICATIONS}/read-all`,
   },
 
-  // ---- 요금제·결제 ----
   plans: { list: '/plans' },
   subscriptions: {
     item: (subscriptionId: number) => `${SUBSCRIPTIONS}/${part(subscriptionId)}`,
@@ -140,28 +125,19 @@ export const API = {
     cardPrepare: `${BILLING}/card/prepare`,
     card: `${BILLING}/card`,
     payments: `${BILLING}/payments`,
-    /** 환불 미리 계산(GET) · 환불(POST) */
     refund: (orderId: string) => `${BILLING}/payments/${part(orderId)}/refund`,
   },
 
-  // ---- 브라우저 푸시 ----
   push: { config: '/push/config', subscriptions: '/push/subscriptions' },
 
-  /** 내 접속 상태 (자리 비움 / 돌아옴) */
   presence: '/presence',
 
-  // ---- 화면 오류 신고 ----
   clientErrors: '/client-errors',
 } as const
 
-/** /api 밖의 서버 주소 (브라우저가 직접 여는 주소) */
 export const SERVER_PATHS = {
-  /** STOMP 웹소켓 (채팅·알림 실시간) */
   websocket: '/ws',
-  /** mediasoup 사이드카 socket.io */
   mediaSocket: '/media/socket.io',
-  /** 구글 로그인 시작 (Spring Security oauth2Login) */
   googleLogin: '/oauth2/authorization/google',
-  /** 오픈소스 라이선스 목록 (scripts/oss-licenses.py 가 만든 정적 파일) */
   ossLicenses: '/oss-licenses.json',
 } as const

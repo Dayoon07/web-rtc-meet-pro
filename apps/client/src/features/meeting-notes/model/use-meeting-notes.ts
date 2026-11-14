@@ -5,10 +5,6 @@ import { type Meeting, meetingApi, type MeetingRoomEvent } from '@/entities/meet
 import { realtime, toastError } from '@/shared/api'
 import { speechLang } from '@/shared/lib/speech'
 
-/**
- * 회의실의 AI 회의록: 켜고 끄기, "AI 회의록 작성 중" 표시(서버 이벤트로 모두에게).
- * 받아쓰기는 회의실이 한 번만 돌리고(자막과 같이 씀), 문장이 끝날 때마다 send 를 부른다.
- */
 export function useMeetingNotes(meeting: Meeting | null | undefined) {
   const { t, i18n } = useTranslation()
   const meetingId = meeting?.id
@@ -31,7 +27,6 @@ export function useMeetingNotes(meeting: Meeting | null | undefined) {
     [meetingId, t],
   )
 
-  /** 받아쓴 한 문장 (순서대로 하나씩 보낸다) */
   const send = (text: string) => {
     if (!meetingId) return
     queue.current = queue.current.then(async () => {
@@ -39,7 +34,6 @@ export function useMeetingNotes(meeting: Meeting | null | undefined) {
         const r = await meetingApi.sendNotesLine(meetingId, text, speechLang(i18n.language))
         if (!r.on) setOverride(false)
       } catch {
-        // 한 문장을 놓쳐도 회의는 계속
       }
     })
   }

@@ -5,7 +5,6 @@ import { Button } from '@/shared/ui'
 import { useRoom } from '../model/context'
 import { MessageItem } from './MessageItem'
 
-/** 날짜가 바뀌는 곳의 가는 줄 ("오늘" / "11월 7일 토요일") */
 function DayDivider({ date }: { date: Date }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -18,7 +17,6 @@ function DayDivider({ date }: { date: Date }) {
   )
 }
 
-/** 방의 메시지 목록: 위로 "이전 메시지 더 보기", 날짜 줄, 같은 사람의 연속 메시지는 묶어서 */
 export function MessageList() {
   const { t } = useTranslation()
   const { messages: list } = useRoom()

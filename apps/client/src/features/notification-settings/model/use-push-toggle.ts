@@ -7,10 +7,6 @@ import { toastError } from '@/shared/api'
 
 export type PushState = 'unsupported' | 'unavailable' | 'blocked' | 'on' | 'off'
 
-/**
- * 이 브라우저의 푸시 알림 켜기·끄기.
- * state: unsupported(브라우저가 못 함) · unavailable(서버 키 없음) · blocked(브라우저에서 막음) · on · off
- */
 export function usePushToggle() {
   const { t } = useTranslation()
   const supported = pushSupported()

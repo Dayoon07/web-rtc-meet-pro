@@ -9,7 +9,6 @@ import zh from './locales/zh'
 export const LANGUAGES = ['ko', 'en', 'ja', 'zh'] as const
 export type Language = (typeof LANGUAGES)[number]
 
-/** Intl API 에 넘길 로케일 (중국어는 간체) */
 export const INTL_LOCALE: Record<Language, string> = { ko: 'ko-KR', en: 'en-US', ja: 'ja-JP', zh: 'zh-CN' }
 
 void i18n
@@ -23,12 +22,11 @@ void i18n
       zh: { translation: zh },
     },
     supportedLngs: [...LANGUAGES],
-    nonExplicitSupportedLngs: true, // zh-CN, en-US → zh, en
+    nonExplicitSupportedLngs: true,
     load: 'languageOnly',
     fallbackLng: 'en',
-    interpolation: { escapeValue: false }, // React 가 이미 이스케이프
+    interpolation: { escapeValue: false },
     detection: {
-      // 사용자가 고른 언어(localStorage) → 브라우저 언어 순
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'wrmp-lang',
       caches: ['localStorage'],
@@ -46,7 +44,6 @@ export const currentLanguage = (): Language =>
 
 export const intlLocale = () => INTL_LOCALE[currentLanguage()]
 
-/** 서버 코드처럼 런타임에 정해지는 키 (타입 검사 밖). 없으면 fallback */
 export function translateDynamic(key: string, params?: Record<string, unknown>, fallback?: string): string {
   return i18n.exists(key) ? String(i18n.t(key as never, params as never)) : (fallback ?? key)
 }

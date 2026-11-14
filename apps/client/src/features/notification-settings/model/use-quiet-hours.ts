@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { type Me, userApi, userKeys } from '@/entities/user'
 import { toastError } from '@/shared/api'
 
-/** 방해 금지 시간 고치기: 켜기 · 시작 · 끝 (시간대는 이 브라우저 시간대) */
 export function useQuietHours(me: Me) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()

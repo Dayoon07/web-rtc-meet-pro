@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { teamApi, teamKeys } from '@/entities/team'
 import { ROUTES } from '@/shared/config/routes'
 
-/** 팀 만들기 입력값과 보내기. 만들면 그 팀 채팅으로 간다 (onCreated: 창 닫기 등) */
 export function useCreateTeam(onCreated?: () => void) {
   const { t } = useTranslation()
   const navigate = useNavigate()

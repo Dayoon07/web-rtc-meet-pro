@@ -83,13 +83,11 @@ export function SignupForm() {
       queryClient.clear()
       setTokens(tokens)
       if (image) {
-        // 가입은 끝났으니 사진 업로드 실패는 안내만 하고 진행
         await userApi.uploadProfileImage(image).catch(() => toast.error(t('auth.signup.photoUploadFailed')))
       }
     },
     onSuccess: () => {
       toast.success(t('auth.signup.welcome'))
-      // 초대 링크로 왔으면 인증을 마친 뒤 그 링크로 (가는 길에 이메일 인증 화면을 거친다)
       navigate(returnToPath(), { replace: true })
     },
   })
@@ -104,7 +102,6 @@ export function SignupForm() {
     setAccountErrors(errors)
     if (Object.keys(errors).length) return
 
-    // 한 이메일 = 계정 하나: 이미 있으면 어떤 방법(이메일·구글)으로 로그인하면 되는지 알려 준다
     const { available, signInMethod } = await checkEmail.mutateAsync()
     if (!available) return setAccountErrors({ email: t(signInMethod === 'GOOGLE' ? 'auth.validation.emailTakenGoogle' : 'auth.validation.emailTaken') })
     setStep(1)

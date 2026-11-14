@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 
-/* 서비스 웹과 같은 보라 포인트 컬러. 다크 모드는 운영체제 설정을 따른다 */
 @theme {
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
@@ -31,7 +30,6 @@
     @apply bg-brand-200 text-brand-950 dark:bg-brand-800 dark:text-white;
   }
 
-  /* 스크롤바·기본 입력칸이 운영체제 테마를 따르게 + 얇은 스크롤바 */
   html {
     color-scheme: light dark;
     scrollbar-color: var(--color-gray-300) transparent;
@@ -45,7 +43,6 @@
     scrollbar-width: thin;
   }
 
-  /* 누를 수 있는 것은 손가락 모양 커서 (Tailwind v4 기본값은 화살표) */
   button:not(:disabled),
   [role='button'],
   [role='tab'],

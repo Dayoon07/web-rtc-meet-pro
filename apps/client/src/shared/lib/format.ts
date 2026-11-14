@@ -22,7 +22,6 @@ function createFormat(locale: string) {
     },
     list: (items: string[]) => new Intl.ListFormat(locale, { style: 'short', type: 'conjunction' }).format(items),
     region: (code: string) => new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code,
-    /** 파일 크기: 1.2 MB, 340 KB, 12 byte */
     bytes: (n: number) => {
       const [value, unit] = n >= 1024 * 1024 ? [n / 1024 / 1024, 'megabyte'] : n >= 1024 ? [n / 1024, 'kilobyte'] : [n, 'byte']
       return new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: value < 10 ? 1 : 0 }).format(value)
@@ -32,7 +31,6 @@ function createFormat(locale: string) {
 
 export type Format = ReturnType<typeof createFormat>
 
-/** 서버 시간(오프셋 포함 ISO)을 사용자 언어·시간대로 표시. 언어가 바뀔 때만 새로 만든다 */
 export function useFormat(): Format {
   const { i18n } = useTranslation()
   const locale = intlLocale()

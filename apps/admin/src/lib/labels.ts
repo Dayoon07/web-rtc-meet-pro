@@ -1,6 +1,5 @@
 import type { ErrorCategory, ErrorSource } from './api'
 
-/** 원인 분류: 이름, 무엇을 뜻하는지, 배지 색 */
 export const CATEGORY: Record<ErrorCategory, { label: string; hint: string; tone: string }> = {
   DB_SCHEMA: {
     label: 'DB 구조',

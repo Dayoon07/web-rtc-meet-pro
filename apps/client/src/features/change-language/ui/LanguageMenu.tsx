@@ -5,7 +5,6 @@ import { cn } from '@/shared/lib/cn'
 import { Menu, MenuItem } from '@/shared/ui'
 import { NATIVE_NAMES } from '../lib/change-language'
 
-/** 헤더용: 지구본 아이콘 → 언어 메뉴 */
 export function LanguageMenu({ align = 'end' }: { align?: 'start' | 'end' }) {
   const { t, i18n } = useTranslation()
   const current = currentLanguage()

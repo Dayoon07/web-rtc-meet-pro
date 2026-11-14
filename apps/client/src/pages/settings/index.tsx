@@ -10,7 +10,6 @@ import { WithdrawAccount } from '@/features/withdraw-account'
 import { Badge, Card, GoogleMark, Spinner } from '@/shared/ui'
 import { NotificationSettings } from '@/features/notification-settings'
 
-/** heading = 묶음 제목 · 설명 */
 function Section({ heading, children }: { heading: { title: string; description: string }; children: ReactNode }) {
   const { title, description } = heading
   return (
@@ -24,7 +23,6 @@ function Section({ heading, children }: { heading: { title: string; description:
   )
 }
 
-/** row = 아이콘 · 이름 · 값 */
 function Row({ row }: { row: { icon: ReactNode; label: string; value: ReactNode } }) {
   const { icon, label, value } = row
   return (

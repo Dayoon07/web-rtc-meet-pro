@@ -6,7 +6,6 @@ import { CATEGORY, formatDateTime } from '@/lib/labels'
 import { tableApi, tableKeys } from '@/lib/table-api'
 import { Badge, Card, Spinner } from '@/ui'
 
-/** 대시보드 위에 보여 줄 테이블 (행 수) */
 const HEADLINE = [
   { table: 'users', label: '회원' },
   { table: 'teams', label: '팀' },

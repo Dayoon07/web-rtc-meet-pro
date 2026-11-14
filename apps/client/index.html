@@ -11,7 +11,6 @@
     />
     <title>MQ</title>
     <script>
-      // 첫 페인트 전에 테마를 적용해 깜빡임 방지 (shared/lib/theme.ts 와 같은 키)
       try {
         var pref = JSON.parse(localStorage.getItem('wrmp-theme') || '{}').state?.preference || 'system'
         var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)

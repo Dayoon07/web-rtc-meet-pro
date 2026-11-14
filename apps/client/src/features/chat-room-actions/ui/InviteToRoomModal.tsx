@@ -8,7 +8,6 @@ import { Button, FieldError, Modal } from '@/shared/ui'
 import { useMemberSelection } from '../model/use-member-selection'
 import { MemberChecklist } from './MemberList'
 
-/** 그룹 방에 팀원 초대 (방 참여자 누구나) */
 export function InviteToRoomModal({ room, dialog }: { room: ChatRoom; dialog: Dialog }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()

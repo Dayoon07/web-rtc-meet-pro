@@ -8,7 +8,6 @@ import { useFormat } from '@/shared/lib/format'
 import { Avatar, Modal, Spinner } from '@/shared/ui'
 import { useMessageSearch } from '../model/use-message-search'
 
-/** 찾은 단어를 굵게 */
 function Highlight({ text, word }: { text: string; word: string }) {
   if (!word) return <>{text}</>
   const lower = text.toLowerCase()
@@ -40,10 +39,6 @@ function Highlight({ text, word }: { text: string; word: string }) {
   )
 }
 
-/**
- * 워크스페이스 메시지 검색: 내가 들어간 방들의 글·첨부파일 이름 (최신 50개).
- * 결과를 누르면 dialog.done(메시지) → 그 방의 그 메시지로 간다
- */
 export function MessageSearchModal({ teamId, dialog }: { teamId: number; dialog: Dialog<undefined, ChatMessage> }) {
   const { t } = useTranslation()
   const fmt = useFormat()

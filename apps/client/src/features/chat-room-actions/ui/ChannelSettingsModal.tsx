@@ -7,7 +7,6 @@ import type { Dialog } from '@/shared/lib/use-dialog'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 import { CategorySelect } from './CategorySelect'
 
-/** 채널 설정: 이름 바꾸기, 다른 카테고리로 옮기기 — 워크스페이스 OWNER·ADMIN */
 export function ChannelSettingsModal({ room, dialog }: { room: ChatRoom; dialog: Dialog }) {
   const { t } = useTranslation()
   const { open, close: onClose } = dialog

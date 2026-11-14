@@ -12,7 +12,6 @@ import { Avatar, Button, Card, EmptyState, Spinner } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 import { useDialog } from '@/shared/lib/use-dialog'
 
-/** head = 아이콘 · 이름, children = 내용 */
 function Row({ head, children }: { head: { icon: ReactNode; label: string }; children: ReactNode }) {
   const { icon, label } = head
   return (

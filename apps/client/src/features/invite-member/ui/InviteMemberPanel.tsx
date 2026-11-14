@@ -8,7 +8,6 @@ import { errorMessage, toastError } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Button, FieldError, Input, Progress } from '@/shared/ui'
 
-/** 이메일로 팀원 초대 + 대기 중인 초대 목록 */
 export function InviteMemberPanel({ detail }: { detail: TeamDetail }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -40,7 +39,6 @@ export function InviteMemberPanel({ detail }: { detail: TeamDetail }) {
     onError: (e) => toastError(e),
   })
 
-  // 인원 한도는 소유자의 모든 팀 합계 (여러 팀에 있는 사람은 한 명)
   const used = detail.limits.usedMembers + detail.limits.pendingInvitations
 
   if (!allowed) {

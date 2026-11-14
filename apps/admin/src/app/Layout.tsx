@@ -6,12 +6,6 @@ import { adminApi, ApiError, useSession } from '@/lib/api'
 import { Button, cx, FullPageSpinner, Logo } from '@/ui'
 import { isMenuActive, MENU_SECTIONS } from './screens'
 
-/**
- * 로그인 + 시스템 관리자 확인 후 화면. 관리자가 아니면(403) 로그아웃시키고 로그인 화면으로.
- * (서버가 /api/admin 아래를 매 요청 DB 에서 다시 확인하므로, 화면 확인은 안내용이다)
- *
- * 화면이 계속 늘어날 것이라 메뉴는 왼쪽 세로 메뉴(묶음별). 좁은 화면에서는 ☰ 버튼으로 연다.
- */
 export function AdminLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -25,7 +19,6 @@ export function AdminLayout() {
     if (!forbidden) return
     void adminApi.logout().then(() => navigate('/login', { replace: true, state: { notAdmin: true } }))
   }, [forbidden, navigate])
-  // 다른 화면으로 가면 모바일 메뉴를 닫는다
   useEffect(() => setMenuOpen(false), [pathname])
 
   if (!loggedIn) return <Navigate to="/login" replace />

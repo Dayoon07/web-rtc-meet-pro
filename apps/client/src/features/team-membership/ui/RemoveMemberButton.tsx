@@ -6,7 +6,6 @@ import { teamApi, teamKeys, type TeamMember } from '@/entities/team'
 import { toastError } from '@/shared/api'
 import { Button } from '@/shared/ui'
 
-/** 팀원 목록의 "내보내기" (서버가 알려 준 removable 일 때만 보인다) */
 export function RemoveMemberButton({ teamId, member }: { teamId: number; member: TeamMember }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()

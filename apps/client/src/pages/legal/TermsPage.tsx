@@ -1,10 +1,6 @@
 import { COMPANY } from '@/shared/config/company'
 import { LegalDoc, type LegalSection } from './LegalDoc'
 
-/**
- * 서비스 이용약관. 약관규제법(불공정 조항 금지), 전자상거래법(청약철회·정기결제 고지), 콘텐츠이용자보호지침을 따른다.
- * 요금·한도 숫자는 요금제 화면(plans 테이블)이 기준이고, 여기에는 규칙만 적는다.
- */
 const sections: LegalSection[] = [
   {
     title: '제1조 (목적)',

@@ -18,7 +18,6 @@ function MeetingRow({ meeting }: { meeting: Meeting }) {
   const start = new Date(meeting.scheduledAt)
   return (
     <li className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-nowrap dark:border-gray-800 dark:bg-gray-900">
-      {/* 달력 아이콘처럼 날짜 표시 */}
       <div className="flex w-16 shrink-0 flex-col items-center overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
         <span className="w-full bg-brand-600 py-0.5 text-center text-[10px] font-bold text-white uppercase">
           {start.toLocaleDateString(intlLocale(), { month: 'short' })}

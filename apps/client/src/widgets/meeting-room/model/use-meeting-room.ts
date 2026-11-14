@@ -39,14 +39,8 @@ export type RoomState =
 
 type Ack<T> = ({ ok: true } & T) | { ok: false; error: string }
 
-/**
- * mediasoup 사이드카에 접속해 내 마이크·카메라·화면을 보내고(produce) 다른 사람 것을 받는다(consume).
- * 1) Spring 에서 입장 토큰 발급 → 2) socket.io 로 사이드카 접속 → 3) Device 로드 → 4) 송수신 Transport
- */
-/** @param cameraOff 카메라를 끈 채로 시작 (채널 음성방) */
 export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = false) {
   const [state, setState] = useState<RoomState>({ phase: 'joining' })
-  /** 다시 시도할 때마다 1씩 올려서 참여 과정을 처음부터 다시 돈다 */
   const [attempt, setAttempt] = useState(0)
   const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [peers, setPeers] = useState<Record<string, RemotePeer>>({})
@@ -55,7 +49,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
     camera: boolean
     screen: boolean
     hand: boolean
-    /** 내 타일에 보여 줄 카메라 트랙. 효과를 켜면 효과가 들어간 트랙 */
     previewTrack: MediaStreamTrack | null
     screenStream: MediaStream | null
   }>({
@@ -70,7 +63,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
   const [deviceError, setDeviceError] = useState(false)
   const [effects, setEffects] = useState<EffectSettings>(loadEffectSettings)
   const [effectsStatus, setEffectsStatus] = useState<EffectsStatus>('idle')
-  /** 카메라 원본 트랙. 효과를 끄면 다시 이걸 보낸다 */
   const rawCamera = useRef<MediaStreamTrack | null>(null)
   const effectsProcessor = useRef<VideoEffectsProcessor | null>(null)
 
@@ -132,7 +124,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
     const producer = await send.produce({
       track,
       appData: { source },
-      // 카메라만 사이멀캐스트 (화질 3단계)
       ...(source === 'camera'
         ? {
             encodings: [
@@ -148,10 +139,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
     return producer
   }, [])
 
-  /**
-   * 배경·스티커 효과 적용. 카메라 producer 의 트랙만 바꿔 끼우므로(replaceTrack) 재협상 없이
-   * 상대방 화면에도 바로 반영된다. 설정은 이 브라우저에 저장돼 다음 회의에도 켜진다.
-   */
   const applyEffects = useCallback(async (next: EffectSettings) => {
     setEffects(next)
     saveEffectSettings(next)
@@ -182,7 +169,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
     await processor.update(next)
   }, [])
 
-  // ------------------------------------------------------------------ join
   useEffect(() => {
     let cancelled = false
     let localStream: MediaStream | null = null
@@ -202,7 +188,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
         socketRef.current = socket
         await new Promise<void>((resolve, reject) => {
           socket.once('connect', () => resolve())
-          // 화상회의 중계 서버(mediasoup 사이드카)가 꺼져 있거나 주소가 틀렸을 때. "알 수 없는 오류" 대신 원인을 알려 준다
           socket.once('connect_error', (e) => {
             console.warn('[meeting] 미디어 서버 연결 실패 (사이드카가 켜져 있는지 확인: npm run dev:media)', e)
             reject(new ApiError(0, 'MEDIA_UNAVAILABLE', e.message))
@@ -233,7 +218,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
         sendRef.current = await makeTransport('send')
         recvRef.current = await makeTransport('recv')
 
-        // 서버 이벤트
         socket.on('peer-joined', (p: PeerInfo) =>
           setPeers((all) => ({ ...all, [p.peerId]: { ...p, tracks: {}, paused: {} } })),
         )
@@ -259,11 +243,9 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
         socket.on('chat', (m: Omit<InMeetingChat, 'mine'>) => setChat((c) => [...c, { ...m, mine: m.peerId === selfPeerId.current }]))
         socket.on('disconnect', () => !cancelled && setState({ phase: 'left' }))
 
-        // 이미 있던 사람들
         setPeers(Object.fromEntries(joined.peers.map((p) => [p.peerId, { ...p, tracks: {}, paused: {} }])))
         for (const p of joined.peers) for (const pr of p.producers) await consume(p.peerId, pr).catch(console.warn)
 
-        // 내 마이크·카메라. 장치가 없으면 듣기 전용
         localStream = await navigator.mediaDevices
           .getUserMedia({ audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 } } })
           .catch(() => navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null))
@@ -274,7 +256,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
         if (audio) await produce(audio, 'mic')
         if (video) await produce(video, 'camera')
         rawCamera.current = video ?? null
-        // 음성방: 카메라는 보내 두되 멈춘 상태로 (버튼으로 바로 켤 수 있게)
         const camProducer = producers.current.camera
         if (cameraOff && camProducer) {
           camProducer.pause()
@@ -282,7 +263,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
         }
         setLocal((l) => ({ ...l, previewTrack: video ?? null, mic: !!audio, camera: !!video && !cameraOff }))
         setState({ phase: 'joined' })
-        // 지난번에 쓰던 효과가 있으면 다시 켠다 (모델은 그동안 원본 화면을 보낸다)
         const saved = loadEffectSettings()
         if (video && hasEffects(saved)) void applyEffects(saved).catch(console.warn)
       } catch (error) {
@@ -306,7 +286,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
     }
   }, [meetingId, request, consume, produce, applyEffects, attempt, cameraOff])
 
-  // ------------------------------------------------------------------ controls
   const toggle = async (source: 'mic' | 'camera') => {
     const producer = producers.current[source]
     if (!producer) return
@@ -332,7 +311,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
     const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }).catch(() => null)
     const track = stream?.getVideoTracks()[0]
     if (!track) return
-    // 브라우저의 "공유 중지" 버튼으로 끝낸 경우
     track.addEventListener('ended', () => void stopScreen())
     await produce(track, 'screen')
     setLocal((l) => ({ ...l, screen: true, screenStream: stream }))
@@ -359,7 +337,6 @@ export function useMeetingRoom(meetingId: number, selfName: string, cameraOff = 
   return {
     state,
     retry,
-    /** 녹화에 섞을 내 마이크 트랙 (마이크를 끄면 트랙도 꺼진다) */
     getMicTrack: () => producers.current.mic?.track ?? null,
     meeting,
     peers: Object.values(peers),

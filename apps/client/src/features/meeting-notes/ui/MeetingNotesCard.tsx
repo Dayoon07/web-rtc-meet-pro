@@ -7,7 +7,6 @@ import { ApiError, toastError } from '@/shared/api'
 import { useFormat } from '@/shared/lib/format'
 import { Badge, Button, Card, Spinner } from '@/shared/ui'
 
-/** 회의 상세의 "AI 회의록" 칸: 요약·결정 사항·할 일(담당자·기한)·받아쓴 내용. 켠 적이 없으면 아무것도 안 그린다 */
 export function MeetingNotesCard({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -18,7 +17,6 @@ export function MeetingNotesCard({ meeting }: { meeting: Meeting }) {
     queryFn: () => meetingApi.notes(meeting.id),
     enabled: !!meeting.notesStatus,
     retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 2,
-    // 받아쓰는 중·요약 중이면 끝날 때까지 가끔 다시 확인
     refetchInterval: (q) => (['RECORDING', 'PAUSED', 'PROCESSING'].includes(q.state.data?.status ?? '') ? 5_000 : false),
   })
   const { data: lines, isFetching: loadingLines } = useQuery({

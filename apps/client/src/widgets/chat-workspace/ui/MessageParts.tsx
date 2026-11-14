@@ -9,10 +9,6 @@ import { useFormat } from '@/shared/lib/format'
 import { Button } from '@/shared/ui'
 import { useRoom } from '../model/context'
 
-/**
- * 첨부파일: 이미지는 미리보기(누르면 새 탭에서 원본), 나머지는 이름·크기 + 내려받기.
- * 주소는 서버가 서명해 준 것이라 <img src> 로 바로 쓴다.
- */
 export function MessageFiles({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -38,7 +34,6 @@ export function MessageFiles({ message }: { message: ChatMessage }) {
                 alt={f.name}
                 loading="lazy"
                 onLoad={messages.followBottom}
-                // 한 장은 원래 비율 그대로 (말풍선 영역은 너비가 내용에 맞춰지므로 % 대신 화면 기준 최대 너비)
                 className={images.length === 1 ? 'block h-auto max-h-72 w-auto max-w-[min(24rem,60vw)] object-contain' : 'size-28 object-cover sm:size-32'}
               />
             </a>
@@ -67,7 +62,6 @@ export function MessageFiles({ message }: { message: ChatMessage }) {
   )
 }
 
-/** 내 글 메시지를 그 자리에서 고치는 칸 (Enter 저장, Shift+Enter 줄바꿈, Esc 취소) */
 export function EditBubble({ message }: { message: ChatMessage }) {
   const { t } = useTranslation()
   const { messages } = useRoom()
@@ -112,7 +106,6 @@ export function EditBubble({ message }: { message: ChatMessage }) {
   )
 }
 
-/** 채널에 올라온 AI 회의록: 요약 몇 줄 + 결정·할 일 개수, 누르면 회의 상세 */
 export function NotesCard({ card }: { card: MeetingNotesCard }) {
   const { t } = useTranslation()
   return (

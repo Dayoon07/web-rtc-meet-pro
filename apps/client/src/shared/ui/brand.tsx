@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import { cn } from '@/shared/lib/cn'
 import { ROUTES } from '@/shared/config/routes'
 
-/** MQ 마크: 겹친 말풍선 두 개 (서로 주고받는 대화). 기본은 브랜드 보라, mono 면 글자색(currentColor) */
 export function MqMark({ className, mono }: { className?: string; mono?: boolean }) {
   return (
     <svg viewBox="0 0 100 92" aria-hidden className={cn('size-8', mono ? 'text-current' : 'text-[#7C1FFF] dark:text-brand-400', className)}>
@@ -15,7 +14,6 @@ export function MqMark({ className, mono }: { className?: string; mono?: boolean
   )
 }
 
-/** 서비스 이름 (화면에 보이는 이름은 여기 한 곳) */
 export const BRAND_NAME = 'MQ'
 
 export function Logo({ to = ROUTES.home, className, compact }: { to?: string; className?: string; compact?: boolean }) {
@@ -28,7 +26,6 @@ export function Logo({ to = ROUTES.home, className, compact }: { to?: string; cl
   )
 }
 
-/** 구글 브랜드 가이드의 4색 G 로고 */
 export function GoogleMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" aria-hidden className={cn('size-5', className)}>

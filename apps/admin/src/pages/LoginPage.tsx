@@ -4,7 +4,6 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 import { adminApi, ApiError, useSession } from '@/lib/api'
 import { Button, Card, inputClass, Logo } from '@/ui'
 
-/** 서비스와 같은 계정(이메일·비밀번호)으로 로그인하고, 시스템 관리자인지 확인한다 */
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -29,7 +28,6 @@ export function LoginPage() {
       setPending(false)
       return
     }
-    // 로그인은 됐어도 시스템 관리자가 아니면 403 → 토큰을 버리고 안내
     try {
       await adminApi.me()
       navigate('/', { replace: true })

@@ -2,10 +2,8 @@ import { createContext, useContext } from 'react'
 import type { ChatWorkspaceModel } from './use-chat-workspace'
 import type { RoomViewModel } from './use-room-view'
 
-/** 채팅 화면 전체 상태 (useChatWorkspace). ChatWorkspace 가 넣어 준다 */
 export const WorkspaceContext = createContext<ChatWorkspaceModel | null>(null)
 
-/** 열린 방 상태 (useRoomView). RoomView 가 넣어 준다 */
 export const RoomContext = createContext<RoomViewModel | null>(null)
 
 export function useWorkspace(): ChatWorkspaceModel {

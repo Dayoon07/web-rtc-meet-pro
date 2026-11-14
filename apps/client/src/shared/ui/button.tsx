@@ -3,11 +3,6 @@ import { Link, type LinkProps } from 'react-router'
 import { cn } from '@/shared/lib/cn'
 import { Spinner } from './spinner'
 
-/**
- * inverse: 보라색 배경(배너 등) 위에 놓는 흰 버튼. 평소엔 흰 바탕 + 보라 글자, 마우스를 올리면 보라 바탕 + 흰 글자.
- * cn() 은 클래스를 이어 붙이기만 하므로 className 으로 색을 덮어쓰지 말고 variant 를 쓴다
- * (겹치는 색 클래스는 CSS 출력 순서에 따라 엉뚱한 쪽이 이긴다 — 흰 바탕에 흰 글자가 됐던 원인).
- */
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'inverse'
 type Size = 'sm' | 'md' | 'lg'
 

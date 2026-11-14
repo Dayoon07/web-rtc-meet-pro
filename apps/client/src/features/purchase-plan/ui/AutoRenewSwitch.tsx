@@ -6,7 +6,6 @@ import { toastError } from '@/shared/api'
 import { Checkbox } from '@/shared/ui'
 import { useInvalidateBilling } from '../model/use-invalidate-billing'
 
-/** 구독 하나의 자동결제 켜기·끄기 */
 export function AutoRenewSwitch({ item }: { item: SubscriptionItem }) {
   const { t } = useTranslation()
   const invalidate = useInvalidateBilling()

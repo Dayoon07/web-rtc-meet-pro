@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { type ThemePreference, useThemeStore } from '@/shared/lib/theme'
 import { Segmented } from '@/shared/ui'
 
-/** 설정 화면용: 라이트 / 다크 / 시스템 */
 export function ThemeSelector() {
   const { t } = useTranslation()
   const { preference, setPreference } = useThemeStore()

@@ -16,7 +16,6 @@ function StatusBadge({ resolved }: { resolved: boolean }) {
 
 const request = (log: ErrorLog) => [log.httpMethod, log.requestPath].filter(Boolean).join(' ') || '-'
 
-/** 에러 기록: 에러 코드로 찾기 + 최근 100건 (미해결만 / 전체) + 원인 분류별 개수 */
 export function ErrorLogsPage() {
   const navigate = useNavigate()
   const [unresolvedOnly, setUnresolvedOnly] = useState(true)
@@ -133,7 +132,6 @@ export function ErrorLogsPage() {
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          {/* 넓은 화면: 표 */}
           <table className="hidden w-full text-left text-sm md:table">
             <thead className="border-b border-gray-200 bg-gray-50 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-900/60 dark:text-gray-400">
               <tr>
@@ -170,7 +168,6 @@ export function ErrorLogsPage() {
               ))}
             </tbody>
           </table>
-          {/* 좁은 화면: 카드 목록 */}
           <ul className="divide-y divide-gray-100 md:hidden dark:divide-gray-800">
             {shown.map((l) => (
               <li key={l.errorCode}>

@@ -6,8 +6,7 @@ import { errorMessage } from '@/shared/api'
 import type { Dialog } from '@/shared/lib/use-dialog'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 
-/** 카테고리(부서) 만들기 / 이름 바꾸기 — 워크스페이스 OWNER·ADMIN */
-export function CategoryModal({ teamId, dialog }: { teamId: number; /** data = 이름을 바꿀 카테고리 (없으면 새로 만들기) */ dialog: Dialog<ChatCategory | null> }) {
+export function CategoryModal({ teamId, dialog }: { teamId: number; dialog: Dialog<ChatCategory | null> }) {
   const { t } = useTranslation()
   const { open, data: category, close: onClose } = dialog
   const queryClient = useQueryClient()

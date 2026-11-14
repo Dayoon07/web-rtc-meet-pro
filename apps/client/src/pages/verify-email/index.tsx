@@ -12,10 +12,6 @@ import { Button, FullPageSpinner, LinkButton, Spinner } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 import { returnToPath } from '@/shared/lib/return-to'
 
-/**
- * 이메일로 가입한 뒤 인증 전에 보이는 화면. 메일의 링크를 누르면(다른 기기여도) 인증되고,
- * 이 화면은 "인증했어요" 를 누르거나 창으로 돌아오면 다시 확인해서 앱으로 보낸다.
- */
 export function VerifyEmailPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -23,7 +19,6 @@ export function VerifyEmailPage() {
   const { data: me, refetch, isFetching } = useMeQuery()
   const [cooldown, setCooldown] = useState(0)
 
-  // 다른 탭(메일 링크)에서 인증하고 돌아오면 바로 반영
   useEffect(() => {
     const onFocus = () => void refetch()
     window.addEventListener('focus', onFocus)
@@ -85,7 +80,6 @@ export function VerifyEmailPage() {
   )
 }
 
-/** 메일의 링크(/verify-email/confirm?token=...). 로그인하지 않은 기기에서 열어도 인증된다 */
 export function ConfirmEmailPage() {
   const { t } = useTranslation()
   const [params] = useSearchParams()
@@ -96,7 +90,6 @@ export function ConfirmEmailPage() {
     mutationFn: () => authApi.confirmEmail(token),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: userKeys.me }),
   })
-  // 페이지에 들어오면 한 번만 확인한다 (StrictMode 의 두 번 실행 방지)
   const started = useRef(false)
   useEffect(() => {
     if (started.current || !token) return

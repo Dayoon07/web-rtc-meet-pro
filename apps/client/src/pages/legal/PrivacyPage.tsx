@@ -1,11 +1,6 @@
 import { COMPANY } from '@/shared/config/company'
 import { LegalDoc, type LegalSection } from './LegalDoc'
 
-/**
- * 개인정보처리방침 (개인정보 보호법 제30조, 시행령 제31조, 개인정보보호위원회 「개인정보 처리방침 작성지침」의 필수 항목).
- * 서비스가 실제로 하는 일과 같아야 한다 — 수집 항목·보관 기간·위탁·국외 이전을 바꾸면 이 문서도 같이 고친다.
- * (서버의 보관 기간: application/privacy/PrivacyRetentionService)
- */
 const sections: LegalSection[] = [
   {
     title: '1. 개인정보의 처리 목적',

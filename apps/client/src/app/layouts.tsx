@@ -26,7 +26,6 @@ export function MarketingLayout() {
   )
 }
 
-/** 로그인/가입/온보딩: 왼쪽 폼 + 오른쪽 브랜드 패널 (Slack·Notion 가입 화면처럼) */
 export function AuthLayout() {
   const { t } = useTranslation()
   return (
@@ -78,8 +77,6 @@ export function AuthLayout() {
 }
 
 
-/** 로그인 후 앱: 왼쪽 사이드바 + 상단 바 (Slack·Teams 와 같은 배치) */
-/** 데스크톱 사이드바 접힘 (이 브라우저에 기억) */
 const COLLAPSED_KEY = 'mq.sidebarCollapsed'
 const readCollapsed = () => {
   try {
@@ -97,17 +94,13 @@ export function AppLayout() {
       try {
         localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1')
       } catch {
-        // 저장이 안 돼도 이번 화면에서는 접힌다
       }
       return !c
     })
   const location = useLocation()
   const { data: me } = useMeQuery()
-  // 채팅 실시간 이벤트는 어느 화면에 있든 한 번만 받는다 (사이드바 방 목록·채팅 화면이 같이 쓴다)
   useChatRealtime()
-  // 휴대폰 서랍에서 방·메뉴를 골라 주소가 바뀌면 서랍을 닫는다
   useEffect(() => setSidebarOpen(false), [location.pathname])
-  // 언어 변경 시 제목도 다시 그리도록 구독
   useTranslation()
 
   return (

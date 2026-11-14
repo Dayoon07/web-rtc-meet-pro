@@ -3,7 +3,6 @@ import { errorMessage } from '@/shared/api'
 import { Button, Field, FieldError, Input, Modal } from '@/shared/ui'
 import { useCreateTeam } from '../model/use-create-team'
 
-/** 이름 · 설명 칸 (창과 시작 화면이 같이 쓴다) */
 function TeamFields({ form }: { form: ReturnType<typeof useCreateTeam> }) {
   const { t } = useTranslation()
   return (
@@ -26,7 +25,6 @@ function TeamFields({ form }: { form: ReturnType<typeof useCreateTeam> }) {
   )
 }
 
-/** 시작 화면 안에 바로 보이는 팀 만들기 */
 export function CreateTeamForm() {
   const { t } = useTranslation()
   const form = useCreateTeam()

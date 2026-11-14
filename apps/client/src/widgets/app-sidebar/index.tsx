@@ -12,14 +12,12 @@ import { APP_CHILD_ROUTES, ROUTES } from '@/shared/config/routes'
 const itemClass = ({ isActive }: { isActive: boolean }, mini = false) =>
   cn(
     'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors [&_svg]:size-4.5',
-    // 접으면 (데스크톱만) 아이콘만 가운데
     mini && 'md:justify-center md:px-0',
     isActive
       ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200'
       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white',
   )
 
-/** 메뉴 오른쪽 숫자 (접힌 사이드바에서는 아이콘 오른쪽 위에 작게) */
 function CountBadge({ count, mini }: { count?: number; mini?: boolean }) {
   if (!count) return null
   return (
@@ -34,7 +32,6 @@ function CountBadge({ count, mini }: { count?: number; mini?: boolean }) {
   )
 }
 
-/** item = 주소 · 아이콘 · 정확히 같은 주소일 때만 · 숫자 배지 · 접힌 사이드바, children = 이름 */
 function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?: boolean; badge?: number; mini?: boolean }; children: ReactNode }) {
   const { to, icon, end, badge, mini } = item
   return (
@@ -46,7 +43,6 @@ function NavItem({ item, children }: { item: { to: string; icon: ReactNode; end?
   )
 }
 
-/** 접힌 사이드바의 지금 팀 (누르면 그 팀 채팅) */
 function MiniTeamMark({ team }: { team: { id: number; name: string } }) {
   return (
     <Link to={ROUTES.chat(team.id)} title={team.name} className="hidden justify-center py-1 md:flex">
@@ -57,14 +53,12 @@ function MiniTeamMark({ team }: { team: { id: number; name: string } }) {
   )
 }
 
-/** 주소의 팀 (/app/chat/:teamId/... 또는 /app/teams/:teamId). 없으면 undefined → 마지막에 본 팀 */
 function useAddressTeamId(): number | undefined {
   const { pathname } = useLocation()
   const match = matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.chat}`, pathname) ?? matchPath(`${ROUTES.app}/${APP_CHILD_ROUTES.team}`, pathname)
   return match?.params.teamId ? Number(match.params.teamId) : undefined
 }
 
-/** 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다) */
 function PlanUsage() {
   const { t } = useTranslation()
   const { data: me } = useMeQuery()
@@ -83,17 +77,11 @@ function PlanUsage() {
   )
 }
 
-/**
- * 앱 왼쪽 메뉴. 데스크톱에서는 접을 수 있다 (collapsed: 아이콘만, 마우스를 올리면 이름).
- * 휴대폰에서는 늘 펼친 서랍 (open 으로 열고 닫음).
- */
-/** 앱 사이드바의 상태: 휴대폰에서 열림 · 닫기 · 채팅 안 읽은 수 · 접힘 · 접기/펴기 */
 export type AppSidebarState = {
   open: boolean
   onClose: () => void
   collapsed?: boolean
   onToggleCollapsed?: () => void
-  /** 바깥에서 끼워 넣는 내용: teamPanel = 지금 팀 아래 방 목록, footer = 아래쪽 (음성 막대) */
   slots?: { teamPanel?: ReactNode; footer?: ReactNode }
 }
 
@@ -143,7 +131,6 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
           </div>
         )}
 
-        {/* 사이드바 전체는 스크롤하지 않는다: 위 메뉴·지금 팀·아래 메뉴는 고정, 채팅 목록만 스크롤 (TeamRoomPanel) */}
         <nav className={cn('flex min-h-0 flex-1 flex-col gap-4 px-3 py-2', mini && 'md:px-2')} onClick={onClose}>
           <div className="flex shrink-0 flex-col gap-0.5">
             <NavItem item={{ to: ROUTES.app, end: true, icon: <House />, mini }}>
@@ -161,7 +148,6 @@ export function AppSidebar({ state }: { state: AppSidebarState }) {
             {mini && <div className="mx-3 mb-1 hidden border-t border-gray-200 md:block dark:border-gray-800" />}
             {teams?.length ? (
               <>
-                {/* 접으면 지금 팀 첫 글자만 (채팅 목록은 펼쳤을 때) */}
                 {mini && <MiniTeamMark team={teams.find((tm) => tm.id === currentTeamId) ?? teams[0]} />}
                 {slots?.teamPanel && <div className={cn('flex min-h-0 flex-1 flex-col', mini && 'md:hidden')}>{slots.teamPanel}</div>}
               </>

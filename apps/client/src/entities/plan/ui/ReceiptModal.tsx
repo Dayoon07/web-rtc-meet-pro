@@ -9,8 +9,6 @@ import type { Payment } from '../model/types'
 import { formatPrice, planName } from './PlanCard'
 import type { Dialog } from '@/shared/lib/use-dialog'
 
-/** 영수증 한 줄: 왼쪽 이름, 오른쪽 값 */
-/** line = 이름 · 값 · 굵게 */
 function Line({ line }: { line: { label: ReactNode; value: ReactNode; strong?: boolean } }) {
   const { label, value, strong } = line
   return (
@@ -21,16 +19,11 @@ function Line({ line }: { line: { label: ReactNode; value: ReactNode; strong?: b
   )
 }
 
-/** 영수증 칸 (위아래 실선으로 나눈다) */
 function Block({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-1.5 border-t border-gray-300 px-4 py-3 first:border-t-0 dark:border-gray-700">{children}</div>
 }
 
-/**
- * 결제 영수증 (POS 영수증처럼): 판매처, 결제 일시·주문번호, 품목, 금액(공급가액·부가세), 결제 수단.
- * 공식 매출전표는 토스 영수증 링크로.
- */
-export function ReceiptModal({ dialog }: { /** data = 보여 줄 결제 */ dialog: Dialog<Payment> }) {
+export function ReceiptModal({ dialog }: { dialog: Dialog<Payment> }) {
   const { open, close: onClose, data: payment } = dialog
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -40,7 +33,6 @@ export function ReceiptModal({ dialog }: { /** data = 보여 줄 결제 */ dialo
   const overageAmount = p.overageAmount ?? 0
   const overageMembers = p.overageMembers ?? 0
   const onlyOverage = p.kind === 'OVERAGE'
-  // 품목: 플랜 (초과 인원만 결제한 건이면 없음) + 초과 인원
   const rows: [string, number, number][] = [
     ...(onlyOverage ? [] : [[item, 1, p.amount - overageAmount] as [string, number, number]]),
     ...(overageMembers > 0 ? [[t('billing.receipt.overageItem'), overageMembers, overageAmount] as [string, number, number]] : []),

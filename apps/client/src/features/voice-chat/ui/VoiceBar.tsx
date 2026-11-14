@@ -9,10 +9,6 @@ import { barButton } from '../lib/voice-chat'
 import { useVoice } from '../model/use-voice'
 import { SpeakingAvatar } from './SpeakingAvatar'
 
-/**
- * 채팅 사이드바 아래 "음성 연결됨" 막대 (디스코드처럼): 들어와 있는 사람(말하면 초록 테두리), 마이크·소리 끄기,
- * 화상 화면으로 열기(카메라·화면 공유), 나가기.
- */
 export function VoiceBar({ me }: { me?: { nickname: string; profileImageUrl: string | null } }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -22,7 +18,6 @@ export function VoiceBar({ me }: { me?: { nickname: string; profileImageUrl: str
   const openVideo = () => {
     const { meetingId, teamId, roomId } = voice
     if (!meetingId) return
-    // 같은 사람이 두 번 들어가지 않게 채팅 음성은 끊고 화상 화면으로
     voiceSession.leave()
     navigate(`${ROUTES.meet(meetingId)}?voice=1&back=${encodeURIComponent(ROUTES.chat(teamId ?? undefined, roomId ?? undefined))}`)
   }

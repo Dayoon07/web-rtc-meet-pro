@@ -13,10 +13,6 @@ import { useFormat } from '@/shared/lib/format'
 import type { Dialog } from '@/shared/lib/use-dialog'
 import { Button, Checkbox, FieldError, Input, Modal, Spinner } from '@/shared/ui'
 
-/**
- * 결제 환불 (약관 제8조): 서버가 계산한 환불 금액을 보여 주고, "플랜이 바로 취소돼요" 에 동의하면 환불한다.
- * 7일 안이면 전액, 그 뒤에는 이 결제 기간 중 쓴 날수만큼 빼고. 환불하면 그 플랜은 바로 끝난다
- */
 export function RefundPaymentModal({ dialog }: { dialog: Dialog<Payment> }) {
   const { t } = useTranslation()
   const fmt = useFormat()

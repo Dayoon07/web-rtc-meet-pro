@@ -9,7 +9,6 @@ import { Button, Modal } from '@/shared/ui'
 import { cardLabel, isUserCancel, openCardRegistration } from '../lib/purchase-plan'
 import { useInvalidateBilling } from '../model/use-invalidate-billing'
 
-/** 결제 수단: 등록한 카드 보기 / 바꾸기 / 지우기 */
 export function ManageCard({ subscription }: { subscription: Subscription }) {
   const { t } = useTranslation()
   const invalidate = useInvalidateBilling()

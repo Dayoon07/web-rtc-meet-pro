@@ -7,11 +7,6 @@ import { useFormat } from '@/shared/lib/format'
 import { Button, Modal } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 
-/**
- * 앱 화면(/app) 위에 "플랜이 만료됐어요" 창을 띄운다.
- * 내가 결제한 워크스페이스 플랜 중 아직 확인하지 않은 만료가 있으면 하나씩 보여 주고, 닫거나 결제하러 가면 다시 안 보인다.
- * 기간이 끝난 플랜의 기능(녹화·늘어난 인원 등)은 서버가 이미 막고 있다.
- */
 export function PlanExpiryGate() {
   return (
     <>
@@ -35,7 +30,6 @@ function PlanExpiryNotice() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: planKeys.notices }),
   })
 
-  // 카드 등록에서 돌아오는 중에는 띄우지 않는다
   if (!notice || location.pathname.startsWith(ROUTES.billingCard)) return null
 
   const close = () => {

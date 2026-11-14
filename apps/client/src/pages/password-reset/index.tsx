@@ -21,7 +21,6 @@ function BackToLogin() {
   )
 }
 
-/** 비밀번호를 잊었을 때: 이메일을 받아 재설정 링크를 보낸다. 가입 여부와 상관없이 같은 안내를 보여 준다 */
 export function ForgotPasswordPage() {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
@@ -75,7 +74,6 @@ export function ForgotPasswordPage() {
   )
 }
 
-/** 메일의 링크(/reset-password?token=...)로 들어와 새 비밀번호를 정한다 */
 export function ResetPasswordPage() {
   const { t } = useTranslation()
   const [params] = useSearchParams()
@@ -88,7 +86,6 @@ export function ResetPasswordPage() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (password.length < 8) return setError(t('auth.validation.passwordLength'))
-    // 가입 화면과 같은 규칙 (영문·숫자 함께)
     if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) return setError(t('auth.validation.passwordMix'))
     if (password !== confirm) return setError(t('auth.validation.passwordMismatch'))
     setError(null)

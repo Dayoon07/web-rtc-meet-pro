@@ -29,7 +29,6 @@ const ICONS: Record<NotificationType, typeof Bell> = {
   OVERAGE_CHARGE_SOON: CreditCard,
 }
 
-/** 상단 바 종 아이콘: 안 읽은 개수 + 최근 알림 드롭다운 + 브라우저 알림 권한 */
 export function NotificationBell() {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -105,7 +104,6 @@ export function NotificationBell() {
               <p className="py-10 text-center text-sm text-gray-400">{t('notifications.empty')}</p>
             ) : (
               list.map((n) => {
-                // 서버에 새 알림 종류가 생겨도 화면이 깨지지 않게 기본 아이콘
                 const Icon = ICONS[n.type] ?? Bell
                 return (
                   <button
@@ -155,7 +153,6 @@ export function NotificationBell() {
   )
 }
 
-/** 실시간 알림이 오면 목록·배지를 갱신하고, 허용된 경우 OS 알림도 띄운다 (app 레이어에서 한 번 사용) */
 export function useNotificationSideEffects(subscribe: (cb: (payload: unknown) => void) => () => void) {
   const { t } = useTranslation()
   const fmt = useFormat()
@@ -173,7 +170,6 @@ export function useNotificationSideEffects(subscribe: (cb: (payload: unknown) =>
         if (n.type === 'TEAM_INVITATION_ACCEPTED') void queryClient.invalidateQueries({ queryKey: ['teams'] })
         if (n.type.startsWith('PLAN') || n.type === 'PAYMENT_FAILED') void queryClient.invalidateQueries({ queryKey: ['subscriptions'] })
 
-        // MQ 탭을 안 보고 있으면 크롬 알림 (방해 금지 시간은 빼고). 멘션은 "누가 언급" + 메시지 내용으로
         const me = queryClient.getQueryData<Me>(userKeys.me)
         if (me && inQuietHours(me.dndStart, me.dndEnd, me.dndTimeZone)) return
         const mention = n.type === 'CHAT_MENTION'

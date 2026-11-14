@@ -18,9 +18,7 @@ export type VoiceState = {
   roomName: string
   meetingId: number | null
   muted: boolean
-  /** 다른 사람 소리 끄기 */
   deafened: boolean
-  /** 마이크 장치가 없거나 권한이 없음 (듣기만) */
   listenOnly: boolean
   selfSpeaking: boolean
   peers: VoicePeer[]
@@ -32,14 +30,8 @@ const IDLE: VoiceState = {
   muted: false, deafened: false, listenOnly: false, selfSpeaking: false, peers: [], error: null,
 }
 
-/** 이 이상이면 말하는 중 (0~255 평균 음량) */
 const SPEAKING_LEVEL = 18
 
-/**
- * 채팅 안 음성 대화 (디스코드처럼). 화면을 옮겨도 끊기지 않도록 React 밖에 하나만 둔다.
- * 채널 음성방(회의)에 오디오로만 들어간다: 내 마이크를 보내고 다른 사람 목소리를 받는다.
- * 같은 음성방에 화상 화면(/meet)으로 들어온 사람과도 서로 들린다. 영상·화면 공유는 받지 않는다.
- */
 class VoiceSession {
   private state: VoiceState = IDLE
   private listeners = new Set<() => void>()
@@ -51,7 +43,6 @@ class VoiceSession {
   private audioContext: AudioContext | null = null
   private meters = new Map<string, () => number>()
   private meterTimer: ReturnType<typeof setInterval> | undefined
-  /** 연결 시도 번호 (나간 뒤에 늦게 끝난 연결을 버리려고) */
   private generation = 0
 
   subscribe = (fn: () => void) => {
@@ -70,7 +61,6 @@ class VoiceSession {
     this.set({ peers: this.state.peers.map((p) => (p.peerId === peerId ? { ...p, ...patch } : p)) })
   }
 
-  /** 채널 음성에 들어가기. 다른 채널에 들어가 있었으면 거기서 나온다 */
   async join(room: { id: number; teamId: number; name: string | null }) {
     if (this.state.roomId === room.id && this.state.status !== 'failed' && this.state.status !== 'idle') return
     this.leave()
@@ -104,7 +94,6 @@ class VoiceSession {
       socket.on('new-producer', (p: ProducerInfo & { peerId: string }) => void this.consume(device, p.peerId, p).catch(console.warn))
       socket.on('producer-closed', ({ peerId, producerId }: { peerId: string; producerId: string }) => {
         this.dropConsumer(producerId)
-        // 화면 공유가 끝났을 수도
         this.patchPeer(peerId, { sharing: false })
       })
       socket.on('consumer-closed', ({ producerId }: { producerId: string }) => this.dropConsumer(producerId))
@@ -117,7 +106,6 @@ class VoiceSession {
       this.set({ peers: joined.peers.map(toPeer) })
       for (const p of joined.peers) for (const pr of p.producers) await this.consume(device, p.peerId, pr).catch(console.warn)
 
-      // 내 마이크. 없으면 듣기만
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).catch(() => null)
       if (gen !== this.generation) return stream?.getTracks().forEach((t) => t.stop())
       const track = stream?.getAudioTracks()[0]
@@ -154,8 +142,6 @@ class VoiceSession {
     this.set({ deafened })
   }
 
-  // ---------------------------------------------------------------
-
   private request<T>(event: string, data: unknown = {}) {
     const socket = this.socket
     if (!socket) return Promise.reject(new Error('NOT_CONNECTED'))
@@ -177,7 +163,6 @@ class VoiceSession {
     return transport
   }
 
-  /** 다른 사람 마이크만 받는다 (영상은 화면 공유 표시만) */
   private async consume(device: Device, peerId: string, info: ProducerInfo) {
     if (info.kind !== 'audio') {
       if (info.source === 'screen') this.patchPeer(peerId, { sharing: true })
@@ -212,7 +197,6 @@ class VoiceSession {
     this.consumers.delete(producerId)
   }
 
-  /** 말하는 중 표시용 음량 측정 */
   private meter(key: string, track: MediaStreamTrack) {
     try {
       this.audioContext ??= new AudioContext()
@@ -225,7 +209,6 @@ class VoiceSession {
         return data.reduce((a, b) => a + b, 0) / data.length
       })
     } catch {
-      // 음량을 못 재도 대화는 된다
     }
   }
 

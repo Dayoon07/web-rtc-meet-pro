@@ -3,10 +3,6 @@ import { API } from './endpoints'
 import { currentLanguage, translateDynamic } from '@/shared/i18n'
 import { type ErrorReason, newErrorCode, showUnexpectedError, toErrorReason } from '@/shared/lib/unexpected-error'
 
-/**
- * 서버 ErrorResponse { code, message, params, field, errorCode?, reason? }.
- * errorCode / reason 은 예상하지 못한 에러(서버 500, 서버 연결 실패)일 때만 있다 — 이때는 이미 안내 창을 띄웠다.
- */
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
@@ -33,16 +29,11 @@ export class ApiError extends Error {
     this.reason = reason
   }
 
-  /** 에러 코드와 함께 안내 창으로 보여 준 에러 (토스트를 또 띄우지 않는다) */
   get unexpected(): boolean {
     return this.errorCode !== null
   }
 }
 
-/**
- * shared 는 상위 레이어(entities/session)를 import 할 수 없으므로
- * 토큰 접근/갱신 로직은 app 레이어에서 configureRequest 로 주입한다.
- */
 type AuthHooks = {
   getAccessToken: () => string | null
   refresh: () => Promise<boolean>
@@ -59,15 +50,12 @@ export function configureRequest(next: AuthHooks) {
   hooks = next
 }
 
-/** 웹소켓·미디어 서버 접속 시 토큰이 필요할 때 */
 export const getAccessToken = () => hooks.getAccessToken()
 export const refreshAccessToken = () => hooks.refresh()
 
 export type RequestOptions = Omit<RequestInit, 'body'> & {
   json?: unknown
-  /** multipart 업로드. Content-Type 은 브라우저가 boundary 와 함께 붙인다 */
   form?: FormData
-  /** false 면 Authorization 헤더를 붙이지 않고 401 갱신도 하지 않음 */
   auth?: boolean
 }
 
@@ -84,7 +72,6 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
   const { json, form, auth = true, headers, ...rest } = options
   const h = new Headers(headers)
   if (json !== undefined) h.set('Content-Type', 'application/json')
-  // 서버가 보내는 메일(초대, 비밀번호 재설정)을 화면과 같은 언어로 쓰게
   if (!h.has('Accept-Language')) h.set('Accept-Language', currentLanguage())
   const token = auth ? hooks.getAccessToken() : null
   if (token) h.set('Authorization', `Bearer ${token}`)
@@ -97,9 +84,7 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
       body: json !== undefined ? JSON.stringify(json) : form,
     })
   } catch (e) {
-    // 화면을 떠나며 요청을 취소한 경우는 오류가 아니다
     if (rest.signal?.aborted || (e instanceof DOMException && e.name === 'AbortError')) throw new ApiError(0, 'ABORTED', 'aborted')
-    // 브라우저가 오프라인이면 사용자도 이미 안다. 안내 창은 온라인인데 서버에 닿지 못할 때만
     if (!navigator.onLine) throw new ApiError(0, 'NETWORK', 'network error')
     throw unreachable(0, rest.method ?? 'GET', path, e)
   }
@@ -112,8 +97,6 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ErrorBody | null
     if (res.status >= 500) {
-      // 우리 서버가 만든 응답이면 서버가 이미 에러 코드를 만들고 기록했다.
-      // 아니면(프록시의 502/503/504 등) 서버까지 닿지 못한 것 → 화면에서 코드를 만들고 신고한다
       if (typeof body?.errorCode !== 'string') throw unreachable(res.status, rest.method ?? 'GET', path)
       const error = new ApiError(
         res.status,
@@ -133,7 +116,6 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
   return (await res.json()) as T
 }
 
-/** 서버에 닿지 못함: 에러 코드를 만들어 안내 창을 띄우고, 서버가 살아 있으면 기록되도록 신고한다 */
 function unreachable(status: number, method: string, path: string, cause?: unknown): ApiError {
   const errorCode = newErrorCode()
   showUnexpectedError({ errorCode, reason: 'NETWORK' })
@@ -154,10 +136,6 @@ export type ClientErrorReport = {
   stack?: string
 }
 
-/**
- * 화면 오류를 서버 admin_error_logs 에 남긴다 (POST /api/client-errors). 실패해도 조용히 넘어간다.
- * 로그인 중이면 토큰을 붙여 사용자 id 도 남기고, 토큰이 만료돼 401 이면 토큰 없이 다시 보낸다.
- */
 export async function reportClientError(report: ClientErrorReport): Promise<void> {
   const body = JSON.stringify({
     ...report,
@@ -179,11 +157,9 @@ export async function reportClientError(report: ClientErrorReport): Promise<void
     const res = await send(token)
     if (res.status === 401 && token) await send(null)
   } catch {
-    // 서버에 연결이 안 되면 기록할 방법이 없다 (화면에는 에러 코드를 이미 보여 줬다)
   }
 }
 
-/** 서버 에러 코드 → 현재 언어 문구 (errors.<CODE>). 번역이 없으면 서버 메시지 */
 export function errorMessage(error: unknown): string | null {
   if (!error) return null
   if (error instanceof ApiError) {

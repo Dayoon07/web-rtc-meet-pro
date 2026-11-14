@@ -6,7 +6,6 @@ import { CustomSelect } from './select'
 const controlBase =
   'rounded-lg border bg-white text-gray-900 shadow-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15 disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800'
 const control = `h-11 w-full px-3.5 text-[15px] ${controlBase}`
-/** 목록 안의 작은 선택 상자 (높이·너비를 className 으로 덮어쓰면 클래스가 겹쳐 엉뚱한 쪽이 이긴다) */
 const controlCompact = `h-8 w-auto pl-2.5 text-xs ${controlBase}`
 
 const controlBorder = (invalid?: boolean) =>
@@ -49,7 +48,6 @@ export function Input({ className, invalid, ...props }: InputHTMLAttributes<HTML
   return <input aria-invalid={invalid || undefined} className={cn(control, controlBorder(invalid), className)} {...props} />
 }
 
-/** 선택 상자: 쓰는 법은 <select> 와 같고, 펼친 목록이 화면 테마(밝게/어둡게)를 따른다 (select.tsx) */
 export function Select({ invalid, compact, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean; compact?: boolean }) {
   return (
     <CustomSelect
@@ -82,7 +80,6 @@ export function Checkbox({
   )
 }
 
-/** 성별 같은 2~4개 선택지: 세그먼트 버튼 */
 export function Segmented<T extends string>({
   value,
   options,
