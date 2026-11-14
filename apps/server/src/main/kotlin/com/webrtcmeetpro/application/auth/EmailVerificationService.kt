@@ -17,7 +17,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
-/** 가입 이메일 인증 링크의 토큰 (24시간). 이메일이 바뀌면 예전 링크는 무효 */
+/** 이메일이 바뀌면 예전 링크는 무효 */
 @Component
 class EmailVerificationTokens(props: JwtProperties) : UserLinkTokens(props.secret, "email-verify", TTL) {
     override fun fingerprint(user: User) = user.email
@@ -28,8 +28,7 @@ class EmailVerificationTokens(props: JwtProperties) : UserLinkTokens(props.secre
 }
 
 /**
- * 이메일 가입자가 그 이메일의 주인인지 확인한다. 인증 전에는 받은 팀 초대를 보거나 수락할 수 없다
- * (남의 이메일로 가입해서 그 사람에게 온 초대를 가로채지 못하게).
+ * 남의 이메일로 가입해 그 사람에게 온 팀 초대를 가로채지 못하게, 인증 전에는 초대를 볼 수 없다.
  * 구글 가입자는 구글이 이메일을 확인했으므로 처음부터 인증된 상태다.
  */
 @Service
@@ -39,17 +38,16 @@ class EmailVerificationService(
     private val mail: MailService,
     private val web: WebProperties,
 ) {
-    /** 사용자별 마지막 발송 시각 — 버튼을 연달아 눌러도 메일이 쏟아지지 않게 (서버 한 대 기준 메모리) */
+    /** 버튼을 연달아 눌러도 메일이 쏟아지지 않게. 서버가 한 대라 메모리로 충분하다 */
     private val lastSent = ConcurrentHashMap<Long, Instant>()
 
-    /** 인증 메일 보내기 (가입 직후. 트랜잭션 안이면 커밋된 뒤에 보낸다) */
+    /** 트랜잭션 안이면 커밋된 뒤에 보낸다 */
     fun send(user: User, language: MailLanguage = MailLanguage.current()) {
         val link = web.link("/verify-email/confirm?token=" + URLEncoder.encode(tokens.issue(user), Charsets.UTF_8))
         lastSent[user.id!!] = Instant.now()
         mail.sendAfterCommit(MailTemplates.emailVerification(user.email, language, link, EmailVerificationTokens.TTL.toHours()))
     }
 
-    /** "인증 메일 다시 보내기". 이미 인증했으면 아무것도 하지 않는다 */
     @Transactional(readOnly = true)
     fun resend(userId: Long) {
         val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -61,7 +59,7 @@ class EmailVerificationService(
         send(user)
     }
 
-    /** 메일 링크로 들어왔을 때. 로그인하지 않은 기기(휴대폰 메일 앱 등)에서 열어도 된다 */
+    /** 휴대폰 메일 앱처럼 로그인하지 않은 기기에서 열어도 된다 */
     @Transactional
     fun confirm(token: String) {
         val user = tokens.userIdOf(token)?.let { userRepository.findUserById(it) }

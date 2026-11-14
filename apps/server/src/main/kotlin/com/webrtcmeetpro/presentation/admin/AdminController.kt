@@ -22,10 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-/**
- * 관리자 API (/api/admin 아래 전부). 시스템 관리자만 — SecurityConfig 에서 한 번, 서비스에서 한 번 더 확인한다.
- * 관리자 사이트(별도 서브도메인)가 이 API 를 쓴다.
- */
+/** SecurityConfig 에서 한 번, 서비스에서 한 번 더 시스템 관리자인지 확인한다 */
 @RestController
 @RequestMapping("/api/admin")
 class AdminController(
@@ -36,35 +33,31 @@ class AdminController(
     private val refunds: RefundService,
 ) {
 
-    /** 최근 결제 200건. q = 주문번호·이메일·주문명·팀 이름, status = DONE | CANCELED | FAILED ... */
     @GetMapping("/payments")
     fun payments(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?, @RequestParam(required = false) status: String?): List<AdminPaymentResDto> {
         admins.require(jwt.userId)
         return adminPayments.recent(q, status)
     }
 
-    /** 환불 미리 계산 (약관대로 계산한 금액) */
     @GetMapping("/payments/{orderId}/refund")
     fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteResDto {
         admins.require(jwt.userId)
         return refunds.quoteForAdmin(orderId)
     }
 
-    /** 관리자 환불: amount 가 없으면 약관대로 계산한 금액. 그 플랜은 바로 끝난다 */
+    /** amount 가 없으면 약관대로 계산한 금액 */
     @PostMapping("/payments/{orderId}/refund")
     fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @RequestBody body: AdminRefundReqDto): RefundQuoteResDto {
         admins.require(jwt.userId)
         return refunds.refundByAdmin(orderId, jwt.userId, body.amount, body.reason)
     }
 
-    /** 이메일 인증을 기다리는 가입 (최근 200명). q = 이메일·닉네임·이름 일부 */
     @GetMapping("/signups/pending")
     fun pendingSignups(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?): List<PendingSignupResDto> {
         admins.require(jwt.userId)
         return verifications.pending(q)
     }
 
-    /** 이메일 인증 강제 승인 */
     @PostMapping("/users/{userId}/verify-email")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun verifyEmail(@AuthenticationPrincipal jwt: Jwt, @PathVariable userId: Long) {
@@ -72,7 +65,6 @@ class AdminController(
         verifications.approve(userId, jwt.userId)
     }
 
-    /** 이메일 인증 거절 = 가입 취소 (개인정보 지우고 계정 닫기) */
     @PostMapping("/users/{userId}/reject-signup")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun rejectSignup(@AuthenticationPrincipal jwt: Jwt, @PathVariable userId: Long) {
@@ -80,16 +72,14 @@ class AdminController(
         verifications.reject(userId, jwt.userId)
     }
 
-    /** 로그인한 관리자 (관리자가 아니면 403 → 관리자 사이트가 로그인을 막는다) */
+    /** 관리자가 아니면 403 이라 관리자 사이트가 로그인을 막는다 */
     @GetMapping("/me")
     fun me(@AuthenticationPrincipal jwt: Jwt) = admins.me(jwt.userId)
 
-    /** 최근 에러 100건. unresolved=true 면 해결 표시가 안 된 것만 */
     @GetMapping("/error-logs")
     fun errorLogs(@AuthenticationPrincipal jwt: Jwt, @RequestParam(defaultValue = "false") unresolved: Boolean) =
         errorLogs.recent(jwt.userId, unresolved)
 
-    /** 사용자가 알려 준 에러 코드(ERR-...)로 찾기. 스택 포함 */
     @GetMapping("/error-logs/{errorCode}")
     fun errorLog(@AuthenticationPrincipal jwt: Jwt, @PathVariable errorCode: String) = errorLogs.find(jwt.userId, errorCode)
 

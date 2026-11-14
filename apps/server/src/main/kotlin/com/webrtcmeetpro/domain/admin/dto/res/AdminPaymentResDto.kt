@@ -15,9 +15,9 @@ data class AdminPaymentResDto(
     val approvedAt: LocalDateTime?,
     val createdAt: LocalDateTime,
     val refundedAmount: Long,
-    /** payments.canceled_at (환불하면 이 시각이 찍힌다) */
+    /** payments.canceled_at */
     val refundedAt: LocalDateTime?,
     val refundReason: String?,
-    /** 토스 결제 키가 없으면(테스트 데이터) 환불할 수 없다 */
+    /** 토스 결제 키가 없는 테스트 데이터는 환불할 수 없다 */
     val hasPaymentKey: Boolean,
 )

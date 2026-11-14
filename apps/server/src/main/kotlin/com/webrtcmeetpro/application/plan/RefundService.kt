@@ -25,13 +25,8 @@ import kotlin.math.ceil
 import kotlin.math.roundToLong
 
 /**
- * 환불 (약관 제8조).
- * - 결제한 날부터 7일 안이면 전액. 그 뒤에는 이 결제로 늘어난 기간 중 쓴 날수만큼 빼고 돌려준다
- *   (월 결제 = 결제 금액 × 쓴 날 / 전체 날, 연 결제 = 할인 전 월 요금 ÷ 30 × 쓴 날).
- * - 환불하면 그 결제의 플랜(구독)은 바로 끝난다 → 그 팀(소유자의 모든 팀)은 남은 다른 플랜이나 무료로 돌아간다.
- * - 사용자: 내가 결제한 플랜 결제 중 그 구독의 가장 최근 결제만, 약관대로 계산한 금액으로.
- *   관리자: 어떤 결제든 (초과 인원 요금 포함), 금액을 정해서 (결제 금액까지).
- * - 토스 결제 취소(부분 취소 포함)는 DB 트랜잭션 밖에서 부르고, 성공하면 기록한다.
+ * 환불 (약관 제8조): 7일 안이면 전액, 그 뒤에는 쓴 날수만큼 빼고 돌려준다.
+ * 사용자는 구독의 가장 최근 결제만 약관 금액으로, 관리자는 어떤 결제든 금액을 정해서 환불한다.
  */
 @Service
 class RefundService(
@@ -46,14 +41,12 @@ class RefundService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val tx = TransactionTemplate(transactionManager)
 
-    /** 결제한 사람이 보는 미리 계산 */
     fun quoteForUser(orderId: String, userId: Long, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto =
         quote(requireMine(orderId, userId), now, byAdmin = false)
 
     fun quoteForAdmin(orderId: String, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto =
         quote(requirePayment(orderId), now, byAdmin = true)
 
-    /** 사용자 환불: 약관대로 계산한 금액으로, 플랜은 바로 끝난다 */
     fun refundByUser(orderId: String, userId: Long, reason: String?, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto {
         val payment = requireMine(orderId, userId)
         val q = quote(payment, now, byAdmin = false)
@@ -62,7 +55,7 @@ class RefundService(
         return quote(requirePayment(orderId), now, byAdmin = false)
     }
 
-    /** 관리자 환불: amount 가 없으면 약관대로 계산한 금액, 있으면 그 금액 (결제 금액까지) */
+    /** amount 가 없으면 약관대로 계산한 금액 */
     fun refundByAdmin(orderId: String, adminId: Long, amount: Long?, reason: String?, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto {
         val payment = requirePayment(orderId)
         val q = quote(payment, now, byAdmin = true)
@@ -74,8 +67,6 @@ class RefundService(
         execute(payment.orderId, value, reason?.trim()?.ifEmpty { null } ?: "관리자 환불", adminId, now)
         return quote(requirePayment(orderId), now, byAdmin = true)
     }
-
-    // ---------------------------------------------------------------
 
     private fun quote(payment: Payment, now: LocalDateTime, byAdmin: Boolean): RefundQuoteResDto {
         val plan = planService.planById(payment.planId)
@@ -91,7 +82,7 @@ class RefundService(
         if (payment.status != PaymentStatus.DONE) return blocked(if (payment.status == PaymentStatus.CANCELED) ErrorCode.REFUND_ALREADY_DONE else ErrorCode.REFUND_NOT_PAID)
         if (payment.paymentKey.isNullOrBlank()) return blocked(ErrorCode.REFUND_NO_PAYMENT_KEY)
         if (!byAdmin) {
-            // 사용자는 플랜 결제만, 그 구독의 가장 최근 결제만 (지난 기간은 이미 썼다)
+            // 지난 기간은 이미 쓴 것이라 가장 최근 결제만 환불할 수 있다
             if (payment.paymentKind != PaymentKind.PLAN || subscription == null) return blocked(ErrorCode.REFUND_ASK_SUPPORT)
             if (!subscription.isLive) return blocked(ErrorCode.REFUND_PLAN_ENDED)
             val latest = payments.findAllBySubscriptionIdOrderByIdDesc(subscription.id!!).firstOrNull { it.status == PaymentStatus.DONE }
@@ -102,7 +93,7 @@ class RefundService(
         if (!now.isAfter(approvedAt.plusDays(FULL_REFUND_DAYS))) {
             return base.copy(refundable = true, refundAmount = payment.amount, rule = RefundRule.FULL_7_DAYS)
         }
-        // 이 결제로 늘어난 기간 = periodEnd 에서 한 주기 앞부터 (같은 플랜을 미리 사서 뒤에 이어 붙인 경우도 맞게)
+        // 같은 플랜을 미리 사서 뒤에 이어 붙인 경우도 있어서, 시작일이 아니라 끝에서 한 주기 앞부터 센다
         val cycle = payment.billingCycle ?: BillingCycle.MONTHLY
         val periodEnd = payment.periodEnd ?: return if (byAdmin) base.copy(refundable = true, rule = RefundRule.PRORATED) else blocked(ErrorCode.REFUND_ASK_SUPPORT)
         val periodStart = if (cycle == BillingCycle.YEARLY) periodEnd.minusYears(1) else periodEnd.minusMonths(1)
@@ -119,12 +110,11 @@ class RefundService(
         return if (refund > 0 || byAdmin) q.copy(refundable = true) else q.copy(blockedBy = ErrorCode.REFUND_NOTHING_LEFT.name)
     }
 
-    /** 토스 취소 → 성공하면 결제를 환불됨으로, 구독은 바로 끝낸다, 결제한 사람에게 알림 */
     private fun execute(orderId: String, amount: Long, reason: String, actorId: Long, now: LocalDateTime) {
         val payment = requirePayment(orderId)
         val partial = amount < payment.amount
         try {
-            // 같은 결제를 두 번 눌러도 토스가 한 번만 취소하게
+            // 두 번 눌러도 한 번만 취소되게 멱등 키를 준다
             toss.cancel(payment.paymentKey!!, reason.take(200), if (partial) amount else null, "refund-${payment.orderId}")
         } catch (e: TossException) {
             log.info("환불 실패 (orderId={}): {} {}", orderId, e.code, e.message)
@@ -150,11 +140,11 @@ class RefundService(
     private fun requireMine(orderId: String, userId: Long): Payment =
         requirePayment(orderId).takeIf { it.userId == userId } ?: throw BusinessException(ErrorCode.PAYMENT_NOT_FOUND)
 
-    /** 시작~끝 사이 날 수 (하루를 넘기면 올림: 1시간만 써도 하루) */
+    /** 1시간만 써도 하루로 친다 */
     private fun days(from: LocalDateTime, to: LocalDateTime): Int = ceil(Duration.between(from, to).toMinutes() / 1440.0).toInt().coerceAtLeast(0)
 
     companion object {
-        /** 이 기간 안이면 전액 환불 (전자상거래법 청약철회) */
+        /** 전자상거래법 청약철회 기간 */
         const val FULL_REFUND_DAYS = 7L
     }
 }

@@ -25,17 +25,16 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent
 @RequestMapping("/api")
 class PresenceController(private val presence: PresenceService) {
 
-    /** 워크스페이스에서 지금 접속 중·자리 비움인 사람 (나머지는 접속 안 함) */
+    /** 목록에 없는 사람은 접속 안 함 */
     @GetMapping("/teams/{teamId}/presence")
     fun team(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = presence.team(teamId, jwt.userId)
 
-    /** 내 상태: 창을 안 보거나 한동안 움직임이 없으면 자리 비움 */
     @PutMapping("/presence")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun set(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: PresenceReqDto) = presence.setAway(jwt.userId, req.away!!)
 }
 
-/** 실시간 연결(STOMP)이 붙고 끊길 때 접속 상태를 바꾼다. 연결의 사용자 이름 = user_id (WebSocketConfig) */
+/** 연결의 사용자 이름이 user_id 다 (WebSocketConfig) */
 @Component
 class PresenceSessionListener(private val presence: PresenceService) {
     @EventListener

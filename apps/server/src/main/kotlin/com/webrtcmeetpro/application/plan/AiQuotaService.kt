@@ -8,10 +8,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
-/**
- * AI 기능 한 달 사용 시간. 한도는 팀 소유자의 지금 플랜이고, 쓴 시간도 소유자의 모든 팀을 합친다 (plans.ai_notes_minutes / live_caption_minutes, 0 = 없음).
- * 달이 바뀌면 새로 센다.
- */
+/** AI 기능 월 사용 시간. 플랜이 소유자 단위라 한도와 사용량 모두 소유자의 모든 팀을 합쳐 계산한다 */
 @Service
 @Transactional(readOnly = true)
 class AiQuotaService(
@@ -19,7 +16,7 @@ class AiQuotaService(
     private val usages: AiUsageRepository,
     private val planService: PlanService,
 ) {
-    /** 플랜의 한 달 한도(초). 0 = 플랜에 없음 */
+    /** 0 = 플랜에 없는 기능 */
     fun limitSeconds(teamId: Long, feature: AiFeature, now: LocalDateTime = LocalDateTime.now()): Long {
         val plan = planService.planOfTeam(teamId, now)
         val minutes = when (feature) {
@@ -29,7 +26,6 @@ class AiQuotaService(
         return minutes.toLong() * 60
     }
 
-    /** 이번 달 쓴 시간(초): 플랜이 소유자 단위라 소유자의 모든 팀을 합친다 */
     fun usedSeconds(teamId: Long, feature: AiFeature, now: LocalDateTime = LocalDateTime.now()): Long =
         planService.siblingTeamIds(teamId).takeIf { it.isNotEmpty() }?.let { usageQueries.sumUsedSeconds(it, feature, AiUsage.monthOf(now)) } ?: 0
 

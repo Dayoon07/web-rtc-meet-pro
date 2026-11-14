@@ -11,9 +11,8 @@ import jakarta.persistence.Table
 import org.hibernate.type.YesNoConverter
 
 /**
- * 요금제 (FREE / PRO / TEAM / BUSINESS). 한도는 코드가 아니라 이 행에서 읽는다.
- * 금액·한도 변경은 plans 테이블 값만 바꾸면 된다. 연 결제 금액은 월 가격 × 12 × 0.9.
- * sort_order 가 클수록 높은 플랜 (구독이 여러 개면 가장 높은 것을 쓴다).
+ * 한도는 코드가 아니라 이 행에서 읽으므로 금액·한도는 plans 값만 바꾸면 된다.
+ * sort_order 가 클수록 높은 플랜이고, 구독이 여러 개면 가장 높은 것을 쓴다.
  */
 @Entity
 @Table(name = "plans")
@@ -38,7 +37,6 @@ class Plan(
     /** null = 제한 없음 */
     var maxGroupRoomsPerTeam: Int?,
 
-    /** 회의 한 번에 함께 들어올 수 있는 사람 수 (팀 소유자 플랜 기준) */
     @Column(nullable = false)
     var maxMeetingParticipants: Int,
 
@@ -46,23 +44,21 @@ class Plan(
     @Column(nullable = false)
     var recordingEnabled: Boolean,
 
-    /** 팀 소유자 한 명이 가진 모든 팀의 녹화 합계 용량 */
+    /** 소유자의 모든 팀을 합친 용량 */
     @Column(nullable = false)
     var recordingStorageGb: Int = 0,
 
-    /** 녹화 보관 일수. 지나면 자동으로 지운다 */
     @Column(nullable = false)
     var recordingRetentionDays: Int = 30,
 
-    /** 한 달 동안 AI 회의록을 켤 수 있는 시간(분). 0 = 플랜에 없음 */
+    /** 0 = 플랜에 없음 */
     @Column(nullable = false)
     var aiNotesMinutes: Int = 0,
 
-    /** 한 달 동안 실시간 자막·번역을 쓸 수 있는 시간(분). 0 = 없음 (Business 전용) */
+    /** 0 = 플랜에 없음 */
     @Column(nullable = false)
     var liveCaptionMinutes: Int = 0,
 
-    /** 멤버 한도를 넘은 1명당 한 달 요금 (소유자가 한도 초과를 허용한 워크스페이스만) */
     @Column(nullable = false)
     var overagePricePerMember: Long = 9900,
 

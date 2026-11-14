@@ -1,9 +1,6 @@
 package com.webrtcmeetpro.application.push
 
-/**
- * 푸시 알림 문장 (브라우저가 화면에 띄울 제목·내용). 화면의 i18n 은 서비스 워커에 없어서 서버가 만든다.
- * 언어는 구독할 때의 화면 언어(ko·en·ja·zh). 없으면 한국어
- */
+/** 서비스 워커에는 화면의 i18n 이 없어서 서버가 구독할 때의 언어로 문장을 만든다 */
 object PushTexts {
     private val texts = mapOf(
         "ko" to mapOf(

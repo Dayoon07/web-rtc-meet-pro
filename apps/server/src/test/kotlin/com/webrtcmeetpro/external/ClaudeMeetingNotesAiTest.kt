@@ -19,7 +19,7 @@ import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** 실제 SDK 로 가짜 Claude 서버(로컬)에 요청을 보내 요청 모양과 응답 해석을 확인한다 (API 키·네트워크 없이) */
+/** API 키·네트워크 없이 로컬 가짜 서버로 실제 SDK 요청 모양과 응답 해석을 확인한다 */
 class ClaudeMeetingNotesAiTest {
     private val json = JsonMapper.builder().build()
     private var server: HttpServer? = null

@@ -45,8 +45,6 @@ class UserController(
     @GetMapping
     fun me(@AuthenticationPrincipal jwt: Jwt): MeResDto = userService.me(jwt.userId)
 
-    /** 온보딩(구글 가입 후 추가 정보)과 프로필 수정에 함께 사용 */
-    /** 방해 금지 시간 (이 시간에는 브라우저 푸시를 보내지 않는다). start·end 를 비우면 끄기 */
     @PutMapping("/quiet-hours")
     fun quietHours(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: QuietHoursReqDto): MeResDto =
         userService.updateQuietHours(jwt.userId, request.start, request.end, request.timeZone)
@@ -74,17 +72,14 @@ class UserController(
     @DeleteMapping("/profile-image")
     fun removeProfileImage(@AuthenticationPrincipal jwt: Jwt): MeResDto = userService.removeProfileImage(jwt.userId)
 
-    /** 비밀번호 바꾸기·만들기. 다른 기기는 로그아웃되고, 이 기기에는 새 토큰을 돌려준다 */
     @PostMapping("/password")
     fun changePassword(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: ChangePasswordReqDto, http: HttpServletRequest): AuthTokensResDto =
         authService.changePassword(jwt.userId, request.currentPassword, request.newPassword, ClientInfo.from(http))
 
-    /** 가입 인증 메일 다시 보내기 (60초에 한 번) */
     @PostMapping("/email-verification")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun resendVerification(@AuthenticationPrincipal jwt: Jwt) = emailVerification.resend(jwt.userId)
 
-    /** 회원 탈퇴. 비밀번호가 있는 계정은 password 필수 */
     @PostMapping("/withdraw")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun withdraw(@AuthenticationPrincipal jwt: Jwt, @RequestBody(required = false) request: WithdrawReqDto?) =

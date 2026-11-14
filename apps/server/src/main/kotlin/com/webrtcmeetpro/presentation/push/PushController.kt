@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/push")
 class PushController(private val push: PushService) {
 
-    /** 공개 키 (브라우저 구독에 필요). enabled=false 면 서버에 키가 없다 */
     @GetMapping("/config")
     fun config() = push.config()
 

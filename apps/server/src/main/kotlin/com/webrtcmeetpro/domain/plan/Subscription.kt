@@ -14,8 +14,8 @@ import org.hibernate.type.YesNoConverter
 import java.time.LocalDateTime
 
 /**
- * ACTIVE: 기간 안. PAST_DUE: 기간이 끝났고 자동결제가 실패해서 다시 시도하는 중 (그동안은 기능을 계속 쓸 수 있다).
- * EXPIRED: 기간이 끝남 (자동결제 꺼짐, 또는 자동결제가 끝내 실패). CANCELED: 예전 방식(플랜 바꾸기)으로 끝난 구독.
+ * PAST_DUE: 기간이 끝났지만 자동결제를 다시 시도하는 중이라 기능은 계속 쓸 수 있다.
+ * CANCELED: 예전 방식(플랜 바꾸기)으로 끝난 구독이 DB 에 남아 있다.
  */
 enum class SubscriptionStatus { ACTIVE, CANCELED, EXPIRED, PAST_DUE }
 
@@ -29,11 +29,8 @@ enum class BillingCycle {
 }
 
 /**
- * 플랜 구독. [userId] = 결제한 사람(팀 소유자 = 회사 계정), [teamId] = 결제할 때 고른 팀.
- * 플랜은 **소유자가 만든 모든 팀에** 적용된다 (팀은 몇 개든 무료로 만들 수 있다).
- * 한 소유자가 플랜마다 하나씩 여러 구독을 동시에 가질 수 있고(예: Team 과 Pro 를 둘 다 결제),
- * 기간이 남은 것 중 가장 높은 플랜을 쓴다. Team 이 끝나면 남은 Pro 로, Pro 도 끝나면 무료로.
- * teamId 가 없는 FREE 구독은 회원가입 때 만드는 기간 없는 구독이다 (어디에도 적용 안 됨).
+ * userId 는 결제한 사람(팀 소유자), teamId 는 결제할 때 고른 팀이다. 플랜은 소유자가 만든 모든 팀에 적용된다.
+ * teamId 가 없는 FREE 구독은 가입 때 만드는 기간 없는 구독이라 어디에도 적용되지 않는다.
  */
 @Entity
 @Table(name = "subscriptions")
@@ -59,7 +56,6 @@ class Subscription(
     teamId: Long? = null,
 ) : BaseEntity() {
 
-    /** 결제할 때 고른 팀. 그 팀을 지우면 소유자의 다른 팀으로 옮긴다 ([moveTo]) */
     @Column(name = "team_id")
     var teamId: Long? = teamId
         protected set
@@ -94,7 +90,6 @@ class Subscription(
     var expiryAcknowledgedAt: LocalDateTime? = null
         protected set
 
-    /** 지금 이 구독의 플랜을 쓸 수 있는지 */
     fun isUsable(now: LocalDateTime = LocalDateTime.now()): Boolean = when (status) {
         SubscriptionStatus.ACTIVE -> currentPeriodEnd?.isAfter(now) ?: true
         SubscriptionStatus.PAST_DUE -> true
@@ -103,7 +98,7 @@ class Subscription(
 
     val isLive: Boolean get() = status == SubscriptionStatus.ACTIVE || status == SubscriptionStatus.PAST_DUE
 
-    /** 결제 성공: 기간을 한 주기 늘린다. 아직 기간이 남았으면 남은 기간 뒤에 이어 붙인다 */
+    /** 아직 기간이 남았으면 남은 기간 뒤에 이어 붙인다 */
     fun extend(cycle: BillingCycle, now: LocalDateTime = LocalDateTime.now()): LocalDateTime {
         val from = currentPeriodEnd?.takeIf { it.isAfter(now) } ?: now
         currentPeriodEnd = cycle.addTo(from)
@@ -115,7 +110,6 @@ class Subscription(
         return currentPeriodEnd!!
     }
 
-    /** 자동결제 실패: 하루 뒤 다시 시도 */
     fun paymentFailed(now: LocalDateTime = LocalDateTime.now()) {
         failedAttempts += 1
         status = SubscriptionStatus.PAST_DUE
@@ -133,12 +127,10 @@ class Subscription(
         nextRetryAt = null
     }
 
-    /** "플랜이 만료됐어요" 창을 닫았다 */
     fun acknowledgeExpiry(now: LocalDateTime = LocalDateTime.now()) {
         expiryAcknowledgedAt = now
     }
 
-    /** 결제한 팀을 지울 때: 소유자의 남은 팀으로 옮긴다 (플랜은 계속 소유자의 모든 팀에 적용) */
     fun moveTo(teamId: Long) {
         this.teamId = teamId
     }
@@ -150,7 +142,6 @@ class Subscription(
     }
 
     companion object {
-        /** 자동결제가 이 횟수만큼 실패하면 만료 */
         const val MAX_PAYMENT_ATTEMPTS = 3
     }
 }
@@ -163,6 +154,5 @@ interface SubscriptionRepository {
     fun findAllByTeamIdAndStatusIn(teamId: Long, statuses: Collection<SubscriptionStatus>): List<Subscription>
     fun findAllByTeamIdInAndStatusIn(teamIds: Collection<Long>, statuses: Collection<SubscriptionStatus>): List<Subscription>
     fun findAllByUserIdOrderByStartedAtDesc(userId: Long): List<Subscription>
-    /** 기간이 곧 끝나거나 끝난 구독 (스케줄러) */
     fun findAllByStatusInAndCurrentPeriodEndBefore(statuses: Collection<SubscriptionStatus>, before: LocalDateTime): List<Subscription>
 }

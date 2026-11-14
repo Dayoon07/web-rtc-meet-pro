@@ -15,7 +15,6 @@ import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
-/** 설정(app.ai.provider)에 따라 Claude 또는 Ollama 로 회의록을 만든다 */
 @Component
 class RoutingMeetingNotesAi(
     private val props: AiProperties,
@@ -40,7 +39,6 @@ class RoutingMeetingNotesAi(
     }
 }
 
-/** 설정(app.ai.caption-provider, 비우면 provider)에 따라 Claude 또는 Ollama 로 자막 번역 */
 @Component
 class RoutingCaptionTranslator(
     private val props: AiProperties,

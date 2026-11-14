@@ -11,10 +11,7 @@ import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * 토스 빌링키 암호화(AES-GCM)와 customerKey 서명.
- * 빌링키는 이것만 있으면 결제를 할 수 있는 값이라 DB 에 그대로 두지 않는다.
- */
+/** 빌링키만 있으면 결제가 되므로 DB 에는 암호화해서 저장한다 */
 @Component
 class BillingKeyCipher(toss: TossProperties, jwt: JwtProperties) {
 
@@ -37,8 +34,8 @@ class BillingKeyCipher(toss: TossProperties, jwt: JwtProperties) {
     }
 
     /**
-     * 카드 등록창에 넘길 customerKey: "u{userId}-{무작위}-{서명}" (토스 규칙: 22~50자, - 포함).
-     * 등록이 끝나고 돌아왔을 때 이 사용자가 만든 키인지 서명으로 확인한다 (DB 에 미리 저장하지 않아도 됨).
+     * 서명을 붙여 두면 카드 등록 후 돌아왔을 때 이 사용자가 만든 키인지 DB 없이 확인할 수 있다.
+     * 토스 규칙: 22~50자
      */
     fun newCustomerKey(userId: Long): String {
         val nonce = ByteArray(6).also(random::nextBytes).toHex()

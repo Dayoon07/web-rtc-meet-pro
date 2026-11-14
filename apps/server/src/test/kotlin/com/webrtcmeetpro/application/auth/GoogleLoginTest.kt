@@ -34,7 +34,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** DDD 리포지토리 포트를 메모리 구현으로 바꿔 구글 로그인 규칙만 검증 (DB / Google 없이) */
+/** 리포지토리를 메모리 구현으로 바꿔 DB·구글 없이 로그인 규칙만 확인한다 */
 class GoogleLoginTest {
 
     private var seq = 0L

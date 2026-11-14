@@ -13,7 +13,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
 import org.springframework.stereotype.Component
 
-/** HS256 액세스 토큰 발급. Spring 빈(싱글톤)으로 하나만 존재한다. */
 @Component
 class JwtTokenProvider(private val props: JwtProperties) {
 

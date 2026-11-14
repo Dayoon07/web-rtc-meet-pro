@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
-/** 보관 기간이 지난 행을 한 번에 지우는 JPQL (행이 많아도 한 문장) */
+/** 행이 많아도 한 문장으로 지우려고 엔티티를 읽지 않고 벌크 JPQL 을 쓴다 */
 @Component
 class JpaRetentionPurger(private val em: EntityManager) : RetentionPurger {
 

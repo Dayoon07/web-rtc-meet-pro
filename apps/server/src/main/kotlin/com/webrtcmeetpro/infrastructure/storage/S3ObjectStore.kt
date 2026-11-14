@@ -28,9 +28,8 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * AWS S3 (app.storage.type=s3). 버킷은 공개하지 않고, 내려받을 때마다 몇 시간짜리 서명된 주소를 만든다.
- * 같은 파일의 주소가 매번 바뀌면 브라우저 캐시가 안 먹으므로, 만든 주소를 [REUSE] 동안 다시 쓴다.
- * 나중에 CloudFront 를 붙이면 [presignGet] 만 바꾸면 된다.
+ * 버킷은 공개하지 않고 내려받을 때마다 서명된 주소를 만든다.
+ * 주소가 매번 바뀌면 브라우저 캐시가 안 먹으므로 만든 주소를 [REUSE] 동안 다시 쓴다.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.storage", name = ["type"], havingValue = "s3")
@@ -68,7 +67,7 @@ class S3ObjectStore(props: StorageProperties) : DisposableBean {
         urls.keys.removeIf { it.startsWith("$key|") }
     }
 
-    /** 서명된 내려받기 주소 (약 12시간). serveAs 가 있으면 파일 이름·형식·저장/바로보기를 S3 응답 헤더로 정한다 */
+    /** serveAs 가 있으면 파일 이름·형식·저장/바로보기를 S3 응답 헤더로 정한다 */
     fun presignGet(key: String, serveAs: ServeAs? = null): String {
         val cacheKey = "$key|${serveAs?.fileName}|${serveAs?.contentType}|${serveAs?.attachment}"
         val now = Instant.now()
@@ -98,7 +97,7 @@ class S3ObjectStore(props: StorageProperties) : DisposableBean {
 
     companion object {
         private val VALID: Duration = Duration.ofHours(12)
-        /** 만든 주소를 다시 쓰는 시간. 남은 유효 시간이 최소 6시간 이상이 되게 */
+        /** 다시 써도 남은 유효 시간이 6시간 이상이 되게 */
         private val REUSE: Duration = Duration.ofHours(6)
         private const val MAX_CACHED = 20_000
     }

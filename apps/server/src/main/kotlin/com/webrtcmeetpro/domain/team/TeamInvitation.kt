@@ -25,7 +25,7 @@ class TeamInvitation(
     @Column(nullable = false)
     val inviteeEmail: String,
 
-    /** 가입된 사용자면 채움 */
+    /** 아직 가입하지 않은 사람이면 null */
     val inviteeId: Long?,
 
     @Column(nullable = false, unique = true)

@@ -30,8 +30,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api")
 class TeamController(private val teamService: TeamService, private val inviteLinks: TeamInviteLinkService) {
 
-    // ------------------------------------------------------------- 초대 링크 (팀 소유자·관리자가 만들고 지운다)
-
     @GetMapping("/teams/{teamId}/invite-links")
     fun inviteLinks(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = inviteLinks.list(teamId, jwt.userId)
 
@@ -45,16 +43,12 @@ class TeamController(private val teamService: TeamService, private val inviteLin
     fun deleteInviteLink(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @PathVariable linkId: Long) =
         inviteLinks.delete(teamId, linkId, jwt.userId)
 
-    /** 링크를 연 사람: 어떤 팀인지 · 비밀번호가 필요한지 */
     @GetMapping("/invite-links/{token}")
     fun inviteLinkPreview(@AuthenticationPrincipal jwt: Jwt, @PathVariable token: String) = inviteLinks.preview(token, jwt.userId)
 
-    /** 링크로 팀에 들어가기 (수락) */
     @PostMapping("/invite-links/{token}/join")
     fun joinByInviteLink(@AuthenticationPrincipal jwt: Jwt, @PathVariable token: String, @Valid @RequestBody req: InviteLinkPasswordReqDto) =
         inviteLinks.join(token, jwt.userId, req.password)
-
-    // -------------------------------------------------------------
 
     @PostMapping("/teams")
     @ResponseStatus(HttpStatus.CREATED)
@@ -81,8 +75,6 @@ class TeamController(private val teamService: TeamService, private val inviteLin
     fun cancel(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @PathVariable invitationId: Long) =
         teamService.cancel(teamId, invitationId, jwt.userId)
 
-    /** 내가 받은 초대 */
-    /** 팀원 역할 바꾸기 (ADMIN 지정·해제). 팀 OWNER 만 */
     @PatchMapping("/teams/{teamId}/members/{userId}/role")
     fun changeRole(
         @AuthenticationPrincipal jwt: Jwt,
@@ -91,18 +83,15 @@ class TeamController(private val teamService: TeamService, private val inviteLin
         @Valid @RequestBody req: ChangeRoleReqDto,
     ) = teamService.changeRole(teamId, jwt.userId, userId, req.role!!)
 
-    /** 팀 나가기 (OWNER 는 못 나간다) */
     @PostMapping("/teams/{teamId}/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun leave(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = teamService.leave(teamId, jwt.userId)
 
-    /** 팀원 내보내기 (OWNER: 누구나, ADMIN: 일반 팀원만) */
     @DeleteMapping("/teams/{teamId}/members/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun removeMember(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @PathVariable userId: Long) =
         teamService.removeMember(teamId, jwt.userId, userId)
 
-    /** 팀 삭제 (OWNER) */
     @DeleteMapping("/teams/{teamId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = teamService.delete(teamId, jwt.userId)

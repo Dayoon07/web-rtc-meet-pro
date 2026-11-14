@@ -22,7 +22,7 @@ class AccessAndErrorRulesTest {
 
     @Test
     fun `팀 권한은 역할별 권한 표 한 곳에서 정한다`() {
-        // OWNER 는 모든 권한 (권한이 새로 생기면 자동 포함)
+        // 권한이 새로 생기면 OWNER 에 자동으로 들어가야 한다
         assertEquals(TeamPermission.entries.toSet(), TeamRole.OWNER.permissions)
         assertTrue(TeamRole.ADMIN.can(TeamPermission.INVITE_MEMBER))
         assertTrue(TeamRole.ADMIN.can(TeamPermission.CANCEL_ANY_MEETING))
@@ -49,7 +49,6 @@ class AccessAndErrorRulesTest {
         assertThrows<BusinessException> { member.changeRole(TeamRole.OWNER) }
         val owner = TeamMember(teamId = 1, userId = 2, role = TeamRole.OWNER)
         assertThrows<BusinessException> { owner.changeRole(TeamRole.MEMBER) }
-        // 역할 바꾸기 권한은 OWNER 만
         assertTrue(TeamRole.OWNER.can(TeamPermission.MANAGE_ROLES))
         assertFalse(TeamRole.ADMIN.can(TeamPermission.MANAGE_ROLES))
     }
@@ -76,7 +75,6 @@ class AccessAndErrorRulesTest {
         val wrapped = org.springframework.dao.InvalidDataAccessResourceUsageException("Transaction timed out: deadline was Sat Nov 14 02:40:22 GMT+09:00 2026; Bad SELECT ...")
         assertEquals(ErrorCategory.DB_CONNECTION, ErrorClassifier.classify(wrapped))
         assertEquals(ErrorCategory.DB_CONNECTION, ErrorClassifier.classify(RuntimeException(SQLException("ORA-01013", "72000", 1013))))
-        // 진짜 구조 문제는 그대로
         assertEquals(ErrorCategory.DB_SCHEMA, ErrorClassifier.classify(org.springframework.dao.InvalidDataAccessResourceUsageException("ORA-00942: table does not exist")))
     }
 
@@ -87,7 +85,7 @@ class AccessAndErrorRulesTest {
         assertEquals("a_b.txt", ChatService.cleanFileName("a:b.txt"))
         val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
         assertEquals("image/png", ChatService.sniffImageType(png))
-        // SVG 는 이미지라고 해도 미리보기하지 않는다 (스크립트를 품을 수 있음)
+        // SVG 는 스크립트를 품을 수 있어 이미지여도 미리보기하지 않는다
         assertNull(ChatService.sniffImageType("<svg xmlns=\"http://www.w3.org/2000/svg\">".toByteArray()))
     }
 }

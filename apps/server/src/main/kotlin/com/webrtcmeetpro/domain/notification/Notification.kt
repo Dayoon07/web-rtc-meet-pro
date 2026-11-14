@@ -15,33 +15,26 @@ enum class NotificationType {
     TEAM_INVITATION,
     TEAM_INVITATION_ACCEPTED,
     CHAT_ROOM_INVITED,
-    /** 채팅에서 @멘션됨 (@모두 포함) */
+    /** @모두 포함 */
     CHAT_MENTION,
-    /** 내가 시작했거나 답글을 단 스레드에 새 답글 */
+    /** 내가 시작했거나 답글을 단 스레드 */
     THREAD_REPLY,
     MEETING_SCHEDULED,
     MEETING_REMINDER,
     MEETING_STARTED,
     MEETING_CANCELED,
-    /** 예약 회의의 시간·제목 등이 바뀜 */
     MEETING_UPDATED,
-    /** AI 회의록(요약·할 일)이 준비됨 */
     MEETING_NOTES_READY,
     /** 자동결제가 꺼진 플랜이 3일 안에 끝남 */
     PLAN_EXPIRING,
-    /** 플랜 기간이 끝남 */
     PLAN_EXPIRED,
-    /** 자동결제 실패 (하루 뒤 다시 시도) */
     PAYMENT_FAILED,
-    /** 워크스페이스 멤버가 플랜 한도를 넘음 (초과 요금 안내) */
     MEMBER_OVERAGE,
-    /** 3일 뒤 초과 인원 요금이 들어간 결제 */
     OVERAGE_CHARGE_SOON,
-    /** 결제를 환불함 (그 플랜은 바로 끝남) */
     PAYMENT_REFUNDED,
 }
 
-/** 문구는 저장하지 않는다. type + params(JSON) 를 클라이언트가 사용자 언어로 번역해 보여준다 */
+/** 사용자 언어로 보여 주려고 문구는 저장하지 않고 type + params 만 저장한다 */
 @Entity
 @Table(name = "notifications")
 class Notification(

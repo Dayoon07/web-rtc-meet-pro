@@ -16,7 +16,7 @@ import org.hibernate.type.YesNoConverter
 enum class LoginFailureReason { USER_NOT_FOUND, WRONG_PASSWORD, USER_NOT_ACTIVE, SOCIAL_ACCOUNT_ONLY, EMAIL_NOT_VERIFIED, EMAIL_REGISTERED }
 enum class LoginMethod { PASSWORD, GOOGLE }
 
-/** 로그인 시도 1회 = 1행. 시도 시각은 created_dt */
+/** 시도 시각은 created_dt */
 @Entity
 @Table(name = "login_histories")
 class LoginHistory(

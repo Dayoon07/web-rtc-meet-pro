@@ -26,9 +26,6 @@ import org.springframework.web.multipart.MultipartFile
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-/**
- * 회의 녹화 API. 주최자 브라우저가 녹화하면서 조각(multipart "chunk", 0 부터 seq)을 차례로 올리고, 끝나면 finish.
- */
 @RestController
 @RequestMapping("/api")
 class RecordingController(private val recordings: RecordingService) {
@@ -62,10 +59,7 @@ class RecordingController(private val recordings: RecordingService) {
     fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @PathVariable recordingId: Long) =
         recordings.delete(meetingId, recordingId, jwt.userId)
 
-    /**
-     * 재생·내려받기 (서명된 주소, 로그인 토큰 없이). Range 요청을 지원해서 영상 중간으로 바로 넘어갈 수 있다
-     * (ResponseEntity<Resource> 는 스프링이 Range 를 알아서 처리한다).
-     */
+    /** ResponseEntity<Resource> 는 스프링이 Range 를 처리해 줘서 영상 중간으로 바로 넘어갈 수 있다 */
     @GetMapping("/recordings/{recordingId}/file")
     fun file(
         @PathVariable recordingId: Long,

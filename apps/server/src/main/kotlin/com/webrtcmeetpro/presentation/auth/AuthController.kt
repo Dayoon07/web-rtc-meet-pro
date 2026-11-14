@@ -80,34 +80,31 @@ class AuthController(
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun logout(@Valid @RequestBody request: RefreshReqDto) = authService.logout(request.refreshToken)
 
-    /** 회원가입 1단계에서 이메일 중복 확인. 이미 있으면 signInMethod(PASSWORD · GOOGLE)로 어떻게 로그인하면 되는지 */
+    /** 이미 있으면 signInMethod 로 어떻게 로그인하면 되는지 알려 준다 */
     @GetMapping("/email-availability")
     fun emailAvailability(@RequestParam email: String): Map<String, Any?> {
         val method = authService.registeredSignInMethod(email)
         return mapOf("available" to (method == null), "signInMethod" to method)
     }
 
-    /** 로그인 화면에서 구글 버튼 활성 여부 */
     @GetMapping("/providers")
     fun providers() = AuthProvidersResDto(google = oauth2Properties.googleEnabled)
 
-    /** 비밀번호 재설정 메일 요청. 가입하지 않은 이메일이어도 똑같이 204 (가입 여부를 알려 주지 않는다) */
+    /** 가입 여부를 알려 주지 않으려고 가입하지 않은 이메일이어도 똑같이 204 */
     @PostMapping("/password-reset/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun requestPasswordReset(@Valid @RequestBody request: PasswordResetReqDto) = passwordReset.request(request.email)
 
-    /** 메일 링크의 토큰으로 새 비밀번호 정하기. 다른 기기의 로그인은 모두 끊긴다 */
     @PostMapping("/password-reset/confirm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun confirmPasswordReset(@Valid @RequestBody request: PasswordResetConfirmReqDto) =
         passwordReset.confirm(request.token.trim(), request.password)
 
-    /** 가입 인증 메일의 링크. 로그인하지 않은 기기에서 열어도 된다 */
+    /** 로그인하지 않은 기기에서 열어도 된다 */
     @PostMapping("/email-verification/confirm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun confirmEmail(@Valid @RequestBody request: EmailVerificationConfirmReqDto) = emailVerification.confirm(request.token.trim())
 
-    /** 구글 로그인 후 리다이렉트로 받은 1회용 코드를 토큰으로 교환 */
     @PostMapping("/oauth/exchange")
     fun exchange(@Valid @RequestBody request: OAuthExchangeReqDto, http: HttpServletRequest): AuthTokensResDto {
         val userId = codeStore.consume(request.code) ?: throw BusinessException(ErrorCode.OAUTH_CODE_INVALID)

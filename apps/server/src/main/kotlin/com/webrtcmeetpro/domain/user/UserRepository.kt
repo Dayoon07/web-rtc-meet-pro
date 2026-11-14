@@ -1,6 +1,5 @@
 package com.webrtcmeetpro.domain.user
 
-/** 도메인 포트. 구현은 infrastructure 의 Spring Data 리포지토리가 맡는다. */
 interface UserRepository {
     fun save(user: User): User
     fun findUserById(id: Long): User?

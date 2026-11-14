@@ -64,7 +64,7 @@ class DomainRulesTest {
 
     @Test
     fun `프로필은 E164 전화번호, ISO 국가코드, 만 14세 이상만 허용`() {
-        profile() // ok
+        profile()
         assertThrows<BusinessException> { profile(phone = "010-1234-5678") }
         assertThrows<BusinessException> { profile(country = "ZZ") }
         assertThrows<BusinessException> { profile(birthYear = Year.now().value - 5) }

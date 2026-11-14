@@ -9,7 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.LocalDateTime
 
-/** 웹 푸시 구독: 브라우저(기기)마다 하나. 같은 브라우저가 다시 구독하면 같은 endpoint 의 행을 고친다 */
+/** 브라우저마다 하나. 같은 브라우저가 다시 구독하면 같은 endpoint 의 행을 고친다 */
 @Entity
 @Table(name = "push_subscriptions")
 class PushSubscription(
@@ -52,7 +52,6 @@ class PushSubscription(
         lastSentAt = at
     }
 
-    /** 끄기 · 브라우저에서 사라진 구독 */
     fun cancel() {
         deleted = true
     }

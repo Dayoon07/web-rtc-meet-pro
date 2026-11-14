@@ -40,12 +40,9 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 /**
- * 토스페이먼츠 자동결제(빌링).
- * 1) 카드 등록: 웹이 토스 카드 등록창을 띄우고, 돌아온 authKey 로 빌링키를 받아 암호화해 저장한다.
- * 2) 결제: 등록한 카드(빌링키)로 바로 결제하고, 성공하면 구독 기간을 늘린다 (월 = 월 가격, 연 = 월 가격 × 12 × 0.9).
- * 3) 갱신(스케줄러): 기간이 끝난 구독은 자동결제면 다시 결제하고, 아니면 만료. 실패하면 하루 간격으로 3번까지 다시 시도.
+ * 토스 자동결제(빌링). 카드 등록 → 결제 → 기간 만료 시 자동 갱신 (실패하면 하루 간격으로 3번까지 재시도).
  *
- * 외부 결제 호출은 DB 트랜잭션 밖에서 한다 (결제 기록이 롤백돼 사라지지 않게, 오래 걸리는 호출이 DB 를 붙잡지 않게).
+ * 토스 호출은 트랜잭션 밖에서 한다: 롤백으로 결제 기록이 사라지거나, 느린 외부 호출이 DB 커넥션을 붙잡지 않게.
  */
 @Service
 class BillingService(
@@ -67,15 +64,13 @@ class BillingService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val tx = TransactionTemplate(transactionManager)
 
-    // ----------------------------------------------------------------- 카드
-
     fun prepareCard(userId: Long): CardRegistrationResDto {
         requireEnabled()
         val user = users.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
         return CardRegistrationResDto(tossProperties.clientKey, cipher.newCustomerKey(userId), user.email, user.realName ?: user.nickname)
     }
 
-    /** 카드 등록창에서 돌아옴 → 빌링키 발급. 전에 등록한 카드는 해지 (한 사람당 카드 하나) */
+    /** 한 사람당 카드는 하나라 전에 등록한 카드는 해지한다 */
     fun registerCard(userId: Long, customerKey: String, authKey: String): CardResDto {
         requireEnabled()
         if (!cipher.isOwnCustomerKey(userId, customerKey)) throw BusinessException(ErrorCode.BILLING_CARD_INVALID)
@@ -93,7 +88,7 @@ class BillingService(
         }!!.also { log.info("카드 등록 (userId={}, {} {})", userId, it.company, it.numberMasked) }
     }
 
-    /** 카드 삭제. 자동결제할 카드가 없어지므로 모든 구독의 자동결제도 끈다 (기간 끝까지는 계속 쓸 수 있다) */
+    /** 결제할 카드가 없어지므로 자동결제도 모두 끈다 (남은 기간은 그대로 쓸 수 있다) */
     fun removeCard(userId: Long) {
         tx.executeWithoutResult {
             billingKeys.findAllByUserIdAndActiveTrue(userId).forEach { it.revoke() }
@@ -102,12 +97,7 @@ class BillingService(
         }
     }
 
-    // ----------------------------------------------------------------- 결제
-
-    /**
-     * 워크스페이스 플랜 결제 (소유자만). 같은 플랜을 이미 쓰고 있으면 남은 기간 뒤로 늘어나고, 다른 플랜이면 따로 새 구독이 생긴다
-     * (가장 높은 플랜이 적용되고, 그게 끝나면 남은 낮은 플랜으로).
-     */
+    /** 같은 플랜이면 남은 기간 뒤로 이어 붙이고, 다른 플랜이면 구독을 따로 만든다 (가장 높은 플랜이 적용) */
     fun purchase(userId: Long, teamId: Long, planCode: String, cycle: BillingCycle, autoRenew: Boolean): SubscriptionResDto {
         requireEnabled()
         val team = planService.requireOwnedTeam(teamId, userId)
@@ -167,11 +157,8 @@ class BillingService(
         }
     }
 
-    // ----------------------------------------------------------------- 갱신 (스케줄러)
-
     /**
-     * - 자동결제가 꺼진 구독: 끝나기 3일 전에 알림, 끝나면 만료
-     * - 자동결제 구독: 끝나면 결제. 실패하면 하루 뒤 다시 (3번 실패하면 만료)
+     * 자동결제가 꺼진 구독은 3일 전에 알리고 끝나면 만료, 켜진 구독은 끝나면 결제한다.
      * @return 처리한 구독 수
      */
     fun processRenewals(now: LocalDateTime = LocalDateTime.now()): Int {
@@ -188,7 +175,6 @@ class BillingService(
                             tx.executeWithoutResult { notifyExpiring(reload(s), now) }
                             handled++
                         } else if (willRenew(s)) {
-                            // 갱신 결제에 초과 인원 요금이 들어가면 3일 전에 금액 안내
                             tx.executeWithoutResult { noticeRenewalOverage(reload(s), now) }
                         }
                     }
@@ -212,7 +198,7 @@ class BillingService(
             tx.executeWithoutResult { expire(reload(s), plan, now) }
             return
         }
-        // 월 자동결제이고 이 워크스페이스의 가장 높은 플랜이면 초과 인원 요금을 같이 (결제일의 멤버 수 기준)
+        // 초과 인원 요금은 가장 높은 월 자동결제 플랜의 갱신에만 붙여야 두 번 청구되지 않는다
         val excess = if (combinesOverage(s, plan, team, now)) overage.billableExcess(team, plan) else 0
         val payment = tx.execute { payments.save(newPayment(s.userId, team.id!!, team.name, plan, cycle, card, excess)) }!!
         try {
@@ -223,7 +209,7 @@ class BillingService(
             log.info("자동결제 성공 (subscriptionId={}, {} {}, 초과 {}명)", s.id, plan.code, cycle, excess)
         } catch (e: TossException) {
             if (e.uncertain) {
-                // 결제됐는지 모름: 다음 주기에 같은 구독을 다시 시도하지 않도록 재시도 시각만 미룬다
+                // 결제 여부를 모르니 같은 구독을 바로 다시 결제하면 이중 결제가 될 수 있다
                 log.error("자동결제 결과를 모름 (orderId={}): 토스 상점관리자에서 확인 필요", payment.orderId)
             }
             tx.executeWithoutResult {
@@ -240,7 +226,6 @@ class BillingService(
 
     private fun willRenew(s: Subscription) = s.autoRenew && billingKeys.findByUserIdAndActiveTrue(s.userId) != null
 
-    /** 이 구독 갱신에 초과 인원 요금을 같이 넣는지: 월 결제이고, 이보다 높은 플랜이 따로 쓰이고 있지 않을 때 */
     private fun combinesOverage(s: Subscription, plan: Plan, team: Team, now: LocalDateTime): Boolean {
         if ((s.billingCycle ?: BillingCycle.MONTHLY) != BillingCycle.MONTHLY || !overage.settingsTeam(team).overageAllowed) return false
         val other = planService.inUseSubscription(team.id!!, now)
@@ -255,14 +240,10 @@ class BillingService(
         overage.noticeCharge(team, plan, "${plan.name} (1개월)", plan.price(BillingCycle.MONTHLY), excess, s.currentPeriodEnd!!)
     }
 
-    // ----------------------------------------------------------------- 초과 인원 요금 (따로 결제)
-
     /**
-     * 월 자동결제 플랜이 아닌 소유자(무료·연 결제·자동결제 꺼짐)의 초과 인원 요금을 한 달마다 따로 결제 (스케줄러).
-     * 소유자마다 설정을 들고 있는 팀([MemberOverageService.settingsTeam]) 하나로 한 번만 청구한다.
-     * 결제일 3일 전에 안내, 결제일의 멤버 수로 계산. 초과 인원이 없으면 일정을 지운다.
-     * 실패하면 하루 뒤 다시, 3번 실패하면 한도 초과 허용을 끈다 (새 초대만 막힌다).
-     * @return 결제를 시도한 워크스페이스 수
+     * 월 자동결제 플랜이 없는 소유자의 초과 인원 요금은 한 달마다 따로 결제한다.
+     * 3번 실패하면 한도 초과 허용을 끈다 (기존 멤버는 그대로, 새 초대만 막힌다).
+     * @return 결제를 시도한 팀 수
      */
     fun processOverage(now: LocalDateTime = LocalDateTime.now()): Int {
         var charged = 0
@@ -270,7 +251,7 @@ class BillingService(
             runCatching {
                 val due = tx.execute {
                     val team = teams.findTeamById(candidate.id!!)!!
-                    // 예전에 팀마다 켜 둔 설정이 남아 있어도 소유자당 한 번만
+                    // 팀마다 켜 둔 설정이 남아 있어도 소유자당 한 번만 청구
                     if (overage.settingsTeam(team).id != team.id) return@execute null
                     val plan = planService.planOfTeam(team.id!!, now)
                     val excess = overage.billableExcess(team, plan)
@@ -281,7 +262,6 @@ class BillingService(
                             null
                         }
                         else -> {
-                            // 월 자동결제가 끝나 따로 내게 된 경우 등: 오늘부터 한 달 뒤
                             team.scheduleOverage(now.plusMonths(1))
                             val at = team.overageNextChargeAt!!
                             if (at.isAfter(now)) {
@@ -378,9 +358,7 @@ class BillingService(
         notifyUser(s, NotificationType.PLAN_EXPIRED, plan, s.currentPeriodEnd, PlanMailKind.EXPIRED, null)
     }
 
-    // -----------------------------------------------------------------
-
-    /** 결제 → 성공하면 같은 트랜잭션에서 결제 승인 기록 + 구독 반영. 실패하면 결제 실패 기록을 남기고 TossException 을 다시 던진다 */
+    /** 승인 기록과 구독 반영을 같은 트랜잭션에 묶어야 결제는 됐는데 기간이 안 늘어나는 일이 없다 */
     private fun chargeAndApply(orderId: String, card: BillingKey, apply: (LocalDateTime) -> Subscription) {
         val payment = payments.findByOrderId(orderId)!!
         val user = users.findUserById(payment.userId)
@@ -408,7 +386,7 @@ class BillingService(
         userId = userId,
         planId = plan.id!!,
         orderId = "ORD-" + UUID.randomUUID().toString().replace("-", ""),
-        // 토스 주문명은 100자까지
+        // 토스 주문명 제한 100자
         orderName = ("MQ ${plan.name} (${if (cycle == BillingCycle.YEARLY) "1년" else "1개월"})" +
             (if (excess > 0) " + 초과 ${excess}명" else "") + " · $teamName").take(100),
         amount = plan.price(cycle) + excess * plan.overagePricePerMember,
@@ -421,7 +399,6 @@ class BillingService(
 
     private fun reload(s: Subscription) = subscriptions.findSubscriptionById(s.id!!)!!
 
-    /** 결제한 사람에게 알림·메일 (워크스페이스 이름과 함께) */
     private fun notifyUser(s: Subscription, type: NotificationType, plan: Plan, date: LocalDateTime?, kind: PlanMailKind, reason: String?) {
         val teamName = s.teamId?.let(teams::findTeamById)?.name
         val path = BILLING_PATH + (s.teamId?.let { "?team=$it" } ?: "")

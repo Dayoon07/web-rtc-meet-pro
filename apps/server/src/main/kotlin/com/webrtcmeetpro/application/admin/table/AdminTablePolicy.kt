@@ -1,21 +1,14 @@
 package com.webrtcmeetpro.application.admin.table
 
 /**
- * 관리자 사이트 "데이터 관리"의 규칙. 테이블·컬럼 구조는 DB(Oracle 사전)에서 바로 읽으므로,
- * 운영 중에 테이블을 새로 만들어도 여기를 고치지 않아도 화면에 나타나고 고칠 수 있다.
- * 여기에는 "기본값과 다르게 다뤄야 하는 것"만 적는다.
- *
- * 기본 규칙
- *   - PK·IDENTITY·공통 컬럼(created_*, edited_*)은 읽기 전용, deleted_yn 은 고칠 수 있다 (소프트 삭제/복구)
- *   - 비밀값 컬럼(아래 isSecret)은 값을 보여 주지 않고 고칠 수도 없다
- *   - 행 삭제(DELETE)는 없다. deleted_yn = 'Y' 로 숨긴다
- *   - 행 추가는 insertableTables 에 있는 테이블만 (회원처럼 서버 로직(비밀번호 암호화 등)을 거쳐야 하는 테이블은 막는다)
+ * 테이블·컬럼 구조는 Oracle 사전에서 바로 읽으므로, 새 테이블을 만들어도 여기를 고치지 않아도 화면에 나타난다.
+ * 여기에는 기본값과 다르게 다뤄야 하는 것만 적는다.
  */
 object AdminTablePolicy {
 
     data class TableInfo(val group: String, val label: String, val description: String? = null)
 
-    /** 화면에 보일 이름과 묶음. 없는 테이블은 DB 주석(COMMENT ON TABLE) → 테이블 이름 순으로 쓴다 */
+    /** 여기 없는 테이블은 DB 주석(COMMENT ON TABLE)을 이름으로 쓴다 */
     val tables: Map<String, TableInfo> = linkedMapOf(
         "users" to TableInfo("회원/인증", "회원", "탈퇴한 회원은 status = DELETED, deleted_yn = Y"),
         "user_social_accounts" to TableInfo("회원/인증", "구글 연결"),
@@ -46,31 +39,29 @@ object AdminTablePolicy {
         "ai_usages" to TableInfo("플랜/결제", "AI 사용 시간"),
     )
 
-    /** 보기만 하는 테이블: 기록·결제처럼 고치면 안 되거나, 서버만 쓰는 테이블 */
+    /** 기록·결제처럼 고치면 안 되거나 서버만 쓰는 테이블 */
     val readOnlyTables = setOf(
         "refresh_tokens", "login_histories", "billing_keys", "payments", "meeting_events", "admin_data_changes", "admin_access_logs",
     )
 
-    /** 행 추가를 허용하는 테이블 */
+    /** 회원처럼 비밀번호 암호화 등 서버 로직을 거쳐야 하는 테이블은 행 추가를 막는다 */
     val insertableTables = setOf("plans")
 
-    /** 어떤 테이블에서도 고칠 수 없는 컬럼 (공통 컬럼 중 생성·수정 기록) */
     val auditColumns = setOf("created_dt", "created_us", "edited_dt", "edited_us")
 
-    /** 비밀값: 값 대신 "있음/없음"만 보여 주고, 검색·수정·내보내기에서 뺀다 */
+    /** 값 대신 있음·없음만 보여 주고 검색·수정·내보내기에서 뺀다 */
     fun isSecret(column: String): Boolean =
         column in setOf("password_hash", "token_hash", "token", "billing_key", "customer_key", "payment_key") ||
             column.endsWith("_hash") || "secret" in column || "password" in column
 
-    /** 테이블별로 따로 막는 컬럼 */
     val readOnlyColumns: Map<String, Set<String>> = mapOf(
-        // 탈퇴 처리(개인정보 지우기)는 서버 로직으로만. 상태만 바꾸면 반쯤 탈퇴한 계정이 생긴다
+        // 탈퇴(개인정보 지우기)는 서버 로직으로만 해야 반쯤 탈퇴한 계정이 생기지 않는다
         "users" to setOf("last_login_at"),
         "chat_messages" to setOf("room_id", "sender_id"),
     )
 
     fun infoOf(table: String): TableInfo? = tables[table]
 
-    /** 같은 묶음끼리, 묶음 안에서는 위 목록 순서대로. 목록에 없는 새 테이블은 "기타" 묶음 끝에 */
+    /** 목록에 없는 새 테이블은 맨 끝에 */
     fun order(table: String): Int = tables.keys.indexOf(table).let { if (it < 0) Int.MAX_VALUE else it }
 }

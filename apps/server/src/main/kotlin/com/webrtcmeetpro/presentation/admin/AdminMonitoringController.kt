@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
-/** 서버 상태: 지금 보기 · 지금 메일로 보내기 (12시간마다 자동으로도 간다) */
 @RestController
 @RequestMapping("/api/admin/monitoring")
 class AdminMonitoringController(private val admins: SystemAdminAccess, private val reports: HealthReportService) {

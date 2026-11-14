@@ -28,12 +28,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 /**
- * 요금제와 구독. **플랜은 팀 소유자(회사 계정)에게** 붙는다: 한 번 결제하면 그 사람이 만든 모든 팀에 적용.
- * - 팀은 몇 개든 무료로 만들 수 있고, 처음엔 FREE.
- * - 한 소유자가 여러 플랜을 동시에 가질 수 있고, 기간이 남은 것 중 가장 높은 플랜을 쓴다.
- * - 멤버 한도는 소유자의 모든 팀 사람을 합쳐(겹치는 사람은 한 명) 센다. 회의 인원·녹화·팀당 채널 수도 소유자 플랜으로.
- * - 결제는 소유자가 하고(BillingService), 성공하면 [applyPurchase] 로 기간을 늘린다.
- * - 구독 행에는 결제할 때 고른 팀(teamId)이 남는다. 그 팀을 지우면 남은 팀으로 옮긴다 ([onTeamDeleted]).
+ * 플랜은 팀이 아니라 팀 소유자에게 붙는다: 한 번 결제하면 그 사람이 만든 모든 팀에 적용된다.
+ * 여러 플랜을 동시에 가질 수 있고, 기간이 남은 것 중 가장 높은 플랜을 쓴다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -47,7 +43,7 @@ class PlanService(
     private val aiProperties: AiProperties = AiProperties(),
 ) {
 
-    /** 화면에 보낼 플랜. 실시간 자막을 꺼 두었으면(app.ai.live-captions) 자막 시간을 0 으로 (요금제 카드에서 빠진다) */
+    /** 실시간 자막을 꺼 두었으면 자막 시간을 0 으로 보내 요금제 카드에서 빠지게 한다 */
     fun view(plan: Plan): PlanResDto =
         PlanResDto.from(plan).let { if (aiProperties.liveCaptions) it else it.copy(liveCaptionMinutes = 0) }
 
@@ -57,28 +53,24 @@ class PlanService(
     fun findPlan(code: String): Plan =
         planRepository.findByCode(code)?.takeIf { it.active } ?: throw BusinessException(ErrorCode.PLAN_NOT_FOUND)
 
-    /** 팀에 지금 적용 중인 플랜 = 그 팀 소유자의 플랜 (한도 체크용). 유료 구독이 다 끝났으면 FREE */
     fun planOfTeam(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Plan =
         teamRepository.findTeamById(teamId)?.let { planOfOwner(it.ownerId, now) } ?: freePlan()
 
-    /** 소유자(회사 계정)의 플랜. 그 사람이 만든 모든 팀에 같은 플랜이 적용된다 */
     fun planOfOwner(ownerId: Long, now: LocalDateTime = LocalDateTime.now()): Plan =
         inUse(liveOfOwner(ownerId), now)?.second ?: freePlan()
 
-    /** 내 플랜 (내 정보 화면 표시용) */
     fun bestOwnedPlan(userId: Long, now: LocalDateTime = LocalDateTime.now()): Plan = planOfOwner(userId, now)
 
-    /** 소유자가 만든 팀 (만든 순) */
     fun ownedTeams(ownerId: Long): List<Team> =
         teamRepository.findAllByOwnerIdAndStatus(ownerId, TeamStatus.ACTIVE).sortedBy { it.id }
 
-    /** 이 팀과 같은 소유자의 팀 id 전부 (AI 사용 시간처럼 소유자 단위로 합칠 때) */
+    /** AI 사용 시간처럼 소유자 단위로 합칠 때 */
     fun siblingTeamIds(teamId: Long): List<Long> {
         val team = teamRepository.findTeamById(teamId) ?: return listOf(teamId)
         return ownedTeams(team.ownerId).map { it.id!! }.ifEmpty { listOf(teamId) }
     }
 
-    /** 소유자의 모든 팀 사람 (여러 팀에 있어도 한 명) — 멤버 한도·초과 요금 기준 */
+    /** 여러 팀에 있어도 한 명으로 센다 */
     fun ownerMemberIds(ownerId: Long): Set<Long> {
         val teamIds = ownedTeams(ownerId).map { it.id!! }
         if (teamIds.isEmpty()) return emptySet()
@@ -87,7 +79,6 @@ class PlanService(
 
     fun ownerMemberCount(ownerId: Long): Long = ownerMemberIds(ownerId).size.toLong()
 
-    /** 요금제 화면 (그 팀 소유자의 플랜). 멤버면 볼 수 있고, 결제는 소유자만 */
     fun workspaceSubscription(teamId: Long, viewerId: Long, now: LocalDateTime = LocalDateTime.now()): SubscriptionResDto {
         val team = requireMemberTeam(teamId, viewerId)
         val live = liveOfOwner(team.ownerId)
@@ -127,7 +118,7 @@ class PlanService(
         )
     }
 
-    /** 내가 결제한 구독 중 아직 확인하지 않은 만료 (최근 30일). 가장 최근 것부터 */
+    /** 결제한 플랜 중 만료일이 지난 플랜 (최근 30일, 아직 확인하지 않은 것) */
     fun expiryNotices(userId: Long, now: LocalDateTime = LocalDateTime.now()): List<ExpiryNoticeResDto> =
         subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.EXPIRED))
             .filter { it.expiryAcknowledgedAt == null && it.expiredAt?.isAfter(now.minusDays(NOTICE_DAYS)) == true }
@@ -144,15 +135,12 @@ class PlanService(
                 )
             }
 
-    /** 회원가입 직후 FREE 구독 생성 (기간 없음, 어디에도 적용 안 됨 — 예전 구조와 맞추려고 남겨 둔다) */
+    /** 기간이 없어 어디에도 적용되지 않지만, 구독이 하나도 없는 사용자를 만들지 않으려고 둔다 */
     @Transactional
     fun startFreeSubscription(userId: Long): Subscription =
         subscriptionRepository.save(Subscription(userId = userId, planId = freePlan().id!!))
 
-    /**
-     * 결제가 성공한 뒤 소유자의 구독 기간을 늘린다 (teamId = 결제할 때 고른 팀). 같은 플랜 구독이 살아 있으면 그 뒤에 이어 붙이고, 없으면 오늘부터 새 구독.
-     * 다른 플랜 구독은 건드리지 않는다 (높은 플랜이 끝나면 남은 낮은 플랜으로 돌아간다).
-     */
+    /** 같은 플랜이 살아 있으면 그 뒤로 이어 붙인다. 다른 플랜은 건드리지 않아 높은 플랜이 끝나면 낮은 플랜으로 돌아간다 */
     @Transactional
     fun applyPurchase(
         teamId: Long,
@@ -166,14 +154,13 @@ class PlanService(
             ?: Subscription(userId = payerId, planId = plan.id!!, startedAt = now, autoRenew = autoRenew, billingCycle = cycle, teamId = teamId)
         subscription.extend(cycle, now)
         subscription.autoRenew = autoRenew
-        // 같은 플랜을 다시 결제했으면 그 플랜의 만료 안내는 필요 없다
+        // 같은 플랜을 다시 샀으면 그 플랜의 만료 안내 창은 더 띄울 필요가 없다
         subscriptionRepository.findAllByUserIdAndStatusIn(payerId, listOf(SubscriptionStatus.EXPIRED))
             .filter { it.planId == plan.id && it.expiryAcknowledgedAt == null }
             .forEach { it.acknowledgeExpiry(now) }
         return subscriptionRepository.save(subscription)
     }
 
-    /** 자동결제 켜기·끄기 (결제한 사람만). 끄면 기간이 끝날 때 결제하지 않고 만료된다. 켜려면 카드가 있어야 한다 */
     @Transactional
     fun setAutoRenew(userId: Long, subscriptionId: Long, autoRenew: Boolean): SubscriptionResDto {
         val subscription = subscriptionRepository.findSubscriptionById(subscriptionId)
@@ -186,7 +173,6 @@ class PlanService(
         return workspaceSubscription(subscription.teamId!!, userId)
     }
 
-    /** "플랜이 만료됐어요" 창을 닫음 */
     @Transactional
     fun acknowledgeExpiry(userId: Long, subscriptionId: Long) {
         val subscription = subscriptionRepository.findSubscriptionById(subscriptionId)?.takeIf { it.userId == userId }
@@ -194,10 +180,7 @@ class PlanService(
         subscription.acknowledgeExpiry()
     }
 
-    /**
-     * 팀을 지울 때 (team.delete() 전에). 플랜은 소유자의 것이라 다른 팀이 남아 있으면
-     * 이 팀으로 결제한 구독과 한도 초과 설정을 그 팀으로 옮긴다. 마지막 팀이면 구독을 끝낸다 (자동결제 멈춤).
-     */
+    /** 플랜은 소유자의 것이라 다른 팀이 남아 있으면 구독과 초과 설정을 그 팀으로 옮기고, 마지막 팀이면 구독을 끝낸다 */
     @Transactional
     fun onTeamDeleted(teamId: Long) {
         val team = teamRepository.findTeamById(teamId) ?: return
@@ -211,7 +194,6 @@ class PlanService(
         if (team.overageAllowed && !heir.overageAllowed) heir.takeOverOverage(team)
     }
 
-    /** 결제할 수 있는 사람인지: 워크스페이스 소유자 */
     fun requireOwnedTeam(teamId: Long, userId: Long): Team {
         val team = teamRepository.findTeamById(teamId)?.takeIf { it.status == TeamStatus.ACTIVE } ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
         if (team.ownerId != userId) throw BusinessException(ErrorCode.NOT_TEAM_OWNER)
@@ -220,20 +202,15 @@ class PlanService(
 
     fun planById(id: Long): Plan = planRepository.findPlanById(id) ?: freePlan()
 
-    /** 팀(= 그 소유자)에 지금 적용 중인 (구독, 플랜). 유료 구독이 없으면 null */
     fun inUseSubscription(teamId: Long, now: LocalDateTime = LocalDateTime.now()): Pair<Subscription, Plan>? =
         teamRepository.findTeamById(teamId)?.let { inUse(liveOfOwner(it.ownerId), now) }
 
-    /** 워크스페이스 멤버만 (요금제·초과 인원 화면) */
     fun requireMemberTeamOf(teamId: Long, userId: Long): Team = requireMemberTeam(teamId, userId)
 
     fun cardView(key: BillingKey) = CardResDto(key.cardCompany, key.cardNumberMasked, key.createdDt)
 
-    // ---------------------------------------------------------------
-
     private fun liveOf(teamId: Long) = subscriptionRepository.findAllByTeamIdAndStatusIn(teamId, LIVE)
 
-    /** 소유자가 결제한 구독 중 살아 있는 것 (소유자의 어느 팀으로 결제했든) */
     private fun liveOfOwner(ownerId: Long): List<Subscription> {
         val teamIds = ownedTeams(ownerId).map { it.id!! }
         return if (teamIds.isEmpty()) emptyList() else subscriptionRepository.findAllByTeamIdInAndStatusIn(teamIds, LIVE)
@@ -246,7 +223,6 @@ class PlanService(
         return team
     }
 
-    /** 지금 적용 중인 (구독, 플랜). 쓸 수 있는 구독 중 가장 높은 플랜 */
     private fun inUse(live: List<Subscription>, now: LocalDateTime): Pair<Subscription, Plan>? =
         live.filter { it.isUsable(now) && it.currentPeriodEnd != null }
             .mapNotNull { s -> planRepository.findPlanById(s.planId)?.let { s to it } }
@@ -257,7 +233,6 @@ class PlanService(
             ?: throw IllegalStateException("plans 테이블에 FREE 플랜이 없습니다. db/seed.sql 을 실행하세요.")
 
     companion object {
-        /** 이 기간 안에 끝난 구독만 만료 창으로 알린다 */
         const val NOTICE_DAYS = 30L
         private val LIVE = listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE)
     }

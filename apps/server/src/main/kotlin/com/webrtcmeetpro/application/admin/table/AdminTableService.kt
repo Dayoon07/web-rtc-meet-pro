@@ -25,7 +25,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
 
-/** 목록 조회 조건. filters 는 컬럼 = 값 (값이 빈 문자열이면 IS NULL) */
+/** filters 의 값이 빈 문자열이면 IS NULL */
 data class AdminRowQuery(
     val page: Int = 0,
     val size: Int = 50,
@@ -33,20 +33,15 @@ data class AdminRowQuery(
     val desc: Boolean = true,
     val q: String? = null,
     val filters: Map<String, String> = emptyMap(),
-    /** 컬럼 = 값을 "포함" (대소문자 무시). 숫자·날짜도 글자로 바꿔 찾는다 */
+    /** 대소문자 무시 부분 일치. 숫자·날짜도 글자로 바꿔 찾는다 */
     val contains: Map<String, String> = emptyMap(),
-    /** deleted_yn 이 있는 테이블: null = 전부, false = 사용 중(N)만, true = 미사용(Y)만 */
+    /** null = 전부, false = 사용 중(N)만, true = 미사용(Y)만 */
     val deleted: Boolean? = null,
 )
 
 /**
- * 관리자 사이트 "데이터 관리". 테이블·컬럼·PK·FK·CHECK 를 Oracle 사전(user_tables 등)에서 읽어서
- * 어떤 테이블이든 같은 화면으로 보고·찾고·고친다. 운영 중에 테이블이 늘어나도 코드를 고치지 않아도 된다.
- *
- * 안전장치
- *   - SQL 에 들어가는 테이블·컬럼 이름은 사전에서 읽은 이름만 쓴다 (사용자 입력은 전부 바인드 변수)
- *   - 비밀값 컬럼은 값을 내보내지 않는다. 행 삭제는 없다 (deleted_yn 으로 숨김)
- *   - 고친 내용은 admin_data_changes 에 이전 값 → 새 값으로 남긴다
+ * Oracle 사전에서 테이블·컬럼·PK·FK·CHECK 를 읽어 어떤 테이블이든 같은 화면으로 다룬다.
+ * SQL 에 넣는 테이블·컬럼 이름은 사전에서 읽은 것만 쓰고, 사용자 입력은 모두 바인드 변수로 넘긴다.
  */
 @Service
 class AdminTableService(
@@ -56,8 +51,6 @@ class AdminTableService(
 ) {
     private val zone = ZoneId.systemDefault()
     private val metaCache = ConcurrentHashMap<String, Pair<Instant, AdminTableMetaResDto>>()
-
-    // ---------------------------------------------------------------- 목록·구조
 
     fun tables(): List<AdminTableSummaryResDto> =
         tableNames().map { name ->
@@ -75,7 +68,7 @@ class AdminTableService(
             )
         }.sortedWith(compareBy({ AdminTablePolicy.order(policyKey(it.name)) }, { it.name }))
 
-    /** 30초 동안 캐시한다 (사전 조회가 여러 번 필요해서). 새 컬럼은 길어야 30초 뒤에 보인다 */
+    /** 사전 조회가 여러 번 필요해 30초 캐시한다. 새 컬럼은 길어야 30초 뒤에 보인다 */
     fun meta(table: String): AdminTableMetaResDto {
         val name = table.lowercase()
         metaCache[name]?.let { (at, meta) -> if (at.plusSeconds(30).isAfter(Instant.now())) return meta }
@@ -87,7 +80,7 @@ class AdminTableService(
         jdbc.jdbcTemplate.queryForList("SELECT LOWER(table_name) FROM user_tables WHERE table_name NOT LIKE 'BIN$%'", String::class.java)
             .filterNotNull().filter { it.startsWith(props.tablePrefix) }
 
-    /** 테스트용 접두어(zz_ 등)를 떼고 정책을 찾는다 */
+    /** 테스트 테이블은 zz_ 같은 접두어가 붙어 있다 */
     private fun policyKey(name: String) = name.removePrefix(props.tablePrefix)
 
     private fun tableComment(name: String): String? = jdbc.queryForList(
@@ -178,15 +171,13 @@ class AdminTableService(
             group = info?.group ?: "기타",
             description = info?.description,
             primaryKey = pk,
-            // PK 가 하나가 아니면 행을 짚을 수 없어서 보기만 한다
+            // PK 가 하나가 아니면 행을 짚을 수 없다
             readOnly = tableReadOnly || pk == null,
             insertable = key in AdminTablePolicy.insertableTables && pk != null,
             softDelete = columns.any { it.name == "deleted_yn" },
             columns = columns,
         )
     }
-
-    // ---------------------------------------------------------------- 조회
 
     fun rows(table: String, query: AdminRowQuery): AdminRowPageResDto {
         val meta = meta(table)
@@ -209,7 +200,7 @@ class AdminTableService(
             .firstOrNull() ?: throw BusinessException(ErrorCode.ADMIN_ROW_NOT_FOUND)
     }
 
-    /** 엑셀에서 바로 열리게 UTF-8 BOM + 쉼표 구분. 최대 10,000행, 비밀값은 비운다 */
+    /** 엑셀에서 한글이 깨지지 않게 UTF-8 BOM 을 붙인다 */
     fun exportCsv(table: String, query: AdminRowQuery): String {
         val meta = meta(table)
         val params = MapSqlParameterSource()
@@ -223,12 +214,6 @@ class AdminTableService(
         return sb.toString()
     }
 
-    // ---------------------------------------------------------------- 수정·추가
-
-    /**
-     * 행 고치기. 바뀐 컬럼만 UPDATE 하고 edited_dt / edited_us 를 채운다.
-     * @return 고친 뒤의 행
-     */
     @Transactional
     fun update(table: String, id: String, values: Map<String, Any?>, adminId: Long): Map<String, Any?> {
         val meta = meta(table)
@@ -260,7 +245,6 @@ class AdminTableService(
         return row(table, id)
     }
 
-    /** 행 추가 (insertableTables 만). IDENTITY PK 는 DB 가 만든다 */
     @Transactional
     fun insert(table: String, values: Map<String, Any?>, adminId: Long): Map<String, Any?> {
         val meta = meta(table)
@@ -289,7 +273,7 @@ class AdminTableService(
         return row(table, id)
     }
 
-    /** 자기 자신의 관리자 권한을 빼면 관리자 사이트에 다시 들어올 수 없다 → 막는다 */
+    /** 자기 관리자 권한을 빼면 관리자 사이트에 다시 들어올 수 없다 */
     private fun guardSelfLockout(meta: AdminTableMetaResDto, col: AdminColumnResDto, id: String, raw: Any?, adminId: Long) {
         val key = policyKey(meta.name)
         if (key == "users" && id == adminId.toString() &&
@@ -299,7 +283,6 @@ class AdminTableService(
         }
     }
 
-    /** 관리자 변경 기록 (admin_data_changes). action = UPDATE | INSERT, changes = 컬럼 → {from, to} */
     fun recordChange(table: String, id: String, action: String, changes: Map<String, Any?>, adminId: Long) {
         val log = props.tablePrefix + "admin_data_changes"
         if (log !in tableNames()) return
@@ -314,12 +297,10 @@ class AdminTableService(
     private fun <T> guardConstraint(block: () -> T): T = try {
         block()
     } catch (e: DataIntegrityViolationException) {
-        // ORA-00001 (중복), ORA-02291 (참조할 행 없음), ORA-02290 (CHECK) 등. 첫 줄만 보여 준다
+        // ORA 메시지는 여러 줄이라 첫 줄만
         val detail = (e.mostSpecificCause.message ?: "").lineSequence().firstOrNull()?.take(300).orEmpty()
         throw BusinessException(ErrorCode.ADMIN_DATA_CONSTRAINT, mapOf("detail" to detail), "${ErrorCode.ADMIN_DATA_CONSTRAINT.message} ($detail)")
     }
-
-    // ---------------------------------------------------------------- SQL 조립
 
     private fun whereOf(meta: AdminTableMetaResDto, query: AdminRowQuery, params: MapSqlParameterSource): String {
         val conds = mutableListOf<String>()
@@ -356,7 +337,7 @@ class AdminTableService(
                 .map { if (it.kind == AdminColumnKind.LONG_TEXT) "UPPER(DBMS_LOB.SUBSTR(${q(it.name)}, 4000, 1)) LIKE :q ESCAPE '\\'" else "UPPER(${q(it.name)}) LIKE :q ESCAPE '\\'" }
                 .toMutableList()
             params.addValue("q", "%" + text.uppercase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
-            // 숫자면 PK·숫자 컬럼(user_id 등)도 같은 값을 찾는다
+            // 숫자로 찾으면 user_id 같은 숫자 컬럼도 같이 찾는다
             text.toBigDecimalOrNull()?.let { n ->
                 meta.columns.filter { it.kind == AdminColumnKind.NUMBER && !it.secret }.forEach { ors += "${q(it.name)} = :qn" }
                 params.addValue("qn", n)
@@ -376,7 +357,7 @@ class AdminTableService(
         return "${q(col.name)} $dir$tie"
     }
 
-    /** 목록에서는 긴 글(CLOB)을 앞부분만, 바이너리는 크기만, 비밀값은 있음/없음만 */
+    /** 목록이 무거워지지 않게 CLOB 은 앞부분만, 바이너리는 크기만 */
     private fun selectList(meta: AdminTableMetaResDto, full: Boolean): String = meta.columns.joinToString(", ") { c ->
         val n = q(c.name)
         when {
@@ -397,9 +378,6 @@ class AdminTableService(
         c.name to v
     }
 
-    // ---------------------------------------------------------------- 값 변환
-
-    /** 화면 입력(JSON 값)을 DB 값으로. 길이·허용 값·필수 여부를 먼저 확인한다 */
     private fun convertInput(col: AdminColumnResDto, raw: Any?): Any? {
         val text = raw?.toString()
         if (text == null || (text.isEmpty() && col.kind != AdminColumnKind.TEXT)) {
@@ -419,7 +397,6 @@ class AdminTableService(
         }
     }
 
-    /** 필터·PK 값처럼 글자로 온 값을 컬럼 형식으로 */
     private fun convert(col: AdminColumnResDto, text: String): Any = when (col.kind) {
         AdminColumnKind.NUMBER -> text.trim().toBigDecimalOrNull() ?: throw invalid(col.name, "숫자를 입력해 주세요.")
         AdminColumnKind.DATETIME -> Timestamp.valueOf(parseDateTime(text) ?: throw invalid(col.name, "날짜·시간 형식이 올바르지 않습니다. 예: 2026-11-07T09:30"))
@@ -479,7 +456,7 @@ class AdminTableService(
     private fun AdminTableMetaResDto.columnOrNull(name: String) = columns.firstOrNull { it.name == name.lowercase() }
     private fun AdminTableMetaResDto.column(name: String) = columnOrNull(name) ?: throw invalid(name, "없는 컬럼입니다.")
 
-    /** 사전에서 읽은 이름만 들어온다. 큰따옴표로 감싸 대문자 이름으로 정확히 가리킨다 */
+    /** Oracle 은 따옴표 없는 이름을 대문자로 바꾸므로 감싸서 정확히 가리킨다 */
     private fun q(identifier: String): String {
         require(IDENTIFIER.matches(identifier)) { "잘못된 이름: $identifier" }
         return "\"" + identifier.uppercase() + "\""

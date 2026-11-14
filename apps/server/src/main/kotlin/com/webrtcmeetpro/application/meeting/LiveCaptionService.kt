@@ -29,11 +29,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * 실시간 자막·번역 (Business 플랜 전용, 한 달 plans.live_caption_minutes 안에서).
- * 회의 중 누군가 켜면 각자 브라우저가 자기 말을 받아써서 보내고, 서버가 지금 회의에 있는 사람들의 언어로 번역해서
- * 모두에게 보낸다. 각자 화면은 자기 언어 번역을 보여 준다 (같은 언어면 원문).
- * 켜짐 상태는 서버 메모리에만 둔다 (재시작하면 꺼짐). 켜져 있던 시간만큼 이번 달 사용량에 더한다.
- * AI 회의록이 켜져 있으면 같은 문장을 회의록에도 넣는다 (받아쓰기는 브라우저에서 한 번만).
+ * 실시간 자막·번역 (Business 플랜). 각자 브라우저가 자기 말을 받아쓰고, 서버가 회의에 있는 사람들의 언어로 번역해 보낸다.
+ * 켜짐 상태는 메모리에만 두므로 서버를 재시작하면 꺼진다.
+ * AI 회의록도 켜져 있으면 같은 문장을 회의록에 넣어, 받아쓰기는 브라우저에서 한 번만 한다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -50,11 +48,10 @@ class LiveCaptionService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     private class Session(val teamId: Long, val activeSince: LocalDateTime) {
-        /** 사용자 → 보고 싶은 자막 언어 */
         val langs = ConcurrentHashMap<Long, String>()
-        /** 바로 앞 문장들 (번역 문맥) */
+        /** 번역 문맥용 */
         val recent = ArrayDeque<String>()
-        /** 회의 하나의 번역은 차례대로 (문장 순서가 섞이지 않게) */
+        /** 문장 순서가 섞이지 않게 회의 하나의 번역은 차례대로 */
         @Volatile var tail: CompletableFuture<Void> = CompletableFuture.completedFuture(null)
     }
 
@@ -71,7 +68,7 @@ class LiveCaptionService(
         return stateOf(meeting, now)
     }
 
-    /** 켜기 (회의에 들어와 있는 사람, Business 플랜). lang = 켠 사람이 볼 자막 언어 */
+    /** lang = 켠 사람이 볼 자막 언어 */
     @Transactional
     fun start(meetingId: Long, userId: Long, lang: String?, now: LocalDateTime = LocalDateTime.now()): CaptionStateResDto {
         val meeting = findMeeting(meetingId)
@@ -89,7 +86,6 @@ class LiveCaptionService(
         return stateOf(meeting, now)
     }
 
-    /** 내가 볼 자막 언어 알리기 (자막이 켜진 회의에 들어오거나 언어를 바꿀 때) */
     fun watch(meetingId: Long, userId: Long, lang: String?) {
         val session = sessions[meetingId] ?: return
         val meeting = findMeeting(meetingId)
@@ -105,16 +101,12 @@ class LiveCaptionService(
         return stateOf(meeting, now)
     }
 
-    /**
-     * 받아쓴 한 문장. 자막이 꺼져 있으면 on=false (AI 회의록이 켜져 있으면 회의록에만 넣는다).
-     * @return 자막이 켜져 있는지
-     */
+    /** @return 자막이 켜져 있는지. 꺼져 있어도 AI 회의록이 켜져 있으면 회의록에는 넣는다 */
     @Transactional
     fun addLine(meetingId: Long, userId: Long, rawText: String, rawLang: String?, now: LocalDateTime = LocalDateTime.now()): NotesLineResDto {
         val meeting = findMeeting(meetingId)
         val me = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).firstOrNull { it.userId == userId }
             ?: throw BusinessException(ErrorCode.NOT_IN_MEETING)
-        // AI 회의록도 켜져 있으면 같은 문장을 회의록에
         runCatching { notesService.addLine(meetingId, userId, rawText, rawLang, now) }
         val session = sessions[meetingId] ?: return NotesLineResDto(on = false)
 
@@ -131,9 +123,8 @@ class LiveCaptionService(
         val speaker = me.displayName.ifBlank { "?" }
         val id = ids.incrementAndGet()
         val inRoom = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).map { it.userId }.distinct()
-        // 1) 원문 먼저 (같은 언어인 사람은 바로 본다)
+        // 같은 언어인 사람은 번역을 기다리지 않게 원문부터
         realtime.push(inRoom, RealtimePublisher.MEETING, CaptionEventResDto(id, meetingId, userId, speaker, text, lang, emptyMap(), pending = true))
-        // 2) 번역 (회의마다 차례대로, 다른 스레드)
         val context = synchronized(session.recent) {
             session.recent.toList().also {
                 session.recent.addLast("$speaker: $text")
@@ -154,16 +145,13 @@ class LiveCaptionService(
         return NotesLineResDto(on = true)
     }
 
-    /** 회의가 끝나면 자막도 끈다 */
     @EventListener
     @Transactional
     fun onMeetingEnded(event: MeetingEndedEvent) {
         close(event.meetingId, LocalDateTime.now())
     }
 
-    // ---------------------------------------------------------------
-
-    /** 끄고 켜져 있던 시간을 사용량에 더한다 */
+    /** 켜져 있던 시간만큼 이번 달 사용량에 더한다 */
     private fun close(meetingId: Long, now: LocalDateTime, by: String? = null, reason: String? = null) {
         val session = sessions.remove(meetingId) ?: return
         quota.add(session.teamId, AiFeature.CAPTIONS, Duration.between(session.activeSince, now).seconds, now)
@@ -200,7 +188,7 @@ class LiveCaptionService(
     companion object {
         const val CONTEXT_LINES = 4
 
-        /** "ko-KR" → "ko", "zh-CN" → "zh" */
+        /** "ko-KR" → "ko" */
         fun normalize(lang: String?): String? =
             lang?.trim()?.lowercase()?.take(2)?.takeIf { it.matches(Regex("[a-z]{2}")) }
     }

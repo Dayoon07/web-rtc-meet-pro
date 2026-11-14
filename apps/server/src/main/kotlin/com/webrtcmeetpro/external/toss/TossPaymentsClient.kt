@@ -13,8 +13,8 @@ import java.time.Duration
 import java.util.Base64
 
 /**
- * 토스가 거절했거나(카드 한도·정지 등) 연결에 실패함. message 는 토스가 보낸 한국어 문구.
- * @param uncertain 연결이 끊겨서 결제가 됐는지 모름 (같은 orderId 로 다시 시도하면 토스가 한 번만 처리한다)
+ * message 는 토스가 보낸 한국어 문구.
+ * @param uncertain 연결이 끊겨 결제 여부를 모름. 같은 orderId 로 다시 보내면 토스가 한 번만 처리한다
  */
 class TossException(val code: String, override val message: String, val uncertain: Boolean = false) : RuntimeException(message)
 
@@ -29,17 +29,13 @@ data class TossPayment(
     val approveNo: String? = null,
 )
 
-/**
- * 토스페이먼츠 자동결제 API (https://docs.tosspayments.com/reference).
- * 인증: Basic base64("시크릿키:")
- */
+/** https://docs.tosspayments.com/reference. 인증은 Basic base64("시크릿키:") */
 @Component
 class TossPaymentsClient(private val props: TossProperties, private val json: JsonMapper) {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
 
-    /** 카드 등록창이 돌려준 authKey 로 빌링키 발급 */
     fun issueBillingKey(authKey: String, customerKey: String): TossBilling {
         val body = post("/v1/billing/authorizations/issue", mapOf("authKey" to authKey, "customerKey" to customerKey), null)
         val card = body["card"] as? Map<*, *>
@@ -50,7 +46,7 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         )
     }
 
-    /** 빌링키로 결제 승인. orderId 를 멱등 키로 써서 재시도해도 두 번 결제되지 않게 */
+    /** orderId 를 멱등 키로 써서 재시도해도 두 번 결제되지 않게 한다 */
     fun charge(billingKey: String, customerKey: String, amount: Long, orderId: String, orderName: String, email: String?, name: String?): TossPayment {
         val payload = buildMap<String, Any> {
             put("customerKey", customerKey)
@@ -73,10 +69,7 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         )
     }
 
-    /**
-     * 결제 취소 = 환불 (https://docs.tosspayments.com/reference#결제-취소). amount 가 null 이면 전액, 있으면 부분 취소.
-     * idempotencyKey 로 같은 환불을 두 번 보내도 한 번만 취소된다
-     */
+    /** amount 가 null 이면 전액. idempotencyKey 로 같은 환불을 두 번 보내도 한 번만 취소된다 */
     fun cancel(paymentKey: String, reason: String, amount: Long?, idempotencyKey: String) {
         val payload = buildMap<String, Any> {
             put("cancelReason", reason.ifBlank { "환불" })
@@ -112,7 +105,6 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         return body
     }
 
-    /** 카드사 코드 → 이름 (없으면 코드 그대로) */
     private fun issuerName(code: String) = ISSUERS[code] ?: code
 
     companion object {

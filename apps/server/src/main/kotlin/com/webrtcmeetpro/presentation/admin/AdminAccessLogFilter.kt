@@ -13,9 +13,8 @@ import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
- * 관리자 API(/api/admin 아래 전부)를 부를 때마다 접속기록을 남긴다 (개인정보의 안전성 확보조치 기준 제8조).
- * 보안 필터 뒤에서 돌아서 로그인한 관리자를 안다. 기록이 실패해도 요청은 막지 않는다.
- * 쿼리 문자열의 비밀값(token, password 등)은 가린다.
+ * 개인정보의 안전성 확보조치 기준 제8조 접속기록. 로그인한 관리자를 알아야 해서 보안 필터 뒤에서 돈다.
+ * 기록이 실패해도 요청은 막지 않고, 쿼리 문자열의 비밀값(token, password 등)은 가린다.
  */
 @Component
 class AdminAccessLogFilter(private val logs: AdminAccessLogRepository) : OncePerRequestFilter() {

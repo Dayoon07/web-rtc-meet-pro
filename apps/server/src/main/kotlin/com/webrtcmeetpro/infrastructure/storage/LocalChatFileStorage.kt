@@ -14,9 +14,8 @@ import java.time.YearMonth
 import java.util.UUID
 
 /**
- * 채팅 첨부파일을 서버 디스크(app.storage.chat-file-dir)에 저장한다.
- * /uploads 처럼 정적 경로로 공개하지 않고, 서명된 주소(/api/chat/files/{id})로만 내려준다.
- * 저장 이름은 "년/월/UUID" — 원래 파일 이름·확장자는 DB 에만 둔다 (서버에서 실행되거나 해석될 일이 없게).
+ * 정적 경로로 공개하지 않고 서명된 주소로만 내려준다.
+ * 서버에서 실행되거나 해석될 일이 없게 저장 이름은 "년/월/UUID" 로 하고, 원래 이름·확장자는 DB 에만 둔다.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.storage", name = ["type"], havingValue = "local", matchIfMissing = true)
@@ -46,7 +45,7 @@ class LocalChatFileStorage(storageProperties: StorageProperties) : ChatFileStora
             .onFailure { log.warn("채팅 첨부파일 삭제 실패: {}", target, it) }
     }
 
-    /** 우리가 만든 형식의 이름만, 저장 폴더 밖으로 나가지 않게 (경로 조작 방지) */
+    /** 경로 조작을 막으려고 우리가 만든 형식의 이름만 받는다 */
     private fun resolve(storedName: String): Path? {
         if (!STORED_NAME.matches(storedName)) return null
         return root.resolve(storedName).normalize().takeIf { it.startsWith(root) }

@@ -15,7 +15,7 @@ class RefreshToken(
     @Column(nullable = false)
     val userId: Long,
 
-    /** SHA-256 hex. 원문은 저장하지 않는다 */
+    /** DB 가 새어도 토큰을 쓸 수 없게 SHA-256 해시만 저장한다 */
     @Column(nullable = false, unique = true)
     val tokenHash: String,
 

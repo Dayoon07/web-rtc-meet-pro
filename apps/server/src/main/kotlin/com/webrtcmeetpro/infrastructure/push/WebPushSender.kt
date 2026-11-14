@@ -30,17 +30,15 @@ import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/** 브라우저 구독 하나 (PushSubscription.toJSON() 의 endpoint · keys.p256dh · keys.auth) */
 data class PushTarget(val endpoint: String, val p256dh: String, val auth: String)
 
-/** 보낸 결과. GONE = 구독이 사라짐(브라우저에서 알림을 끄거나 오래 안 씀) → 지운다 */
+/** GONE = 브라우저에서 알림을 끄거나 오래 안 써서 구독이 사라짐 */
 enum class PushResult { SENT, GONE, FAILED }
 
 /**
- * 웹 푸시 보내기 (외부 라이브러리 없이 JDK 암호화만).
- * - 내용 암호화: RFC 8291 (aes128gcm). 브라우저 키와 ECDH → HKDF → AES-128-GCM
- * - 보낸 사람 확인: RFC 8292 VAPID. 우리 개인 키로 서명한 JWT(ES256) 를 Authorization 에
- * 키는 base64url: 공개 키 = 65바이트(04||x||y), 개인 키 = 32바이트 숫자. scripts/ 의 키 만들기 안내 참고
+ * 외부 라이브러리 없이 JDK 암호화만으로 보낸다.
+ * 내용은 RFC 8291(aes128gcm), 보낸 사람 확인은 RFC 8292 VAPID(ES256 JWT).
+ * 키는 base64url: 공개 키 65바이트(04||x||y), 개인 키 32바이트.
  */
 @Component
 class WebPushSender(private val props: PushProperties) {
@@ -104,13 +102,13 @@ class WebPushSender(private val props: PushProperties) {
         val nonce = hkdf(salt, ikm, "Content-Encoding: nonce".toByteArray() + 0, 12)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, SecretKeySpec(cek, "AES"), GCMParameterSpec(128, nonce)) }
-        // 마지막(하나뿐인) 레코드: 내용 뒤에 0x02
+        // 하나뿐인 레코드가 마지막 레코드라 0x02 를 붙인다
         val encrypted = cipher.doFinal(payload + 2)
         return ByteBuffer.allocate(16 + 4 + 1 + asPublic.size + encrypted.size)
             .put(salt).putInt(RECORD_SIZE).put(asPublic.size.toByte()).put(asPublic).put(encrypted).array()
     }
 
-    /** RFC 8292: 받는 푸시 서버(aud) · 12시간 유효 · 연락처(sub) 를 ES256 으로 서명 */
+    /** RFC 8292: aud = 받는 푸시 서버, 12시간 유효 */
     private fun vapidJwt(key: ECPrivateKey, audience: String): String {
         val header = b64.encodeToString("""{"typ":"JWT","alg":"ES256"}""".toByteArray())
         val exp = Instant.now().plusSeconds(12 * 3600).epochSecond
@@ -151,7 +149,7 @@ class WebPushSender(private val props: PushProperties) {
         else -> ByteArray(32 - n.size) + n
     }
 
-    /** JDK 서명(DER) → JWS 가 쓰는 R||S 64바이트 */
+    /** JDK 서명은 DER 인데 JWS 는 R||S 64바이트를 쓴다 */
     private fun derToRaw(der: ByteArray): ByteArray {
         var i = 2
         if (der[1].toInt() and 0x80 != 0) i += der[1].toInt() and 0x7f

@@ -14,10 +14,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
-/**
- * 시스템 관리자(users.system_role = ADMIN) 확인. 팀 역할과는 별개다.
- * 토큰에 역할을 넣지 않고 매번 DB 에서 읽는다 → 관리자 권한을 회수하면 바로 막힌다.
- */
+/** 권한을 회수하면 바로 막히도록 토큰이 아니라 매번 DB 에서 관리자 여부를 읽는다 */
 @Component
 class SystemAdminAccess(private val userRepository: UserRepository) {
 
@@ -27,14 +24,12 @@ class SystemAdminAccess(private val userRepository: UserRepository) {
         if (!isSystemAdmin(userId)) throw BusinessException(ErrorCode.FORBIDDEN)
     }
 
-    /** 관리자 사이트가 로그인 직후 "관리자 계정인지" 확인할 때 */
     fun me(userId: Long): AdminMeResDto {
         val user = userRepository.findUserById(userId)?.takeIf { it.isSystemAdmin } ?: throw BusinessException(ErrorCode.FORBIDDEN)
         return AdminMeResDto(user.id!!, user.email, user.nickname)
     }
 }
 
-/** 사용자가 알려 준 에러 코드로 원인을 찾고, 해결 표시를 한다 (관리자 API) */
 @Service
 @Transactional(readOnly = true)
 class AdminErrorLogService(
@@ -42,7 +37,6 @@ class AdminErrorLogService(
     private val admins: SystemAdminAccess,
 ) {
 
-    /** 최근 100건. unresolvedOnly 면 아직 해결 표시가 안 된 것만 */
     fun recent(adminId: Long, unresolvedOnly: Boolean): List<AdminErrorLogResDto> {
         admins.require(adminId)
         val logs = if (unresolvedOnly) repository.findTop100ByResolvedOrderByIdDesc(false) else repository.findTop100ByOrderByIdDesc()
@@ -59,7 +53,7 @@ class AdminErrorLogService(
         admins.require(adminId)
         val log = findLog(errorCode)
         log.resolve()
-        // 수정자·수정일시는 저장(flush) 때 채워지므로, 응답에 담기 전에 먼저 저장한다
+        // 수정자·수정일시는 flush 때 채워지므로 응답에 담기 전에 먼저 저장한다
         repository.flush()
         return view(log, withStack = false)
     }

@@ -13,7 +13,7 @@ import java.time.LocalDateTime
 
 enum class SocialProvider { GOOGLE }
 
-/** 소셜 로그인 연결. (provider, providerUserId) 로 사용자를 찾는다. 구글은 sub 클레임 */
+/** 구글은 이메일이 바뀔 수 있어 sub 클레임으로 사용자를 찾는다 */
 @Entity
 @Table(name = "user_social_accounts")
 class SocialAccount(
@@ -50,6 +50,6 @@ interface SocialAccountRepository {
     fun save(account: SocialAccount): SocialAccount
     fun findByProviderAndProviderUserId(provider: SocialProvider, providerUserId: String): SocialAccount?
     fun findAllByUserId(userId: Long): List<SocialAccount>
-    /** 탈퇴하면 구글 연결을 지운다 (같은 구글 계정으로 새로 가입할 수 있게) */
+    /** 같은 구글 계정으로 새로 가입할 수 있게 */
     fun delete(account: SocialAccount)
 }

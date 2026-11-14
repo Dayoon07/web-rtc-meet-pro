@@ -9,10 +9,7 @@ import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
 
-/**
- * 실시간 자막: 한 문장을 여러 언어로 한 번에 옮긴다. 빨리 끝나도록 effort low, 짧은 출력.
- * 요청한 언어마다 칸이 있는 JSON 스키마(구조화 출력)로 받는다.
- */
+/** 자막은 실시간이라 effort low 로 짧게 받는다. 언어마다 칸이 있는 JSON 스키마로 한 번에 받는다 */
 @Component
 class ClaudeCaptionTranslator(
     private val claude: ClaudeClients,

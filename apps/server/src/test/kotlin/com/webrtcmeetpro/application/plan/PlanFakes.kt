@@ -19,7 +19,7 @@ import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.team.TeamStatus
 import java.time.LocalDateTime
 
-/** 테스트용: id 가 비어 있으면 채운다 (JPA 대신) */
+/** JPA 대신 id 를 채운다 */
 object TestIds {
     private var seq = 0L
     fun <T : Any> assign(entity: T): T {
@@ -44,7 +44,6 @@ fun testPlan(code: String, price: Long, rank: Int, recording: Boolean = false, s
     ),
 )
 
-/** 요금제·구독·카드·결제 메모리 저장소 */
 class PlanFakes(val plans: List<Plan>) {
     val subscriptions = mutableListOf<Subscription>()
     val billingKeys = mutableListOf<BillingKey>()
@@ -52,7 +51,6 @@ class PlanFakes(val plans: List<Plan>) {
     val teams = mutableListOf<Team>()
     val members = mutableListOf<TeamMember>()
 
-    /** 워크스페이스 하나 만들기 (owner 가 OWNER 멤버) */
     fun team(ownerId: Long, name: String = "ws"): Team = TestIds.assign(Team(ownerId, name)).also {
         teams += it
         members += TestIds.assign(TeamMember(it.id!!, ownerId, TeamRole.OWNER))

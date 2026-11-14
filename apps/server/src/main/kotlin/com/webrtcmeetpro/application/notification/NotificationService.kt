@@ -21,7 +21,7 @@ class NotificationService(
     private val json: JsonMapper,
     private val push: PushNotifier,
 ) {
-    /** 여러 사용자에게 같은 알림. 저장 후(커밋 뒤) 접속 중인 사용자에게 실시간 전송 */
+    /** 저장이 커밋된 뒤에 실시간으로 보낸다 */
     @Transactional
     fun notify(userIds: Collection<Long>, type: NotificationType, params: Map<String, Any?>, link: String?) {
         val raw = json.writeValueAsString(params)
@@ -29,7 +29,6 @@ class NotificationService(
             val saved = repository.save(Notification(userId, type, raw, link))
             realtime.push(listOf(userId), RealtimePublisher.NOTIFICATIONS, toView(saved))
         }
-        // 접속하지 않은 사람에게는 브라우저 푸시로도
         push.notification(userIds, type, params, link)
     }
 

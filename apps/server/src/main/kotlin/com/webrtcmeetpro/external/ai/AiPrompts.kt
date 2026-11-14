@@ -9,7 +9,7 @@ import tools.jackson.module.kotlin.readValue
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** 회의록 요약 지시문·JSON 스키마·결과 해석 (Claude·Ollama 가 같이 쓴다) */
+/** Claude 와 Ollama 가 같은 지시문·스키마를 쓴다 */
 object NotesPrompt {
     private val TIME = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val DATE = Regex("""\d{4}-\d{2}-\d{2}""")
@@ -38,7 +38,6 @@ object NotesPrompt {
 
     private fun nullable(type: String) = mapOf("type" to listOf(type, "null"))
 
-    /** 구조화 출력 JSON 스키마 */
     val SCHEMA: Map<String, Any> = mapOf(
         "type" to "object",
         "properties" to mapOf(
@@ -92,8 +91,8 @@ object NotesPrompt {
     private val WEEKDAYS = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
 
     /**
-     * "금요일까지" 같은 요일 기한은 서버가 날짜로 바꾼다 (작은 모델은 날짜 계산을 자주 틀린다).
-     * 이번 주 = 회의 날 다음부터 처음 오는 그 요일 (같은 요일이면 그날), 다음 주 = 다음 주 월요일부터 시작하는 주의 그 요일
+     * 작은 모델은 날짜 계산을 자주 틀려서 요일 기한은 서버가 날짜로 바꾼다.
+     * 이번 주 = 회의 다음 날부터 처음 오는 그 요일 (같은 요일이면 그날), 다음 주 = 다음 주 월요일부터의 그 요일
      */
     fun weekdayDate(meetingDay: java.time.LocalDate, weekday: String, nextWeek: Boolean): java.time.LocalDate? {
         val target = WEEKDAYS.indexOf(weekday.uppercase()).takeIf { it >= 0 }?.let { java.time.DayOfWeek.of(it + 1) } ?: return null
@@ -128,7 +127,6 @@ object NotesPrompt {
     }
 }
 
-/** 자막 번역 지시문·스키마 (Claude·Ollama 가 같이 쓴다) */
 object CaptionPrompt {
     val LANG = Regex("[a-z]{2}")
 

@@ -48,15 +48,12 @@ import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
-/** 회의가 끝났다 (MeetingService 가 같은 트랜잭션 안에서 알린다) */
+/** MeetingService 가 같은 트랜잭션 안에서 알린다 */
 data class MeetingEndedEvent(val meetingId: Long)
 
 /**
- * AI 회의록.
- * 1) 회의 중 누군가 켜면 참여자 브라우저가 각자 자기 마이크를 받아써서(Web Speech) 한 문장씩 보낸다.
- * 2) 회의가 끝나면(모두 나감) 받아쓴 내용을 Claude 로 요약 → 요약·결정 사항·할 일(담당자·기한).
- * 3) 채널 음성방이면 그 채널에 카드로 올리고, 참석한 사람에게 알림. 회의 상세 화면에서 볼 수 있다.
- * 플랜: 워크스페이스 플랜의 한 달 AI 회의록 시간(plans.ai_notes_minutes) 안에서. 켜져 있던 시간만큼 쓴다.
+ * AI 회의록. 참여자 브라우저가 각자 자기 마이크를 받아써 보내고, 회의가 끝나면 AI 로 요약해
+ * 요약·결정 사항·할 일을 만든다. 켜져 있던 시간만큼 플랜의 월 AI 회의록 시간을 쓴다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -79,23 +76,21 @@ class MeetingNotesService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val tx = TransactionTemplate(transactionManager)
 
-    /** 요약 중인 회의록 (같은 것을 두 번 돌리지 않게) */
+    /** 같은 회의록을 두 번 요약하지 않게 */
     private val inFlight = ConcurrentHashMap.newKeySet<Long>()
 
-    /** 요약은 오래 걸릴 수 있어서 따로 (2개씩) */
+    /** 요약은 오래 걸려서 요청 스레드가 아니라 따로 돌린다 */
     private val executor = Executors.newFixedThreadPool(2) { r -> Thread(r, "meeting-notes").apply { isDaemon = true } }
 
     @PreDestroy
     fun shutdown() = executor.shutdown()
 
-    /** 회의실 화면: 지금 상태와 남은 시간 */
     fun state(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         return stateOf(meeting, notes.findByMeetingId(meetingId), now)
     }
 
-    /** 켜기: 회의에 들어와 있는 사람이면 누구나. 모두의 화면에 "AI 회의록 작성 중" */
     @Transactional
     fun start(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateResDto {
         val meeting = meetings.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
@@ -111,7 +106,7 @@ class MeetingNotesService(
         return stateOf(meeting, note, now)
     }
 
-    /** 끄기 (잠깐). 켜져 있던 시간만큼 이번 달 사용량에 더한다 */
+    /** 켜져 있던 시간만큼 이번 달 사용량에 더한다 */
     @Transactional
     fun stop(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateResDto {
         val meeting = meetings.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
@@ -124,10 +119,7 @@ class MeetingNotesService(
         return stateOf(meeting, note, now)
     }
 
-    /**
-     * 받아쓴 한 문장. 켜져 있을 때만 저장하고, 꺼져 있으면 on=false 를 돌려줘서 화면이 받아쓰기를 멈춘다.
-     * 이번 달 시간을 다 쓰면 여기서 끈다.
-     */
+    /** 꺼져 있으면 on=false 를 돌려줘 화면이 받아쓰기를 멈추게 한다. 이번 달 시간을 다 쓰면 여기서 끈다 */
     @Transactional
     fun addLine(meetingId: Long, userId: Long, rawText: String, lang: String?, now: LocalDateTime = LocalDateTime.now()): NotesLineResDto {
         val meeting = findMeeting(meetingId)
@@ -148,7 +140,6 @@ class MeetingNotesService(
         return NotesLineResDto(on = true)
     }
 
-    /** 회의록 (팀원이면 볼 수 있다) */
     fun view(meetingId: Long, userId: Long): MeetingNotesResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
@@ -156,7 +147,6 @@ class MeetingNotesService(
         return view(meeting, note, userId)
     }
 
-    /** 받아쓴 내용 전체 (팀원) */
     fun transcript(meetingId: Long, userId: Long): List<TranscriptLineResDto> {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
@@ -165,7 +155,6 @@ class MeetingNotesService(
             .map { TranscriptLineResDto(it.id!!, it.userId, it.speakerName, it.content, it.spokenAt) }
     }
 
-    /** 다시 만들기: 주최자·관리자, 끝난(READY·FAILED) 회의록 */
     @Transactional
     fun regenerate(meetingId: Long, userId: Long): MeetingNotesResDto {
         val meeting = findMeeting(meetingId)
@@ -179,7 +168,7 @@ class MeetingNotesService(
         return view(meeting, note, userId)
     }
 
-    /** 회의가 끝나면 받아쓰기를 닫고 요약을 시작한다 (커밋된 뒤 다른 스레드에서) */
+    /** 커밋된 뒤 다른 스레드에서 요약한다 */
     @EventListener
     @Transactional
     fun onMeetingEnded(event: MeetingEndedEvent) {
@@ -188,10 +177,7 @@ class MeetingNotesService(
         close(meeting, note, LocalDateTime.now())
     }
 
-    /**
-     * 스케줄러: 1) 끝난 회의인데 아직 열려 있는 회의록 닫기 (이벤트를 놓친 경우)
-     * 2) 서버 재시작·일시 오류로 PROCESSING 에 남은 회의록 다시 요약
-     */
+    /** 이벤트를 놓쳤거나 재시작·일시 오류로 PROCESSING 에 남은 회의록을 다시 처리한다 */
     @Transactional
     fun processPending(now: LocalDateTime = LocalDateTime.now()): Int {
         var count = 0
@@ -210,8 +196,6 @@ class MeetingNotesService(
             }
         return count
     }
-
-    // ---------------------------------------------------------------
 
     private fun close(meeting: Meeting, note: MeetingNote, now: LocalDateTime) {
         val wasOn = note.isOn
@@ -242,7 +226,7 @@ class MeetingNotesService(
         }
     }
 
-    /** 다른 스레드: 읽기 → Claude 호출(트랜잭션 밖) → 결과 저장·채널 게시·알림 */
+    /** AI 호출은 오래 걸리므로 트랜잭션 밖에서 한다 */
     private fun summarize(noteId: Long) {
         val input = tx.execute {
             val note = findNote(noteId) ?: return@execute null
@@ -279,7 +263,7 @@ class MeetingNotesService(
         )
     }
 
-    /** 참석한 사람 (이름이 같으면 처음 한 명) */
+    /** 이름이 같으면 처음 한 명 */
     private fun speakers(meetingId: Long): List<NotesSpeaker> =
         participants.findAllByMeetingId(meetingId).distinctBy { it.userId }.map { NotesSpeaker(it.userId, it.displayName) }
 
@@ -295,7 +279,6 @@ class MeetingNotesService(
         )
         note.ready(result.title, json.writeValueAsString(stored), result.language, result.model)
 
-        // 채널 음성방이면 그 채널에 카드로
         meeting.chatRoomId?.let { roomId ->
             chatService.postMeetingNotes(
                 roomId, meeting.id!!,
@@ -363,7 +346,6 @@ class MeetingNotesService(
 
     private fun findMeeting(id: Long) = meetings.findMeetingById(id) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
 
-    /** meeting_notes.summary 에 넣는 JSON */
     private data class StoredAction(val task: String = "", val owner: String? = null, val ownerUserId: Long? = null, val due: String? = null)
     private data class StoredNotes(
         val summary: List<String> = emptyList(),

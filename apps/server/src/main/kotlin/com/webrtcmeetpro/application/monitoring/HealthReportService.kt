@@ -20,21 +20,15 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/**
- * 서버 상태 보고 (12시간마다 메일, 스케줄러는 HealthReportScheduler).
- * 서버(JVM 메모리·가동 시간) · DB(응답·용량, Oracle Free 한도 12GB) · 미디어 사이드카(/health) · 서버 메모리·디스크 · 지난 12시간 오류 수.
- * 서버가 죽으면 이 메일 자체가 안 오므로, 서버가 죽었을 때 알림은 호스트의 deploy/watchdog.sh 가 따로 보낸다
- */
+/** 서버가 죽으면 이 메일 자체가 오지 않으므로, 그때 알림은 호스트의 deploy/watchdog.sh 가 따로 보낸다 */
 @Service
 class HealthReportService(
     private val jdbc: JdbcTemplate,
     private val mail: MailService,
     private val json: JsonMapper,
-    /** 받는 사람 (운영자). 바꾸려면 HEALTH_REPORT_TO */
     @Value("\${app.monitoring.report-to}") private val reportTo: String,
-    /** 미디어 사이드카 상태 주소. 운영(도커)은 http://host.docker.internal:4000/health */
+    /** 운영(도커)은 http://host.docker.internal:4000/health */
     @Value("\${app.monitoring.media-health-url}") private val mediaHealthUrl: String,
-    /** 이 비율(%)을 넘으면 경고 */
     @Value("\${app.monitoring.disk-warn-percent:85}") private val diskWarnPercent: Int,
     @Value("\${app.monitoring.memory-warn-percent:90}") private val memoryWarnPercent: Int,
 ) {
@@ -47,7 +41,6 @@ class HealthReportService(
         return HealthReportResDto(now, checks, warnings)
     }
 
-    /** 지금 상태를 모아 운영자에게 메일로 보낸다. 보낸 보고를 돌려준다 */
     fun sendReport(): HealthReportResDto {
         val report = collect()
         mail.sendAfterCommit(toMail(report))
@@ -88,7 +81,7 @@ class HealthReportService(
         val t0 = System.nanoTime()
         jdbc.queryForObject("SELECT 1 FROM dual", Int::class.java)
         val ms = (System.nanoTime() - t0) / 1_000_000
-        // 이 계정(스키마)의 데이터 용량. Oracle Free 는 사용자 데이터 12GB 가 한도
+        // Oracle Free 는 사용자 데이터 12GB 가 한도
         val bytes = jdbc.queryForObject("SELECT NVL(SUM(bytes), 0) FROM user_segments", Long::class.java) ?: 0
         val mb = bytes / MB
         val percent = mb * 100 / ORACLE_FREE_LIMIT_MB
@@ -116,7 +109,7 @@ class HealthReportService(
         }
     }
 
-    /** 서버(호스트) 전체 메모리. 리눅스는 /proc/meminfo (도커 안에서도 호스트 값), 아니면 JVM 이 아는 값 */
+    /** /proc/meminfo 는 도커 안에서도 호스트 값을 보여 준다. 리눅스가 아니면 JVM 이 아는 값 */
     private fun hostMemoryCheck(warnings: MutableList<String>): HealthCheckResDto {
         val (totalMb, availableMb) = readMeminfo() ?: run {
             val os = ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean
@@ -140,7 +133,7 @@ class HealthReportService(
         return total / 1024 to available / 1024
     }
 
-    /** 서버 디스크 (도커 안의 / 는 호스트 디스크 크기를 보여 준다) */
+    /** 도커 안의 / 는 호스트 디스크 크기를 보여 준다 */
     private fun diskCheck(warnings: MutableList<String>): HealthCheckResDto {
         val root = File(File.listRoots().firstOrNull()?.path ?: "/")
         val totalGb = root.totalSpace / GB
@@ -151,9 +144,8 @@ class HealthReportService(
         return HealthCheckResDto("서버 디스크", true, "${usedGb}GB / ${totalGb}GB 사용 (${percent}%, 남은 ${freeGb}GB)")
     }
 
-    /** 지난 12시간 동안 기록된 예상 못 한 오류 (관리자 사이트 → 에러 기록) */
     private fun errorCheck(warnings: MutableList<String>): HealthCheckResDto = try {
-        // created_dt 는 서버 시간대로 저장되므로 서버 시간 기준으로 (표시만 한국 시간)
+        // created_dt 는 서버 시간대로 저장된다
         val since = LocalDateTime.now().minusHours(12)
         val rows = jdbc.queryForList(
             "SELECT category, COUNT(*) AS cnt FROM admin_error_logs WHERE created_dt >= ? AND deleted_yn = 'N' GROUP BY category ORDER BY cnt DESC",
@@ -172,7 +164,6 @@ class HealthReportService(
         private const val MB = 1024L * 1024
         private const val GB = MB * 1024
         private const val ORACLE_FREE_LIMIT_MB = 12L * 1024
-        /** 12시간에 이 이상이면 경고 */
         private const val ERROR_WARN = 20
     }
 }

@@ -9,16 +9,14 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * 메일 링크에 넣는 서명 토큰 (DB 에 저장하지 않는다): "사용자ID.만료시각.서명".
- * 서명에 사용자의 지금 상태(fingerprint)를 섞어서, 그 상태가 바뀌면 같은 링크는 더 이상 맞지 않는다
- * (예: 비밀번호를 바꾸면 재설정 링크가, 이메일을 바꾸면 인증 링크가 무효).
+ * 메일 링크용 서명 토큰 "사용자ID.만료시각.서명". DB 에 저장하지 않는 대신 사용자의 지금 상태(fingerprint)를
+ * 서명에 섞어, 비밀번호나 이메일이 바뀌면 이미 보낸 링크가 무효가 되게 한다.
  *
- * @param purpose 용도마다 다른 키를 쓴다 (재설정 링크로 이메일 인증을 할 수 없게)
+ * @param purpose 재설정 링크로 이메일 인증을 할 수 없게 용도마다 다른 키를 쓴다
  */
 abstract class UserLinkTokens(secret: String, purpose: String, val ttl: Duration) {
     private val key = SecretKeySpec("$purpose:$secret".toByteArray(), "HmacSHA256")
 
-    /** 이 값이 바뀌면 이미 보낸 링크가 무효가 된다 */
     protected abstract fun fingerprint(user: User): String
 
     fun issue(user: User, now: Instant = Instant.now()): String {
@@ -26,7 +24,7 @@ abstract class UserLinkTokens(secret: String, purpose: String, val ttl: Duration
         return "${user.id}.$exp.${sign(user, exp)}"
     }
 
-    /** 토큰에서 사용자 ID 만 꺼낸다 (서명 확인은 사용자를 읽은 뒤 [isValid]) */
+    /** 서명 확인은 사용자를 읽은 뒤 [isValid] 로 */
     fun userIdOf(token: String): Long? = token.split('.').takeIf { it.size == 3 }?.get(0)?.toLongOrNull()
 
     fun isValid(token: String, user: User, now: Instant = Instant.now()): Boolean {

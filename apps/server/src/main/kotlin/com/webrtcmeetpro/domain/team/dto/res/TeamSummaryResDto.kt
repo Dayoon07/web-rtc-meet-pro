@@ -10,7 +10,7 @@ data class TeamSummaryResDto(
     val description: String?,
     val ownerId: Long,
     val myRole: TeamRole,
-    /** 내 역할로 이 팀에서 할 수 있는 일. 웹·앱은 역할을 해석하지 않고 이 목록으로 버튼을 보여 준다 */
+    /** 웹·앱은 역할을 해석하지 않고 이 목록으로 버튼을 보여 준다 */
     val myPermissions: List<TeamPermission>,
     val memberCount: Int,
     val createdAt: LocalDateTime,

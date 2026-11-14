@@ -9,11 +9,7 @@ import org.springframework.http.ResponseEntity
 import java.net.URI
 import java.time.Duration
 
-/**
- * 저장소 파일 응답.
- * - 서버 디스크: [local] 로 헤더를 붙여 파일을 직접 보낸다 (Range 는 스프링이 처리)
- * - S3: 302 로 서명된 주소를 알려준다. 주소는 몇 시간 쓸 수 있으니 리다이렉트도 잠깐 캐시
- */
+/** S3 는 302 로 서명된 주소를 알려 준다. 주소가 몇 시간 유효하니 리다이렉트도 잠깐 캐시한다 */
 object StoredFileResponses {
 
     fun of(file: StoredFile, maxAgeSeconds: Long, local: (ResponseEntity.BodyBuilder) -> ResponseEntity.BodyBuilder): ResponseEntity<Resource> =

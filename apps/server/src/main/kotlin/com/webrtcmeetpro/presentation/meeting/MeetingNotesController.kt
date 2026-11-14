@@ -15,10 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
-/**
- * AI 회의록. 회의 중에 켜고(start)·끄고(stop), 켜져 있는 동안 각 참여자 브라우저가 받아쓴 문장을 lines 로 보낸다.
- * 회의가 끝나면 서버가 요약해서 GET 으로 볼 수 있다.
- */
 @RestController
 @RequestMapping("/api/meetings/{meetingId}/notes")
 class MeetingNotesController(private val notes: MeetingNotesService) {

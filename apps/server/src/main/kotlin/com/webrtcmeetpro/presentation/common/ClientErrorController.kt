@@ -37,7 +37,7 @@ class ClientErrorController(
         val source = req.source!!
         if (source == ErrorSource.SERVER || req.category !in CLIENT_CATEGORIES) throw BusinessException(ErrorCode.INVALID_INPUT)
         val client = ClientInfo.from(request)
-        // 화면이 오류를 반복해서 보내도 테이블이 넘치지 않게 (넘친 신고는 조용히 버린다)
+        // 화면이 오류를 반복해서 보내도 테이블이 넘치지 않게 넘친 신고는 버린다
         if (!limiter.tryAcquire(client.ipAddress ?: "unknown")) return
 
         errorLogs.recordClientError(
@@ -59,7 +59,7 @@ class ClientErrorController(
     }
 }
 
-/** IP 하나당 1분에 20건 (고정 창). 서버 한 대 기준의 메모리 카운터 */
+/** IP 하나당 1분에 20건. 서버가 한 대라 메모리 카운터로 충분하다 */
 @Component
 class ClientErrorRateLimiter {
 

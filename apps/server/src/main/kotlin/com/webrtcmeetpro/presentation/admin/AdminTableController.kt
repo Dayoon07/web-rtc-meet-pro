@@ -22,10 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 
-/**
- * 관리자 사이트 "데이터 관리" API. 어떤 테이블이든 같은 주소 모양으로 다룬다.
- *   목록 필터: ?filter=team_id:5&filter=status:ACTIVE (같음, 값이 비면 IS NULL), ?contains=email:gmail (포함), ?q=검색어, ?deleted=active|deleted
- */
+/** 목록 필터: ?filter=team_id:5 (같음, 값이 비면 IS NULL), ?contains=email:gmail, ?q=검색어, ?deleted=active|deleted */
 @RestController
 @RequestMapping("/api/admin/tables")
 class AdminTableController(
@@ -64,7 +61,6 @@ class AdminTableController(
     fun insert(@AuthenticationPrincipal jwt: Jwt, @PathVariable table: String, @RequestBody body: AdminRowValuesReqDto) =
         admin(jwt) { tables.insert(table, body.values, jwt.userId) }
 
-    /** 지금 조건 그대로 CSV 로 (최대 1만 행) */
     @GetMapping("/{table}/export")
     fun export(
         @AuthenticationPrincipal jwt: Jwt,
@@ -100,7 +96,7 @@ class AdminTableController(
             },
         )
 
-    /** SecurityConfig 가 이미 막지만, 서비스 앞에서 한 번 더 확인한다 */
+    /** SecurityConfig 가 이미 막지만 서비스 앞에서 한 번 더 확인한다 */
     private inline fun <T> admin(jwt: Jwt, block: () -> T): T {
         admins.require(jwt.userId)
         return block()

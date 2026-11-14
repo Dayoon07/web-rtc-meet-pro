@@ -9,16 +9,13 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * 채팅 첨부파일 내려받기 주소에 붙이는 서명 (?exp=만료시각&sig=HMAC).
- * <img src> 는 Authorization 헤더를 못 보내므로, 메시지를 볼 권한이 있는 사람에게만 서명된 주소를 내려준다.
- *
- * 만료 시각을 12시간 단위로 끊어서 같은 구간 안에서는 주소가 바뀌지 않게 한다 → 브라우저 캐시를 그대로 쓴다.
- * 그래서 한 주소의 유효 기간은 12~24시간.
+ * <img src> 는 Authorization 헤더를 못 보내므로, 메시지를 볼 권한이 있는 사람에게만 서명된 주소를 준다.
+ * 만료 시각을 12시간 단위로 끊어 같은 구간 안에서는 주소가 같게 해야 브라우저 캐시가 먹는다 (유효 기간 12~24시간).
  */
 @Component
 class ChatFileUrlSigner(props: JwtProperties) {
 
-    // JWT 서명 키를 그대로 쓰지 않고 용도 이름을 붙여 별도 키로 쓴다
+    // JWT 서명 키가 새어도 파일 주소를 만들 수 없게 용도 이름을 붙여 따로 쓴다
     private val key = SecretKeySpec("chat-file:${props.secret}".toByteArray(), "HmacSHA256")
 
     fun url(fileId: Long, now: Instant = Instant.now()): String {

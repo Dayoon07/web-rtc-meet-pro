@@ -17,11 +17,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
 
-/**
- * STOMP over WebSocket (/ws).
- * - CONNECT 프레임의 Authorization: Bearer <JWT> 로 인증, Principal 이름 = user_id
- * - 클라이언트는 자기 큐(/user/queue/...)만 구독할 수 있다. 보내기는 REST API 로 한다
- */
+/** CONNECT 프레임의 JWT 로 인증하고, 자기 큐(/user/queue/...)만 구독할 수 있다. 보내기는 REST API 로 한다 */
 @Configuration
 @EnableWebSocketMessageBroker
 class WebSocketConfig(

@@ -12,7 +12,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
 import org.springframework.stereotype.Component
 
-/** 사이드카에 접속할 때만 쓰는 짧은 토큰. API 액세스 토큰과 키·audience 를 분리한다 */
+/** 사이드카 토큰이 새어도 API 를 쓸 수 없게 액세스 토큰과 키·audience 를 분리한다 */
 @Component
 class MediaTokenIssuer(props: MediaProperties) {
 

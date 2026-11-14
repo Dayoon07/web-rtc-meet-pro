@@ -10,9 +10,8 @@ import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Component
 
 /**
- * 로컬 확인용 가짜 요약기 (테스트 실행 클래스패스에만 있다). APP_AI_FAKE=true 로 bootTestRun 하면
- * Claude 를 부르지 않고 받아쓴 말로 정해진 모양의 회의록을 만든다.
- * "할 일:" 로 시작하는 말은 할 일, "결정:" 은 결정 사항, "거절" 이 들어 있으면 거절 흉내.
+ * APP_AI_FAKE=true 로 bootTestRun 하면 AI 를 부르지 않고 회의록 화면을 확인할 수 있다.
+ * "할 일:" 로 시작하는 말은 할 일, "결정:" 은 결정 사항, "거절" 이 들어 있으면 거절을 흉내 낸다.
  */
 @Primary
 @Component
@@ -35,7 +34,7 @@ class FakeMeetingNotesAi : MeetingNotesAi {
     }
 }
 
-/** 로컬 확인용 가짜 번역기: "[en] 원문" 처럼 언어 표시만 붙인다. "번역실패" 가 들어 있으면 실패 흉내 */
+/** "[en] 원문" 처럼 언어 표시만 붙인다. "번역실패" 가 들어 있으면 실패를 흉내 낸다 */
 @Primary
 @Component
 @ConditionalOnProperty("app.ai.fake", havingValue = "true")

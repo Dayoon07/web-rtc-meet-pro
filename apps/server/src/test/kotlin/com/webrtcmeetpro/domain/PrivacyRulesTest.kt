@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-/** 개인정보 보관 기간·동의 기록 규칙 (개인정보처리방침에 적은 것과 같아야 한다) */
+/** 개인정보처리방침에 적은 기간과 같아야 한다 */
 class PrivacyRulesTest {
     private val now = LocalDateTime.of(2026, 11, 11, 4, 0)
 

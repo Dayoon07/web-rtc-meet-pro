@@ -10,8 +10,8 @@ import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
 
 /**
- * SMTP 로 보낸다. app.mail.host 가 비어 있으면(로컬 개발) 보내지 않고 로그에 제목·본문(링크 포함)을 남긴다.
- * 스프링 부트의 메일 자동 설정은 쓰지 않는다 — 호스트가 빈 값이어도 발송기를 만들어 버려서, 개발 중에 매번 실패 로그가 쌓인다.
+ * host 가 비어 있으면 보내지 않고 로그에 본문(링크 포함)을 남긴다.
+ * 스프링 부트의 메일 자동 설정은 호스트가 빈 값이어도 발송기를 만들어 개발 중에 실패 로그가 쌓여서 쓰지 않는다.
  */
 @Component
 class SmtpMailSender(private val props: MailProperties) : MailSender {
@@ -25,7 +25,7 @@ class SmtpMailSender(private val props: MailProperties) : MailSender {
         defaultEncoding = "UTF-8"
         javaMailProperties["mail.smtp.auth"] = props.username.isNotBlank().toString()
         javaMailProperties["mail.smtp.starttls.enable"] = props.starttls.toString()
-        // STARTTLS 를 켰으면 암호화 없이는 보내지 않는다 (Gmail 등)
+        // STARTTLS 를 켰으면 암호화 없이는 보내지 않는다
         javaMailProperties["mail.smtp.starttls.required"] = props.starttls.toString()
         javaMailProperties["mail.smtp.connectiontimeout"] = "10000"
         javaMailProperties["mail.smtp.timeout"] = "10000"
@@ -39,7 +39,7 @@ class SmtpMailSender(private val props: MailProperties) : MailSender {
             log.info("[메일 발송 꺼짐: MAIL_HOST 없음] to={} subject={}\n{}", message.to, message.subject, message.text)
             return
         }
-        // 메일 실패가 요청(초대, 재설정 요청)을 실패시키면 안 된다 → 로그만 남긴다
+        // 메일 실패가 초대·재설정 요청까지 실패시키면 안 된다
         runCatching {
             val mime = mailer.createMimeMessage()
             MimeMessageHelper(mime, message.html != null, "UTF-8").apply {
@@ -50,7 +50,7 @@ class SmtpMailSender(private val props: MailProperties) : MailSender {
             }
             mailer.send(mime)
         }.onFailure { e ->
-            // 원인까지 (Gmail 은 "535-5.7.8 Username and Password not accepted" 처럼 안쪽 예외에 이유가 있다)
+            // Gmail 은 "535-5.7.8 Username and Password not accepted" 처럼 안쪽 예외에 이유가 있다
             val causes = generateSequence(e) { it.cause }.mapNotNull { it.message?.lineSequence()?.firstOrNull() }.distinct().joinToString(" ← ")
             log.warn("메일 발송 실패 to={} subject={}: {}", message.to, message.subject, causes)
         }

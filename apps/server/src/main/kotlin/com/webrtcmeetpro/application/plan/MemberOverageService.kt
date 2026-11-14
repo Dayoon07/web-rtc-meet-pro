@@ -22,17 +22,12 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
-/** 한도 초과 요금이 들어갈 결제 방식 */
 data class OverageBilling(val withRenewal: Boolean, val chargeAt: LocalDateTime?)
 
 /**
- * 멤버 초과 요금. 인원은 **소유자(회사 계정)의 모든 팀 사람을 합쳐** 센다 (여러 팀에 있어도 한 명).
- * 설정·결제 일정은 소유자의 팀 하나([settingsTeam])에 저장한다: 허용을 켠 팀, 없으면 처음 만든 팀.
- * 어느 플랜이든 소유자가 동의하고 켜면(카드 필요) 플랜 멤버 한도를 넘게 초대할 수 있고,
- * 넘은 인원 × plans.overage_price_per_member 원을 한 달마다 낸다 (결제일의 멤버 수 기준).
- * - 월 자동결제 플랜: 갱신 결제 때 (플랜 요금 + 초과 요금) 한 번에 (BillingService.renew)
- * - 그 밖 (무료·연 결제·자동결제 꺼짐): 처음 넘은 날부터 한 달마다 초과 요금만 따로 (BillingService.processOverage)
- * 한도를 넘으면 소유자에게 경고 메일(하루 한 번까지), 결제 3일 전에 금액 안내 메일.
+ * 플랜 멤버 한도를 넘는 인원 요금. 소유자가 동의하고 카드를 등록해야 초과 초대가 가능하다.
+ * 인원은 소유자의 모든 팀을 합쳐 한 사람은 한 번만 센다.
+ * 월 자동결제 플랜이면 갱신 결제에 합치고, 아니면 한 달마다 따로 청구한다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -46,20 +41,18 @@ class MemberOverageService(
     private val mail: MailService,
     private val web: WebProperties,
 ) {
-    /** 소유자의 모든 팀 사람 수 (여러 팀에 있어도 한 명) */
     fun memberCount(team: Team): Long = planService.ownerMemberCount(team.ownerId)
 
-    /** 한도 초과 설정을 들고 있는 팀: 소유자의 팀 중 허용을 켠 팀, 없으면 처음 만든 팀 */
+    /** 설정을 팀 하나에만 두어야 소유자당 한 번만 청구된다. 허용을 켠 팀, 없으면 처음 만든 팀 */
     fun settingsTeam(team: Team): Team {
         val owned = planService.ownedTeams(team.ownerId)
         return owned.firstOrNull { it.overageAllowed } ?: owned.firstOrNull() ?: team
     }
 
-    /** 지금 한도를 넘은 인원 (허용하지 않았으면 청구하지 않으므로 0) */
+    /** 허용하지 않았으면 청구할 수 없으므로 0 */
     fun billableExcess(team: Team, plan: Plan = planService.planOfTeam(team.id!!)): Long =
         if (!settingsTeam(team).overageAllowed) 0 else (memberCount(team) - plan.maxMembersPerTeam).coerceAtLeast(0)
 
-    /** 월 자동결제 중인 플랜이면 그 갱신일에 같이, 아니면 따로 */
     fun billing(team: Team, now: LocalDateTime = LocalDateTime.now()): OverageBilling {
         val inUse = planService.inUseSubscription(team.id!!, now)
         val withRenewal = inUse != null &&
@@ -93,10 +86,7 @@ class MemberOverageService(
         )
     }
 
-    /**
-     * 켜기·끄기 (소유자만). 켜려면 카드가 있어야 하고 안내 문구에 동의(agree)해야 한다.
-     * 끄는 건 지금 한도를 넘은 멤버가 없을 때만 (넘은 채로 끄고 결제를 피하지 못하게).
-     */
+    /** 한도를 넘은 채로 끄면 결제를 피할 수 있으므로, 넘은 멤버가 있으면 끌 수 없다 */
     @Transactional
     fun setAllowed(teamId: Long, userId: Long, allowed: Boolean, agree: Boolean, now: LocalDateTime = LocalDateTime.now()): OverageResDto {
         val team = planService.requireOwnedTeam(teamId, userId)
@@ -113,10 +103,7 @@ class MemberOverageService(
         return view(teamId, userId, now)
     }
 
-    /**
-     * 초대·수락 전에: 한도 안이면 통과, 넘으면 소유자가 허용했을 때만 (최대 HARD_CAP 명).
-     * @param seats 지금 차지한 자리 (소유자의 모든 팀 사람 + 대기 중인 초대)
-     */
+    /** @param seats 소유자의 모든 팀 사람 + 대기 중인 초대 */
     fun requireSeat(team: Team, plan: Plan, seats: Long) {
         if (plan.canAddMember(seats)) return
         if (!settingsTeam(team).overageAllowed) {
@@ -125,7 +112,7 @@ class MemberOverageService(
         if (seats >= HARD_CAP) throw BusinessException(ErrorCode.OVERAGE_MAX_MEMBERS, mapOf("max" to HARD_CAP))
     }
 
-    /** 멤버가 들어온 뒤: 한도를 넘었으면 결제일을 잡고 소유자에게 경고 (하루 한 번까지) */
+    /** 경고 메일은 하루 한 번까지 */
     @Transactional
     fun onMemberJoined(teamId: Long, now: LocalDateTime = LocalDateTime.now()) {
         val team = teams.findTeamById(teamId) ?: return
@@ -159,7 +146,6 @@ class MemberOverageService(
         }
     }
 
-    /** 결제 3일 전 안내 (같은 결제일에는 한 번). BillingService 가 부른다 */
     fun noticeCharge(team: Team, plan: Plan, planLabel: String?, planAmount: Long, excess: Long, chargeAt: LocalDateTime) {
         val settings = settingsTeam(team)
         if (excess <= 0 || settings.overageNoticeFor == chargeAt) return
@@ -183,7 +169,7 @@ class MemberOverageService(
     }
 
     companion object {
-        /** 소유자의 모든 팀을 합친 최대 인원 (실수로 큰 금액이 청구되지 않게) */
+        /** 실수로 큰 금액이 청구되지 않게 막는 상한 */
         const val HARD_CAP = 1000
     }
 }

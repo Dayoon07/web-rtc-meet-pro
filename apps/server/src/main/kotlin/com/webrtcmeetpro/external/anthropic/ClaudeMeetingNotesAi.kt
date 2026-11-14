@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 
-/** Claude API 클라이언트 하나를 회의록·자막이 함께 쓴다. API 키가 없으면 null */
+/** 회의록·자막이 클라이언트 하나를 같이 쓴다. API 키가 없으면 null */
 @Component
 class ClaudeClients(private val props: AiProperties) {
     val enabled: Boolean get() = props.apiKey.isNotBlank()
@@ -27,7 +27,7 @@ class ClaudeClients(private val props: AiProperties) {
         if (!enabled) null
         else AnthropicOkHttpClient.builder()
             .apiKey(props.apiKey)
-            // 환경 변수(ANTHROPIC_BASE_URL)가 아니라 설정값만 쓴다
+            // 환경 변수(ANTHROPIC_BASE_URL)가 설정을 덮어쓰지 않게 설정값만 쓴다
             .baseUrl(props.baseUrl)
             .timeout(Duration.ofMinutes(10))
             .maxRetries(2)
@@ -36,7 +36,7 @@ class ClaudeClients(private val props: AiProperties) {
 
     fun require(): AnthropicClient = client ?: throw IllegalStateException("ANTHROPIC_API_KEY 가 없습니다")
 
-    /** 정책상 거절하면 Anthropic 이 추천하는 모델로 다시 (server-side fallback, beta) */
+    /** 정책상 거절하면 Anthropic 이 추천하는 모델로 한 번 더 시도한다 (server-side fallback, beta) */
     fun MessageCreateParams.Builder.withFallbacks(): MessageCreateParams.Builder = apply {
         if (props.fallbacks) {
             putAdditionalHeader("anthropic-beta", "server-side-fallback-2026-07-01")
@@ -53,7 +53,7 @@ class ClaudeClients(private val props: AiProperties) {
         fun schema(map: Map<String, Any>): JsonOutputFormat.Schema =
             JsonOutputFormat.Schema.builder().apply { map.forEach { (k, v) -> putAdditionalProperty(k, JsonValue.from(v)) } }.build()
 
-        /** 응답의 글자 부분을 이어 붙인다. 거절·잘림은 예외 (다시 시도해도 같음) */
+        /** 거절·잘림은 다시 시도해도 같으므로 예외로 바로 실패시킨다 */
         fun text(message: Message): String {
             when (message.stopReason().orElse(null)) {
                 StopReason.REFUSAL -> throw NotesRejectedException("REFUSED")
@@ -66,10 +66,7 @@ class ClaudeClients(private val props: AiProperties) {
     }
 }
 
-/**
- * 받아쓴 회의 내용을 Claude 로 회의록(요약·결정 사항·할 일)으로 만든다.
- * 구조화 출력(output_config.format = JSON 스키마)으로 받아서 항상 같은 모양의 JSON 이 온다.
- */
+/** 구조화 출력(JSON 스키마)으로 받아야 늘 같은 모양의 JSON 이 온다 */
 @Component
 class ClaudeMeetingNotesAi(
     private val claude: ClaudeClients,

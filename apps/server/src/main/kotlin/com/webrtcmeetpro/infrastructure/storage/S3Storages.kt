@@ -13,11 +13,8 @@ import java.nio.file.Files
 import java.util.UUID
 
 /*
- * app.storage.type=s3 일 때의 저장소. 버킷 안 위치:
- *   {prefix}profile/{u아이디-UUID.확장자}
- *   {prefix}chat-files/{년}/{월}/{UUID}
- *   {prefix}recordings/{년}/{월}/{UUID}.webm
- * DB 에 넣는 이름(stored_name, storage_url, profile_image_url)은 서버 디스크를 쓸 때와 같다.
+ * 버킷 안 위치: {prefix}profile/…, {prefix}chat-files/{년}/{월}/…, {prefix}recordings/{년}/{월}/….webm
+ * DB 에 넣는 이름은 서버 디스크를 쓸 때와 같아서 저장소를 바꿔도 데이터를 고치지 않아도 된다.
  */
 
 @Component
@@ -66,7 +63,7 @@ class S3ChatFileStorage(private val s3: S3ObjectStore) : ChatFileStorage {
     }
 }
 
-/** 녹화 중에는 서버 디스크(recording-dir)에 모으고, 끝나면 S3 에 올린 뒤 디스크 파일을 지운다 */
+/** 녹화 중에는 디스크에 모으고, 끝나면 S3 에 올린 뒤 디스크 파일을 지운다 */
 @Component
 @ConditionalOnProperty(prefix = "app.storage", name = ["type"], havingValue = "s3")
 class S3RecordingStorage(private val s3: S3ObjectStore, props: StorageProperties) : RecordingStorage {
@@ -80,7 +77,7 @@ class S3RecordingStorage(private val s3: S3ObjectStore, props: StorageProperties
     override fun append(storedName: String, content: InputStream): Long = spool.append(storedName, content)
 
     override fun upload(storedName: String) {
-        val file = spool.path(storedName) ?: return // 이미 올리고 지웠다
+        val file = spool.path(storedName) ?: return
         if (Files.isRegularFile(file)) {
             s3.putFile(KEY + storedName, file, "video/webm")
             spool.delete(storedName)

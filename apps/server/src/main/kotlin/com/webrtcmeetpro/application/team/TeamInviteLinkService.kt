@@ -27,12 +27,7 @@ import java.security.SecureRandom
 import java.time.LocalDateTime
 import java.util.Base64
 
-/**
- * 팀 초대 링크: 이메일 초대 없이 링크만 나눠 주면 받은 사람이 팀에 들어온다.
- * - 팀 소유자·관리자(INVITE_MEMBER)가 만들고 지운다. 기간 제한은 없다.
- * - 비밀번호를 걸면 들어올 때 비밀번호를 물어본다 (BCrypt 로 저장).
- * - 들어올 때 멤버 한도는 이메일 초대 수락과 같다 (소유자의 모든 팀 합계, 이미 다른 팀에 있는 사람은 자리를 더 차지하지 않음).
- */
+/** 이메일 초대 없이 링크만 나눠 줘도 들어올 수 있게 한다. 멤버 한도는 이메일 초대 수락과 같다 */
 @Service
 @Transactional(readOnly = true)
 class TeamInviteLinkService(
@@ -55,7 +50,7 @@ class TeamInviteLinkService(
         return list.map { view(it, names[it.createdBy]) }
     }
 
-    /** 링크 만들기. password 가 비어 있으면 링크만으로 들어올 수 있다 */
+    /** password 가 비어 있으면 링크만으로 들어올 수 있다 */
     @Transactional
     fun create(teamId: Long, userId: Long, password: String?): InviteLinkResDto {
         access.requirePermission(teamId, userId, TeamPermission.INVITE_MEMBER)
@@ -66,7 +61,7 @@ class TeamInviteLinkService(
         return view(link, users.findUserById(userId)?.nickname)
     }
 
-    /** 링크 지우기: 그 링크로는 더 못 들어온다 (이미 들어온 사람은 그대로) */
+    /** 이미 들어온 사람은 그대로 둔다 */
     @Transactional
     fun delete(teamId: Long, linkId: Long, userId: Long) {
         access.requirePermission(teamId, userId, TeamPermission.INVITE_MEMBER)
@@ -74,7 +69,6 @@ class TeamInviteLinkService(
         link.delete()
     }
 
-    /** 링크를 연 사람에게 보여 줄 팀 소개 (로그인한 사람이면 누구나) */
     fun preview(token: String, userId: Long): InviteLinkPreviewResDto {
         val (link, team) = requireLink(token)
         return InviteLinkPreviewResDto(
@@ -87,7 +81,6 @@ class TeamInviteLinkService(
         )
     }
 
-    /** 수락: 비밀번호를 걸었으면 맞아야 하고, 멤버 한도 안이면 바로 팀 멤버가 된다. 이미 멤버면 그대로 */
     @Transactional
     fun join(token: String, userId: Long, password: String?): InviteLinkJoinedResDto {
         val (link, team) = requireLink(token)
@@ -97,7 +90,7 @@ class TeamInviteLinkService(
             if (password.isNullOrEmpty()) throw BusinessException(ErrorCode.INVITE_LINK_PASSWORD_REQUIRED)
             if (!passwordEncoder.matches(password, link.passwordHash)) throw BusinessException(ErrorCode.INVITE_LINK_WRONG_PASSWORD)
         }
-        // 멤버 한도: 소유자의 모든 팀 사람 수 (이미 다른 팀에 있는 사람은 자리를 더 차지하지 않는다)
+        // 이미 소유자의 다른 팀에 있는 사람은 자리를 더 차지하지 않는다
         val ownerMembers = planService.ownerMemberIds(team.ownerId)
         if (userId !in ownerMembers) overage.requireSeat(team, planService.planOfTeam(teamId), ownerMembers.size.toLong())
 
@@ -107,9 +100,7 @@ class TeamInviteLinkService(
             existing.status != TeamMemberStatus.ACTIVE -> existing.rejoin()
         }
         link.joined()
-        // 한도를 넘었으면 결제일을 잡고 소유자에게 경고
         overage.onMemberJoined(teamId)
-        // 링크를 만든 사람에게 "○○님이 팀에 참여했어요"
         val me = users.findUserById(userId)
         notifications.notify(
             listOf(link.createdBy),
@@ -132,7 +123,6 @@ class TeamInviteLinkService(
     private fun newToken() = ByteArray(24).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     companion object {
-        /** 링크 비밀번호 길이 */
         val PASSWORD_LENGTH = 4..64
     }
 }

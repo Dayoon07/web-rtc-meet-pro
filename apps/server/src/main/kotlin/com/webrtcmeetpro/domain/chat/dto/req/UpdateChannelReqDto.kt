@@ -2,7 +2,7 @@ package com.webrtcmeetpro.domain.chat.dto.req
 
 import jakarta.validation.constraints.Size
 
-/** 채널 고치기: name 이 있으면 이름 바꾸기, moveCategory=true 면 categoryId 로 옮기기 (null = 카테고리 밖) */
+/** categoryId 가 null 이면 카테고리 밖으로 꺼내는 것이라, 옮기려는 건지 moveCategory 로 따로 받는다 */
 data class UpdateChannelReqDto(
     @field:Size(max = 100) val name: String? = null,
     val categoryId: Long? = null,

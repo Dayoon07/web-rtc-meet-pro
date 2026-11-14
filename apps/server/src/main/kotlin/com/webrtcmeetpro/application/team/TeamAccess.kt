@@ -11,11 +11,7 @@ import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.team.TeamStatus
 import org.springframework.stereotype.Component
 
-/**
- * 팀 접근 확인의 공용 진입점 (팀·채팅·회의 서비스가 함께 쓴다).
- * - requireMember     : 이 팀의 활동 중인 팀원인가
- * - requirePermission : 팀원이면서 역할에 그 권한이 있는가 (역할별 권한은 TeamRole 한 곳에서 정한다)
- */
+/** 역할별 권한은 TeamRole 한 곳에서 정하고, 팀·채팅·회의 서비스는 여기서만 확인한다 */
 @Component
 class TeamAccess(
     private val teamRepository: TeamRepository,
@@ -31,7 +27,6 @@ class TeamAccess(
             ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
     }
 
-    /** 팀원이면서 역할에 [permission] 이 있어야 한다. 없으면 권한마다 정해 둔 에러 */
     fun requirePermission(teamId: Long, userId: Long, permission: TeamPermission): TeamMember {
         val member = requireMember(teamId, userId)
         if (!member.can(permission)) throw BusinessException(permission.deniedError)

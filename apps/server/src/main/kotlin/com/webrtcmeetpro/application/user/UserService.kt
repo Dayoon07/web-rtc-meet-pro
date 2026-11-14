@@ -25,13 +25,13 @@ import org.springframework.transaction.annotation.Transactional
 
 data class UpdateProfileCommand(
     val profile: UserProfile,
-    /** 아직 약관에 동의하지 않은 사용자(구글 가입 직후)만 의미 있음 */
+    /** 구글 가입 직후에만 false 일 수 있다 */
     val termsAgreed: Boolean,
     val privacyAgreed: Boolean,
     val marketingAgreed: Boolean?,
 )
 
-/** 업로드 원본. presentation 의 MultipartFile 에 의존하지 않도록 바이트로 받는다 */
+/** presentation 의 MultipartFile 에 묶이지 않게 바이트로 받는다 */
 data class ImageUpload(val contentType: String?, val bytes: ByteArray)
 
 @Service
@@ -83,9 +83,8 @@ class UserService(
     }
 
     /**
-     * 회원 탈퇴. 비밀번호가 있는 계정은 비밀번호로 한 번 더 확인한다 (구글로만 가입했으면 화면에서 확인 문구만).
-     * 내가 만든 팀이 남아 있으면 막는다 (팀원들의 팀이 갑자기 사라지지 않게 — 먼저 팀을 삭제한다).
-     * 팀·채팅방에서 나가고, 로그인 토큰·구독·구글 연결을 정리한 뒤 개인정보를 지운다.
+     * 내가 만든 팀이 남아 있으면 막는다: 팀원들의 팀이 갑자기 사라지면 안 되니 먼저 팀을 삭제하게 한다.
+     * 구글로만 가입한 계정은 비밀번호가 없어 화면에서 확인 문구만 받는다.
      */
     @Transactional
     fun withdraw(userId: Long, password: String?) {
@@ -97,7 +96,7 @@ class UserService(
         erase(user)
     }
 
-    /** 관리자: 이메일 인증을 기다리는 계정을 인증된 것으로. @return 그 계정 이메일 (기록용) */
+    /** @return 기록용 이메일 */
     @Transactional
     fun verifyEmailByAdmin(userId: Long): String {
         val user = findPendingSignup(userId)
@@ -105,10 +104,7 @@ class UserService(
         return user.email
     }
 
-    /**
-     * 관리자: 이메일 인증을 기다리는 가입을 거절 = 가입 취소. 탈퇴와 같이 개인정보를 지우고 계정을 닫는다
-     * (이메일이 비워져 같은 이메일로 다시 가입할 수 있다). @return 지우기 전 이메일 (기록용)
-     */
+    /** 이메일을 비워 같은 이메일로 다시 가입할 수 있게 한다. @return 지우기 전 이메일 (기록용) */
     @Transactional
     fun rejectSignup(userId: Long): String {
         val user = findPendingSignup(userId)
@@ -123,7 +119,6 @@ class UserService(
         return user
     }
 
-    /** 탈퇴·가입 거절 공통: 팀·채팅방에서 나가고, 로그인 토큰·구독·카드·구글 연결을 정리한 뒤 개인정보를 지운다 */
     private fun erase(user: User) {
         val userId = user.id!!
         val owned = teamRepository.countByOwnerIdAndStatus(userId, TeamStatus.ACTIVE)
@@ -132,7 +127,6 @@ class UserService(
         teamMemberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
         chatMemberRepository.findAllByUserIdAndLeftAtIsNull(userId).forEach { it.leave() }
         refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(userId).forEach { it.revoke() }
-        // 남은 구독은 모두 끝내고(자동결제도 멈춤) 등록한 카드도 해지
         subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE)).forEach { it.cancel() }
         billingKeyRepository.findAllByUserIdAndActiveTrue(userId).forEach { it.revoke() }
         socialAccountRepository.findAllByUserId(userId).forEach(socialAccountRepository::delete)
@@ -158,14 +152,14 @@ class UserService(
         hasPassword = user.hasPassword,
         emailVerified = user.isEmailVerified,
         linkedProviders = socialAccountRepository.findAllByUserId(user.id!!).map { it.provider.name },
-        // 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다)
+        // 플랜은 소유자 단위
         plan = planService.view(planService.bestOwnedPlan(user.id!!)),
         dndStart = user.dndStart,
         dndEnd = user.dndEnd,
         dndTimeZone = user.dndTimeZone,
     )
 
-    /** 방해 금지 시간 (이 시간에는 브라우저 푸시를 보내지 않는다). start·end 가 비면 끄기 */
+    /** 이 시간에는 브라우저 푸시를 보내지 않는다. start·end 가 비면 끄기 */
     @Transactional
     fun updateQuietHours(userId: Long, start: String?, end: String?, timeZone: String?): MeResDto {
         val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -176,7 +170,7 @@ class UserService(
     companion object {
         const val MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-        /** Content-Type 을 믿지 않고 파일 시그니처(매직 바이트)로 형식을 판별 */
+        /** Content-Type 은 조작할 수 있어서 매직 바이트로 판별한다 */
         fun detectImageExtension(upload: ImageUpload): String? {
             val b = upload.bytes
             if (b.isEmpty() || b.size > MAX_IMAGE_BYTES) return null

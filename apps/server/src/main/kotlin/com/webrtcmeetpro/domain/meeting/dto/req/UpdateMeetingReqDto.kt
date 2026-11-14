@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.time.LocalDateTime
 
-/** 예약 회의 고치기. inviteeIds 를 비우면 팀원 전체 */
+/** inviteeIds 를 비우면 팀원 전체 */
 data class UpdateMeetingReqDto(
     @field:NotBlank @field:Size(max = 100) val title: String,
     @field:Size(max = 1000) val description: String? = null,

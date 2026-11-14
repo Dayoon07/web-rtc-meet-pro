@@ -41,7 +41,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import com.webrtcmeetpro.application.push.PushNotifier
 
-/** 요금제 적용 규칙과 토스 자동결제 흐름 (DB·토스 없이 메모리 구현으로) */
+/** DB·토스 없이 메모리 구현으로 요금제 규칙과 자동결제 흐름을 확인한다 */
 class BillingServiceTest {
 
     private val free = testPlan("FREE", 0, 0)
@@ -61,7 +61,6 @@ class BillingServiceTest {
         override fun findAllByIdIn(ids: Collection<Long>) = listOf(user).filter { it.id in ids }
     }
     private val uid get() = user.id!!
-    /** 결제하는 사람이 만든 워크스페이스 */
     private val ws by lazy { fakes.team(uid, "우리 회사").id!! }
 
     private val sent = mutableListOf<Notification>()
@@ -79,7 +78,6 @@ class BillingServiceTest {
     )
     private val mails = mutableListOf<MailMessage>()
 
-    /** 토스 대신: failNext 가 있으면 그 오류로 거절 */
     private var failNext: TossException? = null
     private val charged = mutableListOf<Long>()
     private val tossClient = object : TossPaymentsClient(toss, JsonMapper.builder().build()) {
@@ -90,7 +88,6 @@ class BillingServiceTest {
             return TossPayment("pk_$orderId", "카드", "https://receipt.test/$orderId")
         }
 
-        /** 환불: failCancel 이 있으면 그 오류로 거절, 아니면 (paymentKey, 부분 금액) 을 남긴다 */
         override fun cancel(paymentKey: String, reason: String, amount: Long?, idempotencyKey: String) {
             failCancel?.let { failCancel = null; throw it }
             canceled += paymentKey to amount
@@ -114,7 +111,7 @@ class BillingServiceTest {
 
     private val refunds = RefundService(tossClient, fakes.paymentRepo, fakes.subscriptionRepo, planService, fakes.teamRepo, notifications, noTx)
 
-    /** 워크스페이스에 멤버를 n 명 더 (소유자 포함 1 + n 명) */
+    /** 소유자 포함 1 + n 명 */
     private fun addMembers(teamId: Long, n: Int) = repeat(n) { fakes.join(teamId, 10_000L + it) }
 
     private fun registerCard() {
@@ -140,7 +137,6 @@ class BillingServiceTest {
         val other = cipher.newCustomerKey(uid + 100)
         val e = assertThrows<BusinessException> { billing.registerCard(uid, other, "auth1") }
         assertEquals(ErrorCode.BILLING_CARD_INVALID, e.errorCode)
-        // 빌링키는 암호화해서 저장한다
         registerCard()
         val saved = fakes.billingKeys.single { it.active }
         assertFalse(saved.billingKey.contains("bk_auth1"))
@@ -361,8 +357,6 @@ class BillingServiceTest {
     @Suppress("unused")
     private fun card(): BillingKey = fakes.billingKeys.single { it.active }
 
-    // ------------------------------------------------------------- 멤버 초과 요금
-
     @Test
     fun `한도 초과 허용은 소유자가 카드 등록하고 동의해야 켜진다`() {
         assertEquals(ErrorCode.BILLING_CARD_REQUIRED, assertThrows<BusinessException> { overage.setAllowed(ws, uid, allowed = true, agree = true) }.errorCode)
@@ -484,8 +478,6 @@ class BillingServiceTest {
         assertEquals(3, fakes.payments.count { it.status == PaymentStatus.FAILED })
         assertTrue(sent.any { it.type == NotificationType.PAYMENT_FAILED })
     }
-
-    // ------------------------------------------------------------- 환불
 
     @Test
     fun `7일 안이면 전액 환불하고 그 플랜은 바로 끝난다`() {

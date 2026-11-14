@@ -18,7 +18,7 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
- * 내 서버의 Ollama (무료, CPU 로도 돈다). POST /api/chat 에 JSON 스키마(format)를 주면 그 모양의 JSON 으로 답한다.
+ * format 에 JSON 스키마를 주면 그 모양의 JSON 으로 답한다.
  * 모델은 처음 쓸 때 메모리에 올라가고 keep_alive 가 지나면 내려간다.
  */
 @Component
@@ -26,7 +26,6 @@ class OllamaClient(private val props: AiProperties, private val json: JsonMapper
     private val log = LoggerFactory.getLogger(javaClass)
     private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
 
-    /** @return 모델이 쓴 JSON 글자 */
     fun chat(model: String, system: String, user: String, schema: Map<String, Any>, numCtx: Int, timeout: Duration): String {
         val body = mapOf(
             "model" to model,
@@ -44,7 +43,7 @@ class OllamaClient(private val props: AiProperties, private val json: JsonMapper
         val started = System.nanoTime()
         val response = http.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != 200) {
-            // 모델이 없으면 404 (ollama pull 필요)
+            // 모델을 받지 않았으면 404 (ollama pull 필요)
             throw IllegalStateException("Ollama ${response.statusCode()}: ${response.body().take(300)}")
         }
         val node = json.readTree(response.body())
@@ -54,21 +53,17 @@ class OllamaClient(private val props: AiProperties, private val json: JsonMapper
     }
 }
 
-/**
- * Ollama 로 회의록. 받아쓴 내용이 maxContext 보다 길면 앞에서부터 나눠 각각 요약하고,
- * 그 요약들을 한 번 더 합쳐서 마무리한다 (작은 모델·작은 메모리에서도 긴 회의를 다룰 수 있게).
- */
+/** 작은 메모리에서도 긴 회의를 다루려고, maxContext 보다 길면 나눠 요약한 뒤 요약들을 한 번 더 합친다 */
 @Component
 class OllamaMeetingNotesAi(private val ollama: OllamaClient, private val props: AiProperties, private val json: JsonMapper) {
 
     fun summarize(input: NotesInput): NotesResult {
         val max = props.ollama.maxContext
-        // 프롬프트에 넣을 수 있는 글자 수 (한국어는 대략 1글자 ≈ 1토큰, 답·지시문 몫을 남긴다)
+        // 한국어는 대략 1글자 ≈ 1토큰. 답·지시문 몫을 남긴다
         val budgetChars = ((max - RESERVED_TOKENS) * CHARS_PER_TOKEN).toInt().coerceAtLeast(1000)
         val chunks = chunk(input.lines, budgetChars)
         if (chunks.size <= 1) return once(input, input.lines)
 
-        // 나눠서 요약 → 요약들을 말한 것처럼 이어 붙여 한 번 더
         val parts = chunks.map { once(input, it) }
         val first = input.lines.first().at
         val merged = parts.flatMapIndexed { i, p ->
@@ -104,13 +99,12 @@ class OllamaMeetingNotesAi(private val ollama: OllamaClient, private val props: 
     }
 
     companion object {
-        /** 지시문·회의 정보·답에 남겨 둘 토큰 */
+        /** 지시문·회의 정보·답 몫 */
         const val RESERVED_TOKENS = 2500
         const val CHARS_PER_TOKEN = 1.2
     }
 }
 
-/** Ollama 로 자막 번역 (짧게, 빨리) */
 @Component
 class OllamaCaptionTranslator(private val ollama: OllamaClient, private val props: AiProperties, private val json: JsonMapper) {
 

@@ -3,7 +3,7 @@ package com.webrtcmeetpro.domain.chat.dto.req
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
-/** 글 보내기·고치기. 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두, threadRootId = 스레드 답글 */
+/** 고칠 때는 content 만 쓴다 */
 data class SendMessageReqDto(
     @field:NotBlank @field:Size(max = 4000) val content: String,
     val replyToId: Long? = null,

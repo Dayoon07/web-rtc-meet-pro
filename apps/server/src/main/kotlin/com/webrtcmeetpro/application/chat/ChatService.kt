@@ -54,10 +54,10 @@ import java.time.LocalDateTime
 import com.webrtcmeetpro.application.push.PushService
 import com.webrtcmeetpro.application.push.PushTexts
 
-/** 올린 파일 1개. presentation 의 MultipartFile 에 의존하지 않도록 열기 함수로 받는다 (여러 번 열 수 있어야 함) */
+/** presentation 의 MultipartFile 에 묶이지 않게 열기 함수로 받는다 (여러 번 열 수 있어야 한다) */
 data class FileUpload(val name: String?, val contentType: String?, val size: Long, val open: () -> InputStream)
 
-/** 내려받을 파일. inline = 브라우저에서 바로 보여 줘도 되는 이미지 */
+/** inline = 브라우저에서 바로 보여 줘도 되는 이미지 */
 data class ChatFileDownload(val name: String, val contentType: String, val size: Long, val file: StoredFile, val inline: Boolean, val expiresAt: Long)
 
 @Service
@@ -93,7 +93,6 @@ class ChatService(
             .sortedByDescending { it.lastMessageAt ?: it.createdAt }
     }
 
-    /** 워크스페이스마다 안 읽은 메시지 수 (0 인 워크스페이스는 빠진다) */
     fun unreadByTeam(userId: Long): Map<Long, Long> {
         val mine = memberRepository.findAllByUserIdAndLeftAtIsNull(userId)
         val teamOf = roomRepository.findAllByIdInAndDeletedFalse(mine.map { it.roomId }).associate { it.id!! to it.teamId }
@@ -111,7 +110,6 @@ class ChatService(
         return view(room, me)
     }
 
-    /** 1:1 방 열기. 이미 있으면 그 방을 돌려준다 */
     @Transactional
     fun openDirect(teamId: Long, userId: Long, targetId: Long): ChatRoomResDto {
         if (userId == targetId) throw BusinessException(ErrorCode.CANNOT_DIRECT_SELF)
@@ -125,7 +123,6 @@ class ChatService(
         return view(room, memberRepository.findByRoomIdAndUserId(room.id!!, userId)!!)
     }
 
-    /** 채널(1:N 방) 만들기 — CREATE_GROUP_ROOM 권한 (OWNER·ADMIN). categoryId 가 있으면 그 카테고리(부서) 안에 */
     @Transactional
     fun createGroup(teamId: Long, userId: Long, name: String, memberIds: Collection<Long>, categoryId: Long? = null): ChatRoomResDto {
         val team = teamAccess.requireTeam(teamId)
@@ -152,7 +149,6 @@ class ChatService(
         return view(room, me)
     }
 
-    /** 그룹 방에 팀원 초대 — 방 참여자라면 누구나 */
     @Transactional
     fun invite(roomId: Long, userId: Long, userIds: Collection<Long>): ChatRoomResDto {
         val (room, me) = requireRoomMember(roomId, userId)
@@ -170,7 +166,6 @@ class ChatService(
         return view(room, me)
     }
 
-    /** 채널 이름 바꾸기 · 다른 카테고리로 옮기기 (OWNER·ADMIN). categoryId = null 이면 카테고리 밖으로 */
     @Transactional
     fun updateChannel(roomId: Long, userId: Long, name: String?, categoryId: Long?, moveCategory: Boolean): ChatRoomResDto {
         val (room, me) = requireRoomMember(roomId, userId)
@@ -188,10 +183,7 @@ class ChatService(
         return view(room, me)
     }
 
-    /**
-     * 방 공지 올리기·고치기·내리기 (content 가 비면 내리기).
-     * 채널은 워크스페이스 OWNER·ADMIN, 1:1 방은 두 사람 모두. 방에 "공지를 올렸어요" 안내가 남는다
-     */
+    /** content 가 비면 공지를 내린다 */
     @Transactional
     fun setNotice(roomId: Long, userId: Long, content: String?): ChatRoomResDto {
         val (room, me) = requireRoomMember(roomId, userId)
@@ -206,8 +198,6 @@ class ChatService(
         realtime.push(members, RealtimePublisher.CHAT, ChatEventResDto("ROOM", room.teamId, roomId, msg))
         return view(room, me)
     }
-
-    // ----------------------------------------------------------------- 카테고리 (부서)
 
     fun categories(teamId: Long, userId: Long): List<ChatCategoryResDto> {
         teamAccess.requireMember(teamId, userId)
@@ -234,7 +224,7 @@ class ChatService(
         return categoryView(category)
     }
 
-    /** 카테고리 지우기. 안에 있던 채널은 지우지 않고 카테고리 밖으로 꺼낸다 */
+    /** 안에 있던 채널은 지우지 않고 카테고리 밖으로 꺼낸다 */
     @Transactional
     fun deleteCategory(categoryId: Long, userId: Long) {
         val category = categoryRepository.findCategoryById(categoryId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.CATEGORY_NOT_FOUND)
@@ -250,7 +240,7 @@ class ChatService(
 
     private fun categoryView(c: ChatCategory) = ChatCategoryResDto(c.id!!, c.name, c.sortOrder)
 
-    /** 워크스페이스 멤버 모두에게 (카테고리·채널 이름이 바뀌면 사이드바를 다시 그리게) */
+    /** 카테고리·채널 이름이 바뀌면 모든 멤버의 사이드바를 다시 그려야 한다 */
     private fun pushTeam(teamId: Long, event: ChatEventResDto) {
         realtime.push(teamAccess.activeMemberIds(teamId), RealtimePublisher.CHAT, event)
     }
@@ -272,7 +262,6 @@ class ChatService(
         return views(page.reversed())
     }
 
-    /** 워크스페이스에서 내가 들어가 있는 방들의 메시지 검색 (글·첨부파일 이름, 최신 50개) */
     fun search(teamId: Long, userId: Long, rawQuery: String): List<ChatMessageResDto> {
         teamAccess.requireMember(teamId, userId)
         val query = rawQuery.trim().lowercase()
@@ -286,7 +275,6 @@ class ChatService(
         return views(messageRepository.findAllByIdIn(ids).sortedByDescending { it.id })
     }
 
-    /** 스레드 창: 시작 글과 답글 (messageId 가 답글이면 그 스레드) */
     fun thread(messageId: Long, userId: Long): ThreadResDto {
         val message = messageRepository.findMessageById(messageId) ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
         val root = message.threadRootId?.let { messageRepository.findMessageById(it) } ?: message
@@ -296,11 +284,7 @@ class ChatService(
         return ThreadResDto(all.first(), all.drop(1))
     }
 
-    /**
-     * 글 보내기. replyToId = 답장할 메시지(같은 방), mentionIds = @멘션한 방 사람, mentionAll = @모두,
-     * threadRootId = 스레드에 답글 (채널 본문에는 안 보인다).
-     * 멘션된 사람(나 빼고)에게 CHAT_MENTION, 스레드에 있던 사람에게 THREAD_REPLY 알림
-     */
+    /** 스레드 답글(threadRootId)은 채널 본문에는 보이지 않는다 */
     @Transactional
     fun send(
         roomId: Long,
@@ -341,7 +325,6 @@ class ChatService(
         return view
     }
 
-    /** 스레드 시작 글 (같은 방, 시스템 메시지·지운 글 안 됨). 답글을 고르면 그 스레드의 시작 글 */
     private fun threadRootIn(roomId: Long, threadRootId: Long?): ChatMessage? {
         if (threadRootId == null) return null
         val picked = messageRepository.findMessageById(threadRootId)
@@ -350,10 +333,7 @@ class ChatService(
         return root
     }
 
-    /**
-     * 스레드 답글 알림: 시작 글을 쓴 사람 + 그 스레드에 답글을 단 사람 (보낸 사람·멘션 알림을 받은 사람·방을 나간 사람 빼고).
-     * 방 알림을 꺼도 온다 (내가 끼어 있는 대화라서)
-     */
+    /** 내가 끼어 있는 대화라 방 알림을 꺼도 온다. 멘션 알림을 받은 사람은 두 번 받지 않게 뺀다 */
     private fun notifyThread(room: ChatRoom, root: ChatMessage, saved: ChatMessage, view: ChatMessageResDto, members: Set<Long>, skip: Set<Long>) {
         val repliers = messageRepository.findAllByThreadRootIdAndDeletedFalse(root.id!!).mapNotNull { it.senderId }
         val participants = (listOfNotNull(root.senderId) + repliers).toSet()
@@ -371,7 +351,7 @@ class ChatService(
     private fun chatLink(room: ChatRoom, threadRootId: Long?) =
         "/app/chat/${room.teamId}/${room.id}" + (threadRootId?.let { "?thread=$it" } ?: "")
 
-    /** "입력 중..." 알리기: 방의 다른 사람들에게만 (저장하지 않는다. 화면이 몇 초마다 다시 보낸다) */
+    /** 저장하지 않는다. 화면이 몇 초마다 다시 보낸다 */
     fun typing(roomId: Long, userId: Long) {
         val (room, _) = requireRoomMember(roomId, userId)
         val me = usersById(listOf(userId)).getValue(userId)
@@ -379,7 +359,6 @@ class ChatService(
         realtime.push(others, RealtimePublisher.CHAT, ChatEventResDto("TYPING", room.teamId, roomId, typing = userView(me)))
     }
 
-    /** 이 방 알림 끄기·켜기 (나만) */
     @Transactional
     fun setMuted(roomId: Long, userId: Long, muted: Boolean): ChatRoomResDto {
         val (room, me) = requireRoomMember(roomId, userId)
@@ -387,11 +366,11 @@ class ChatService(
         return view(room, me)
     }
 
-    /** 이모지 반응 달기·떼기 (방 사람 누구나). 다시 누르면 떼어진다 */
+    /** 다시 누르면 떼어진다 */
     @Transactional
     fun react(messageId: Long, userId: Long, rawEmoji: String): ChatMessageResDto {
         val emoji = rawEmoji.trim()
-        // 이모지만 받는다: 비었거나 길거나 영문·숫자가 섞이면 거절
+        // 이모지만 받는다
         if (emoji.isEmpty() || emoji.length > ChatMessageReaction.MAX_LENGTH || emoji.any { it.code < 128 && it.isLetterOrDigit() }) {
             throw BusinessException(ErrorCode.INVALID_INPUT)
         }
@@ -403,10 +382,7 @@ class ChatService(
         return publishUpdate(room, message)
     }
 
-    /**
-     * 파일 보내기: 파일 여러 개 + (선택) 함께 보낼 글 = FILE 메시지 1개.
-     * 디스크에 먼저 쓰고 DB 에 기록한다. 트랜잭션이 롤백되면 디스크에 쓴 파일도 지운다.
-     */
+    /** 디스크에 먼저 쓰고 DB 에 기록하므로, 트랜잭션이 롤백되면 디스크에 쓴 파일도 지운다 */
     @Transactional
     fun sendFiles(roomId: Long, userId: Long, rawContent: String?, uploads: List<FileUpload>, threadRootId: Long? = null): ChatMessageResDto {
         val (room, me) = requireRoomMember(roomId, userId)
@@ -438,7 +414,7 @@ class ChatService(
         return view
     }
 
-    /** 서명이 맞고 지워지지 않은 파일만 내려준다. 서명이 틀리거나 만료되면 없는 파일처럼 보이게 한다 */
+    /** 서명이 틀리거나 만료되면 파일이 있다는 것도 알 수 없게 없는 파일처럼 응답한다 */
     fun openFile(fileId: Long, exp: Long, sig: String, download: Boolean = false): ChatFileDownload {
         if (!fileUrls.isValid(fileId, exp, sig)) throw BusinessException(ErrorCode.FILE_NOT_FOUND)
         val file = fileRepository.findFileById(fileId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.FILE_NOT_FOUND)
@@ -448,7 +424,6 @@ class ChatService(
         return ChatFileDownload(file.originalName, serveAs.contentType, file.sizeBytes, stored, inline, exp)
     }
 
-    /** 내가 보낸 글 메시지 고치기 */
     @Transactional
     fun edit(messageId: Long, userId: Long, rawContent: String): ChatMessageResDto {
         val message = messageRepository.findMessageById(messageId)?.takeIf { !it.deleted } ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
@@ -462,7 +437,6 @@ class ChatService(
         return publishUpdate(room, message)
     }
 
-    /** 메시지 지우기: 보낸 사람, 또는 팀 OWNER·ADMIN(DELETE_ANY_MESSAGE). 시스템 메시지는 못 지운다 */
     @Transactional
     fun delete(messageId: Long, userId: Long): ChatMessageResDto {
         val message = messageRepository.findMessageById(messageId) ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
@@ -471,7 +445,6 @@ class ChatService(
         if (message.senderId != userId) teamAccess.requirePermission(room.teamId, userId, TeamPermission.DELETE_ANY_MESSAGE)
         if (!message.deleted) {
             message.delete()
-            // 스레드 답글이면 시작 글의 답글 수를 줄여 다시 보낸다
             message.threadRootId?.let(messageRepository::findMessageById)?.let { root ->
                 root.removeThreadReply()
                 publishUpdate(room, root)
@@ -480,7 +453,6 @@ class ChatService(
         return publishUpdate(room, message)
     }
 
-    /** AI 회의록이 준비되면 채널(음성방이 열린 그 채널)에 카드로 올린다. SYSTEM 메시지, key = meetingNotes */
     @Transactional
     fun postMeetingNotes(roomId: Long, meetingId: Long, params: Map<String, Any?>) {
         val room = roomRepository.findRoomById(roomId)?.takeIf { !it.deleted } ?: return
@@ -502,12 +474,7 @@ class ChatService(
         realtime.push(members, RealtimePublisher.CHAT, ChatEventResDto("READ", room.teamId, roomId, read = ReadStateResDto(userId, me.lastReadMessageId)))
     }
 
-    // ---------------------------------------------------------------
-
-    /**
-     * 새 메시지를 방 사람들에게. 스레드 답글이면 채널 순서·읽음 위치는 그대로 두고,
-     * 시작 글의 답글 수를 올려 MESSAGE_UPDATED 로 같이 보낸다 (새 메시지 푸시 대신 스레드 알림이 간다)
-     */
+    /** 스레드 답글이면 채널 순서·읽음 위치는 그대로 두고, 시작 글의 답글 수만 올려 보낸다 */
     private fun publish(room: ChatRoom, me: ChatRoomMember, saved: ChatMessage, files: List<ChatMessageFile>, root: ChatMessage? = null): ChatMessageResDto {
         if (root == null) {
             room.touch(saved.createdDt)
@@ -523,10 +490,7 @@ class ChatService(
         return view
     }
 
-    /**
-     * 새 메시지 브라우저 푸시: 보낸 사람·알림 끈 사람은 빼고, 멘션된 사람도 뺀다 (멘션 알림이 따로 간다).
-     * 제목 = 채널 이름(#) 또는 1:1 상대, 내용 = (채널이면 "보낸 사람: ") 글 또는 "파일을 보냈어요"
-     */
+    /** 멘션된 사람은 멘션 알림이 따로 가므로 뺀다 */
     private fun pushNewMessage(room: ChatRoom, saved: ChatMessage, view: ChatMessageResDto, roomMembers: List<ChatRoomMember>) {
         val mentioned = if (saved.mentionAll) roomMembers.map { it.userId }.toSet() else saved.mentionUserIds.toSet()
         val recipients = roomMembers.filter { it.userId != saved.senderId && !it.muted && it.userId !in mentioned }.map { it.userId }
@@ -540,7 +504,7 @@ class ChatService(
         }
     }
 
-    /** 크기·확장자 확인, 파일 이름 정리, 형식 판별. 이미지라고 해도 실제 내용(매직 바이트)이 이미지일 때만 이미지로 저장 */
+    /** 확장자만 믿지 않고 실제 내용(매직 바이트)이 이미지일 때만 이미지로 저장한다 */
     private fun inspect(upload: FileUpload): Triple<FileUpload, String, String> {
         if (upload.size <= 0) throw BusinessException(ErrorCode.EMPTY_FILE)
         if (upload.size > MAX_FILE_BYTES) throw tooLarge()
@@ -556,11 +520,10 @@ class ChatService(
 
     private fun tooLarge() = BusinessException(ErrorCode.FILE_TOO_LARGE, mapOf("max" to MAX_FILE_MB, "total" to MAX_TOTAL_MB))
 
-    /** 요청을 보낸 사람이 볼 권한이 있으니 서명된 주소를 붙여 준다 */
     private fun fileView(f: ChatMessageFile) =
         ChatFileResDto(f.id!!, f.originalName, f.sizeBytes, f.contentType, f.isPreviewableImage, fileUrls.url(f.id!!))
 
-    /** 고치거나 지운 메시지를 방 사람들에게 다시 보낸다 (화면이 같은 id 를 바꿔 끼운다) */
+    /** 화면이 같은 id 를 바꿔 끼운다 */
     private fun publishUpdate(room: ChatRoom, message: ChatMessage): ChatMessageResDto {
         val view = views(listOf(message)).single()
         val members = memberRepository.findAllByRoomIdAndLeftAtIsNull(room.id!!).map { it.userId }
@@ -574,7 +537,7 @@ class ChatService(
         return fileRepository.findAllByMessageIdIn(ids).filter { !it.deleted }.sortedBy { it.id }.groupBy { it.messageId }
     }
 
-    /** 방 참여자 + 아직 그 팀의 팀원인지 함께 확인 (팀에서 나간 사람은 방도 못 본다) */
+    /** 팀에서 나간 사람은 방도 볼 수 없어야 한다 */
     private fun requireRoomMember(roomId: Long, userId: Long): Pair<ChatRoom, ChatRoomMember> {
         val room = roomRepository.findRoomById(roomId)?.takeIf { !it.deleted }
             ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
@@ -620,7 +583,7 @@ class ChatService(
 
     private fun userView(u: User) = ChatUserResDto(u.id!!, u.nickname, u.profileImageUrl)
 
-    /** 메시지 여러 개를 화면 모양으로. 보낸 사람·첨부파일·이모지 반응·답장 원문을 한 번에 불러온다 */
+    /** 보낸 사람·첨부·반응·답장 원문을 한 번에 불러와 N+1 을 피한다 */
     private fun views(messages: List<ChatMessage>): List<ChatMessageResDto> {
         if (messages.isEmpty()) return emptyList()
         val replyIds = messages.mapNotNull { it.replyToId }
@@ -657,7 +620,6 @@ class ChatService(
         roomId = m.roomId,
         sender = m.senderId?.let { users[it] }?.let(::userView),
         type = m.messageType,
-        // 지운 메시지는 내용·파일을 내려보내지 않는다
         content = if (m.deleted) null else m.content,
         files = if (m.deleted) emptyList() else files.map(::fileView),
         createdAt = m.createdDt,
@@ -665,7 +627,6 @@ class ChatService(
         deleted = m.deleted,
     )
 
-    /** 채널들의 진행 중인 음성방과 들어와 있는 사람 (한 번에 모아서) */
     private fun voicePresence(roomIds: List<Long>): Map<Long, VoicePresenceResDto> {
         if (roomIds.isEmpty()) return emptyMap()
         val live = meetingRepository.findAllByChatRoomIdInAndStatus(roomIds, MeetingStatus.LIVE)
@@ -708,14 +669,14 @@ class ChatService(
         /** application.yml 의 multipart max-request-size(51MB) 와 맞춘다 */
         const val MAX_TOTAL_MB = 50
 
-        /** 받는 사람 PC 에서 바로 실행될 수 있는 형식은 막는다 */
+        /** 받는 사람 PC 에서 바로 실행될 수 있는 형식 */
         val BLOCKED_EXTENSIONS = setOf(
             "exe", "msi", "bat", "cmd", "com", "scr", "pif", "cpl", "vbs", "vbe", "wsf", "wsh", "ps1", "hta", "lnk", "reg",
         )
         private val CONTENT_TYPE = Regex("^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$")
         private val UNSAFE_NAME_CHARS = Regex("[\\p{Cntrl}\\\\/:*?\"<>|]")
 
-        /** 경로(C:\fakepath\a.png 등)와 제어 문자를 지우고 255자 안으로 (확장자는 남긴다) */
+        /** 브라우저가 붙이는 경로(C:\fakepath\a.png)와 제어 문자를 지운다 */
         fun cleanFileName(raw: String?): String {
             val base = raw.orEmpty().substringAfterLast('/').substringAfterLast('\\')
             val cleaned = base.replace(UNSAFE_NAME_CHARS, "_").trim().trim('.').ifBlank { "file" }
@@ -724,7 +685,6 @@ class ChatService(
             return if (ext.isEmpty()) cleaned.take(255) else cleaned.take(255 - ext.length - 1) + "." + ext
         }
 
-        /** 파일 시그니처(매직 바이트)로 미리보기 가능한 이미지인지 판별 */
         fun sniffImageType(b: ByteArray): String? {
             fun startsWith(vararg sig: Int) = b.size >= sig.size && sig.indices.all { (b[it].toInt() and 0xFF) == sig[it] }
             return when {

@@ -44,7 +44,6 @@ class MeetingController(private val meetings: MeetingService) {
             ScheduleMeetingCommand(req.title, req.description, req.scheduledAt, req.durationMinutes, req.inviteeIds),
         )
 
-    /** 채널 상시 음성방 들어가기: 진행 중인 음성방, 없으면 새로 연다. 돌려준 회의 id 로 /meet/{id} 입장 */
     @PostMapping("/chat/rooms/{roomId}/voice")
     fun joinVoice(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long) = meetings.joinVoice(roomId, jwt.userId)
 
@@ -55,7 +54,6 @@ class MeetingController(private val meetings: MeetingService) {
     @GetMapping("/meetings/{meetingId}")
     fun detail(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long) = meetings.detail(meetingId, jwt.userId)
 
-    /** 예약 회의 고치기 (주최자, 또는 팀 OWNER·ADMIN). 시작 전인 회의만 */
     @PutMapping("/meetings/{meetingId}")
     fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @Valid @RequestBody req: UpdateMeetingReqDto) =
         meetings.update(
@@ -72,10 +70,7 @@ class MeetingController(private val meetings: MeetingService) {
     fun join(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long) = meetings.join(meetingId, jwt.userId)
 }
 
-/**
- * mediasoup 사이드카 → 서버 콜백. JWT 가 아니라 공유 비밀 헤더로 인증한다.
- * 운영에서는 이 경로를 리버스 프록시에서 외부에 노출하지 말 것.
- */
+/** JWT 가 아니라 공유 비밀 헤더로 인증하므로 운영에서는 이 경로를 리버스 프록시 밖으로 노출하지 않는다 */
 @RestController
 @RequestMapping("/internal/media")
 class InternalMediaController(

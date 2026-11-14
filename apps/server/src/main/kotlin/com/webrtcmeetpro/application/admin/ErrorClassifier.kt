@@ -20,23 +20,19 @@ import java.sql.SQLNonTransientConnectionException
 import java.sql.SQLRecoverableException
 import java.sql.SQLTransientConnectionException
 
-/**
- * 예외를 원인 분류([ErrorCategory])로 나눈다. 예외는 여러 겹으로 감싸여 오므로 원인(cause)을 끝까지 따라가며 본다.
- * Oracle 은 SQLException.errorCode 가 ORA-번호다 (예: ORA-00942 → 942).
- */
+/** 예외는 여러 겹으로 감싸여 오므로 원인을 끝까지 따라가며 분류한다. Oracle 은 errorCode 가 ORA 번호다 */
 object ErrorClassifier {
 
-    /** 테이블·컬럼 구조 문제: 없는 테이블/컬럼, 타입 불일치, 값이 컬럼보다 큼, 숫자 자릿수 초과, 없는 시퀀스·객체 */
+    /** 없는 테이블·컬럼, 타입 불일치, 길이·자릿수 초과, 없는 시퀀스 */
     private val SCHEMA_ORA = setOf(942, 904, 932, 12899, 1438, 2289, 4043, 1735, 909)
 
-    /** 규칙 위반: 유니크, NULL 불가, 체크 제약, 부모 키 없음, 자식 행 있음 */
+    /** 유니크, NOT NULL, CHECK, FK */
     private val CONSTRAINT_ORA = setOf(1, 1400, 1407, 2290, 2291, 2292)
 
-    /** 연결 문제: 리스너 없음, 서비스 이름 오류, 계정·비밀번호, DB 꺼짐/시작 중, 연결 끊김, 시간 초과 */
+    /** 리스너·서비스 이름, 계정, DB 꺼짐·시작 중, 연결 끊김, 시간 초과 */
     private val CONNECTION_ORA = setOf(
         12541, 12514, 12505, 12170, 12537, 12528, 12519, 12520, 1017, 28000, 28001,
         1033, 1034, 1089, 3113, 3114, 3135, 17002, 17008, 17410, 18,
-        // 1013: 시간 초과로 쿼리를 취소함
         1013,
     )
 
@@ -50,8 +46,7 @@ object ErrorClassifier {
             }
         ) return ErrorCategory.DB_CONNECTION
 
-        // 처리 시간 초과 (요청이 몰려 트랜잭션 제한 시간을 넘김). Hibernate 가 "잘못된 쿼리(BadJpqlGrammar)" 로 감싸서 올 때가 있어
-        // DB 구조 문제(DB_SCHEMA)로 잘못 보이지 않게 메시지로도 본다 (부하 테스트에서 발견)
+        // Hibernate 가 트랜잭션 시간 초과를 BadJpqlGrammar 로 감싸 올 때가 있어 DB 구조 문제로 잘못 분류되지 않게 메시지도 본다
         if (chain.any { it is TransactionTimedOutException || TIMEOUT_MESSAGES.any { m -> it.message?.contains(m, ignoreCase = true) == true } }) {
             return ErrorCategory.DB_CONNECTION
         }
@@ -78,17 +73,16 @@ object ErrorClassifier {
         }
     }
 
-    /** 사용자가 내려받기를 취소하거나 탭을 닫아 응답을 못 보낸 경우. 에러로 기록하지 않는다 */
+    /** 사용자가 다운로드를 취소하거나 탭을 닫은 것이라 에러로 기록하지 않는다 */
     fun isClientAbort(e: Throwable): Boolean = causes(e).any {
         it is AsyncRequestNotUsableException || it.javaClass.name.endsWith("ClientAbortException") ||
             (it is java.io.IOException && it.message?.contains("Broken pipe", ignoreCase = true) == true)
     }
 
-    /** 가장 바깥 예외부터 원인까지 (순환 참조 방지로 최대 20개) */
+    /** 순환 참조가 있을 수 있어 최대 20개까지만 */
     private fun causes(e: Throwable): List<Throwable> =
         generateSequence(e) { cur -> cur.cause?.takeIf { it !== cur } }.take(20).toList()
 
-    /** 관리자 화면용 한 줄 요약: 바깥 예외 메시지 + 가장 안쪽 원인 */
     fun summary(e: Throwable): String {
         val root = causes(e).last()
         val outer = "${e.javaClass.simpleName}: ${e.message.orEmpty()}"

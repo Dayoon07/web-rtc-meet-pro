@@ -46,14 +46,13 @@ import org.springframework.transaction.annotation.Transactional
 data class ScheduleMeetingCommand(
     val title: String,
     val description: String?,
-    /** null 이면 지금 바로 시작하는 회의 */
+    /** null 이면 지금 바로 시작 */
     val scheduledAt: LocalDateTime?,
     val durationMinutes: Int,
     /** 비우면 팀원 전체 */
     val inviteeIds: Collection<Long>,
 )
 
-/** mediasoup 사이드카가 보내는 이벤트 */
 data class MediaEventCommand(
     val type: String,
     val meetingId: Long? = null,
@@ -122,7 +121,7 @@ class MeetingService(
         return view(meeting, hostId)
     }
 
-    /** upcoming: 예약/진행 중, past: 종료/취소 (최근 30건) */
+    /** past = 종료·취소 (최근 30건) */
     fun myMeetings(userId: Long, past: Boolean): List<MeetingResDto> {
         val ids = inviteeRepository.findAllByUserId(userId).map { it.meetingId }
         val statuses = if (past) listOf(MeetingStatus.ENDED, MeetingStatus.CANCELED) else listOf(MeetingStatus.SCHEDULED, MeetingStatus.LIVE)
@@ -138,10 +137,7 @@ class MeetingService(
         return view(meeting, userId)
     }
 
-    /**
-     * 예약 회의 고치기: 취소와 같은 사람(주최자, 팀 OWNER·ADMIN), 시작 전인 회의만.
-     * 새로 초대된 사람에게는 초대 알림, 원래 있던 사람에게는 (제목·시간·길이가 바뀌었으면) 변경 알림.
-     */
+    /** 원래 있던 사람에게는 제목·시간·길이가 바뀌었을 때만 변경 알림을 보낸다 */
     @Transactional
     fun update(meetingId: Long, userId: Long, cmd: ScheduleMeetingCommand): MeetingResDto {
         val meeting = findMeeting(meetingId)
@@ -157,7 +153,6 @@ class MeetingService(
         if (!teamMembers.containsAll(requested)) throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
 
         val notable = meeting.update(cmd.title.trim(), cmd.description?.trim()?.ifBlank { null }, scheduledAt, cmd.durationMinutes)
-        // 주최자는 늘 초대 대상
         val wanted = requested + meeting.hostId
         val current = inviteeRepository.findAllByMeetingId(meetingId)
         current.filter { it.userId !in wanted }.forEach(inviteeRepository::delete)
@@ -173,7 +168,7 @@ class MeetingService(
         return view(meeting, userId)
     }
 
-    /** 취소: 주최자는 자기 회의를(자원 관계), 팀 OWNER·ADMIN 은 팀의 다른 회의도(역할 권한). 둘 다 팀원이어야 한다 */
+    /** 주최자는 자기 회의를, 팀 OWNER·ADMIN 은 팀의 다른 회의도 취소할 수 있다 */
     @Transactional
     fun cancel(meetingId: Long, userId: Long) {
         val meeting = findMeeting(meetingId)
@@ -184,10 +179,7 @@ class MeetingService(
         notifyInvitees(meeting, NotificationType.MEETING_CANCELED, except = userId)
     }
 
-    /**
-     * 채널 상시 음성방 (디스코드처럼): 채널 참여자가 누르면 그 채널의 진행 중인 음성 회의로, 없으면 새로 연다.
-     * 알림은 보내지 않는다 (사이드바에 누가 들어와 있는지 보인다). 돌려준 회의로 /meet/{id} 에 들어가면 된다.
-     */
+    /** 채널 상시 음성방: 진행 중인 음성 회의가 있으면 그리로, 없으면 새로 연다. 사이드바에 보이므로 알림은 보내지 않는다 */
     @Transactional
     fun joinVoice(roomId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): MeetingResDto {
         val room = chatRoomRepository.lockRoomById(roomId)?.takeIf { !it.deleted && it.isGroup }
@@ -217,12 +209,12 @@ class MeetingService(
         return view(meeting, userId)
     }
 
-    /** 입장: 권한/시간 확인 후 사이드카 접속 토큰 발급. 처음 들어오는 사람이 회의를 시작시킨다 */
+    /** 처음 들어오는 사람이 회의를 시작시킨다 */
     @Transactional
     fun join(meetingId: Long, userId: Long): JoinMeetingResDto {
         val meeting = meetingRepository.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         teamAccess.requireMember(meeting.teamId, userId)
-        // 채널 음성방은 그 채널 참여자만 (채널에 나중에 들어온 사람도 회의 기록에 남게 초대 대상에 넣는다)
+        // 채널에 나중에 들어온 사람도 회의 기록에 남게 초대 대상에 넣는다
         meeting.chatRoomId?.let { roomId ->
             chatMemberRepository.findByRoomIdAndUserId(roomId, userId)?.takeIf { it.isActive } ?: throw BusinessException(ErrorCode.NOT_ROOM_MEMBER)
             ensureInvitee(meeting, userId)
@@ -234,7 +226,7 @@ class MeetingService(
         if (!meeting.canJoin(userId)) {
             throw BusinessException(ErrorCode.MEETING_NOT_STARTED_YET, mapOf("startsAt" to JacksonConfig.toOffsetString(meeting.scheduledAt)))
         }
-        // 회의당 인원: 워크스페이스 플랜 기준. 이미 들어와 있는 사람(새로고침·재접속)은 막지 않는다
+        // 새로고침·재접속은 이미 자리를 차지하고 있으므로 인원 제한에서 뺀다
         val plan = ownerPlan(meeting)
         val inRoom = participantRepository.findAllByMeetingIdAndLeftAtIsNull(meeting.id!!).map { it.userId }.toSet()
         if (userId !in inRoom && plan != null && !plan.canJoinMeeting(inRoom.size.toLong())) {
@@ -250,7 +242,7 @@ class MeetingService(
         return JoinMeetingResDto(view(meeting, userId), mediaProperties.publicUrl, token)
     }
 
-    /** 사이드카 이벤트 기록. JOINED 는 participantId 를 돌려줘서 LEFT 때 다시 받는다 */
+    /** JOINED 는 participantId 를 돌려줘 LEFT 때 다시 받는다 */
     @Transactional
     fun recordMediaEvent(cmd: MediaEventCommand): Map<String, Any?> {
         when (cmd.type) {
@@ -270,7 +262,7 @@ class MeetingService(
             "ROOM_CLOSED" -> {
                 val meeting = findMeeting(cmd.meetingId!!)
                 participantRepository.findAllByMeetingIdAndLeftAtIsNull(meeting.id!!).forEach { it.leave(LeaveReason.MEETING_ENDED) }
-                // 채널 음성방은 바로 끝내지 않는다: 새로고침·잠깐 끊김·"화상 화면으로" 전환 때 같은 방으로 돌아오게.
+                // 채널 음성방은 바로 끝내지 않는다: 새로고침·잠깐 끊김·화상 화면 전환 때 같은 방으로 돌아오게.
                 // 아무도 없이 VOICE_IDLE 이 지나면 endAbandoned 가 끝낸다
                 if (meeting.status == MeetingStatus.LIVE && !meeting.isVoice) {
                     meeting.end()
@@ -284,7 +276,6 @@ class MeetingService(
         return emptyMap()
     }
 
-    /** 시작 10분 전 알림. MeetingReminderScheduler 가 주기적으로 호출 */
     @Transactional
     fun sendDueReminders(now: LocalDateTime = LocalDateTime.now()): Int {
         val ids = meetingQueries.findDueReminderIds(MeetingStatus.SCHEDULED, now.minusMinutes(5), now.plus(Meeting.REMINDER_BEFORE))
@@ -297,14 +288,11 @@ class MeetingService(
         return due.size
     }
 
-    /**
-     * 입장 토큰만 받고 사이드카에 접속하지 않은 경우 등으로 LIVE 에 남은 회의 정리:
-     * 예정 종료 시각이 지났고 접속 중인 사람이 없으면 ENDED.
-     */
+    /** 입장 토큰만 받고 사이드카에 접속하지 않으면 LIVE 로 남으므로, 예정 종료가 지났고 아무도 없으면 끝낸다 */
     @Transactional
     fun endAbandoned(now: LocalDateTime = LocalDateTime.now()): Int {
         val stale = meetingRepository.findAllByStatus(MeetingStatus.LIVE).filter {
-            // 음성방은 마지막 사람이 나가고 VOICE_IDLE 이 지나면 끝낸다 (예정 시간이 따로 없다)
+            // 음성방은 예정 시간이 없어서 마지막 사람이 나가고 VOICE_IDLE 이 지나면 끝낸다
             val due = if (it.isVoice) now.isAfter(lastActivity(it).plus(VOICE_IDLE)) else now.isAfter(it.scheduledAt.plusMinutes(it.durationMinutes.toLong()))
             due && participantRepository.countByMeetingIdAndLeftAtIsNull(it.id!!) == 0L
         }
@@ -317,7 +305,7 @@ class MeetingService(
         return stale.size
     }
 
-    /** 음성방에서 마지막으로 누가 나간 시각 (아무도 안 들어왔으면 시작 시각) */
+    /** 아무도 안 들어왔으면 시작 시각 */
     private fun lastActivity(meeting: Meeting): LocalDateTime =
         participantRepository.findAllByMeetingId(meeting.id!!).mapNotNull { it.leftAt }.maxOrNull()
             ?: meeting.startedAt ?: meeting.scheduledAt
@@ -328,14 +316,11 @@ class MeetingService(
         }
     }
 
-    /** 음성방에 누가 들어오고 나가면 채널 참여자들의 사이드바를 다시 그리게 한다 */
     private fun pushVoicePresence(meeting: Meeting) {
         val roomId = meeting.chatRoomId ?: return
         val members = chatMemberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
         realtime.push(members, RealtimePublisher.CHAT, ChatEventResDto("ROOM", meeting.teamId, roomId))
     }
-
-    // ---------------------------------------------------------------
 
     private fun findMeeting(id: Long) = meetingRepository.findMeetingById(id) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
 
@@ -357,12 +342,10 @@ class MeetingService(
 
     private fun userView(u: User) = MeetingUserResDto(u.id!!, u.nickname, u.profileImageUrl)
 
-    /** 주최자이거나 팀에서 회의를 관리할 수 있는 사람 (OWNER·ADMIN) */
     fun canManage(meeting: Meeting, viewerId: Long): Boolean =
         if (meeting.hostId == viewerId) teamAccess.isMember(meeting.teamId, viewerId)
         else teamAccess.can(meeting.teamId, viewerId, TeamPermission.CANCEL_ANY_MEETING)
 
-    /** 녹화는 워크스페이스(팀) 플랜 기준 */
     fun recordingAvailable(meeting: Meeting): Boolean = ownerPlan(meeting)?.recordingEnabled ?: false
 
     private fun ownerPlan(meeting: Meeting) =
@@ -405,9 +388,9 @@ class MeetingService(
     }
 
     companion object {
-        /** 음성방은 길이 제한 없이 (DB 규칙 최대 24시간) */
+        /** DB 규칙상 최대 24시간 */
         const val VOICE_MINUTES = 1440
-        /** 아무도 없는 음성방을 정리하는 시간 (이 안에 다시 들어오면 같은 방) */
+        /** 이 안에 다시 들어오면 같은 방으로 */
         val VOICE_IDLE: java.time.Duration = java.time.Duration.ofMinutes(1)
     }
 }

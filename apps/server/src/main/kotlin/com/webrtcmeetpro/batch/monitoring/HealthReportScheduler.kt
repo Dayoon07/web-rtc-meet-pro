@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
-/** 12시간마다(한국 시간 오전 9시·오후 9시) 서버 상태 보고 메일 */
 @Component
 class HealthReportScheduler(private val reports: HealthReportService) {
     private val log = LoggerFactory.getLogger(javaClass)

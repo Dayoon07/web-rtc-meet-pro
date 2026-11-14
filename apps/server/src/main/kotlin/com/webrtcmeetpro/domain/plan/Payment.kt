@@ -15,13 +15,10 @@ import java.time.LocalDateTime
 
 enum class PaymentStatus { READY, DONE, CANCELED, FAILED, ABORTED }
 
-/** PLAN = 플랜 결제 (월 자동결제면 초과 인원 요금이 같이 들어갈 수 있다), OVERAGE = 초과 인원 요금만 */
+/** PLAN 에도 월 자동결제면 초과 인원 요금이 같이 들어갈 수 있다 */
 enum class PaymentKind { PLAN, OVERAGE }
 
-/**
- * 결제 건 (토스페이먼츠).
- * order_id 는 결제창 호출 전에 우리가 발급하고, 승인 성공 시 payment_key / receipt_url 을 채운다.
- */
+/** order_id 는 토스 호출 전에 우리가 만들어 결과를 모를 때도 토스에서 찾을 수 있게 한다 */
 @Entity
 @Table(name = "payments")
 class Payment(
@@ -45,14 +42,13 @@ class Payment(
     @Enumerated(EnumType.STRING)
     val billingCycle: BillingCycle? = null,
 
-    /** 요금제를 적용한 워크스페이스 */
     val teamId: Long? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     val paymentKind: PaymentKind = PaymentKind.PLAN,
 
-    /** 이 결제에 들어간 초과 인원과 그 금액 (영수증에 따로 보인다) */
+    /** 영수증에 따로 보여 주려고 나눠 둔다 */
     @Column(nullable = false)
     val overageMembers: Int = 0,
 
@@ -95,11 +91,10 @@ class Payment(
     var canceledAt: LocalDateTime? = null
         protected set
 
-    /** 이 결제로 늘어난 구독 기간 끝 */
+    /** 이 결제로 늘어난 구독 기간 끝. 환불할 때 쓴 날수를 이걸로 계산한다 */
     var periodEnd: LocalDateTime? = null
         protected set
 
-    /** 영수증: 카드사, 가린 카드번호, 승인번호 (토스 결제 응답) */
     var cardCompany: String? = null
         protected set
 
@@ -109,7 +104,7 @@ class Payment(
     var approveNo: String? = null
         protected set
 
-    /** 환불한 금액 (전액이면 amount). 환불 시각은 canceled_at */
+    /** 부분 환불도 있어서 amount 와 따로 둔다. 시각은 canceled_at */
     @Column(nullable = false)
     var refundedAmount: Long = 0
         protected set
@@ -117,7 +112,6 @@ class Payment(
     var refundReason: String? = null
         protected set
 
-    /** 환불한 사람 (결제한 사람 또는 관리자) */
     var refundedBy: Long? = null
         protected set
 
@@ -157,7 +151,7 @@ class Payment(
         canceledAt = at
     }
 
-    /** 환불 (토스 취소가 끝난 뒤): 전액·부분 모두 CANCELED + 환불 금액·사유·한 사람 */
+    /** 토스 취소가 끝난 뒤에 부른다. 부분 환불도 CANCELED */
     fun refund(amount: Long, reason: String?, by: Long, at: LocalDateTime = LocalDateTime.now()) {
         check(status == PaymentStatus.DONE) { "승인된 결제만 환불할 수 있습니다." }
         require(amount in 1..this.amount) { "환불 금액은 1원 ~ 결제 금액입니다." }
@@ -173,11 +167,10 @@ interface PaymentRepository {
     fun findByOrderId(orderId: String): Payment?
     fun findAllByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
     fun findTop50ByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
-    /** 한 구독의 결제 (최근 것부터) — 사용자는 가장 최근 결제만 환불할 수 있다 */
     fun findAllBySubscriptionIdOrderByIdDesc(subscriptionId: Long): List<Payment>
 }
 
-/** 토스 자동결제 빌링키. billingKey 는 애플리케이션에서 암호화한 값 */
+/** billingKey 는 애플리케이션에서 암호화한 값 */
 @Entity
 @Table(name = "billing_keys")
 class BillingKey(

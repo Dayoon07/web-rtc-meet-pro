@@ -8,20 +8,19 @@ data class PlanResDto(
     val name: String,
     val description: String?,
     val monthlyPrice: Long,
-    /** 연 결제 금액 (월 가격 × 12 × 0.9) */
+    /** 월 가격 × 12 × 0.9 */
     val yearlyPrice: Long,
     val maxMembersPerTeam: Int,
-    /** 워크스페이스당 채널 수. null = 제한 없음 */
+    /** null = 제한 없음 */
     val maxGroupRoomsPerTeam: Int?,
     val maxMeetingParticipants: Int,
     val recordingEnabled: Boolean,
     val recordingStorageGb: Int,
     val recordingRetentionDays: Int,
-    /** 한 달 AI 회의록 시간(분). 0 = 없음 */
+    /** 0 = 없음 */
     val aiNotesMinutes: Int,
-    /** 한 달 실시간 자막·번역 시간(분). 0 = 없음 */
+    /** 0 = 없음 */
     val liveCaptionMinutes: Int,
-    /** 멤버 한도를 넘은 1명당 한 달 요금 (소유자가 허용했을 때) */
     val overagePricePerMember: Long,
     /** 클수록 높은 플랜 */
     val rank: Int,

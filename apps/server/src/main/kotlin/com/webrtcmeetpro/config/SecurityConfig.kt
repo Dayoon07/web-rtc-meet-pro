@@ -33,10 +33,7 @@ class SecurityConfig(
     private val systemAdmins: SystemAdminAccess,
 ) {
 
-    /**
-     * /api/admin 아래 전부: 로그인한 사용자 중 시스템 관리자(users.system_role = ADMIN)만.
-     * 토큰이 아니라 매 요청 DB 에서 확인하므로 권한을 회수하면 바로 막힌다. 서비스도 한 번 더 확인한다.
-     */
+    /** 권한을 회수하면 바로 막히도록 토큰이 아니라 매 요청 DB 에서 확인한다 */
     private val systemAdminOnly = AuthorizationManager<RequestAuthorizationContext> { authentication, _ ->
         val userId = (authentication.get()?.principal as? Jwt)?.subject?.toLongOrNull()
         AuthorizationDecision(userId != null && systemAdmins.isSystemAdmin(userId))
@@ -49,23 +46,22 @@ class SecurityConfig(
             .cors { }
             .httpBasic { it.disable() }
             .formLogin { it.disable() }
-            // API 는 JWT 무상태. 구글 로그인 왕복 동안만 인가 요청(state) 저장용 세션을 쓴다
+            // 구글 로그인 왕복 동안만 state 저장용 세션을 쓴다
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                // /ws: STOMP CONNECT 프레임에서 JWT 검증, /internal: 사이드카 공유 비밀 헤더로 검증
+                // /ws 는 STOMP CONNECT 에서 JWT 를, /internal 은 사이드카 공유 비밀 헤더를 따로 확인한다
                 it.requestMatchers("/api/auth/**", "/api/health", "/oauth2/**", "/login/oauth2/**", "/ws/**", "/internal/**").permitAll()
-                    // 채팅 첨부파일: 토큰 대신 주소의 서명(exp, sig)으로 확인 (<img src> 는 헤더를 못 보낸다)
+                    // <img src> 는 헤더를 못 보내서 토큰 대신 주소의 서명으로 확인한다
                     .requestMatchers(HttpMethod.GET, "/api/plans", "/uploads/**", "/api/chat/files/*", "/api/recordings/*/file").permitAll()
-                    // 화면 오류 신고: 로그인 전 화면에서도 보낸다 (토큰이 있으면 사용자 id 도 남김)
+                    // 로그인 전 화면의 오류도 받아야 한다
                     .requestMatchers(HttpMethod.POST, "/api/client-errors").permitAll()
                     .requestMatchers("/api/admin/**").access(systemAdminOnly)
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { it.jwt { } }
-            // oauth2Login 을 켜도 API 미인증 요청은 로그인 페이지 리다이렉트(302)가 아니라 401
+            // oauth2Login 을 켜면 미인증 요청이 로그인 페이지로 302 되므로 API 는 401 로 바꾼다
             .exceptionHandling {
                 it.authenticationEntryPoint(BearerTokenAuthenticationEntryPoint())
-                // 권한 없음(관리자 API 등)도 다른 API 와 같은 JSON 에러 형식으로
                 it.accessDeniedHandler { _, response, _ ->
                     response.status = 403
                     response.contentType = "application/json;charset=UTF-8"

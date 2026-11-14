@@ -17,10 +17,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component
 import org.springframework.web.util.UriComponentsBuilder
 
-/**
- * 구글 인증 성공 → 사용자 조회/가입/연결 → 1회용 코드를 붙여 프론트 /oauth/callback 으로 리다이렉트.
- * (shortform 프로젝트의 OAuth2SuccessHandler 와 같은 흐름이지만, 토큰을 쿠키로 넘기지 않는다)
- */
+/** 토큰이 URL·쿠키에 남지 않게 1회용 코드만 붙여 프론트 /oauth/callback 으로 보낸다 */
 @Component
 class OAuth2LoginSuccessHandler(
     private val authService: AuthService,
@@ -31,7 +28,7 @@ class OAuth2LoginSuccessHandler(
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun onAuthenticationSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication) {
-        // 인가 요청 저장용으로만 쓴 세션은 바로 정리 (API 는 JWT 무상태)
+        // 세션은 구글 로그인 왕복 동안만 필요하다
         request.getSession(false)?.invalidate()
 
         val principal = authentication.principal as OAuth2User

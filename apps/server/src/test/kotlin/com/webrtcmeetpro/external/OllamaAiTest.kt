@@ -54,7 +54,7 @@ class OllamaAiTest {
         assertEquals(AiProvider.NONE, AiProperties().notesProvider)
         assertEquals(AiProvider.OLLAMA, AiProperties(ollama = AiProperties.Ollama(url = "http://x")).notesProvider)
         assertEquals(AiProvider.CLAUDE, AiProperties(apiKey = "k", ollama = AiProperties.Ollama(url = "http://x")).notesProvider)
-        // 실시간 자막은 기본으로 꺼져 있다 (비용): 키가 있어도 자막 번역기는 NONE
+        // 비용 때문에 키가 있어도 실시간 자막은 기본으로 꺼져 있다
         assertEquals(AiProvider.NONE, AiProperties(provider = "ollama", captionProvider = "claude", apiKey = "k", ollama = AiProperties.Ollama(url = "http://x")).captionsProvider)
         val mixed = AiProperties(provider = "ollama", captionProvider = "claude", apiKey = "k", ollama = AiProperties.Ollama(url = "http://x"), liveCaptions = true)
         assertEquals(AiProvider.OLLAMA, mixed.notesProvider)

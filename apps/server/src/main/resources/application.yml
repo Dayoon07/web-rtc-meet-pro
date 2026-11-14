@@ -2,8 +2,8 @@ spring:
   application:
     name: web-rtc-meet-pro-server
   config:
-    # 로컬 개발용 비밀값 파일 (git 에 올리지 않음): apps/server/.env.local — "이름=값" 한 줄씩 (토스·AWS 키 등)
-    # apps/server 에서 띄우면(gradlew bootRun) 첫 줄, IntelliJ 처럼 프로젝트 맨 위 폴더에서 띄우면 둘째 줄이 읽힌다
+    # 로컬 비밀값은 git 에 올리지 않는 apps/server/.env.local 에 "이름=값" 으로 둔다
+    # 띄우는 폴더(apps/server 또는 저장소 맨 위)에 따라 둘 중 하나가 읽힌다
     import:
       - optional:file:.env.local[.properties]
       - optional:file:apps/server/.env.local[.properties]
@@ -11,22 +11,22 @@ spring:
     url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
     username: ${DB_USERNAME:limeet}
     password: ${DB_PASSWORD:limeet}
-    # DB 연결 수. 부하 테스트(CPU 2개)에서 20 보다 10 이 나았다 (DB 도 CPU 2개라 동시에 많이 시키면 더 느려진다)
+    # 부하 테스트(CPU 2개)에서 20 보다 10 이 나았다. DB 도 CPU 2개라 동시에 많이 시키면 오히려 느려진다
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
     driver-class-name: oracle.jdbc.OracleDriver
   servlet:
     multipart:
-      # 채팅 첨부파일 기준 (파일당 20MB, 한 번에 10개까지 합계 50MB). 프로필 이미지 5MB 제한은 UserService 가 따로 확인한다
+      # 채팅 첨부 기준. 프로필 이미지 5MB 제한은 UserService 가 따로 확인한다
       max-file-size: 20MB
       max-request-size: 51MB
   transaction:
-    # 다른 세션이 행을 잠그고(커밋 안 한 UPDATE 등) 있으면 Oracle 은 끝없이 기다린다 → 30초면 끊고 에러 코드로 알린다
+    # 다른 세션이 행을 잠그고 있으면 Oracle 은 끝없이 기다리므로 30초면 끊는다
     default-timeout: 30s
   jpa:
     open-in-view: false
     hibernate:
-      # 스키마는 db/schema.sql 로 관리하고, JPA 는 엔티티와 일치하는지만 검증한다
+      # 스키마는 db/schema.sql 로 관리하고 JPA 는 맞는지만 확인한다
       ddl-auto: validate
     properties:
       hibernate:
@@ -41,75 +41,74 @@ mybatis:
 
 server:
   port: ${PORT:8080}
-  # 운영은 Caddy(https) 뒤에서 돈다. X-Forwarded-Proto/Host 를 믿어야 구글 로그인 redirect_uri 가 https://도메인 으로 만들어진다.
-  # native = Tomcat RemoteIpValve: 사설 IP(도커 네트워크·localhost)에서 온 프록시 헤더만 신뢰
+  # 운영은 Caddy(https) 뒤라 X-Forwarded-* 를 믿어야 구글 로그인 redirect_uri 가 https 로 만들어진다
+  # native 는 사설 IP(도커 네트워크·localhost)에서 온 프록시 헤더만 믿는다
   forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:native}
   tomcat:
-    # 처리 스레드(기본 200)가 다 차면 기다리는 연결 수 (기본 100). 로그인이 몰릴 때 바로 거절하지 않고 기다리게 넉넉히
+    # 로그인이 몰릴 때 바로 거절하지 않고 기다리게 넉넉히 (기본 100)
     accept-count: ${TOMCAT_ACCEPT_COUNT:1000}
 
 app:
-  # 서버 상태 보고 메일 (12시간마다, HealthReportScheduler). 서버가 꺼졌을 때 알림은 deploy/watchdog.sh
+  # 서버가 꺼졌을 때 알림은 이 메일이 아니라 deploy/watchdog.sh 가 보낸다
   monitoring:
     report-to: ${HEALTH_REPORT_TO:gangd0642@gmail.com}
     report-cron: ${HEALTH_REPORT_CRON:0 0 9,21 * * *}
-    # 미디어 사이드카 상태 주소 (운영 도커: http://host.docker.internal:4000/health)
+    # 운영 도커: http://host.docker.internal:4000/health
     media-health-url: ${MEDIA_HEALTH_URL:http://localhost:4000/health}
     disk-warn-percent: 85
     memory-warn-percent: 90
   jwt:
-    # 32바이트 이상. 운영에서는 반드시 JWT_SECRET 환경변수로 교체
+    # 32바이트 이상. 운영에서는 반드시 JWT_SECRET 으로 바꾼다
     secret: ${JWT_SECRET:local-dev-secret-change-me-0123456789abcdef}
     issuer: web-rtc-meet-pro
     access-token-ttl: 30m
     refresh-token-ttl: 14d
   cors:
-    # 웹(5173) + 관리자 사이트(5174). 개발 중 Vite 프록시를 거쳐도 브라우저가 Origin 을 보내므로 둘 다 허용
+    # Vite 프록시를 거쳐도 브라우저가 Origin 을 보내므로 웹(5173)과 관리자(5174) 둘 다 허용한다
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
   oauth2:
     google:
-      # 비워 두면 구글 로그인이 비활성화되고 로그인 화면에서 버튼이 비활성으로 표시된다.
+      # 비우면 구글 로그인이 꺼진다
       # Google Cloud Console 승인된 리디렉션 URI: http://localhost:5173/login/oauth2/code/google
       client-id: ${GOOGLE_CLIENT_ID:}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
-    # 로그인 성공 시 ?code=<1회용 코드> 를 붙여 리다이렉트. 클라이언트가 /api/auth/oauth/exchange 로 토큰 교환
     success-redirect: ${OAUTH_SUCCESS_REDIRECT:http://localhost:5173/oauth/callback}
     failure-redirect: ${OAUTH_FAILURE_REDIRECT:http://localhost:5173/login}
   storage:
-    # 프로필 이미지 저장 위치. /uploads/** 로 서빙된다
+    # /uploads/** 로 공개된다
     upload-dir: ${UPLOAD_DIR:./uploads}
-    # 채팅 첨부파일 저장 위치. 공개 경로가 아니다 (서명된 /api/chat/files/{id} 로만 내려받기)
+    # 공개하지 않고 서명된 주소로만 내려준다
     chat-file-dir: ${CHAT_FILE_DIR:./data/chat-files}
-    # 회의 녹화 (공개하지 않음. 서명된 /api/recordings/{id}/file 로만 재생·내려받기)
+    # 공개하지 않고 서명된 주소로만 내려준다
     recording-dir: ${RECORDING_DIR:./data/recordings}
-    # local = 서버 디스크 (위 폴더들), s3 = AWS S3 버킷 (프로필 이미지·채팅 첨부·녹화)
+    # local = 서버 디스크, s3 = AWS S3
     type: ${STORAGE_TYPE:local}
     s3:
       bucket: ${S3_BUCKET:}
       region: ${S3_REGION:ap-northeast-2}
-      # 비우면 AWS 기본 방법(AWS_ACCESS_KEY_ID 환경변수, 서버 역할 등)으로 찾는다
+      # 비우면 AWS 기본 방법(환경변수, 서버 역할 등)으로 찾는다
       access-key: ${S3_ACCESS_KEY:}
       secret-key: ${S3_SECRET_KEY:}
-      # 버킷 안 폴더. 개발(dev)과 운영(prod)이 같은 버킷을 써도 섞이지 않게
+      # 개발과 운영이 같은 버킷을 써도 섞이지 않게
       prefix: ${S3_PREFIX:dev}
   media:
-    # mediasoup 사이드카(apps/media)와 같은 값이어야 한다. 운영에서는 반드시 환경변수로 교체
+    # apps/media 와 같은 값이어야 한다. 운영에서는 반드시 바꾼다
     jwt-secret: ${MEDIA_JWT_SECRET:local-media-secret-change-me-0123456789abcdef}
     internal-secret: ${MEDIA_INTERNAL_SECRET:local-internal-secret-change-me}
-    # 브라우저가 접속할 사이드카 주소. 비우면 같은 출처의 /media/socket.io (dev 는 Vite 프록시 → 4000)
+    # 비우면 같은 출처의 /media/socket.io (dev 는 Vite 프록시)
     public-url: ${MEDIA_PUBLIC_URL:}
   meeting:
     reminder-interval: 30s
   web:
-    # 웹 주소. 메일 안의 링크(비밀번호 재설정, 팀 초대)에 쓴다
+    # 메일 안의 링크에 쓴다
     url: ${WEB_URL:http://localhost:5173}
-  # 웹 푸시(브라우저를 닫아도 알림). 키 만들기: python scripts/vapid-keys.py. 비우면 푸시 없이 화면 알림만
+  # 키 만들기: python scripts/vapid-keys.py. 비우면 화면 알림만
   push:
     vapid-public-key: ${VAPID_PUBLIC_KEY:}
     vapid-private-key: ${VAPID_PRIVATE_KEY:}
     subject: ${VAPID_SUBJECT:mailto:admin@localhost}
   mail:
-    # 비워 두면 메일을 보내지 않고 서버 로그에 내용(링크 포함)만 남긴다 → 로컬 개발은 로그의 링크를 눌러 확인
+    # 비우면 보내지 않고 서버 로그에 링크를 남긴다 (로컬은 로그의 링크로 확인)
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
@@ -117,37 +116,36 @@ app:
     from: ${MAIL_FROM:MQ <no-reply@localhost>}
     starttls: ${MAIL_STARTTLS:true}
   toss:
-    # 토스페이먼츠 개발자센터 → API 키 → "API 개별 연동 키" (자동결제). 둘 중 하나라도 비면 결제 기능이 꺼진다
+    # 토스 개발자센터 "API 개별 연동 키". 하나라도 비면 결제가 꺼진다
     client-key: ${TOSS_CLIENT_KEY:}
     secret-key: ${TOSS_SECRET_KEY:}
-    # 카드 빌링키를 DB 에 암호화해 넣는 비밀값. 운영에서는 반드시 따로 정하고 바꾸지 말 것 (바꾸면 등록된 카드를 못 씀)
+    # 운영에서는 따로 정하고 바꾸지 않는다. 바꾸면 등록된 카드를 풀 수 없다
     billing-key-secret: ${BILLING_KEY_SECRET:}
   ai:
-    # 누가 할지: auto(키가 있으면 claude, 없고 OLLAMA_URL 이 있으면 ollama) / claude / ollama / none
+    # auto = 키가 있으면 claude, OLLAMA_URL 이 있으면 ollama
     provider: ${AI_PROVIDER:auto}
-    # 실시간 자막·번역: 꺼 둠 (비용). 켜려면 true + 번역 AI (CPU 의 Ollama 로는 실시간이 안 돼서 사실상 Claude 키 필요)
+    # 비용 때문에 꺼 둔다. CPU 의 Ollama 로는 실시간이 안 돼서 켜려면 사실상 Claude 키가 필요하다
     live-captions: ${LIVE_CAPTIONS_ENABLED:false}
-    # 자막만 다르게 (비우면 provider 와 같음)
+    # 비우면 provider 와 같다
     caption-provider: ${AI_CAPTION_PROVIDER:}
-    # 무료: 내 서버의 Ollama. 로컬은 http://localhost:11434, 도커는 http://ollama:11434
+    # 도커 안에서는 http://ollama:11434
     ollama:
       url: ${OLLAMA_URL:}
       model: ${OLLAMA_MODEL:qwen2.5:7b}
       caption-model: ${OLLAMA_CAPTION_MODEL:}
-      # 한 번에 넣는 최대 토큰 (클수록 메모리를 더 쓴다. 넘으면 나눠서 요약)
+      # 넘으면 나눠서 요약한다. 클수록 메모리를 더 쓴다
       max-context: ${OLLAMA_MAX_CONTEXT:8192}
-      # 마지막으로 쓴 뒤 모델을 메모리에 남겨 둘 시간 (지나면 내려서 메모리를 돌려준다)
+      # 지나면 모델을 내려 메모리를 돌려준다
       keep-alive: ${OLLAMA_KEEP_ALIVE:10m}
-    # 유료: Claude API. https://platform.claude.com → API Keys
+    # https://platform.claude.com → API Keys
     api-key: ${ANTHROPIC_API_KEY:}
     model: ${AI_MODEL:claude-opus-5-5}
     caption-model: ${AI_CAPTION_MODEL:claude-opus-5-5}
-    # 모델이 정책상 거절하면 Anthropic 추천 모델로 한 번 더 (beta). 문제가 있으면 false
+    # 정책상 거절하면 추천 모델로 한 번 더 (beta). 문제가 있으면 false
     fallbacks: ${AI_FALLBACKS:true}
   billing:
-    # 구독 기간 확인(자동결제·만료·만료 3일 전 알림) 주기, 오래된 녹화 정리 주기
     renew-interval: ${BILLING_RENEW_INTERVAL:10m}
     retention-interval: ${BILLING_RETENTION_INTERVAL:6h}
   admin:
-    # 관리자 사이트 데이터 관리에 보일 테이블 접두어. 비워 두면 전부 (테스트용 zz_ 사본을 볼 때만 zz_)
+    # 테스트용 zz_ 사본을 볼 때만 zz_
     table-prefix: ${ADMIN_TABLE_PREFIX:}

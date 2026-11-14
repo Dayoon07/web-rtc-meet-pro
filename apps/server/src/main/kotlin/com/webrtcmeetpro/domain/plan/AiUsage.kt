@@ -12,10 +12,9 @@ import jakarta.persistence.Table
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-/** NOTES = AI 회의록, CAPTIONS = 실시간 자막·번역 */
 enum class AiFeature { NOTES, CAPTIONS }
 
-/** 워크스페이스·기능·달별 AI 사용 시간 (플랜 한도: plans.ai_notes_minutes / live_caption_minutes) */
+/** 플랜이 소유자 단위라 합칠 때는 소유자의 모든 팀 행을 더한다 */
 @Entity
 @Table(name = "ai_usages")
 class AiUsage(

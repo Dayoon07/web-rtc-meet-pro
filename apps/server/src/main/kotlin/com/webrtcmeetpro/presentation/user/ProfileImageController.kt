@@ -12,10 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 import java.time.Duration
 
-/**
- * 프로필 이미지 (공개). 저장 이름에 UUID 가 들어가서 바뀌지 않으므로 오래 캐시한다.
- * 서버 디스크면 파일을, S3 면 서명된 주소로 보낸다.
- */
+/** 저장 이름에 UUID 가 들어가 내용이 바뀌지 않으므로 오래 캐시한다 */
 @RestController
 class ProfileImageController(private val storage: ProfileImageStorage) {
 

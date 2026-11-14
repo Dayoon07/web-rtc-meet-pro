@@ -14,10 +14,7 @@ import java.nio.file.StandardOpenOption
 import java.time.YearMonth
 import java.util.UUID
 
-/**
- * 회의 녹화 파일을 서버 디스크(app.storage.recording-dir)에 저장한다. 공개 경로가 아니다 (서명된 주소로만 재생·내려받기).
- * 주최자 브라우저가 10초마다 보내는 조각(webm)을 순서대로 이어 붙이면 그대로 재생되는 파일이 된다.
- */
+/** 브라우저가 보낸 webm 조각을 순서대로 이어 붙이면 그대로 재생되는 파일이 된다 */
 @Component
 @ConditionalOnProperty(prefix = "app.storage", name = ["type"], havingValue = "local", matchIfMissing = true)
 class LocalRecordingStorage(storageProperties: StorageProperties) : RecordingStorage {
@@ -56,7 +53,7 @@ class LocalRecordingStorage(storageProperties: StorageProperties) : RecordingSto
         runCatching { Files.deleteIfExists(target) }.onFailure { log.warn("녹화 파일 삭제 실패: {}", target, it) }
     }
 
-    /** 우리가 만든 형식의 이름만, 저장 폴더 밖으로 나가지 않게 (경로 조작 방지) */
+    /** 경로 조작을 막으려고 우리가 만든 형식의 이름만 받는다 */
     private fun resolve(storedName: String): Path? {
         if (!STORED_NAME.matches(storedName)) return null
         return root.resolve(storedName).normalize().takeIf { it.startsWith(root) }

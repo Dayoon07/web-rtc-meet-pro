@@ -57,10 +57,7 @@ class TeamService(
 ) {
     private val random = SecureRandom()
 
-    /**
-     * 팀 만들기. 한 사람이 만들 수 있는 팀은 하나 (회사 하나 = 팀 하나, 그 안에 채팅방은 몇 개든).
-     * 다른 팀은 초대를 받아 들어간다. 처음엔 FREE
-     */
+    /** 회사 하나 = 팀 하나라서 한 사람이 만들 수 있는 팀은 하나다. 다른 팀은 초대를 받아 들어간다 */
     @Transactional
     fun create(ownerId: Long, name: String, description: String?): TeamSummaryResDto {
         if (teamRepository.countByOwnerIdAndStatus(ownerId, TeamStatus.ACTIVE) > 0) throw BusinessException(ErrorCode.TEAM_ALREADY_OWNED)
@@ -111,8 +108,7 @@ class TeamService(
         val pending = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }
         if (pending.any { it.inviteeEmail == email }) throw BusinessException(ErrorCode.INVITATION_ALREADY_PENDING)
 
-        // 멤버 수 한도는 소유자(회사)의 모든 팀 사람 수 기준 (여러 팀에 있어도 한 명). 대기 중인 초대도 자리를 차지한다.
-        // 이미 소유자의 다른 팀에 있는 사람은 자리를 더 차지하지 않는다. 넘으면 소유자가 "한도 초과 허용"을 켰을 때만
+        // 대기 중인 초대도 자리를 차지한다. 이미 소유자의 다른 팀에 있는 사람은 자리를 더 차지하지 않는다
         val plan = planService.planOfTeam(teamId)
         if (invitee == null || invitee.id!! !in planService.ownerMemberIds(team.ownerId)) {
             overage.requireSeat(team, plan, ownerSeats(team).total.toLong())
@@ -128,7 +124,7 @@ class TeamService(
                 expiresAt = LocalDateTime.now().plusDays(INVITATION_DAYS),
             ),
         )
-        // 이메일 인증 전인 계정에는 알리지 않는다 (남의 이메일로 가입한 사람일 수 있다)
+        // 남의 이메일로 가입한 사람일 수 있으니 이메일 인증 전인 계정에는 알리지 않는다
         invitee?.takeIf { it.isEmailVerified }?.let {
             notifications.notify(
                 listOf(it.id!!),
@@ -137,7 +133,7 @@ class TeamService(
                 "/app/invitations",
             )
         }
-        // 초대 메일 (커밋된 뒤에 보낸다). 아직 가입 안 한 사람은 가입 화면으로 (같은 이메일로 가입하면 초대가 보인다)
+        // 아직 가입 안 한 사람도 같은 이메일로 가입하면 초대가 보인다
         val link = web.link(if (invitee != null) "/app/invitations" else "/signup")
         mail.sendAfterCommit(
             MailTemplates.teamInvitation(email, MailLanguage.current(), team.name, inviterUser.nickname, link, registered = invitee != null),
@@ -153,7 +149,7 @@ class TeamService(
         return invitations.map { invitationView(it, team, inviters[it.inviterId]) }
     }
 
-    /** 내 이메일로 온 대기 중인 초대 (가입 전에 받은 초대도 포함) */
+    /** 가입 전에 받은 초대도 포함 */
     fun myInvitations(userId: Long): List<InvitationResDto> {
         val user = requireVerified(findUser(userId))
         val invitations = invitationRepository.findAllByInviteeEmailAndStatus(user.email, InvitationStatus.PENDING).filter { it.isPending() }
@@ -179,7 +175,6 @@ class TeamService(
             existing.status != TeamMemberStatus.ACTIVE -> existing.rejoin()
         }
         invitation.accept()
-        // 한도를 넘었으면 결제일을 잡고 소유자에게 경고 메일
         overage.onMemberJoined(team.id!!)
         notifications.notify(
             listOf(invitation.inviterId),
@@ -203,7 +198,7 @@ class TeamService(
         invitation.cancel()
     }
 
-    /** 팀원 역할 바꾸기 (MANAGE_ROLES 권한 — 지금은 OWNER). OWNER 와 자기 자신은 바꿀 수 없다 */
+    /** OWNER 와 자기 자신은 바꿀 수 없다 */
     @Transactional
     fun changeRole(teamId: Long, actorId: Long, targetUserId: Long, role: TeamRole): TeamMemberResDto {
         access.requirePermission(teamId, actorId, TeamPermission.MANAGE_ROLES)
@@ -214,7 +209,7 @@ class TeamService(
         return memberView(target, findUser(targetUserId))
     }
 
-    /** 팀 나가기. 팀을 만든 사람(OWNER)은 나갈 수 없다 — 팀을 삭제한다 */
+    /** OWNER 는 나갈 수 없고 팀을 삭제해야 한다 */
     @Transactional
     fun leave(teamId: Long, userId: Long) {
         val me = access.requireMember(teamId, userId)
@@ -223,7 +218,7 @@ class TeamService(
         leaveTeamChatRooms(teamId, userId)
     }
 
-    /** 팀원 내보내기 (REMOVE_MEMBER): OWNER 는 누구나, ADMIN 은 일반 팀원만. 그 팀의 채팅방에서도 나가게 한다 */
+    /** ADMIN 은 일반 팀원만 내보낼 수 있다 */
     @Transactional
     fun removeMember(teamId: Long, actorId: Long, targetUserId: Long) {
         val actor = access.requirePermission(teamId, actorId, TeamPermission.REMOVE_MEMBER)
@@ -234,10 +229,7 @@ class TeamService(
         leaveTeamChatRooms(teamId, targetUserId)
     }
 
-    /**
-     * 팀 삭제 (DELETE_TEAM — OWNER). 행은 지우지 않고 사용 안 함으로:
-     * 예약 회의 취소 · 대기 중인 초대 취소 · 채팅방 사용 안 함 · 팀원 모두 나감 · 팀 DELETED
-     */
+    /** 행은 지우지 않고 예약 회의·초대·채팅방·팀원을 정리한 뒤 DELETED 로 바꾼다 */
     @Transactional
     fun delete(teamId: Long, userId: Long) {
         access.requirePermission(teamId, userId, TeamPermission.DELETE_TEAM)
@@ -246,12 +238,11 @@ class TeamService(
         invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }.forEach { it.cancel() }
         chatRoomRepository.findAllByTeamIdAndDeletedFalse(teamId).forEach { it.delete() }
         memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE).forEach { it.leave() }
-        // 플랜은 소유자의 것: 다른 팀이 있으면 구독·한도 초과 설정을 그 팀으로 옮기고, 마지막 팀이면 끝낸다
         planService.onTeamDeleted(teamId)
         team.delete()
     }
 
-    /** 소유자의 모든 팀에서 차지한 자리: 사람(겹치면 한 명) + 아직 안 들어온 사람에게 간 대기 중인 초대 (같은 이메일은 한 번) */
+    /** 같은 사람·같은 이메일 초대는 한 번만 센다 */
     private data class Seats(val members: Int, val pending: Int) {
         val total get() = members + pending
     }
@@ -266,7 +257,7 @@ class TeamService(
         return Seats(memberIds.size, pending.size)
     }
 
-    /** 이 팀의 채팅방에서 나가게 한다 (안 읽은 개수·방 목록에서 빠지도록) */
+    /** 안 읽은 개수와 방 목록에서 빠지도록 */
     private fun leaveTeamChatRooms(teamId: Long, userId: Long) {
         val mine = chatMemberRepository.findAllByUserIdAndLeftAtIsNull(userId)
         if (mine.isEmpty()) return
@@ -278,7 +269,7 @@ class TeamService(
         invitationRepository.findInvitationById(invitationId)?.takeIf { it.inviteeEmail == requireVerified(user).email && it.isPending() }
             ?: throw BusinessException(ErrorCode.INVITATION_NOT_FOUND)
 
-    /** 이메일로 온 초대는 그 이메일의 주인임을 확인한 사람만 보고 수락할 수 있다 */
+    /** 남에게 온 초대를 가로채지 못하게 */
     private fun requireVerified(user: User): User =
         user.takeIf { it.isEmailVerified } ?: throw BusinessException(ErrorCode.EMAIL_NOT_VERIFIED)
 

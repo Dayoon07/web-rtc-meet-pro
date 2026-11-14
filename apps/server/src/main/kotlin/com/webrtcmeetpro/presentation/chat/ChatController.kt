@@ -48,9 +48,8 @@ import java.time.Instant
 @RequestMapping("/api")
 class ChatController(private val chat: ChatService) {
 
-    /** 사이드바 "채팅" 배지: 모든 팀의 안 읽은 메시지 합계 */
     @GetMapping("/chat/unread-count")
-    /** count = 전체, teams = 워크스페이스마다 (사이드바 워크스페이스 옆 숫자) */
+    /** teams = 워크스페이스마다 (사이드바 팀 옆 숫자) */
     fun unreadCount(@AuthenticationPrincipal jwt: Jwt): Map<String, Any> {
         val byTeam = chat.unreadByTeam(jwt.userId)
         return mapOf("count" to byTeam.values.sum(), "teams" to byTeam.map { (teamId, count) -> mapOf("teamId" to teamId, "count" to count) })
@@ -72,7 +71,6 @@ class ChatController(private val chat: ChatService) {
     fun updateChannel(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: UpdateChannelReqDto) =
         chat.updateChannel(roomId, jwt.userId, req.name, req.categoryId, req.moveCategory)
 
-    /** 카테고리(부서) 목록 · 만들기 · 이름 바꾸기 · 지우기 (지워도 안의 채널은 남는다) */
     @GetMapping("/teams/{teamId}/chat/categories")
     fun categories(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = chat.categories(teamId, jwt.userId)
 
@@ -113,39 +111,31 @@ class ChatController(private val chat: ChatService) {
     fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageReqDto) =
         chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll, req.threadRootId)
 
-    /** 스레드 창: 시작 글 + 답글 (답글 id 를 줘도 그 스레드) */
     @GetMapping("/chat/messages/{messageId}/thread")
     fun thread(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long) = chat.thread(messageId, jwt.userId)
 
-    /** 이 방 알림 끄기·켜기 (나만) */
     @PutMapping("/chat/rooms/{roomId}/mute")
     fun mute(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: MuteReqDto) =
         chat.setMuted(roomId, jwt.userId, req.muted!!)
 
-    /** "입력 중..." (다른 방 사람들 화면에 몇 초 동안 보인다) */
     @PostMapping("/chat/rooms/{roomId}/typing")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun typing(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long) = chat.typing(roomId, jwt.userId)
 
-    /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
     @PostMapping("/chat/messages/{messageId}/reactions")
     fun react(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: ReactionReqDto) =
         chat.react(messageId, jwt.userId, req.emoji)
 
-    /** 워크스페이스에서 내가 들어간 방들의 메시지 검색 (글·첨부파일 이름) */
     @GetMapping("/teams/{teamId}/chat/search")
     fun search(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @RequestParam q: String) = chat.search(teamId, jwt.userId, q)
 
-    /** 내가 보낸 글 메시지 고치기 */
     @PatchMapping("/chat/messages/{messageId}")
     fun edit(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: SendMessageReqDto) =
         chat.edit(messageId, jwt.userId, req.content)
 
-    /** 메시지 지우기 (보낸 사람, 또는 팀 OWNER·ADMIN). 방 사람들에게 "삭제된 메시지"로 바뀐다 */
     @DeleteMapping("/chat/messages/{messageId}")
     fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long) = chat.delete(messageId, jwt.userId)
 
-    /** 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) + threadRootId(스레드 답글, 선택) */
     @PostMapping("/chat/rooms/{roomId}/files", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @ResponseStatus(HttpStatus.CREATED)
     fun sendFiles(
@@ -157,8 +147,7 @@ class ChatController(private val chat: ChatService) {
     ) = chat.sendFiles(roomId, jwt.userId, content, files.map { f -> FileUpload(f.originalFilename, f.contentType, f.size) { f.inputStream } }, threadRootId)
 
     /**
-     * 첨부파일 내려받기. 로그인 토큰 대신 메시지 목록이 내려준 서명(exp, sig)으로 확인한다 (<img src> 로 바로 쓰려고).
-     * 미리보기 가능한 이미지만 inline, 나머지(그리고 download=true)는 저장 대화상자로.
+     * <img src> 로 바로 쓰려고 로그인 토큰 대신 서명(exp, sig)으로 확인한다.
      * CSP sandbox: 주소를 새 탭으로 직접 열어도 이 응답 안에서는 스크립트가 돌지 않는다.
      */
     @GetMapping("/chat/files/{fileId}")

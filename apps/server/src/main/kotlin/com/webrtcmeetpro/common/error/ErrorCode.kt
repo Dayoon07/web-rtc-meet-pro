@@ -2,9 +2,7 @@ package com.webrtcmeetpro.common.error
 
 import org.springframework.http.HttpStatus
 
-/**
- * 클라이언트는 code 로 번역 문구를 찾는다(i18n: errors.<CODE>). message 는 번역이 없을 때의 한국어 대체 문구.
- */
+/** 클라이언트는 code 로 번역 문구(errors.<CODE>)를 찾고, message 는 번역이 없을 때만 쓴다 */
 enum class ErrorCode(val status: HttpStatus, val message: String) {
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 올바르지 않습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
@@ -12,7 +10,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
-    // admin (관리자 사이트 데이터 관리)
     ADMIN_TABLE_NOT_FOUND(HttpStatus.NOT_FOUND, "테이블을 찾을 수 없습니다."),
     ADMIN_ROW_NOT_FOUND(HttpStatus.NOT_FOUND, "행을 찾을 수 없습니다."),
     ADMIN_READ_ONLY(HttpStatus.BAD_REQUEST, "고칠 수 없는 테이블이나 컬럼입니다."),
@@ -20,11 +17,9 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     ADMIN_VERIFICATION_NOT_PENDING(HttpStatus.BAD_REQUEST, "이메일 인증을 기다리는 계정이 아닙니다 (이미 인증했거나 닫힌 계정)."),
     ADMIN_DATA_CONSTRAINT(HttpStatus.CONFLICT, "DB 규칙(중복·참조·허용 값)에 맞지 않아 저장하지 못했습니다."),
 
-    // auth / user
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일입니다. 이메일로 로그인해 주세요."),
-    /** 이메일 회원가입: 그 이메일은 구글로 가입돼 있다 */
     EMAIL_REGISTERED_WITH_GOOGLE(HttpStatus.CONFLICT, "이미 구글로 가입된 이메일입니다. 구글로 로그인해 주세요."),
-    /** 구글 로그인: 그 이메일은 이메일·비밀번호로 가입돼 있다 (자동으로 합치지 않는다) */
+    /** 구글 계정과 자동으로 합치지 않는다 */
     EMAIL_REGISTERED_WITH_PASSWORD(HttpStatus.CONFLICT, "이미 이메일로 가입된 계정입니다. 이메일과 비밀번호로 로그인해 주세요."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "다시 로그인해 주세요."),
@@ -47,7 +42,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     RESEND_TOO_SOON(HttpStatus.TOO_MANY_REQUESTS, "{{seconds}}초 뒤에 다시 보낼 수 있습니다."),
     RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "비밀번호 재설정 링크가 만료되었거나 이미 사용되었습니다. 다시 요청해 주세요."),
 
-    // plan
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다."),
     PAID_PLAN_REQUIRES_PAYMENT(HttpStatus.BAD_REQUEST, "유료 플랜은 결제를 진행해 주세요."),
     PLAN_DOWNGRADE_BLOCKED(HttpStatus.FORBIDDEN, "소유한 팀이 많아 이 플랜으로 바꿀 수 없습니다."),
@@ -74,7 +68,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     CANNOT_MANAGE_CHANNELS(HttpStatus.FORBIDDEN, "채널과 카테고리는 팀 소유자나 관리자만 만들고 고칠 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
 
-    // billing (토스페이먼츠 자동결제)
     PAYMENT_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "결제 기능이 아직 준비되지 않았습니다."),
     PUSH_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "브라우저 알림이 아직 준비되지 않았습니다."),
     INVALID_QUIET_HOURS(HttpStatus.BAD_REQUEST, "방해 금지 시간을 확인해 주세요."),
@@ -84,7 +77,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     PAYMENT_FAILED(HttpStatus.PAYMENT_REQUIRED, "결제하지 못했습니다: {{reason}}"),
     PAYMENT_UNCERTAIN(HttpStatus.BAD_GATEWAY, "결제 결과를 확인하지 못했습니다. 잠시 뒤 결제 내역을 확인해 주세요."),
 
-    // team
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "팀을 찾을 수 없습니다."),
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "이 팀의 팀원이 아닙니다."),
     NOT_TEAM_OWNER(HttpStatus.FORBIDDEN, "팀을 만든 사람만 할 수 있습니다."),
@@ -103,7 +95,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     CANNOT_REMOVE_MEMBER(HttpStatus.FORBIDDEN, "이 팀원을 내보낼 권한이 없습니다."),
     CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "자기 역할은 바꿀 수 없습니다."),
 
-    // chat
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "메시지를 찾을 수 없습니다."),
     NOT_MESSAGE_SENDER(HttpStatus.FORBIDDEN, "내가 보낸 메시지만 고칠 수 있습니다."),
     MESSAGE_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "글 메시지만 고칠 수 있습니다."),
@@ -119,7 +110,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     BLOCKED_FILE_TYPE(HttpStatus.BAD_REQUEST, "보안을 위해 .{{ext}} 파일은 보낼 수 없습니다."),
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없거나 링크가 만료되었습니다. 채팅방을 새로고침해 주세요."),
 
-    // meeting
     RECORDING_NOT_ALLOWED(HttpStatus.FORBIDDEN, "녹화는 Team 플랜 이상에서 쓸 수 있습니다."),
     RECORDING_STORAGE_FULL(HttpStatus.FORBIDDEN, "녹화 저장 공간({{gb}}GB)이 가득 찼습니다. 지난 녹화를 지우거나 플랜을 올려 주세요."),
     NOT_RECORDING_HOST(HttpStatus.FORBIDDEN, "회의 주최자나 팀 관리자만 녹화할 수 있습니다."),

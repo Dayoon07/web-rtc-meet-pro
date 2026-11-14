@@ -15,8 +15,8 @@ import java.time.LocalDateTime
 enum class MeetingStatus { SCHEDULED, LIVE, ENDED, CANCELED }
 
 /**
- * 회의. 예약(SCHEDULED) → 첫 입장 시 LIVE → 마지막 사람이 나가면 ENDED.
- * SFU 의 Router / Transport / Producer 같은 미디어 상태는 mediasoup 사이드카 메모리에만 있다.
+ * SCHEDULED → 첫 입장 때 LIVE → 마지막 사람이 나가면 ENDED.
+ * Router·Transport 같은 미디어 상태는 mediasoup 사이드카 메모리에만 있다.
  */
 @Entity
 @Table(name = "meetings")
@@ -41,7 +41,7 @@ class Meeting(
     @Column(nullable = false)
     var durationMinutes: Int = 60,
 
-    /** 채널 상시 음성방이면 그 채널(그룹 채팅방). null = 일반 회의 */
+    /** 채널 상시 음성방이면 그 채널 */
     val chatRoomId: Long? = null,
 ) : BaseEntity() {
     @Id
@@ -69,10 +69,9 @@ class Meeting(
 
     val isOpen: Boolean get() = status == MeetingStatus.SCHEDULED || status == MeetingStatus.LIVE
 
-    /** 채널 음성방: 모두 나가면 끝나고 다시 열지 않는다 (다음에 누가 들어오면 새로 연다) */
+    /** 음성방은 모두 나가면 끝나고 다시 열지 않는다. 다음에 누가 들어오면 새로 연다 */
     val isVoice: Boolean get() = chatRoomId != null
 
-    /** 주최자는 언제든, 다른 사람은 시작 EARLY_JOIN 전부터 입장 가능 */
     fun canJoin(userId: Long, now: LocalDateTime = LocalDateTime.now()) =
         status == MeetingStatus.LIVE || userId == hostId || !now.isBefore(scheduledAt.minus(EARLY_JOIN))
 
@@ -91,14 +90,10 @@ class Meeting(
         }
     }
 
-    /**
-     * 모두 나가서 ENDED 가 됐어도 예정 시간이 안 지났으면 다시 들어올 수 있다
-     * (마지막 사람이 새로고침하거나 네트워크가 잠깐 끊긴 경우).
-     */
+    /** 마지막 사람이 새로고침하거나 잠깐 끊겨 ENDED 가 됐어도 예정 시간 안이면 다시 들어올 수 있게 한다 */
     fun canReopen(now: LocalDateTime = LocalDateTime.now()) =
         !isVoice && status == MeetingStatus.ENDED && now.isBefore(scheduledAt.plusMinutes(durationMinutes.toLong()))
 
-    /** @return 다시 열었으면 true */
     fun reopen(now: LocalDateTime = LocalDateTime.now()): Boolean {
         if (!canReopen(now)) return false
         status = MeetingStatus.LIVE
@@ -113,8 +108,8 @@ class Meeting(
     }
 
     /**
-     * 예약 회의 고치기. 시간이 바뀌면 10분 전 알림을 다시 보내도록 표시를 지운다.
-     * @return 사람들에게 알릴 만한 변경(제목·시간·길이)이 있었는지
+     * 시간이 바뀌면 10분 전 알림을 다시 보내도록 표시를 지운다.
+     * @return 알릴 만한 변경(제목·시간·길이)이 있었는지
      */
     fun update(title: String, description: String?, scheduledAt: LocalDateTime, durationMinutes: Int): Boolean {
         check(status == MeetingStatus.SCHEDULED) { "예약 상태에서만 고칠 수 있습니다." }
@@ -140,7 +135,7 @@ class Meeting(
 interface MeetingRepository {
     fun save(meeting: Meeting): Meeting
     fun findMeetingById(id: Long): Meeting?
-    /** 행 잠금(SELECT ... FOR UPDATE). 여러 명이 동시에 입장해도 시작/재시작이 한 번만 일어나게 */
+    /** 여러 명이 동시에 입장해도 시작·재시작이 한 번만 일어나게 행을 잠근다 */
     fun lockMeetingById(id: Long): Meeting?
     fun findByRoomCode(roomCode: String): Meeting?
     fun findAllByIdInAndStatusIn(ids: Collection<Long>, statuses: Collection<MeetingStatus>): List<Meeting>
@@ -150,7 +145,6 @@ interface MeetingRepository {
     fun findAllByChatRoomIdInAndStatus(chatRoomIds: Collection<Long>, status: MeetingStatus): List<Meeting>
 }
 
-/** 예약 회의 초대 대상 (주최자 포함) */
 @Entity
 @Table(name = "meeting_invitees")
 class MeetingInvitee(
@@ -177,7 +171,7 @@ interface MeetingInviteeRepository {
 
 enum class LeaveReason { LEFT, DISCONNECTED, KICKED, MEETING_ENDED }
 
-/** 입장 1회 = 1행. 재입장하면 새 행 */
+    /** 재입장하면 새 행 */
 @Entity
 @Table(name = "meeting_participants")
 class MeetingParticipant(
@@ -298,21 +292,20 @@ class MeetingRecording(
 
     val isRecording: Boolean get() = status == RecordingStatus.RECORDING
 
-    /** 디스크에 저장한 이름 (storage_url 컬럼). 녹화를 시작할 때 한 번 정한다 */
+    /** 녹화를 시작할 때 한 번 정한다 */
     fun attachFile(storedName: String) {
         storageUrl = storedName
         fileSizeBytes = 0
     }
 
-    /** 주최자 브라우저가 보낸 조각을 이어 붙였다 */
     fun appended(bytes: Long) {
         check(isRecording) { "녹화 중일 때만 이어 붙일 수 있습니다." }
         fileSizeBytes = (fileSizeBytes ?: 0) + bytes
     }
 
     /**
-     * 녹화 끝 (주최자가 멈춤, 또는 조각이 한동안 안 와서 서버가 마무리). 받은 게 없으면 실패.
-     * @param needsUpload S3 처럼 따로 올려야 하면 PROCESSING (다 올리면 [uploaded])
+     * 받은 게 없으면 실패.
+     * @param needsUpload S3 처럼 따로 올려야 하면 다 올릴 때까지 PROCESSING
      */
     fun finish(durationSeconds: Int?, at: LocalDateTime = LocalDateTime.now(), needsUpload: Boolean = false) {
         if (!isRecording) return
@@ -325,7 +318,6 @@ class MeetingRecording(
         }
     }
 
-    /** S3 에 다 올림 */
     fun uploaded() {
         if (status == RecordingStatus.PROCESSING) status = RecordingStatus.READY
     }
@@ -341,24 +333,18 @@ interface MeetingRecordingRepository {
     fun findAllByMeetingId(meetingId: Long): List<MeetingRecording>
     fun findRecordingById(id: Long): MeetingRecording?
     fun findAllByStatus(status: RecordingStatus): List<MeetingRecording>
-    /** 보관 기간 정리용: 이 시각 전에 끝난 녹화 */
     fun findAllByStatusInAndEndedAtBefore(statuses: Collection<RecordingStatus>, before: LocalDateTime): List<MeetingRecording>
-    /** 워크스페이스(팀) 하나의 녹화 용량 합계 (지운 것 빼고) */
+    /** 지운 것은 빼고 */
     fun sumBytesByTeam(teamId: Long): Long
 }
 
-/**
- * 녹화 파일 저장소 (infrastructure/storage). 녹화 중에는 서버 디스크에 조각을 순서대로 이어 붙이고,
- * S3 를 쓰면 녹화가 끝난 뒤 [upload] 로 올린다 (그동안 상태는 PROCESSING).
- */
+/** 녹화 중에는 서버 디스크에 조각을 이어 붙이고, S3 를 쓰면 끝난 뒤 [upload] 로 올린다 */
 interface RecordingStorage {
-    /** 녹화가 끝난 뒤 따로 올려야 하는지 (S3) */
     val needsUpload: Boolean
-    /** 빈 파일을 만들고 저장 이름을 돌려준다 */
     fun create(): String
     /** @return 이어 붙인 바이트 수 */
     fun append(storedName: String, content: java.io.InputStream): Long
-    /** 다 모은 파일을 최종 저장소로 올린다 (서버 디스크면 아무것도 안 함). 같은 이름으로 다시 불러도 된다 */
+    /** 재시도할 수 있게 같은 이름으로 다시 불러도 된다. 서버 디스크면 아무것도 하지 않는다 */
     fun upload(storedName: String)
     fun open(storedName: String, serveAs: com.webrtcmeetpro.domain.common.ServeAs): com.webrtcmeetpro.domain.common.StoredFile?
     fun delete(storedName: String)

@@ -17,10 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
-/**
- * 실시간 자막·번역 (Business). 켜져 있으면 각 참여자 브라우저가 받아쓴 문장을 lines 로 보내고,
- * 서버가 번역해서 /user/queue/meeting 으로 CAPTION 이벤트를 보낸다.
- */
 @RestController
 @RequestMapping("/api/meetings/{meetingId}/captions")
 class LiveCaptionController(private val captions: LiveCaptionService) {

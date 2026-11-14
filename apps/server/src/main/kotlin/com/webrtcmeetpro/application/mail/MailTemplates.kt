@@ -4,13 +4,9 @@ import org.springframework.web.util.HtmlUtils
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-/** 플랜 안내 메일 종류 */
 enum class PlanMailKind { EXPIRING, EXPIRED, PAYMENT_FAILED }
 
-/**
- * 메일 본문 (한국어·영어·일본어·중국어). 메일 프로그램마다 CSS 지원이 달라서 인라인 스타일만 쓴다.
- * 색은 웹과 같은 보라색(brand-600 #7c3aed).
- */
+/** 메일 프로그램마다 CSS 지원이 달라서 인라인 스타일만 쓴다 */
 object MailTemplates {
 
     fun emailVerification(to: String, lang: MailLanguage, link: String, hours: Long): MailMessage {
@@ -119,7 +115,6 @@ object MailTemplates {
         return build(to, t, link)
     }
 
-    /** 플랜 만료 3일 전 / 만료됨 / 자동결제 실패 */
     fun planNotice(to: String, lang: MailLanguage, kind: PlanMailKind, planName: String, date: LocalDateTime?, reason: String?, link: String): MailMessage {
         val d = date?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) ?: "-"
         val why = reason?.let { " ($it)" } ?: ""
@@ -172,10 +167,7 @@ object MailTemplates {
         return build(to, t, link)
     }
 
-    /**
-     * 멤버가 플랜 한도를 넘음 (소유자에게, 하루 한 번까지).
-     * @param chargeDate 초과 요금이 들어갈 결제일, perMember 1명당 한 달 요금
-     */
+    /** @param perMember 1명당 한 달 요금 */
     fun memberOverage(
         to: String, lang: MailLanguage, teamName: String, members: Long, limit: Int, excess: Long, perMember: Long,
         chargeDate: LocalDateTime?, link: String,
@@ -208,7 +200,7 @@ object MailTemplates {
         return build(to, t, link)
     }
 
-    /** 3일 뒤 결제에 초과 인원 요금이 들어감 (전자상거래: 증액 결제 전 고지) */
+    /** 전자상거래법: 금액이 늘어나는 결제 전에 알려야 한다 */
     fun overageChargeSoon(
         to: String, lang: MailLanguage, teamName: String, planLabel: String?, planAmount: Long, excess: Long, perMember: Long,
         chargeDate: LocalDateTime, link: String,

@@ -14,15 +14,11 @@ import java.time.Duration
 import java.time.LocalDateTime
 
 /**
- * RECORDING(받아쓰는 중) → PAUSED(잠깐 끔) ↔ RECORDING → 회의가 끝나면 PROCESSING(요약 중) → READY / FAILED / EMPTY(받아쓴 말 없음).
- * 끝난 뒤에 회의가 다시 열려서 또 켜면 RECORDING 으로 돌아가고, 다시 끝나면 전체를 새로 요약한다.
+ * RECORDING ↔ PAUSED → 회의가 끝나면 PROCESSING → READY / FAILED / EMPTY(받아쓴 말 없음).
+ * 끝난 뒤 회의가 다시 열려 또 켜면 RECORDING 으로 돌아가고, 다시 끝나면 전체를 새로 요약한다.
  */
 enum class NoteStatus { RECORDING, PAUSED, PROCESSING, READY, FAILED, EMPTY }
 
-/**
- * 회의 하나의 AI 회의록. 켜 둔 동안 참여자 브라우저가 각자 자기 말을 받아써서 보내고([MeetingTranscript]),
- * 회의가 끝나면 서버가 Claude 로 요약·결정 사항·할 일을 만든다.
- */
 @Entity
 @Table(name = "meeting_notes")
 class MeetingNote(
@@ -43,11 +39,10 @@ class MeetingNote(
     var status: NoteStatus = NoteStatus.PAUSED
         protected set
 
-    /** 지금 켜져 있으면 켠 시각 */
     var activeSince: LocalDateTime? = null
         protected set
 
-    /** 지금까지 켜져 있던 시간 합계 (지금 켜진 구간은 빼고) */
+    /** 지금 켜진 구간은 빼고 */
     @Column(nullable = false)
     var activeSeconds: Long = 0
         protected set
@@ -55,7 +50,7 @@ class MeetingNote(
     var title: String? = null
         protected set
 
-    /** 요약 결과 JSON ({"summary":[...],"decisions":[...],"actionItems":[...]}) */
+    /** {"summary":[...],"decisions":[...],"actionItems":[...]} */
     @Lob
     @Column(name = "summary")
     var resultJson: String? = null
@@ -79,11 +74,11 @@ class MeetingNote(
 
     val isOn: Boolean get() = status == NoteStatus.RECORDING
 
-    /** 켜진 시간 (지금 켜진 구간 포함) */
+    /** 지금 켜진 구간 포함 */
     fun totalSeconds(now: LocalDateTime = LocalDateTime.now()): Long =
         activeSeconds + (activeSince?.let { Duration.between(it, now).seconds.coerceAtLeast(0) } ?: 0)
 
-    /** 켜기. @return 이번에 새로 켜졌으면 true */
+    /** @return 이번에 새로 켜졌으면 true */
     fun turnOn(now: LocalDateTime = LocalDateTime.now()): Boolean {
         if (isOn) return false
         status = NoteStatus.RECORDING
@@ -91,9 +86,7 @@ class MeetingNote(
         return true
     }
 
-    /**
-     * 끄기 (잠깐 끔). @return 이번 구간에 켜져 있던 초 (사용량에 더한다). 이미 꺼져 있으면 0
-     */
+    /** @return 사용량에 더할 이번 구간의 초. 이미 꺼져 있으면 0 */
     fun turnOff(now: LocalDateTime = LocalDateTime.now()): Long {
         val since = activeSince ?: return 0
         val seconds = Duration.between(since, now).seconds.coerceAtLeast(0)
@@ -103,7 +96,7 @@ class MeetingNote(
         return seconds
     }
 
-    /** 회의가 끝남 → 요약 대기. 받아쓴 말이 없으면 EMPTY. @return 이번 구간에 켜져 있던 초 */
+    /** @return 이번 구간에 켜져 있던 초 */
     fun close(hasLines: Boolean, now: LocalDateTime = LocalDateTime.now()): Long {
         val seconds = turnOff(now)
         if (status == NoteStatus.PAUSED) {
@@ -114,7 +107,6 @@ class MeetingNote(
         return seconds
     }
 
-    /** 다시 요약하기 (READY·FAILED 에서) */
     fun requeue() {
         check(status == NoteStatus.READY || status == NoteStatus.FAILED) { "끝난 회의록만 다시 만들 수 있습니다." }
         status = NoteStatus.PROCESSING
@@ -137,7 +129,7 @@ class MeetingNote(
         status = NoteStatus.READY
     }
 
-    /** @param giveUp false 면 PROCESSING 으로 남겨 스케줄러가 다시 시도 */
+    /** @param giveUp false 면 PROCESSING 으로 남겨 스케줄러가 다시 시도한다 */
     fun failed(message: String, giveUp: Boolean) {
         if (status != NoteStatus.PROCESSING) return
         errorMessage = message.take(500)
@@ -145,7 +137,6 @@ class MeetingNote(
     }
 
     companion object {
-        /** 요약 시도 횟수 (넘으면 FAILED) */
         const val MAX_ATTEMPTS = 3
     }
 }
@@ -158,7 +149,7 @@ interface MeetingNoteRepository {
     fun findAllByStatus(status: NoteStatus): List<MeetingNote>
 }
 
-/** 받아쓴 말 한 줄. 말한 사람 브라우저가 자기 마이크를 받아써서 보낸다 (그래서 누가 말했는지 정확하다) */
+/** 말한 사람 브라우저가 자기 마이크를 받아써 보내므로 누가 말했는지 정확하다 */
 @Entity
 @Table(name = "meeting_transcripts")
 class MeetingTranscript(
@@ -192,9 +183,7 @@ interface MeetingTranscriptRepository {
     fun existsByMeetingId(meetingId: Long): Boolean
 }
 
-// ---------------------------------------------------------------------
-// AI (external/anthropic 에 구현). 테스트에서는 가짜로 바꿔 끼운다
-// ---------------------------------------------------------------------
+// 테스트에서는 가짜로 바꿔 끼운다
 
 data class NotesSpeaker(val userId: Long, val name: String)
 
@@ -211,7 +200,6 @@ data class NotesActionItem(val task: String, val owner: String?, val due: String
 
 data class NotesResult(
     val title: String?,
-    /** 회의록을 쓴 언어 (ko, en, ja, zh ...) */
     val language: String?,
     val summary: List<String>,
     val decisions: List<String>,
@@ -219,11 +207,10 @@ data class NotesResult(
     val model: String,
 )
 
-/** AI 가 거절했거나(정책) 응답이 잘렸을 때. 다시 시도해도 같으므로 바로 FAILED */
+/** 정책 거절이나 응답 잘림은 다시 시도해도 같으므로 바로 FAILED 로 한다 */
 class NotesRejectedException(message: String) : RuntimeException(message)
 
 interface MeetingNotesAi {
-    /** API 키가 있어서 쓸 수 있는지 */
     val enabled: Boolean
 
     fun summarize(input: NotesInput): NotesResult
