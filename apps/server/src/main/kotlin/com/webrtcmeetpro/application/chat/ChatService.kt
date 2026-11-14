@@ -5,6 +5,7 @@ import com.webrtcmeetpro.domain.chat.ChatMessage
 import com.webrtcmeetpro.domain.chat.ChatMessageFile
 import com.webrtcmeetpro.domain.chat.ChatMessageFileRepository
 import com.webrtcmeetpro.domain.chat.ChatMessageReactionRepository
+import com.webrtcmeetpro.domain.chat.ChatQueryRepository
 import com.webrtcmeetpro.domain.chat.ChatMessageReaction
 import com.webrtcmeetpro.domain.chat.ChatMessageRepository
 import com.webrtcmeetpro.domain.chat.ChatCategory
@@ -154,6 +155,7 @@ class ChatService(
     private val messageRepository: ChatMessageRepository,
     private val fileRepository: ChatMessageFileRepository,
     private val reactionRepository: ChatMessageReactionRepository,
+    private val chatQueries: ChatQueryRepository,
     private val fileStorage: ChatFileStorage,
     private val fileUrls: ChatFileUrlSigner,
     private val userRepository: UserRepository,
@@ -366,7 +368,9 @@ class ChatService(
         val roomIds = roomRepository.findAllByIdInAndDeletedFalse(mine).filter { it.teamId == teamId }.map { it.id!! }
         if (roomIds.isEmpty()) return emptyList()
         val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        return views(messageRepository.search(roomIds, "%$escaped%", SEARCH_LIMIT))
+        val ids = chatQueries.searchMessageIds(roomIds, "%$escaped%", SEARCH_LIMIT)
+        if (ids.isEmpty()) return emptyList()
+        return views(messageRepository.findAllByIdIn(ids).sortedByDescending { it.id })
     }
 
     /** 스레드 창: 시작 글과 답글 (messageId 가 답글이면 그 스레드) */
@@ -481,7 +485,7 @@ class ChatService(
         val message = messageRepository.findMessageById(messageId)?.takeIf { !it.deleted && it.messageType != MessageType.SYSTEM }
             ?: throw BusinessException(ErrorCode.MESSAGE_NOT_FOUND)
         val (room, _) = requireRoomMember(message.roomId, userId)
-        val existing = reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
+        val existing = chatQueries.findReactionId(messageId, userId, emoji)?.let(reactionRepository::findReactionById)
         if (existing == null) reactionRepository.save(ChatMessageReaction(messageId, message.roomId, userId, emoji)) else existing.toggle()
         return publishUpdate(room, message)
     }

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.webrtcmeetpro.infrastructure.admin.AdminMapper">
+
+    <!-- 생성자 인자 순서가 AdminPaymentResDto 와 같아야 한다 -->
+    <resultMap id="adminPayment" type="com.webrtcmeetpro.domain.admin.dto.res.AdminPaymentResDto">
+        <constructor>
+            <arg column="order_id" javaType="java.lang.String"/>
+            <arg column="order_name" javaType="java.lang.String"/>
+            <arg column="amount" javaType="_long"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="payment_kind" javaType="java.lang.String"/>
+            <arg column="billing_cycle" javaType="java.lang.String"/>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="email" javaType="java.lang.String"/>
+            <arg column="team_name" javaType="java.lang.String"/>
+            <arg column="approved_at" javaType="java.time.LocalDateTime"/>
+            <arg column="created_dt" javaType="java.time.LocalDateTime"/>
+            <arg column="refunded_amount" javaType="_long"/>
+            <arg column="canceled_at" javaType="java.time.LocalDateTime"/>
+            <arg column="refund_reason" javaType="java.lang.String"/>
+            <arg column="has_payment_key" javaType="_boolean"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findRecentPayments" resultMap="adminPayment">
+        SELECT p.order_id, p.order_name, p.amount, p.status, p.payment_kind, p.billing_cycle, p.user_id, u.email, t.name AS team_name,
+               p.approved_at, p.created_dt, p.refunded_amount, p.canceled_at, p.refund_reason,
+               CASE WHEN p.payment_key IS NULL THEN 0 ELSE 1 END AS has_payment_key
+          FROM ${tablePrefix}payments p
+          LEFT JOIN ${tablePrefix}users u ON u.user_id = p.user_id
+          LEFT JOIN ${tablePrefix}teams t ON t.team_id = p.team_id
+        <where>
+            <if test="q != null">
+                (UPPER(p.order_id) LIKE #{q} ESCAPE '\' OR UPPER(u.email) LIKE #{q} ESCAPE '\'
+                 OR UPPER(p.order_name) LIKE #{q} ESCAPE '\' OR UPPER(t.name) LIKE #{q} ESCAPE '\')
+            </if>
+            <if test="status != null">AND p.status = #{status}</if>
+        </where>
+         ORDER BY p.payment_id DESC
+         FETCH FIRST 200 ROWS ONLY
+    </select>
+
+    <!-- 생성자 인자 순서가 PendingSignupResDto 와 같아야 한다 -->
+    <resultMap id="pendingSignup" type="com.webrtcmeetpro.domain.admin.dto.res.PendingSignupResDto">
+        <constructor>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="email" javaType="java.lang.String"/>
+            <arg column="nickname" javaType="java.lang.String"/>
+            <arg column="real_name" javaType="java.lang.String"/>
+            <arg column="has_password" javaType="_boolean"/>
+            <arg column="created_dt" javaType="java.time.LocalDateTime"/>
+            <arg column="last_login_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findPendingSignups" resultMap="pendingSignup">
+        SELECT user_id, email, nickname, real_name,
+               CASE WHEN password_hash IS NULL THEN 0 ELSE 1 END AS has_password,
+               created_dt, last_login_at
+          FROM ${tablePrefix}users
+         WHERE email_verified_at IS NULL
+           AND status = 'ACTIVE'
+           AND deleted_yn = 'N'
+        <if test="q != null">
+           AND (UPPER(email) LIKE #{q} ESCAPE '\' OR UPPER(nickname) LIKE #{q} ESCAPE '\' OR UPPER(real_name) LIKE #{q} ESCAPE '\')
+        </if>
+         ORDER BY user_id DESC
+         FETCH FIRST 200 ROWS ONLY
+    </select>
+</mapper>

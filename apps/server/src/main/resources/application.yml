@@ -32,6 +32,13 @@ spring:
       hibernate:
         format_sql: true
 
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    # Oracle 은 타입 없는 null 바인딩을 거절한다
+    jdbc-type-for-null: NULL
+
 server:
   port: ${PORT:8080}
   # 운영은 Caddy(https) 뒤에서 돈다. X-Forwarded-Proto/Host 를 믿어야 구글 로그인 redirect_uri 가 https://도메인 으로 만들어진다.

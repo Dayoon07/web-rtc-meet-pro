@@ -361,7 +361,7 @@ class ChatMessageReaction(
 
 interface ChatMessageReactionRepository {
     fun save(reaction: ChatMessageReaction): ChatMessageReaction
-    fun findByMessageIdAndUserIdAndEmoji(messageId: Long, userId: Long, emoji: String): ChatMessageReaction?
+    fun findReactionById(id: Long): ChatMessageReaction?
     fun findAllByMessageIdInAndDeletedFalse(messageIds: Collection<Long>): List<ChatMessageReaction>
 }
 
@@ -380,8 +380,6 @@ interface ChatMessageRepository {
     /** 스레드에 답글을 단 적 있는 사람 (알림 받을 사람) */
     fun findAllByThreadRootIdAndDeletedFalse(threadRootId: Long): List<ChatMessage>
     fun findAllByIdIn(ids: Collection<Long>): List<ChatMessage>
-    /** 검색: 여러 방에서 글이나 첨부파일 이름에 단어가 들어간 메시지 (최신순, limit 개) */
-    fun search(roomIds: Collection<Long>, pattern: String, limit: Int): List<ChatMessage>
 }
 
 /**

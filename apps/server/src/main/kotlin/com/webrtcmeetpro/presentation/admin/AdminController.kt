@@ -1,13 +1,13 @@
 package com.webrtcmeetpro.presentation.admin
 
 import com.webrtcmeetpro.application.admin.AdminPaymentService
-import com.webrtcmeetpro.application.admin.AdminPaymentView
+import com.webrtcmeetpro.domain.admin.dto.res.AdminPaymentResDto
 import com.webrtcmeetpro.application.plan.RefundQuoteView
 import com.webrtcmeetpro.application.plan.RefundService
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.http.HttpStatus
-import com.webrtcmeetpro.application.admin.PendingSignupView
+import com.webrtcmeetpro.domain.admin.dto.res.PendingSignupResDto
 import com.webrtcmeetpro.application.admin.AdminEmailVerificationService
 import com.webrtcmeetpro.application.admin.AdminErrorLogService
 import com.webrtcmeetpro.application.admin.SystemAdminAccess
@@ -37,7 +37,7 @@ class AdminController(
 
     /** 최근 결제 200건. q = 주문번호·이메일·주문명·팀 이름, status = DONE | CANCELED | FAILED ... */
     @GetMapping("/payments")
-    fun payments(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?, @RequestParam(required = false) status: String?): List<AdminPaymentView> {
+    fun payments(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?, @RequestParam(required = false) status: String?): List<AdminPaymentResDto> {
         admins.require(jwt.userId)
         return adminPayments.recent(q, status)
     }
@@ -58,7 +58,7 @@ class AdminController(
 
     /** 이메일 인증을 기다리는 가입 (최근 200명). q = 이메일·닉네임·이름 일부 */
     @GetMapping("/signups/pending")
-    fun pendingSignups(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?): List<PendingSignupView> {
+    fun pendingSignups(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) q: String?): List<PendingSignupResDto> {
         admins.require(jwt.userId)
         return verifications.pending(q)
     }

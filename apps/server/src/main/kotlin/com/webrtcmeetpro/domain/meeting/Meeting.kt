@@ -148,11 +148,6 @@ interface MeetingRepository {
     fun findAllByTeamIdAndStatus(teamId: Long, status: MeetingStatus): List<Meeting>
     fun findAllByChatRoomIdAndStatusIn(chatRoomId: Long, statuses: Collection<MeetingStatus>): List<Meeting>
     fun findAllByChatRoomIdInAndStatus(chatRoomIds: Collection<Long>, status: MeetingStatus): List<Meeting>
-    fun findAllByStatusAndReminderSentAtIsNullAndScheduledAtBetween(
-        status: MeetingStatus,
-        from: LocalDateTime,
-        to: LocalDateTime,
-    ): List<Meeting>
 }
 
 /** 예약 회의 초대 대상 (주최자 포함) */

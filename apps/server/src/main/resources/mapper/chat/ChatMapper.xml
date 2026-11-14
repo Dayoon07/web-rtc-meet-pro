@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.webrtcmeetpro.infrastructure.chat.ChatMapper">
+
+    <!-- 지운(꺼진) 반응도 찾는다: 다시 누르면 그 행을 켠다 (한 사람·한 이모지·한 메시지에 한 행) -->
+    <select id="findReactionId" resultType="java.lang.Long">
+        SELECT reaction_id
+          FROM chat_message_reactions
+         WHERE message_id = #{messageId}
+           AND user_id = #{userId}
+           AND emoji = #{emoji}
+    </select>
+
+    <!-- 글과 첨부파일 이름에서 찾는다. Oracle 은 CLOB 에도 LOWER·LIKE 가 된다 -->
+    <select id="searchMessageIds" resultType="java.lang.Long">
+        SELECT m.message_id
+          FROM chat_messages m
+         WHERE m.room_id IN
+               <foreach collection="roomIds" item="roomId" open="(" separator="," close=")">#{roomId}</foreach>
+           AND m.deleted_yn = 'N'
+           AND m.message_type IN ('TEXT', 'FILE')
+           AND (LOWER(m.content) LIKE #{pattern} ESCAPE '\'
+                OR EXISTS (SELECT 1
+                             FROM chat_message_files f
+                            WHERE f.message_id = m.message_id
+                              AND f.deleted_yn = 'N'
+                              AND LOWER(f.original_name) LIKE #{pattern} ESCAPE '\'))
+         ORDER BY m.message_id DESC
+         FETCH FIRST #{limit} ROWS ONLY
+    </select>
+</mapper>

@@ -52,6 +52,5 @@ class AiUsage(
 
 interface AiUsageRepository {
     fun save(usage: AiUsage): AiUsage
-    fun findByTeamIdAndFeatureAndUsageMonth(teamId: Long, feature: AiFeature, usageMonth: String): AiUsage?
-    fun findAllByTeamIdInAndFeatureAndUsageMonth(teamIds: Collection<Long>, feature: AiFeature, usageMonth: String): List<AiUsage>
+    fun findUsageById(id: Long): AiUsage?
 }

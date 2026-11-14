@@ -2,6 +2,7 @@ package com.webrtcmeetpro.application.plan
 
 import com.webrtcmeetpro.domain.plan.AiFeature
 import com.webrtcmeetpro.domain.plan.AiUsage
+import com.webrtcmeetpro.domain.plan.AiUsageQueryRepository
 import com.webrtcmeetpro.domain.plan.AiUsageRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -14,6 +15,7 @@ import java.time.LocalDateTime
 @Service
 @Transactional(readOnly = true)
 class AiQuotaService(
+    private val usageQueries: AiUsageQueryRepository,
     private val usages: AiUsageRepository,
     private val planService: PlanService,
 ) {
@@ -29,13 +31,13 @@ class AiQuotaService(
 
     /** 이번 달 쓴 시간(초): 플랜이 소유자 단위라 소유자의 모든 팀을 합친다 */
     fun usedSeconds(teamId: Long, feature: AiFeature, now: LocalDateTime = LocalDateTime.now()): Long =
-        usages.findAllByTeamIdInAndFeatureAndUsageMonth(planService.siblingTeamIds(teamId), feature, AiUsage.monthOf(now)).sumOf { it.usedSeconds }
+        planService.siblingTeamIds(teamId).takeIf { it.isNotEmpty() }?.let { usageQueries.sumUsedSeconds(it, feature, AiUsage.monthOf(now)) } ?: 0
 
     @Transactional
     fun add(teamId: Long, feature: AiFeature, seconds: Long, now: LocalDateTime = LocalDateTime.now()) {
         if (seconds <= 0) return
         val month = AiUsage.monthOf(now)
-        val usage = usages.findByTeamIdAndFeatureAndUsageMonth(teamId, feature, month)
+        val usage = usageQueries.findUsageId(teamId, feature, month)?.let(usages::findUsageById)
             ?: usages.save(AiUsage(teamId, feature, month))
         usage.add(seconds)
     }

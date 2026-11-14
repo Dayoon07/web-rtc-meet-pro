@@ -21,6 +21,7 @@ import com.webrtcmeetpro.domain.meeting.MeetingInvitee
 import com.webrtcmeetpro.domain.meeting.MeetingInviteeRepository
 import com.webrtcmeetpro.domain.meeting.MeetingParticipant
 import com.webrtcmeetpro.domain.meeting.MeetingParticipantRepository
+import com.webrtcmeetpro.domain.meeting.MeetingQueryRepository
 import com.webrtcmeetpro.domain.meeting.MeetingRepository
 import com.webrtcmeetpro.domain.meeting.MeetingStatus
 import com.webrtcmeetpro.domain.notification.NotificationType
@@ -105,6 +106,7 @@ data class MediaEventCommand(
 @Service
 @Transactional(readOnly = true)
 class MeetingService(
+    private val meetingQueries: MeetingQueryRepository,
     private val meetingRepository: MeetingRepository,
     private val inviteeRepository: MeetingInviteeRepository,
     private val participantRepository: MeetingParticipantRepository,
@@ -322,11 +324,9 @@ class MeetingService(
     /** 시작 10분 전 알림. MeetingReminderScheduler 가 주기적으로 호출 */
     @Transactional
     fun sendDueReminders(now: LocalDateTime = LocalDateTime.now()): Int {
-        val due = meetingRepository.findAllByStatusAndReminderSentAtIsNullAndScheduledAtBetween(
-            MeetingStatus.SCHEDULED,
-            now.minusMinutes(5),
-            now.plus(Meeting.REMINDER_BEFORE),
-        )
+        val ids = meetingQueries.findDueReminderIds(MeetingStatus.SCHEDULED, now.minusMinutes(5), now.plus(Meeting.REMINDER_BEFORE))
+        if (ids.isEmpty()) return 0
+        val due = meetingRepository.findAllByIdInAndStatusIn(ids, listOf(MeetingStatus.SCHEDULED))
         due.forEach {
             notifyInvitees(it, NotificationType.MEETING_REMINDER, except = null)
             it.markReminded(now)
