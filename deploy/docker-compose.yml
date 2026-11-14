@@ -76,6 +76,7 @@ services:
       # AI 회의록·실시간 자막: auto = Claude 키가 있으면 Claude, 없으면 Ollama(profile 에 ollama)
       AI_PROVIDER: ${AI_PROVIDER:-auto}
       AI_CAPTION_PROVIDER: ${AI_CAPTION_PROVIDER:-}
+      LIVE_CAPTIONS_ENABLED: ${LIVE_CAPTIONS_ENABLED:-false}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_URL: ${OLLAMA_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}

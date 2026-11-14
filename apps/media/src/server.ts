@@ -16,6 +16,8 @@ import { Peer, Room, type Source } from './room.ts'
 type Ack = (res: { ok: true; [k: string]: unknown } | { ok: false; error: string }) => void
 
 const workers: types.Worker[] = []
+/** 워커마다 하나 (같은 순서). 모든 WebRTC 연결이 이 포트 하나를 같이 쓴다 */
+const webRtcServers: types.WebRtcServer[] = []
 const rooms = new Map<number, Room>()
 const pendingRooms = new Map<number, Promise<Room>>()
 let nextWorker = 0
@@ -27,9 +29,19 @@ async function startWorkers() {
       console.error(`mediasoup worker ${worker.pid} died`)
       setTimeout(() => process.exit(1), 2000)
     })
+    const { listenIp, announcedAddress, webRtcServerBasePort } = config.mediasoup
+    const port = webRtcServerBasePort + i
+    const webRtcServer = await worker.createWebRtcServer({
+      listenInfos: [
+        { protocol: 'udp', ip: listenIp, announcedAddress, port },
+        { protocol: 'tcp', ip: listenIp, announcedAddress, port },
+      ],
+    })
     workers.push(worker)
+    webRtcServers.push(webRtcServer)
   }
-  console.log(`✓ mediasoup ${mediasoup.version} · workers=${workers.length}`)
+  const ports = webRtcServers.map((_, i) => config.mediasoup.webRtcServerBasePort + i).join(', ')
+  console.log(`✓ mediasoup ${mediasoup.version} · workers=${workers.length} · WebRTC port ${ports} (UDP·TCP)`)
 }
 
 /** 같은 회의에 동시에 두 명이 처음 들어와도 Router 는 하나만 */
@@ -39,8 +51,9 @@ function getRoom(meetingId: number): Promise<Room> {
   let pending = pendingRooms.get(meetingId)
   if (!pending) {
     pending = (async () => {
-      const worker = workers[nextWorker++ % workers.length]
-      const router = await worker.createRouter({ mediaCodecs: config.mediasoup.mediaCodecs })
+      const index = nextWorker++ % workers.length
+      // 이 회의의 연결은 이 워커의 WebRtcServer(포트 하나)를 쓴다
+      const router = await workers[index].createRouter({ mediaCodecs: config.mediasoup.mediaCodecs, appData: { webRtcServer: webRtcServers[index] } })
       const room = new Room(meetingId, router)
       rooms.set(meetingId, room)
       pendingRooms.delete(meetingId)
@@ -131,12 +144,11 @@ io.on('connection', (socket: Socket) => {
   socket.on('create-transport', async ({ direction }: { direction: 'send' | 'recv' }, ack: Ack) => {
     try {
       const { room, peer } = requirePeer()
-      const { listenIp, announcedAddress, initialAvailableOutgoingBitrate, maxIncomingBitrate } = config.mediasoup
+      const { initialAvailableOutgoingBitrate, maxIncomingBitrate } = config.mediasoup
       const transport = await room.router.createWebRtcTransport({
-        listenInfos: [
-          { protocol: 'udp', ip: listenIp, announcedAddress },
-          { protocol: 'tcp', ip: listenIp, announcedAddress },
-        ],
+        webRtcServer: room.router.appData.webRtcServer as types.WebRtcServer,
+        enableUdp: true,
+        enableTcp: true,
         preferUdp: true,
         initialAvailableOutgoingBitrate,
         appData: { direction },

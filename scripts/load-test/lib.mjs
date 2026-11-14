@@ -51,7 +51,8 @@ export async function api(stats, name, method, path, { token, json, timeoutMs = 
     stats?.add(name, ms)
     return text ? JSON.parse(text) : {}
   } catch (e) {
-    stats?.error(name, e.name === 'TimeoutError' ? 'timeout' : 'network')
+    // 연결 오류는 원인 코드까지 (ECONNRESET · ECONNREFUSED · UND_ERR_SOCKET 등)
+    stats?.error(name, e.name === 'TimeoutError' ? 'timeout' : `network:${e.cause?.code ?? e.cause?.message ?? e.message}`)
     return null
   }
 }

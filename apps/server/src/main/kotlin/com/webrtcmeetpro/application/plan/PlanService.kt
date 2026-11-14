@@ -2,6 +2,7 @@ package com.webrtcmeetpro.application.plan
 
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
+import com.webrtcmeetpro.config.properties.AiProperties
 import com.webrtcmeetpro.config.properties.TossProperties
 import com.webrtcmeetpro.domain.plan.BillingCycle
 import com.webrtcmeetpro.domain.plan.BillingKey
@@ -135,10 +136,15 @@ class PlanService(
     private val teamMemberRepository: TeamMemberRepository,
     private val billingKeyRepository: BillingKeyRepository,
     private val tossProperties: TossProperties,
+    private val aiProperties: AiProperties = AiProperties(),
 ) {
 
+    /** 화면에 보낼 플랜. 실시간 자막을 꺼 두었으면(app.ai.live-captions) 자막 시간을 0 으로 (요금제 카드에서 빠진다) */
+    fun view(plan: Plan): PlanView =
+        PlanView.from(plan).let { if (aiProperties.liveCaptions) it else it.copy(liveCaptionMinutes = 0) }
+
     fun listPlans(): List<PlanView> =
-        planRepository.findAllByActiveTrueOrderBySortOrderAsc().map(PlanView::from)
+        planRepository.findAllByActiveTrueOrderBySortOrderAsc().map(::view)
 
     fun findPlan(code: String): Plan =
         planRepository.findByCode(code)?.takeIf { it.active } ?: throw BusinessException(ErrorCode.PLAN_NOT_FOUND)
@@ -186,7 +192,7 @@ class PlanService(
             .map {
                 SubscriptionItemView(
                     id = it.id!!,
-                    plan = PlanView.from(planOf(it.planId)),
+                    plan = view(planOf(it.planId)),
                     status = it.status,
                     billingCycle = it.billingCycle,
                     autoRenew = it.autoRenew,
@@ -201,7 +207,7 @@ class PlanService(
         return SubscriptionView(
             team = WorkspaceRef(team.id!!, team.name),
             appliesTo = ownedTeams(team.ownerId).map { WorkspaceRef(it.id!!, it.name) },
-            plan = PlanView.from(current?.second ?: freePlan()),
+            plan = view(current?.second ?: freePlan()),
             status = current?.first?.status ?: SubscriptionStatus.ACTIVE,
             startedAt = current?.first?.startedAt,
             currentPeriodEnd = current?.first?.currentPeriodEnd,
@@ -222,11 +228,11 @@ class PlanService(
                 val team = it.teamId?.let(teamRepository::findTeamById)
                 ExpiryNoticeView(
                     subscriptionId = it.id!!,
-                    plan = PlanView.from(planById(it.planId)),
+                    plan = view(planById(it.planId)),
                     expiredAt = it.expiredAt,
                     teamId = team?.id,
                     teamName = team?.name,
-                    currentPlan = PlanView.from(team?.id?.let { id -> planOfTeam(id, now) } ?: freePlan()),
+                    currentPlan = view(team?.id?.let { id -> planOfTeam(id, now) } ?: freePlan()),
                 )
             }
 

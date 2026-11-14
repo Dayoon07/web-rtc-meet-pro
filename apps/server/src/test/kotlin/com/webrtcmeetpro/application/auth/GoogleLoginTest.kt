@@ -26,6 +26,7 @@ import com.webrtcmeetpro.domain.user.UserRepository
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.transaction.support.TransactionOperations
 import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -91,6 +92,7 @@ class GoogleLoginTest {
     )
     private val service = AuthService(
         userRepo, refreshRepo, socialRepo, encoder, JwtTokenProvider(jwtProps), jwtProps, planService, LoginHistoryRecorder(historyRepo), emailVerification,
+        TransactionOperations.withoutTransaction(),
     )
     private val client = ClientInfo("127.0.0.1", "test")
 

@@ -23,6 +23,12 @@ data class AiProperties(
     val captionModel: String = "claude-opus-5-5",
     val fallbacks: Boolean = true,
     val ollama: Ollama = Ollama(),
+    /**
+     * 실시간 자막·번역 (Business). 지금은 꺼 둔다 (기본 false): 실시간 번역은 CPU 의 Ollama 로는 너무 느리고 Claude API 는 비용이 커서.
+     * 코드는 그대로 두었으니 LIVE_CAPTIONS_ENABLED=true + 번역 AI(Claude 키 등)를 주면 다시 켜진다.
+     * 꺼져 있으면 자막 번역기가 꺼지고(회의실 CC 버튼이 숨는다) 요금제에도 자막 시간이 0 으로 보인다
+     */
+    val liveCaptions: Boolean = false,
 ) {
     /**
      * @param url Ollama 주소 (예: http://localhost:11434, 도커 안에서는 http://ollama:11434). 비우면 안 씀
@@ -40,7 +46,7 @@ data class AiProperties(
     )
 
     val notesProvider: AiProvider get() = resolve(provider)
-    val captionsProvider: AiProvider get() = resolve(captionProvider.ifBlank { provider })
+    val captionsProvider: AiProvider get() = if (!liveCaptions) AiProvider.NONE else resolve(captionProvider.ifBlank { provider })
 
     /** AI 회의록을 쓸 수 있는지 (회의실 버튼) */
     val enabled: Boolean get() = notesProvider != AiProvider.NONE

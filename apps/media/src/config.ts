@@ -23,6 +23,11 @@ export const config = {
 
   mediasoup: {
     numWorkers: Math.max(1, Math.min(os.cpus().length, Number(env('MEDIASOUP_WORKERS', '2')))),
+    /**
+     * 워커마다 WebRtcServer 하나: 그 워커의 모든 참가자가 UDP·TCP 포트 하나를 같이 쓴다 (워커 i → RTC_MIN_PORT + i).
+     * 예전에는 참가자마다 연결 2개 = 포트 2개를 써서 포트 201개로 서버 전체 약 100명이 한도였다 (부하 테스트)
+     */
+    webRtcServerBasePort: Number(env('RTC_MIN_PORT', '40000')),
     worker: {
       rtcMinPort: Number(env('RTC_MIN_PORT', '40000')),
       rtcMaxPort: Number(env('RTC_MAX_PORT', '40200')),

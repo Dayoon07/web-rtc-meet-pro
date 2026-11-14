@@ -9,6 +9,7 @@ import io.ktor.websocket.readText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -57,7 +58,8 @@ class StompClient(
                 // 네트워크 끊김·서버 재시작 → 아래에서 기다렸다가 다시 연결
             }
             _connected.value = false
-            delay(backoff)
+            // 기다리는 시간에 무작위를 더한다 (서버가 다시 켜졌을 때 모든 앱이 같은 순간에 몰리지 않게)
+            delay(backoff + Random.nextLong(backoff))
             backoff = (backoff * 2).coerceAtMost(30_000L)
         }
     }

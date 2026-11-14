@@ -72,6 +72,15 @@ class AccessAndErrorRulesTest {
     }
 
     @Test
+    fun `처리 시간 초과는 잘못된 쿼리 예외로 감싸져 와도 DB 구조 문제가 아니라 연결·시간 초과로 본다`() {
+        val wrapped = org.springframework.dao.InvalidDataAccessResourceUsageException("Transaction timed out: deadline was Sat Nov 14 02:40:22 GMT+09:00 2026; Bad SELECT ...")
+        assertEquals(ErrorCategory.DB_CONNECTION, ErrorClassifier.classify(wrapped))
+        assertEquals(ErrorCategory.DB_CONNECTION, ErrorClassifier.classify(RuntimeException(SQLException("ORA-01013", "72000", 1013))))
+        // 진짜 구조 문제는 그대로
+        assertEquals(ErrorCategory.DB_SCHEMA, ErrorClassifier.classify(org.springframework.dao.InvalidDataAccessResourceUsageException("ORA-00942: table does not exist")))
+    }
+
+    @Test
     fun `첨부파일 이름은 경로·위험 문자를 지우고, 이미지 여부는 매직 바이트로 판별`() {
         assertEquals("a.png", ChatService.cleanFileName("C:\\fakepath\\a.png"))
         assertEquals("file", ChatService.cleanFileName("  "))

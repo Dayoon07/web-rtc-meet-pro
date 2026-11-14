@@ -55,7 +55,7 @@ DB 서버를 따로 두지 않는다.
 - 8GB 서버에서는 `OLLAMA_MODEL=qwen2.5:3b`, `OLLAMA_MEM_LIMIT=3g`, `OLLAMA_CPUS=1.0` (CPU 1개만 써서 회의 중계가 느려지지 않게).
   모델은 쓸 때만 메모리에 올라가고 `OLLAMA_KEEP_ALIVE`(10분)가 지나면 내려간다.
 - CPU 1개로는 회의록이 회의가 끝나고 몇 분~10분 넘게 걸린다 (뒤에서 만들어지니 기다리면 된다).
-- **실시간 자막은 Ollama(CPU)로는 못 쓴다** (한 문장에 수십 초). `AI_CAPTION_PROVIDER=none` 으로 끄거나, 자막만 Claude(`claude` + `ANTHROPIC_API_KEY`).
+- **실시간 자막·번역은 꺼 두었다** (`LIVE_CAPTIONS_ENABLED=false`, 기본). Ollama(CPU)로는 한 문장에 수십 초라 못 쓰고 Claude API 는 비용이 커서. 켜려면 `LIVE_CAPTIONS_ENABLED=true` + 자막만 Claude(`AI_CAPTION_PROVIDER=claude` + `ANTHROPIC_API_KEY`).
 - 7b 를 쓰려면 16GB 서버(또는 AI 를 다른 서버로)가 필요하다.
 
 가격은 바뀔 수 있으니 신청 전에 [iwinv 서버 요금표](https://www.iwinv.kr/server/server)를 한 번 확인한다.
@@ -70,7 +70,7 @@ DB 서버를 따로 두지 않는다.
    - TCP 22 (SSH) — **내 IP 만** 허용
    - TCP 80, 443 (웹, 인증서 발급)
    - UDP 443 (HTTP/3, 선택)
-   - UDP 40000-40200, TCP 40000-40200 (WebRTC 미디어)
+   - UDP 40000-40200, TCP 40000-40200 (WebRTC 미디어. 실제로는 사이드카 워커 수만큼 40000, 40001 … 만 쓴다: 모든 참가자가 워커의 포트 하나를 같이 쓰는 WebRtcServer 방식)
 3. 서버 안의 방화벽(ufw)이 켜져 있으면 같은 포트를 연다 (꺼져 있으면 그대로 둔다)
 
 ```bash

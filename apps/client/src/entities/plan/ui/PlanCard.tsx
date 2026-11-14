@@ -44,10 +44,8 @@ export function PlanCard({ card, action }: { card: PlanCardData; action?: ReactN
       on: true,
       text: t('plan.features.overage', { price: formatPrice(plan.overagePricePerMember) }),
     },
-    {
-      on: plan.liveCaptionMinutes > 0,
-      text: plan.liveCaptionMinutes > 0 ? t('plan.features.captionsDetail', { minutes: plan.liveCaptionMinutes }) : t('plan.features.captions'),
-    },
+    // 실시간 자막: 서버가 꺼 두면(app.ai.live-captions) 모든 플랜이 0 분으로 와서 줄이 빠진다
+    ...(plan.liveCaptionMinutes > 0 ? [{ on: true, text: t('plan.features.captionsDetail', { minutes: plan.liveCaptionMinutes }) }] : []),
   ]
 
   return (

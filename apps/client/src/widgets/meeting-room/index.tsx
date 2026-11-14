@@ -386,9 +386,12 @@ export function MeetingRoom({
         <ControlButton control={{ label: t(notes.on ? 'notes.stop' : 'notes.start'), onClick: () => void notes.toggle() }}>
           <NotebookPen className={cn(notes.on && 'text-brand-300', notes.busy && 'animate-pulse', !notes.available && !notes.on && 'opacity-50')} />
         </ControlButton>
-        <ControlButton control={{ label: t(captions.on ? 'captions.stop' : 'captions.start'), onClick: () => void captions.toggle() }}>
-          <Captions className={cn(captions.on && 'text-brand-300', captions.busy && 'animate-pulse', !captions.available && !captions.on && 'opacity-50')} />
-        </ControlButton>
+        {/* 실시간 자막: 서버가 꺼 두었으면(app.ai.live-captions) 버튼을 숨긴다 */}
+        {(captions.available || captions.on) && (
+          <ControlButton control={{ label: t(captions.on ? 'captions.stop' : 'captions.start'), onClick: () => void captions.toggle() }}>
+            <Captions className={cn(captions.on && 'text-brand-300', captions.busy && 'animate-pulse')} />
+          </ControlButton>
+        )}
         <ControlButton control={{ label: t(room.local.hand ? 'room.lowerHand' : 'room.raiseHand'), onClick: room.toggleHand }}>
           <Hand className={cn(room.local.hand && 'text-amber-400')} />
         </ControlButton>

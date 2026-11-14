@@ -137,7 +137,7 @@ cd apps/kmp
 | 토스페이먼츠 (플랜 자동결제·환불) | `TOSS_CLIENT_KEY`, `TOSS_SECRET_KEY`, `BILLING_KEY_SECRET` | 토스페이먼츠 개발자센터 → API 키 → **API 개별 연동 키** (테스트 `test_`, 운영 `live_`). `BILLING_KEY_SECRET` 은 `openssl rand -hex 32` 로 한 번 만들고 바꾸지 않습니다 |
 | AWS S3 (프로필 사진·채팅 첨부·회의 녹화) | `STORAGE_TYPE=s3`, `S3_BUCKET`, `S3_REGION`, `S3_PREFIX`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | 버킷 하나 + 그 버킷만 읽고 쓰는 IAM 사용자 키. `STORAGE_TYPE=local` 이면 서버 디스크에 저장합니다 |
 | Ollama (AI 회의록) | `OLLAMA_URL`, `OLLAMA_MODEL=qwen2.5:7b` | [Ollama](https://ollama.com) 설치 → `ollama pull qwen2.5:7b` → `ollama serve`. 메모리가 8GB 인 서버는 `qwen2.5:3b` 권장 |
-| Claude API (선택: 빠른 회의록·실시간 자막) | `ANTHROPIC_API_KEY`, `AI_PROVIDER`, `AI_CAPTION_PROVIDER` | Anthropic Console 에서 API 키. 없으면 Ollama 만 씁니다 (실시간 자막은 Claude 필요) |
+| Claude API (선택: 빠른 회의록) | `ANTHROPIC_API_KEY`, `AI_PROVIDER` | Anthropic Console 에서 API 키. 없으면 Ollama 만 씁니다. 실시간 자막·번역은 비용 때문에 꺼 두었습니다 (`LIVE_CAPTIONS_ENABLED=false`, 코드는 남아 있어 켜면 다시 됩니다) |
 | 브라우저 푸시 (창을 닫아도 알림) | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `python scripts/vapid-keys.py` 로 한 번 만들고 바꾸지 않습니다 (바꾸면 모든 브라우저가 알림을 다시 켜야 함) |
 | 메일 (가입 인증·비밀번호 재설정·팀 초대) | `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Gmail 이면 `smtp.gmail.com` / `587` / 구글 계정의 **앱 비밀번호** (2단계 인증 필요) |
 | 구글 로그인 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud Console → OAuth 클라이언트 ID (웹). 리디렉션 URI `https://<도메인>/login/oauth2/code/google` |

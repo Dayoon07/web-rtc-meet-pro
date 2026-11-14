@@ -11,6 +11,9 @@ spring:
     url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
     username: ${DB_USERNAME:limeet}
     password: ${DB_PASSWORD:limeet}
+    # DB 연결 수. 부하 테스트(CPU 2개)에서 20 보다 10 이 나았다 (DB 도 CPU 2개라 동시에 많이 시키면 더 느려진다)
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
     driver-class-name: oracle.jdbc.OracleDriver
   servlet:
     multipart:
@@ -34,6 +37,9 @@ server:
   # 운영은 Caddy(https) 뒤에서 돈다. X-Forwarded-Proto/Host 를 믿어야 구글 로그인 redirect_uri 가 https://도메인 으로 만들어진다.
   # native = Tomcat RemoteIpValve: 사설 IP(도커 네트워크·localhost)에서 온 프록시 헤더만 신뢰
   forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:native}
+  tomcat:
+    # 처리 스레드(기본 200)가 다 차면 기다리는 연결 수 (기본 100). 로그인이 몰릴 때 바로 거절하지 않고 기다리게 넉넉히
+    accept-count: ${TOMCAT_ACCEPT_COUNT:1000}
 
 app:
   jwt:
@@ -104,6 +110,8 @@ app:
   ai:
     # 누가 할지: auto(키가 있으면 claude, 없고 OLLAMA_URL 이 있으면 ollama) / claude / ollama / none
     provider: ${AI_PROVIDER:auto}
+    # 실시간 자막·번역: 꺼 둠 (비용). 켜려면 true + 번역 AI (CPU 의 Ollama 로는 실시간이 안 돼서 사실상 Claude 키 필요)
+    live-captions: ${LIVE_CAPTIONS_ENABLED:false}
     # 자막만 다르게 (비우면 provider 와 같음)
     caption-provider: ${AI_CAPTION_PROVIDER:}
     # 무료: 내 서버의 Ollama. 로컬은 http://localhost:11434, 도커는 http://ollama:11434

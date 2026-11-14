@@ -243,6 +243,8 @@ COMMIT;
 
 #### 실시간 자막 · 번역 (Business 전용)
 
+> **지금은 꺼 두었다** (`LIVE_CAPTIONS_ENABLED=false`, 기본): CPU 의 Ollama 로는 실시간 번역이 안 되고 Claude API 는 비용이 커서. 코드는 그대로 있어서 `true` + 번역 AI(Claude 키)를 주면 다시 켜진다. 꺼져 있으면 회의실 CC 버튼과 요금제 카드의 자막 줄이 숨는다.
+
 - 회의 중 자막(CC) 아이콘으로 켜고 끈다. 각 참여자 브라우저가 자기 말을 받아써서 보내면, 서버가 지금 회의에 있는 사람들의 언어(화면 언어 ko·en·ja·zh)로 Claude 번역을 해서 모두에게 보낸다. 화면 아래에 말한 사람 이름과 **내 언어로 옮긴 문장**이 뜬다 (같은 언어면 원문을 바로, 다른 언어면 원문이 흐리게 먼저 뜨고 번역이 오면 바뀐다).
 - 받아쓰기는 브라우저에서 한 번만 돈다. AI 회의록도 켜져 있으면 같은 문장이 회의록에도 들어간다.
 - 플랜: Business 만 (`plans.live_caption_minutes` 월 600분). 켜져 있던 시간만큼 쓰고(`ai_usages` CAPTIONS), 다 쓰면 자동으로 꺼진다. 켜짐 상태는 서버 메모리에만 둔다 (서버를 다시 켜면 꺼짐). 번역 모델은 `AI_CAPTION_MODEL` (기본 `claude-opus-5-5`, effort low).
@@ -305,7 +307,7 @@ npm run dev:media
 | `MEDIA_JWT_SECRET` / `MEDIA_INTERNAL_SECRET` | 서버와 같은 개발용 값 |
 | `SERVER_INTERNAL_URL` | `http://localhost:8080` |
 | `ANNOUNCED_ADDRESS` | `127.0.0.1` — 운영에서는 **공인 IP/도메인** |
-| `RTC_MIN_PORT` / `RTC_MAX_PORT` | `40000` / `40200` (방화벽에서 UDP·TCP 열기) |
+| `RTC_MIN_PORT` / `RTC_MAX_PORT` | `40000` / `40200` (방화벽에서 UDP·TCP 열기). 워커 i 는 `RTC_MIN_PORT + i` 포트 하나를 모든 참가자가 같이 쓴다 (WebRtcServer) → 포트 수가 인원 한도가 되지 않는다 |
 | `MEDIASOUP_WORKERS` | `2` |
 
 Windows 에서도 `npm install` 시 mediasoup 워커 바이너리가 같이 받아진다(별도 빌드 도구 불필요).
@@ -460,7 +462,7 @@ src/
    └─ ui/      버튼·입력칸·선택 상자·모달 등 공통 UI
 ```
 
-코드 규칙 (`imtsoft-solum-signage` 와 같은 방식)
+코드 규칙
 
 - **서버 주소는 `shared/api/endpoints.ts` 의 `API` 로만** 쓴다. 주소 문자열을 API 호출 안에 직접 쓰지 않는다.
 - **화면 경로는 `shared/config/routes.ts` 의 `ROUTES` 로만** 쓴다 (`<Link to>`, `href`, `navigate`, 라우터 모두).

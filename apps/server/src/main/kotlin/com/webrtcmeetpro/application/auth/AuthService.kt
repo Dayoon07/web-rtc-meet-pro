@@ -19,6 +19,7 @@ import com.webrtcmeetpro.domain.user.UserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionOperations
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.LocalDateTime
@@ -61,27 +62,39 @@ class AuthService(
     private val planService: PlanService,
     private val loginHistoryRecorder: LoginHistoryRecorder,
     private val emailVerification: EmailVerificationService,
+    /** 짧은 트랜잭션 (Spring Boot 의 TransactionTemplate). 비밀번호 해시는 이 밖에서 한다 */
+    private val transactions: TransactionOperations,
 ) {
     private val random = SecureRandom()
 
-    @Transactional
+    /**
+     * 가입. 비밀번호 해시(bcrypt, CPU 를 많이 씀)는 트랜잭션 밖에서 만들고, 저장만 짧은 트랜잭션으로 한다
+     * (부하 테스트: 해시하는 동안 DB 연결을 잡고 있으면 가입·로그인이 몰릴 때 DB 연결이 다 묶여 다른 요청까지 막혔다)
+     */
     fun signUp(command: SignUpCommand, client: ClientInfo): AuthTokens {
         if (!command.termsAgreed || !command.privacyAgreed) throw BusinessException(ErrorCode.TERMS_NOT_AGREED)
         val email = command.email.trim().lowercase()
-        // 한 이메일 = 계정 하나. 이미 있으면 어떤 방법으로 로그인하면 되는지 알려 준다
+        requireNewEmail(email)
+        val hash = passwordEncoder.encode(command.password)!!
+
+        return transactions.execute {
+            // 해시하는 사이에 같은 이메일로 가입했을 수 있어 한 번 더 확인
+            requireNewEmail(email)
+            val user = userRepository.save(User.register(email, hash, command.profile, command.marketingAgreed))
+            planService.startFreeSubscription(user.id!!)
+            // 이메일 주인인지 확인하는 메일 (커밋된 뒤 발송). 인증 전에는 받은 팀 초대를 볼 수 없다
+            emailVerification.send(user)
+            user.recordLogin()
+            loginHistoryRecorder.success(user.id!!, email, LoginMethod.PASSWORD, client)
+            issueTokens(user, client)
+        }!!
+    }
+
+    /** 한 이메일 = 계정 하나. 이미 있으면 어떤 방법으로 로그인하면 되는지 알려 준다 */
+    private fun requireNewEmail(email: String) {
         userRepository.findByEmail(email)?.let { existing ->
             throw BusinessException(if (existing.signInMethod == "GOOGLE") ErrorCode.EMAIL_REGISTERED_WITH_GOOGLE else ErrorCode.EMAIL_ALREADY_EXISTS)
         }
-
-        val user = userRepository.save(
-            User.register(email, passwordEncoder.encode(command.password)!!, command.profile, command.marketingAgreed),
-        )
-        planService.startFreeSubscription(user.id!!)
-        // 이메일 주인인지 확인하는 메일 (커밋된 뒤 발송). 인증 전에는 받은 팀 초대를 볼 수 없다
-        emailVerification.send(user)
-        user.recordLogin()
-        loginHistoryRecorder.success(user.id!!, email, LoginMethod.PASSWORD, client)
-        return issueTokens(user, client)
     }
 
     /**
@@ -104,7 +117,10 @@ class AuthService(
     @Transactional(readOnly = true)
     fun registeredSignInMethod(email: String): String? = userRepository.findByEmail(email.trim().lowercase())?.signInMethod
 
-    @Transactional
+    /**
+     * 이메일 로그인. 비밀번호 확인(bcrypt)은 DB 연결을 잡지 않은 채로 하고, 로그인 기록·토큰만 짧은 트랜잭션으로 한다
+     * (부하 테스트: 1분에 1,000명이 로그인하자 DB 연결 10개가 bcrypt 동안 묶여 로그인 안 한 사람의 요청까지 30초씩 기다렸다)
+     */
     fun login(command: LoginCommand, client: ClientInfo): AuthTokens {
         val email = command.email.trim().lowercase()
         val user = userRepository.findByEmail(email)
@@ -116,9 +132,13 @@ class AuthService(
         }
         if (!user.isActive) fail(user.id, email, LoginFailureReason.USER_NOT_ACTIVE, ErrorCode.USER_NOT_ACTIVE, client)
 
-        user.recordLogin()
-        loginHistoryRecorder.success(user.id!!, email, LoginMethod.PASSWORD, client)
-        return issueTokens(user, client)
+        return transactions.execute {
+            val current = userRepository.findUserById(user.id!!)?.takeIf { it.isActive }
+                ?: fail(user.id, email, LoginFailureReason.USER_NOT_ACTIVE, ErrorCode.USER_NOT_ACTIVE, client)
+            current.recordLogin()
+            loginHistoryRecorder.success(current.id!!, email, LoginMethod.PASSWORD, client)
+            issueTokens(current, client)
+        }!!
     }
 
     /**

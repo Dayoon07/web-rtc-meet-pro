@@ -183,7 +183,7 @@ class UserService(
         emailVerified = user.isEmailVerified,
         linkedProviders = socialAccountRepository.findAllByUserId(user.id!!).map { it.provider.name },
         // 내가 만든 워크스페이스 중 가장 높은 플랜 (요금제는 워크스페이스마다)
-        plan = PlanView.from(planService.bestOwnedPlan(user.id!!)),
+        plan = planService.view(planService.bestOwnedPlan(user.id!!)),
         dndStart = user.dndStart,
         dndEnd = user.dndEnd,
         dndTimeZone = user.dndTimeZone,

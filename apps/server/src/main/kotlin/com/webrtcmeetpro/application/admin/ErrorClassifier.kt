@@ -8,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.InvalidDataAccessResourceUsageException
 import org.springframework.jdbc.CannotGetJdbcConnectionException
 import org.springframework.transaction.CannotCreateTransactionException
+import org.springframework.transaction.TransactionTimedOutException
 import org.springframework.web.client.RestClientException
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import java.net.ConnectException
@@ -35,7 +36,11 @@ object ErrorClassifier {
     private val CONNECTION_ORA = setOf(
         12541, 12514, 12505, 12170, 12537, 12528, 12519, 12520, 1017, 28000, 28001,
         1033, 1034, 1089, 3113, 3114, 3135, 17002, 17008, 17410, 18,
+        // 1013: 시간 초과로 쿼리를 취소함
+        1013,
     )
+
+    private val TIMEOUT_MESSAGES = listOf("Transaction timed out", "Transaction timeout expired")
 
     fun classify(e: Throwable): ErrorCategory {
         val chain = causes(e)
@@ -44,6 +49,12 @@ object ErrorClassifier {
                     it is CannotGetJdbcConnectionException || it is CannotCreateTransactionException
             }
         ) return ErrorCategory.DB_CONNECTION
+
+        // 처리 시간 초과 (요청이 몰려 트랜잭션 제한 시간을 넘김). Hibernate 가 "잘못된 쿼리(BadJpqlGrammar)" 로 감싸서 올 때가 있어
+        // DB 구조 문제(DB_SCHEMA)로 잘못 보이지 않게 메시지로도 본다 (부하 테스트에서 발견)
+        if (chain.any { it is TransactionTimedOutException || TIMEOUT_MESSAGES.any { m -> it.message?.contains(m, ignoreCase = true) == true } }) {
+            return ErrorCategory.DB_CONNECTION
+        }
 
         chain.filterIsInstance<SQLException>().firstOrNull { it.errorCode != 0 || it.sqlState != null }?.let { sql ->
             return when {
