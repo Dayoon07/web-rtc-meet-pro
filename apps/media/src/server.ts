@@ -73,9 +73,16 @@ const SOURCE_EVENT: Record<Source, [MediaEventType, MediaEventType]> = {
 type MediaEventType = Extract<MediaEvent, { type: 'EVENT' }>['eventType']
 
 const server = http.createServer((req, res) => {
+  // 살아 있는지 + 회의방·참가자 수·메모리 (서버의 12시간 상태 보고와 deploy/watchdog.sh 가 본다)
   if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ status: 'ok', rooms: rooms.size, workers: workers.length }))
+    void (async () => {
+      const peers = [...rooms.values()].reduce((n, r) => n + r.peers.size, 0)
+      // 워커(mediasoup-worker 프로세스)마다 지금까지 가장 많이 쓴 메모리(ru_maxrss, KB)
+      const workerKb = await Promise.all(workers.map((w) => w.getResourceUsage().then((u) => u.ru_maxrss).catch(() => 0)))
+      const memoryMb = Math.round((process.memoryUsage().rss + workerKb.reduce((a, b) => a + b, 0) * 1024) / 1024 / 1024)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ status: 'ok', rooms: rooms.size, peers, workers: workers.length, memoryMb }))
+    })()
     return
   }
   res.writeHead(404).end()

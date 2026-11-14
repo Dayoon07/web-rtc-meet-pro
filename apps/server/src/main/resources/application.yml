@@ -42,6 +42,14 @@ server:
     accept-count: ${TOMCAT_ACCEPT_COUNT:1000}
 
 app:
+  # 서버 상태 보고 메일 (12시간마다, HealthReportScheduler). 서버가 꺼졌을 때 알림은 deploy/watchdog.sh
+  monitoring:
+    report-to: ${HEALTH_REPORT_TO:gangd0642@gmail.com}
+    report-cron: ${HEALTH_REPORT_CRON:0 0 9,21 * * *}
+    # 미디어 사이드카 상태 주소 (운영 도커: http://host.docker.internal:4000/health)
+    media-health-url: ${MEDIA_HEALTH_URL:http://localhost:4000/health}
+    disk-warn-percent: 85
+    memory-warn-percent: 90
   jwt:
     # 32바이트 이상. 운영에서는 반드시 JWT_SECRET 환경변수로 교체
     secret: ${JWT_SECRET:local-dev-secret-change-me-0123456789abcdef}

@@ -62,6 +62,9 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-MQ <no-reply@localhost>}
+      # 상태 보고 메일 (12시간마다). 미디어 사이드카는 호스트 네트워크라 host.docker.internal 로 본다
+      HEALTH_REPORT_TO: ${HEALTH_REPORT_TO:-gangd0642@gmail.com}
+      MEDIA_HEALTH_URL: http://host.docker.internal:4000/health
       # 토스페이먼츠 자동결제 (비우면 결제 기능 꺼짐)
       TOSS_CLIENT_KEY: ${TOSS_CLIENT_KEY:-}
       TOSS_SECRET_KEY: ${TOSS_SECRET_KEY:-}

@@ -168,6 +168,26 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env start oracle 
 
 채팅 첨부파일·프로필 사진도 볼륨 이름만 `limeet_chat-files`, `limeet_uploads` 로 바꿔 같은 방법으로 되돌린다.
 
+## 5-1. 상태 메일 (모니터링)
+
+두 가지가 메일로 온다. 받는 사람은 `gangd0642@gmail.com` (바꾸려면 `deploy/.env` 에 `HEALTH_REPORT_TO=`). 메일 설정(`MAIL_*`)이 있어야 간다.
+
+| | 언제 | 무엇을 | 누가 |
+|---|---|---|---|
+| **상태 보고** | 12시간마다 (오전 9시·오후 9시) | 서버(가동 시간·JVM 메모리) · DB(응답·용량, Oracle Free 한도 12GB 대비) · 미디어 사이드카(회의방·참가자·메모리) · 서버 메모리 · 디스크 · 지난 12시간 오류 수. 디스크·메모리가 높으면 제목에 "확인 필요" | 서버가 보낸다 (`HealthReportScheduler`) |
+| **경고 · 회복** | 5분마다 확인해서 **문제가 생기거나 풀릴 때만** | 서버 꺼짐 · DB 응답 없음 · 미디어 사이드카 꺼짐 · 디스크 90% · 메모리 95% | 서버 밖의 `deploy/watchdog.sh` (서버가 죽으면 상태 보고가 안 오므로 따로) |
+
+```bash
+sudo deploy/watchdog.sh        # 한 번 직접 돌려 보고 (정상이면 아무것도 안 나온다)
+sudo crontab -e                # 5분마다
+# */5 * * * * /home/ubuntu/web-rtc-meet-pro/deploy/watchdog.sh >> /var/log/limeet-watchdog.log 2>&1
+```
+
+- 시험: `WATCHDOG_DRY_RUN=1 SERVER_HEALTH_URL=http://127.0.0.1:9/ deploy/watchdog.sh` → 경고 메일 내용을 화면에만 찍는다.
+- 관리자는 지금 상태를 바로 볼 수 있다: `GET /api/admin/monitoring/health`, 메일로 지금 보내기 `POST /api/admin/monitoring/report`.
+- 상태 보고에 미디어 사이드카가 "응답 없음" 으로만 나오면: 서버 안 ufw 가 도커 → 호스트 4000 을 막는 경우다. `sudo ufw allow from 172.16.0.0/12 to any port 4000 proto tcp`
+- iwinv 콘솔의 "모니터링·알람"(포트·자원)을 같이 켜 두면 서버 자체가 꺼졌을 때(watchdog 도 못 돌 때)도 알 수 있다.
+
 ## 6. 앱(Android · Windows)을 운영 서버로 빌드
 
 ```bash
@@ -186,6 +206,7 @@ cd apps/kmp
 - [ ] iwinv 방화벽(ELCAP)과 서버 안 ufw(켜져 있다면) 둘 다 UDP 40000-40200 이 열려 있다 (영상이 안 보이면 대부분 여기)
 - [ ] SSH(22)는 내 IP 만 허용했다
 - [ ] `/internal/*` 은 Caddy 에서 막혀 있다 (사이드카 → 서버 콜백 전용)
+- [ ] `deploy/watchdog.sh` 가 cron 으로 5분마다 돈다 (`/var/log/limeet-watchdog.log`), 오전 9시·오후 9시 상태 보고 메일이 온다
 - [ ] `deploy/backup.sh` 가 cron 으로 매일 돈다 (`/var/log/limeet-backup.log` 확인), 가능하면 S3 에도 올라간다
 - [ ] iwinv 콘솔에서 월 트래픽 사용량을 가끔 본다 (600GB 초과분은 따로 청구)
 - [ ] 회사망 등 UDP 가 막힌 곳에서도 써야 하면 TURN 서버(coturn) 추가가 필요하다
