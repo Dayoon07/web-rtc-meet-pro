@@ -1,7 +1,10 @@
 package com.webrtcmeetpro.application.meeting
 
+import com.webrtcmeetpro.domain.chat.dto.res.ChatEventResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.JoinMeetingResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.MeetingResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.MeetingUserResDto
 import com.webrtcmeetpro.domain.meeting.MeetingRecordingRepository
-import com.webrtcmeetpro.application.chat.ChatEvent
 import com.webrtcmeetpro.domain.chat.ChatRoomMemberRepository
 import com.webrtcmeetpro.domain.chat.ChatRoomRepository
 import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
@@ -40,44 +43,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-data class MeetingUserView(val id: Long, val nickname: String, val profileImageUrl: String?)
-
-data class MeetingView(
-    val id: Long,
-    val teamId: Long,
-    val teamName: String,
-    val title: String,
-    val description: String?,
-    val status: MeetingStatus,
-    val scheduledAt: LocalDateTime,
-    val durationMinutes: Int,
-    val startedAt: LocalDateTime?,
-    val endedAt: LocalDateTime?,
-    val host: MeetingUserView?,
-    val invitees: List<MeetingUserView>,
-    val liveParticipants: Long,
-    /** 이 화면을 보는 사람이 취소할 수 있는지: 예약 상태이고 (주최자이거나 팀에서 CANCEL_ANY_MEETING 권한) */
-    val canCancel: Boolean,
-    /** 고칠 수 있는지 (취소와 같은 사람, 같은 조건) */
-    val canEdit: Boolean = canCancel,
-    /** 지금 녹화 중인지 (회의실에 "녹화 중" 표시) */
-    val recording: Boolean = false,
-    /** 이 사람이 녹화를 시작할 수 있는지: 열린 회의 + (주최자 또는 팀 관리 권한) + 팀 소유자 플랜에 녹화 포함 */
-    val canRecord: Boolean = false,
-    /** 녹화 기능이 플랜에 포함돼 있는지 (아니면 버튼을 잠그고 플랜 안내) */
-    val recordingAvailable: Boolean = false,
-    /** 주최자이거나 팀 관리자 (회의 상태와 상관없이) */
-    val canManage: Boolean = false,
-    /** 채널 음성방이면 그 채널 */
-    val chatRoomId: Long? = null,
-    /** AI 회의록 상태 (켠 적이 없으면 null) */
-    val notesStatus: NoteStatus? = null,
-    /** 지금 AI 회의록을 받아쓰는 중 */
-    val aiNotesOn: Boolean = false,
-    /** 워크스페이스 플랜에 AI 회의록이 있고 서버에 AI 가 준비됨 */
-    val aiNotesAvailable: Boolean = false,
-)
-
 data class ScheduleMeetingCommand(
     val title: String,
     val description: String?,
@@ -87,8 +52,6 @@ data class ScheduleMeetingCommand(
     /** 비우면 팀원 전체 */
     val inviteeIds: Collection<Long>,
 )
-
-data class JoinMeetingView(val meeting: MeetingView, val mediaUrl: String, val token: String)
 
 /** mediasoup 사이드카가 보내는 이벤트 */
 data class MediaEventCommand(
@@ -130,7 +93,7 @@ class MeetingService(
     private val random = SecureRandom()
 
     @Transactional
-    fun schedule(teamId: Long, hostId: Long, cmd: ScheduleMeetingCommand): MeetingView {
+    fun schedule(teamId: Long, hostId: Long, cmd: ScheduleMeetingCommand): MeetingResDto {
         teamAccess.requireMember(teamId, hostId)
         val now = LocalDateTime.now()
         if (cmd.scheduledAt != null && cmd.scheduledAt.isBefore(now.minusMinutes(1))) {
@@ -160,7 +123,7 @@ class MeetingService(
     }
 
     /** upcoming: 예약/진행 중, past: 종료/취소 (최근 30건) */
-    fun myMeetings(userId: Long, past: Boolean): List<MeetingView> {
+    fun myMeetings(userId: Long, past: Boolean): List<MeetingResDto> {
         val ids = inviteeRepository.findAllByUserId(userId).map { it.meetingId }
         val statuses = if (past) listOf(MeetingStatus.ENDED, MeetingStatus.CANCELED) else listOf(MeetingStatus.SCHEDULED, MeetingStatus.LIVE)
         val meetings = meetingRepository.findAllByIdInAndStatusIn(ids, statuses)
@@ -169,7 +132,7 @@ class MeetingService(
         return sorted.map { view(it, userId) }
     }
 
-    fun detail(meetingId: Long, userId: Long): MeetingView {
+    fun detail(meetingId: Long, userId: Long): MeetingResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         return view(meeting, userId)
@@ -180,7 +143,7 @@ class MeetingService(
      * 새로 초대된 사람에게는 초대 알림, 원래 있던 사람에게는 (제목·시간·길이가 바뀌었으면) 변경 알림.
      */
     @Transactional
-    fun update(meetingId: Long, userId: Long, cmd: ScheduleMeetingCommand): MeetingView {
+    fun update(meetingId: Long, userId: Long, cmd: ScheduleMeetingCommand): MeetingResDto {
         val meeting = findMeeting(meetingId)
         if (meeting.hostId == userId) teamAccess.requireMember(meeting.teamId, userId)
         else teamAccess.requirePermission(meeting.teamId, userId, TeamPermission.CANCEL_ANY_MEETING)
@@ -226,7 +189,7 @@ class MeetingService(
      * 알림은 보내지 않는다 (사이드바에 누가 들어와 있는지 보인다). 돌려준 회의로 /meet/{id} 에 들어가면 된다.
      */
     @Transactional
-    fun joinVoice(roomId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): MeetingView {
+    fun joinVoice(roomId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): MeetingResDto {
         val room = chatRoomRepository.lockRoomById(roomId)?.takeIf { !it.deleted && it.isGroup }
             ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
         teamAccess.requireMember(room.teamId, userId)
@@ -256,7 +219,7 @@ class MeetingService(
 
     /** 입장: 권한/시간 확인 후 사이드카 접속 토큰 발급. 처음 들어오는 사람이 회의를 시작시킨다 */
     @Transactional
-    fun join(meetingId: Long, userId: Long): JoinMeetingView {
+    fun join(meetingId: Long, userId: Long): JoinMeetingResDto {
         val meeting = meetingRepository.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         teamAccess.requireMember(meeting.teamId, userId)
         // 채널 음성방은 그 채널 참여자만 (채널에 나중에 들어온 사람도 회의 기록에 남게 초대 대상에 넣는다)
@@ -284,7 +247,7 @@ class MeetingService(
         }
         val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
         val token = tokenIssuer.issue(userId, meeting.id!!, meeting.roomCode, user.nickname, user.profileImageUrl, meeting.hostId == userId)
-        return JoinMeetingView(view(meeting, userId), mediaProperties.publicUrl, token)
+        return JoinMeetingResDto(view(meeting, userId), mediaProperties.publicUrl, token)
     }
 
     /** 사이드카 이벤트 기록. JOINED 는 participantId 를 돌려줘서 LEFT 때 다시 받는다 */
@@ -369,7 +332,7 @@ class MeetingService(
     private fun pushVoicePresence(meeting: Meeting) {
         val roomId = meeting.chatRoomId ?: return
         val members = chatMemberRepository.findAllByRoomIdAndLeftAtIsNull(roomId).map { it.userId }
-        realtime.push(members, RealtimePublisher.CHAT, ChatEvent("ROOM", meeting.teamId, roomId))
+        realtime.push(members, RealtimePublisher.CHAT, ChatEventResDto("ROOM", meeting.teamId, roomId))
     }
 
     // ---------------------------------------------------------------
@@ -392,7 +355,7 @@ class MeetingService(
         return (1..10).map { chars[random.nextInt(chars.length)] }.joinToString("")
     }
 
-    private fun userView(u: User) = MeetingUserView(u.id!!, u.nickname, u.profileImageUrl)
+    private fun userView(u: User) = MeetingUserResDto(u.id!!, u.nickname, u.profileImageUrl)
 
     /** 주최자이거나 팀에서 회의를 관리할 수 있는 사람 (OWNER·ADMIN) */
     fun canManage(meeting: Meeting, viewerId: Long): Boolean =
@@ -410,11 +373,11 @@ class MeetingService(
             if (meeting.hostId == viewerId) teamAccess.isMember(meeting.teamId, viewerId)
             else teamAccess.can(meeting.teamId, viewerId, TeamPermission.CANCEL_ANY_MEETING)
 
-    private fun view(meeting: Meeting, viewerId: Long): MeetingView {
+    private fun view(meeting: Meeting, viewerId: Long): MeetingResDto {
         val inviteeIds = inviteeRepository.findAllByMeetingId(meeting.id!!).map { it.userId }
         val users = userRepository.findAllByIdIn(inviteeIds + meeting.hostId).associateBy { it.id!! }
         val note = noteRepository.findByMeetingId(meeting.id!!)
-        return MeetingView(
+        return MeetingResDto(
             id = meeting.id!!,
             teamId = meeting.teamId,
             teamName = teamRepository.findTeamById(meeting.teamId)?.name ?: "",

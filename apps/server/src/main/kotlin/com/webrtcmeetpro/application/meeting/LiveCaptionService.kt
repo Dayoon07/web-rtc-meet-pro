@@ -1,5 +1,9 @@
 package com.webrtcmeetpro.application.meeting
 
+import com.webrtcmeetpro.domain.meeting.dto.res.CaptionEventResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.CaptionStateResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.CaptionsRoomEventResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.NotesLineResDto
 import com.webrtcmeetpro.application.plan.AiQuotaService
 import com.webrtcmeetpro.application.team.TeamAccess
 import com.webrtcmeetpro.common.error.BusinessException
@@ -23,30 +27,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
-
-/** /user/queue/meeting: 실시간 자막이 켜지고 꺼짐. reason: QUOTA = 이번 달 시간을 다 씀 */
-data class CaptionsRoomEvent(val meetingId: Long, val on: Boolean, val by: String? = null, val reason: String? = null) {
-    val type: String = "CAPTIONS"
-}
-
-/**
- * /user/queue/meeting: 자막 한 줄. 먼저 원문으로 보내고(translations 비어 있음, pending = true),
- * 번역이 끝나면 같은 id 로 translations 를 채워 다시 보낸다 (화면이 같은 줄을 바꿔 끼운다).
- */
-data class CaptionEvent(
-    val id: Long,
-    val meetingId: Long,
-    val speakerId: Long,
-    val speaker: String,
-    val text: String,
-    val lang: String,
-    val translations: Map<String, String>,
-    val pending: Boolean,
-) {
-    val type: String = "CAPTION"
-}
-
-data class CaptionStateView(val on: Boolean, val available: Boolean, val remainingMinutes: Long, val limitMinutes: Long)
 
 /**
  * 실시간 자막·번역 (Business 플랜 전용, 한 달 plans.live_caption_minutes 안에서).
@@ -85,7 +65,7 @@ class LiveCaptionService(
     @PreDestroy
     fun shutdown() = executor.shutdown()
 
-    fun state(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): CaptionStateView {
+    fun state(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): CaptionStateResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         return stateOf(meeting, now)
@@ -93,7 +73,7 @@ class LiveCaptionService(
 
     /** 켜기 (회의에 들어와 있는 사람, Business 플랜). lang = 켠 사람이 볼 자막 언어 */
     @Transactional
-    fun start(meetingId: Long, userId: Long, lang: String?, now: LocalDateTime = LocalDateTime.now()): CaptionStateView {
+    fun start(meetingId: Long, userId: Long, lang: String?, now: LocalDateTime = LocalDateTime.now()): CaptionStateResDto {
         val meeting = findMeeting(meetingId)
         requireInRoom(meeting, userId)
         if (!translator.enabled) throw BusinessException(ErrorCode.AI_NOT_CONFIGURED)
@@ -105,7 +85,7 @@ class LiveCaptionService(
         var created = false
         val session = sessions.computeIfAbsent(meetingId) { created = true; Session(meeting.teamId, now) }
         normalize(lang)?.let { session.langs[userId] = it }
-        if (created) broadcast(meetingId, CaptionsRoomEvent(meetingId, on = true, by = users.findUserById(userId)?.nickname))
+        if (created) broadcast(meetingId, CaptionsRoomEventResDto(meetingId, on = true, by = users.findUserById(userId)?.nickname))
         return stateOf(meeting, now)
     }
 
@@ -118,7 +98,7 @@ class LiveCaptionService(
     }
 
     @Transactional
-    fun stop(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): CaptionStateView {
+    fun stop(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): CaptionStateResDto {
         val meeting = findMeeting(meetingId)
         requireInRoom(meeting, userId)
         close(meetingId, now, by = users.findUserById(userId)?.nickname)
@@ -130,29 +110,29 @@ class LiveCaptionService(
      * @return 자막이 켜져 있는지
      */
     @Transactional
-    fun addLine(meetingId: Long, userId: Long, rawText: String, rawLang: String?, now: LocalDateTime = LocalDateTime.now()): NotesLineResult {
+    fun addLine(meetingId: Long, userId: Long, rawText: String, rawLang: String?, now: LocalDateTime = LocalDateTime.now()): NotesLineResDto {
         val meeting = findMeeting(meetingId)
         val me = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).firstOrNull { it.userId == userId }
             ?: throw BusinessException(ErrorCode.NOT_IN_MEETING)
         // AI 회의록도 켜져 있으면 같은 문장을 회의록에
         runCatching { notesService.addLine(meetingId, userId, rawText, rawLang, now) }
-        val session = sessions[meetingId] ?: return NotesLineResult(on = false)
+        val session = sessions[meetingId] ?: return NotesLineResDto(on = false)
 
         val limit = quota.limitSeconds(meeting.teamId, AiFeature.CAPTIONS, now)
         val running = Duration.between(session.activeSince, now).seconds
         if (quota.usedSeconds(meeting.teamId, AiFeature.CAPTIONS, now) + running >= limit) {
             close(meetingId, now, reason = "QUOTA")
-            return NotesLineResult(on = false)
+            return NotesLineResDto(on = false)
         }
         val text = rawText.replace(Regex("\\s+"), " ").trim().take(MeetingNotesService.MAX_LINE)
-        if (text.isEmpty()) return NotesLineResult(on = true)
+        if (text.isEmpty()) return NotesLineResDto(on = true)
         val lang = normalize(rawLang) ?: "ko"
         session.langs.putIfAbsent(userId, lang)
         val speaker = me.displayName.ifBlank { "?" }
         val id = ids.incrementAndGet()
         val inRoom = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).map { it.userId }.distinct()
         // 1) 원문 먼저 (같은 언어인 사람은 바로 본다)
-        realtime.push(inRoom, RealtimePublisher.MEETING, CaptionEvent(id, meetingId, userId, speaker, text, lang, emptyMap(), pending = true))
+        realtime.push(inRoom, RealtimePublisher.MEETING, CaptionEventResDto(id, meetingId, userId, speaker, text, lang, emptyMap(), pending = true))
         // 2) 번역 (회의마다 차례대로, 다른 스레드)
         val context = synchronized(session.recent) {
             session.recent.toList().also {
@@ -169,9 +149,9 @@ class LiveCaptionService(
                 emptyMap()
             }
             val viewers = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).map { it.userId }.distinct()
-            realtime.push(viewers, RealtimePublisher.MEETING, CaptionEvent(id, meetingId, userId, speaker, text, lang, translations, pending = false))
+            realtime.push(viewers, RealtimePublisher.MEETING, CaptionEventResDto(id, meetingId, userId, speaker, text, lang, translations, pending = false))
         }, executor)
-        return NotesLineResult(on = true)
+        return NotesLineResDto(on = true)
     }
 
     /** 회의가 끝나면 자막도 끈다 */
@@ -187,14 +167,14 @@ class LiveCaptionService(
     private fun close(meetingId: Long, now: LocalDateTime, by: String? = null, reason: String? = null) {
         val session = sessions.remove(meetingId) ?: return
         quota.add(session.teamId, AiFeature.CAPTIONS, Duration.between(session.activeSince, now).seconds, now)
-        broadcast(meetingId, CaptionsRoomEvent(meetingId, on = false, by = by, reason = reason))
+        broadcast(meetingId, CaptionsRoomEventResDto(meetingId, on = false, by = by, reason = reason))
     }
 
-    private fun stateOf(meeting: Meeting, now: LocalDateTime): CaptionStateView {
+    private fun stateOf(meeting: Meeting, now: LocalDateTime): CaptionStateResDto {
         val limit = quota.limitSeconds(meeting.teamId, AiFeature.CAPTIONS, now)
         val running = sessions[meeting.id!!]?.let { Duration.between(it.activeSince, now).seconds } ?: 0
         val used = quota.usedSeconds(meeting.teamId, AiFeature.CAPTIONS, now) + running
-        return CaptionStateView(
+        return CaptionStateResDto(
             on = sessions.containsKey(meeting.id!!),
             available = translator.enabled && limit > 0,
             remainingMinutes = (limit - used).coerceAtLeast(0) / 60,

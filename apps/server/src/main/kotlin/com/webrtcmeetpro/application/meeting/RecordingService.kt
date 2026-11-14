@@ -1,5 +1,8 @@
 package com.webrtcmeetpro.application.meeting
 
+import com.webrtcmeetpro.domain.meeting.dto.res.MeetingRoomEventResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.MeetingUserResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.RecordingResDto
 import com.webrtcmeetpro.application.plan.PlanService
 import com.webrtcmeetpro.application.team.TeamAccess
 import com.webrtcmeetpro.domain.common.ServeAs
@@ -36,24 +39,6 @@ import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-
-data class RecordingView(
-    val id: Long,
-    val meetingId: Long,
-    val startedBy: MeetingUserView?,
-    val status: RecordingStatus,
-    val sizeBytes: Long,
-    val durationSeconds: Int?,
-    val startedAt: LocalDateTime,
-    val endedAt: LocalDateTime?,
-    /** 서명된 재생·내려받기 주소 (READY 일 때만) */
-    val url: String?,
-    /** 이 사람이 지울 수 있는지 (녹화한 사람, 주최자, 팀 관리자) */
-    val canDelete: Boolean,
-)
-
-/** /user/queue/meeting 으로 회의실 사람들에게: 녹화 시작·끝 (회의실에 "녹화 중" 표시) */
-data class MeetingRoomEvent(val type: String, val meetingId: Long, val recording: Boolean, val by: String? = null)
 
 data class RecordingFile(val file: StoredFile, val name: String, val size: Long, val expiresAt: Long)
 
@@ -121,7 +106,7 @@ class RecordingService(
     private val nextSeq = ConcurrentHashMap<Long, Int>()
 
     @Transactional
-    fun start(meetingId: Long, userId: Long): RecordingView {
+    fun start(meetingId: Long, userId: Long): RecordingResDto {
         val meeting = meetings.findMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         teamAccess.requireMember(meeting.teamId, userId)
         if (!meeting.isOpen) throw BusinessException(ErrorCode.MEETING_NOT_JOINABLE)
@@ -145,7 +130,7 @@ class RecordingService(
 
     /** 조각 이어 붙이기. 녹화를 시작한 사람만, 0 부터 차례대로 */
     @Transactional
-    fun append(meetingId: Long, recordingId: Long, userId: Long, seq: Int, size: Long, content: () -> InputStream): RecordingView {
+    fun append(meetingId: Long, recordingId: Long, userId: Long, seq: Int, size: Long, content: () -> InputStream): RecordingResDto {
         val recording = findRecording(meetingId, recordingId)
         if (recording.startedBy != userId) throw BusinessException(ErrorCode.NOT_RECORDING_HOST)
         if (!recording.isRecording) throw BusinessException(ErrorCode.RECORDING_NOT_FOUND)
@@ -163,7 +148,7 @@ class RecordingService(
     }
 
     @Transactional
-    fun finish(meetingId: Long, recordingId: Long, userId: Long, durationSeconds: Int?): RecordingView {
+    fun finish(meetingId: Long, recordingId: Long, userId: Long, durationSeconds: Int?): RecordingResDto {
         val recording = findRecording(meetingId, recordingId)
         if (recording.startedBy != userId) throw BusinessException(ErrorCode.NOT_RECORDING_HOST)
         if (recording.isRecording) {
@@ -176,7 +161,7 @@ class RecordingService(
     }
 
     /** 회의의 녹화 목록 (팀원이면 볼 수 있다). 지운 것은 빼고, 최신 순 */
-    fun list(meetingId: Long, userId: Long): List<RecordingView> {
+    fun list(meetingId: Long, userId: Long): List<RecordingResDto> {
         val meeting = meetings.findMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         teamAccess.requireMember(meeting.teamId, userId)
         return recordings.findAllByMeetingId(meetingId)
@@ -311,13 +296,13 @@ class RecordingService(
     /** 회의실에 지금 있는 사람들에게 녹화 상태를 알린다 */
     private fun broadcast(meetingId: Long, recording: Boolean, by: String? = null) {
         val inRoom = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).map { it.userId }.distinct()
-        if (inRoom.isNotEmpty()) realtime.push(inRoom, RealtimePublisher.MEETING, MeetingRoomEvent("RECORDING", meetingId, recording, by))
+        if (inRoom.isNotEmpty()) realtime.push(inRoom, RealtimePublisher.MEETING, MeetingRoomEventResDto("RECORDING", meetingId, recording, by))
     }
 
-    private fun view(r: MeetingRecording, viewerId: Long) = RecordingView(
+    private fun view(r: MeetingRecording, viewerId: Long) = RecordingResDto(
         id = r.id!!,
         meetingId = r.meetingId,
-        startedBy = users.findUserById(r.startedBy)?.let { MeetingUserView(it.id!!, it.nickname, it.profileImageUrl) },
+        startedBy = users.findUserById(r.startedBy)?.let { MeetingUserResDto(it.id!!, it.nickname, it.profileImageUrl) },
         status = r.status,
         sizeBytes = r.fileSizeBytes ?: 0,
         durationSeconds = r.durationSeconds,

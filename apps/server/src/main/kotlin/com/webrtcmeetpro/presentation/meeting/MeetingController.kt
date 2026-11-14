@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.presentation.meeting
 
+import com.webrtcmeetpro.domain.meeting.dto.req.ScheduleMeetingReqDto
+import com.webrtcmeetpro.domain.meeting.dto.req.UpdateMeetingReqDto
 import jakarta.validation.constraints.NotNull
 import org.springframework.web.bind.annotation.PutMapping
 import com.webrtcmeetpro.common.error.BusinessException
@@ -29,31 +31,13 @@ import org.springframework.web.bind.annotation.RestController
 import java.security.MessageDigest
 import java.time.LocalDateTime
 
-data class ScheduleMeetingRequest(
-    @field:NotBlank @field:Size(max = 100) val title: String,
-    @field:Size(max = 1000) val description: String? = null,
-    /** 생략하면 바로 시작. 서버 로컬 시간(Asia/Seoul) 기준 ISO-8601 */
-    val scheduledAt: LocalDateTime? = null,
-    @field:Min(5) @field:Max(1440) val durationMinutes: Int = 60,
-    @field:Size(max = 200) val inviteeIds: List<Long> = emptyList(),
-)
-
-/** 예약 회의 고치기. inviteeIds 를 비우면 팀원 전체 */
-data class UpdateMeetingRequest(
-    @field:NotBlank @field:Size(max = 100) val title: String,
-    @field:Size(max = 1000) val description: String? = null,
-    @field:NotNull val scheduledAt: LocalDateTime?,
-    @field:Min(5) @field:Max(1440) val durationMinutes: Int = 60,
-    @field:Size(max = 200) val inviteeIds: List<Long> = emptyList(),
-)
-
 @RestController
 @RequestMapping("/api")
 class MeetingController(private val meetings: MeetingService) {
 
     @PostMapping("/teams/{teamId}/meetings")
     @ResponseStatus(HttpStatus.CREATED)
-    fun schedule(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: ScheduleMeetingRequest) =
+    fun schedule(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: ScheduleMeetingReqDto) =
         meetings.schedule(
             teamId,
             jwt.userId,
@@ -73,7 +57,7 @@ class MeetingController(private val meetings: MeetingService) {
 
     /** 예약 회의 고치기 (주최자, 또는 팀 OWNER·ADMIN). 시작 전인 회의만 */
     @PutMapping("/meetings/{meetingId}")
-    fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @Valid @RequestBody req: UpdateMeetingRequest) =
+    fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @Valid @RequestBody req: UpdateMeetingReqDto) =
         meetings.update(
             meetingId,
             jwt.userId,

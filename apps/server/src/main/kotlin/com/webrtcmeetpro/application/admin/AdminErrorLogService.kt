@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.application.admin
 
+import com.webrtcmeetpro.domain.admin.dto.res.AdminErrorLogResDto
+import com.webrtcmeetpro.domain.admin.dto.res.AdminMeResDto
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.domain.admin.AdminErrorLog
@@ -26,33 +28,11 @@ class SystemAdminAccess(private val userRepository: UserRepository) {
     }
 
     /** 관리자 사이트가 로그인 직후 "관리자 계정인지" 확인할 때 */
-    fun me(userId: Long): AdminMeView {
+    fun me(userId: Long): AdminMeResDto {
         val user = userRepository.findUserById(userId)?.takeIf { it.isSystemAdmin } ?: throw BusinessException(ErrorCode.FORBIDDEN)
-        return AdminMeView(user.id!!, user.email, user.nickname)
+        return AdminMeResDto(user.id!!, user.email, user.nickname)
     }
 }
-
-data class AdminMeView(val id: Long, val email: String, val nickname: String)
-
-/** 관리자 화면용 에러 기록. stackTrace 는 한 건 조회에서만 채운다 */
-data class AdminErrorLogView(
-    val errorCode: String,
-    val source: ErrorSource,
-    val category: ErrorCategory,
-    val exceptionClass: String?,
-    val message: String?,
-    val stackTrace: String?,
-    val httpMethod: String?,
-    val requestPath: String?,
-    val userId: Long?,
-    val ipAddress: String?,
-    val userAgent: String?,
-    val resolved: Boolean,
-    val createdAt: LocalDateTime,
-    /** 마지막으로 바꾼 관리자 (해결 표시 등) */
-    val editedBy: Long?,
-    val editedAt: LocalDateTime,
-)
 
 /** 사용자가 알려 준 에러 코드로 원인을 찾고, 해결 표시를 한다 (관리자 API) */
 @Service
@@ -63,19 +43,19 @@ class AdminErrorLogService(
 ) {
 
     /** 최근 100건. unresolvedOnly 면 아직 해결 표시가 안 된 것만 */
-    fun recent(adminId: Long, unresolvedOnly: Boolean): List<AdminErrorLogView> {
+    fun recent(adminId: Long, unresolvedOnly: Boolean): List<AdminErrorLogResDto> {
         admins.require(adminId)
         val logs = if (unresolvedOnly) repository.findTop100ByResolvedOrderByIdDesc(false) else repository.findTop100ByOrderByIdDesc()
         return logs.map { view(it, withStack = false) }
     }
 
-    fun find(adminId: Long, errorCode: String): AdminErrorLogView {
+    fun find(adminId: Long, errorCode: String): AdminErrorLogResDto {
         admins.require(adminId)
         return view(findLog(errorCode), withStack = true)
     }
 
     @Transactional
-    fun resolve(adminId: Long, errorCode: String): AdminErrorLogView {
+    fun resolve(adminId: Long, errorCode: String): AdminErrorLogResDto {
         admins.require(adminId)
         val log = findLog(errorCode)
         log.resolve()
@@ -87,7 +67,7 @@ class AdminErrorLogService(
     private fun findLog(errorCode: String): AdminErrorLog =
         repository.findByErrorCode(errorCode.trim().uppercase()) ?: throw BusinessException(ErrorCode.NOT_FOUND)
 
-    private fun view(log: AdminErrorLog, withStack: Boolean) = AdminErrorLogView(
+    private fun view(log: AdminErrorLog, withStack: Boolean) = AdminErrorLogResDto(
         errorCode = log.errorCode,
         source = log.source,
         category = log.category,

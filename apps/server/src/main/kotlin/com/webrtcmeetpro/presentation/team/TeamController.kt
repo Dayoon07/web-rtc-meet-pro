@@ -1,5 +1,9 @@
 package com.webrtcmeetpro.presentation.team
 
+import com.webrtcmeetpro.domain.team.dto.req.ChangeRoleReqDto
+import com.webrtcmeetpro.domain.team.dto.req.CreateTeamReqDto
+import com.webrtcmeetpro.domain.team.dto.req.InviteLinkPasswordReqDto
+import com.webrtcmeetpro.domain.team.dto.req.InviteReqDto
 import com.webrtcmeetpro.common.web.userId
 import com.webrtcmeetpro.application.team.TeamInviteLinkService
 import com.webrtcmeetpro.application.team.TeamService
@@ -22,19 +26,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
-data class CreateTeamRequest(
-    @field:NotBlank @field:Size(max = 100) val name: String,
-    @field:Size(max = 500) val description: String? = null,
-)
-
-data class InviteRequest(@field:NotBlank @field:Email @field:Size(max = 255) val email: String)
-
-/** 초대 링크 만들기·들어가기. password 가 비어 있으면 비밀번호 없는 링크 */
-data class InviteLinkPasswordRequest(@field:Size(max = 64) val password: String? = null)
-
-/** ADMIN 또는 MEMBER (OWNER 는 줄 수 없다) */
-data class ChangeRoleRequest(@field:NotNull val role: TeamRole?)
-
 @RestController
 @RequestMapping("/api")
 class TeamController(private val teamService: TeamService, private val inviteLinks: TeamInviteLinkService) {
@@ -46,7 +37,7 @@ class TeamController(private val teamService: TeamService, private val inviteLin
 
     @PostMapping("/teams/{teamId}/invite-links")
     @ResponseStatus(HttpStatus.CREATED)
-    fun createInviteLink(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: InviteLinkPasswordRequest) =
+    fun createInviteLink(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: InviteLinkPasswordReqDto) =
         inviteLinks.create(teamId, jwt.userId, req.password)
 
     @DeleteMapping("/teams/{teamId}/invite-links/{linkId}")
@@ -60,14 +51,14 @@ class TeamController(private val teamService: TeamService, private val inviteLin
 
     /** 링크로 팀에 들어가기 (수락) */
     @PostMapping("/invite-links/{token}/join")
-    fun joinByInviteLink(@AuthenticationPrincipal jwt: Jwt, @PathVariable token: String, @Valid @RequestBody req: InviteLinkPasswordRequest) =
+    fun joinByInviteLink(@AuthenticationPrincipal jwt: Jwt, @PathVariable token: String, @Valid @RequestBody req: InviteLinkPasswordReqDto) =
         inviteLinks.join(token, jwt.userId, req.password)
 
     // -------------------------------------------------------------
 
     @PostMapping("/teams")
     @ResponseStatus(HttpStatus.CREATED)
-    fun create(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: CreateTeamRequest) =
+    fun create(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: CreateTeamReqDto) =
         teamService.create(jwt.userId, req.name, req.description)
 
     @GetMapping("/teams")
@@ -78,7 +69,7 @@ class TeamController(private val teamService: TeamService, private val inviteLin
 
     @PostMapping("/teams/{teamId}/invitations")
     @ResponseStatus(HttpStatus.CREATED)
-    fun invite(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: InviteRequest) =
+    fun invite(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: InviteReqDto) =
         teamService.invite(teamId, jwt.userId, req.email)
 
     @GetMapping("/teams/{teamId}/invitations")
@@ -97,7 +88,7 @@ class TeamController(private val teamService: TeamService, private val inviteLin
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable teamId: Long,
         @PathVariable userId: Long,
-        @Valid @RequestBody req: ChangeRoleRequest,
+        @Valid @RequestBody req: ChangeRoleReqDto,
     ) = teamService.changeRole(teamId, jwt.userId, userId, req.role!!)
 
     /** 팀 나가기 (OWNER 는 못 나간다) */

@@ -1,5 +1,15 @@
 package com.webrtcmeetpro.presentation.chat
 
+import com.webrtcmeetpro.domain.chat.dto.req.CategoryReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.CreateGroupReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.InviteMembersReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.MarkReadReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.MuteReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.NoticeReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.OpenDirectReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.ReactionReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.SendMessageReqDto
+import com.webrtcmeetpro.domain.chat.dto.req.UpdateChannelReqDto
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.DeleteMapping
 import com.webrtcmeetpro.application.chat.ChatService
@@ -34,37 +44,6 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.Instant
 
-data class OpenDirectRequest(@field:NotNull val userId: Long?)
-data class CreateGroupRequest(
-    @field:NotBlank @field:Size(max = 100) val name: String,
-    @field:Size(max = 200) val memberIds: List<Long> = emptyList(),
-    /** 넣을 카테고리(부서). 없으면 카테고리 밖 */
-    val categoryId: Long? = null,
-)
-
-/** 채널 고치기: name 이 있으면 이름 바꾸기, moveCategory=true 면 categoryId 로 옮기기 (null = 카테고리 밖) */
-data class UpdateChannelRequest(
-    @field:Size(max = 100) val name: String? = null,
-    val categoryId: Long? = null,
-    val moveCategory: Boolean = false,
-)
-
-data class CategoryRequest(@field:NotBlank @field:Size(max = 50) val name: String)
-data class InviteMembersRequest(@field:Size(min = 1, max = 200) val userIds: List<Long>)
-/** 글 보내기·고치기. 보낼 때만: replyToId = 답장할 메시지, mentionIds = @멘션한 사람, mentionAll = @모두, threadRootId = 스레드 답글 */
-data class SendMessageRequest(
-    @field:NotBlank @field:Size(max = 4000) val content: String,
-    val replyToId: Long? = null,
-    @field:Size(max = 100) val mentionIds: List<Long> = emptyList(),
-    val mentionAll: Boolean = false,
-    val threadRootId: Long? = null,
-)
-data class MuteRequest(@field:NotNull val muted: Boolean?)
-data class ReactionRequest(@field:NotBlank @field:Size(max = 32) val emoji: String)
-data class MarkReadRequest(@field:NotNull val messageId: Long?)
-/** 방 공지. content 가 비었거나 null 이면 내리기 */
-data class NoticeRequest(@field:Size(max = 1000) val content: String? = null)
-
 @RestController
 @RequestMapping("/api")
 class ChatController(private val chat: ChatService) {
@@ -81,16 +60,16 @@ class ChatController(private val chat: ChatService) {
     fun rooms(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long) = chat.rooms(teamId, jwt.userId)
 
     @PostMapping("/teams/{teamId}/chat/rooms/direct")
-    fun openDirect(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: OpenDirectRequest) =
+    fun openDirect(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: OpenDirectReqDto) =
         chat.openDirect(teamId, jwt.userId, req.userId!!)
 
     @PostMapping("/teams/{teamId}/chat/rooms/group")
     @ResponseStatus(HttpStatus.CREATED)
-    fun createGroup(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: CreateGroupRequest) =
+    fun createGroup(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: CreateGroupReqDto) =
         chat.createGroup(teamId, jwt.userId, req.name, req.memberIds, req.categoryId)
 
     @PatchMapping("/chat/rooms/{roomId}")
-    fun updateChannel(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: UpdateChannelRequest) =
+    fun updateChannel(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: UpdateChannelReqDto) =
         chat.updateChannel(roomId, jwt.userId, req.name, req.categoryId, req.moveCategory)
 
     /** 카테고리(부서) 목록 · 만들기 · 이름 바꾸기 · 지우기 (지워도 안의 채널은 남는다) */
@@ -99,11 +78,11 @@ class ChatController(private val chat: ChatService) {
 
     @PostMapping("/teams/{teamId}/chat/categories")
     @ResponseStatus(HttpStatus.CREATED)
-    fun createCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: CategoryRequest) =
+    fun createCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody req: CategoryReqDto) =
         chat.createCategory(teamId, jwt.userId, req.name)
 
     @PatchMapping("/chat/categories/{categoryId}")
-    fun renameCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable categoryId: Long, @Valid @RequestBody req: CategoryRequest) =
+    fun renameCategory(@AuthenticationPrincipal jwt: Jwt, @PathVariable categoryId: Long, @Valid @RequestBody req: CategoryReqDto) =
         chat.renameCategory(categoryId, jwt.userId, req.name)
 
     @DeleteMapping("/chat/categories/{categoryId}")
@@ -114,11 +93,11 @@ class ChatController(private val chat: ChatService) {
     fun room(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long) = chat.room(roomId, jwt.userId)
 
     @PostMapping("/chat/rooms/{roomId}/members")
-    fun invite(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: InviteMembersRequest) =
+    fun invite(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: InviteMembersReqDto) =
         chat.invite(roomId, jwt.userId, req.userIds)
 
     @PutMapping("/chat/rooms/{roomId}/notice")
-    fun setNotice(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: NoticeRequest) =
+    fun setNotice(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: NoticeReqDto) =
         chat.setNotice(roomId, jwt.userId, req.content)
 
     @PostMapping("/chat/rooms/{roomId}/leave")
@@ -131,7 +110,7 @@ class ChatController(private val chat: ChatService) {
 
     @PostMapping("/chat/rooms/{roomId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
-    fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageRequest) =
+    fun send(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: SendMessageReqDto) =
         chat.send(roomId, jwt.userId, req.content, req.replyToId, req.mentionIds, req.mentionAll, req.threadRootId)
 
     /** 스레드 창: 시작 글 + 답글 (답글 id 를 줘도 그 스레드) */
@@ -140,7 +119,7 @@ class ChatController(private val chat: ChatService) {
 
     /** 이 방 알림 끄기·켜기 (나만) */
     @PutMapping("/chat/rooms/{roomId}/mute")
-    fun mute(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: MuteRequest) =
+    fun mute(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: MuteReqDto) =
         chat.setMuted(roomId, jwt.userId, req.muted!!)
 
     /** "입력 중..." (다른 방 사람들 화면에 몇 초 동안 보인다) */
@@ -150,7 +129,7 @@ class ChatController(private val chat: ChatService) {
 
     /** 이모지 반응 달기·떼기 (다시 누르면 떼어진다) */
     @PostMapping("/chat/messages/{messageId}/reactions")
-    fun react(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: ReactionRequest) =
+    fun react(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: ReactionReqDto) =
         chat.react(messageId, jwt.userId, req.emoji)
 
     /** 워크스페이스에서 내가 들어간 방들의 메시지 검색 (글·첨부파일 이름) */
@@ -159,7 +138,7 @@ class ChatController(private val chat: ChatService) {
 
     /** 내가 보낸 글 메시지 고치기 */
     @PatchMapping("/chat/messages/{messageId}")
-    fun edit(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: SendMessageRequest) =
+    fun edit(@AuthenticationPrincipal jwt: Jwt, @PathVariable messageId: Long, @Valid @RequestBody req: SendMessageReqDto) =
         chat.edit(messageId, jwt.userId, req.content)
 
     /** 메시지 지우기 (보낸 사람, 또는 팀 OWNER·ADMIN). 방 사람들에게 "삭제된 메시지"로 바뀐다 */
@@ -204,6 +183,6 @@ class ChatController(private val chat: ChatService) {
 
     @PostMapping("/chat/rooms/{roomId}/read")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun read(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: MarkReadRequest) =
+    fun read(@AuthenticationPrincipal jwt: Jwt, @PathVariable roomId: Long, @Valid @RequestBody req: MarkReadReqDto) =
         chat.markRead(roomId, jwt.userId, req.messageId!!)
 }

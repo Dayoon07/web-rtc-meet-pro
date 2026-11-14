@@ -1,5 +1,10 @@
 package com.webrtcmeetpro.application.team
 
+import com.webrtcmeetpro.domain.team.dto.res.InvitationResDto
+import com.webrtcmeetpro.domain.team.dto.res.TeamDetailResDto
+import com.webrtcmeetpro.domain.team.dto.res.TeamLimitsResDto
+import com.webrtcmeetpro.domain.team.dto.res.TeamMemberResDto
+import com.webrtcmeetpro.domain.team.dto.res.TeamSummaryResDto
 import com.webrtcmeetpro.application.mail.MailLanguage
 import com.webrtcmeetpro.application.mail.MailService
 import com.webrtcmeetpro.application.mail.MailTemplates
@@ -33,61 +38,6 @@ import java.security.SecureRandom
 import java.time.LocalDateTime
 import java.util.Base64
 
-data class TeamSummaryView(
-    val id: Long,
-    val name: String,
-    val description: String?,
-    val ownerId: Long,
-    val myRole: TeamRole,
-    /** 내 역할로 이 팀에서 할 수 있는 일. 웹·앱은 역할을 해석하지 않고 이 목록으로 버튼을 보여 준다 */
-    val myPermissions: List<TeamPermission>,
-    val memberCount: Int,
-    val createdAt: LocalDateTime,
-)
-
-data class TeamMemberView(
-    val userId: Long,
-    val nickname: String,
-    val email: String,
-    val profileImageUrl: String?,
-    val role: TeamRole,
-    val joinedAt: LocalDateTime,
-    /** 이 화면을 보는 사람이 이 팀원을 내보낼 수 있는지 (OWNER: 누구나, ADMIN: 일반 팀원만) */
-    val removable: Boolean = false,
-)
-
-/** maxGroupRooms: null = 제한 없음. 한도는 팀 소유자의 지금 플랜 기준 */
-/** 한도 (인원은 소유자의 모든 팀 합계: 여러 팀에 있는 사람은 한 명) */
-data class TeamLimitsView(
-    val maxMembers: Int,
-    val maxGroupRooms: Int?,
-    /** 소유자의 모든 팀에 대기 중인 초대 */
-    val pendingInvitations: Int,
-    val maxMeetingParticipants: Int = 0,
-    val recordingEnabled: Boolean = false,
-    val planCode: String = "",
-    /** 소유자가 한도 초과를 허용함 (넘게 초대할 수 있고, 1명당 월 overagePrice 원) */
-    val overageAllowed: Boolean = false,
-    val overagePrice: Long = 0,
-    /** 소유자의 모든 팀 사람 수 */
-    val usedMembers: Int = 0,
-    /** 소유자가 만든 팀 수 */
-    val ownedTeamCount: Int = 1,
-)
-
-data class TeamDetailView(val team: TeamSummaryView, val members: List<TeamMemberView>, val limits: TeamLimitsView)
-
-data class InvitationView(
-    val id: Long,
-    val teamId: Long,
-    val teamName: String,
-    val inviterName: String,
-    val inviteeEmail: String,
-    val status: InvitationStatus,
-    val expiresAt: LocalDateTime,
-    val createdAt: LocalDateTime,
-)
-
 @Service
 @Transactional(readOnly = true)
 class TeamService(
@@ -112,33 +62,33 @@ class TeamService(
      * 다른 팀은 초대를 받아 들어간다. 처음엔 FREE
      */
     @Transactional
-    fun create(ownerId: Long, name: String, description: String?): TeamSummaryView {
+    fun create(ownerId: Long, name: String, description: String?): TeamSummaryResDto {
         if (teamRepository.countByOwnerIdAndStatus(ownerId, TeamStatus.ACTIVE) > 0) throw BusinessException(ErrorCode.TEAM_ALREADY_OWNED)
         val team = teamRepository.save(Team(ownerId, name.trim(), description?.trim()?.ifBlank { null }))
         memberRepository.save(TeamMember(team.id!!, ownerId, TeamRole.OWNER))
         return summary(team, TeamRole.OWNER, 1)
     }
 
-    fun myTeams(userId: Long): List<TeamSummaryView> {
+    fun myTeams(userId: Long): List<TeamSummaryResDto> {
         val memberships = memberRepository.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).associateBy { it.teamId }
         return teamRepository.findAllByIdInAndStatus(memberships.keys, TeamStatus.ACTIVE)
             .sortedBy { it.createdDt }
             .map { summary(it, memberships.getValue(it.id!!).role, memberRepository.countByTeamIdAndStatus(it.id!!, TeamMemberStatus.ACTIVE).toInt()) }
     }
 
-    fun detail(teamId: Long, userId: Long): TeamDetailView {
+    fun detail(teamId: Long, userId: Long): TeamDetailResDto {
         val me = access.requireMember(teamId, userId)
         val team = access.requireTeam(teamId)
         val members = memberRepository.findAllByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)
         val users = userRepository.findAllByIdIn(members.map { it.userId }).associateBy { it.id!! }
         val plan = planService.planOfTeam(teamId)
         val seats = ownerSeats(team)
-        return TeamDetailView(
+        return TeamDetailResDto(
             team = summary(team, me.role, members.size),
             members = members
                 .mapNotNull { m -> users[m.userId]?.let { memberView(m, it, removable = me.canRemove(m)) } }
                 .sortedWith(compareBy({ it.role.ordinal }, { it.joinedAt })),
-            limits = TeamLimitsView(
+            limits = TeamLimitsResDto(
                 plan.maxMembersPerTeam, plan.maxGroupRoomsPerTeam, seats.pending, plan.maxMeetingParticipants, plan.recordingEnabled, plan.code,
                 overageAllowed = overage.settingsTeam(team).overageAllowed, overagePrice = plan.overagePricePerMember,
                 usedMembers = seats.members, ownedTeamCount = planService.ownedTeams(team.ownerId).size,
@@ -147,7 +97,7 @@ class TeamService(
     }
 
     @Transactional
-    fun invite(teamId: Long, inviterId: Long, rawEmail: String): InvitationView {
+    fun invite(teamId: Long, inviterId: Long, rawEmail: String): InvitationResDto {
         access.requirePermission(teamId, inviterId, TeamPermission.INVITE_MEMBER)
         val team = access.requireTeam(teamId)
         val inviterUser = findUser(inviterId)
@@ -195,7 +145,7 @@ class TeamService(
         return invitationView(invitation, team, inviterUser)
     }
 
-    fun teamInvitations(teamId: Long, userId: Long): List<InvitationView> {
+    fun teamInvitations(teamId: Long, userId: Long): List<InvitationResDto> {
         access.requireMember(teamId, userId)
         val team = access.requireTeam(teamId)
         val invitations = invitationRepository.findAllByTeamIdAndStatus(teamId, InvitationStatus.PENDING).filter { it.isPending() }
@@ -204,7 +154,7 @@ class TeamService(
     }
 
     /** 내 이메일로 온 대기 중인 초대 (가입 전에 받은 초대도 포함) */
-    fun myInvitations(userId: Long): List<InvitationView> {
+    fun myInvitations(userId: Long): List<InvitationResDto> {
         val user = requireVerified(findUser(userId))
         val invitations = invitationRepository.findAllByInviteeEmailAndStatus(user.email, InvitationStatus.PENDING).filter { it.isPending() }
         val teams = teamRepository.findAllByIdInAndStatus(invitations.map { it.teamId }, TeamStatus.ACTIVE).associateBy { it.id!! }
@@ -213,7 +163,7 @@ class TeamService(
     }
 
     @Transactional
-    fun accept(invitationId: Long, userId: Long): TeamSummaryView {
+    fun accept(invitationId: Long, userId: Long): TeamSummaryResDto {
         val user = findUser(userId)
         val invitation = findMyInvitation(invitationId, user)
         val team = access.requireTeam(invitation.teamId)
@@ -255,7 +205,7 @@ class TeamService(
 
     /** 팀원 역할 바꾸기 (MANAGE_ROLES 권한 — 지금은 OWNER). OWNER 와 자기 자신은 바꿀 수 없다 */
     @Transactional
-    fun changeRole(teamId: Long, actorId: Long, targetUserId: Long, role: TeamRole): TeamMemberView {
+    fun changeRole(teamId: Long, actorId: Long, targetUserId: Long, role: TeamRole): TeamMemberResDto {
         access.requirePermission(teamId, actorId, TeamPermission.MANAGE_ROLES)
         if (targetUserId == actorId) throw BusinessException(ErrorCode.CANNOT_CHANGE_OWN_ROLE)
         val target = memberRepository.findByTeamIdAndUserId(teamId, targetUserId)?.takeIf { it.status == TeamMemberStatus.ACTIVE }
@@ -337,12 +287,12 @@ class TeamService(
     private fun newToken() = ByteArray(24).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     private fun summary(team: Team, role: TeamRole, memberCount: Int) =
-        TeamSummaryView(team.id!!, team.name, team.description, team.ownerId, role, role.permissions.sorted(), memberCount, team.createdDt)
+        TeamSummaryResDto(team.id!!, team.name, team.description, team.ownerId, role, role.permissions.sorted(), memberCount, team.createdDt)
 
     private fun memberView(m: TeamMember, u: User, removable: Boolean = false) =
-        TeamMemberView(u.id!!, u.nickname, u.email, u.profileImageUrl, m.role, m.joinedAt, removable)
+        TeamMemberResDto(u.id!!, u.nickname, u.email, u.profileImageUrl, m.role, m.joinedAt, removable)
 
-    private fun invitationView(inv: TeamInvitation, team: Team, inviter: User?) = InvitationView(
+    private fun invitationView(inv: TeamInvitation, team: Team, inviter: User?) = InvitationResDto(
         id = inv.id!!,
         teamId = team.id!!,
         teamName = team.name,

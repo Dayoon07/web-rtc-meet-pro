@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.common
 
+import com.webrtcmeetpro.domain.admin.dto.req.ClientErrorReqDto
 import com.webrtcmeetpro.application.admin.ClientErrorReport
 import com.webrtcmeetpro.application.admin.ErrorContext
 import com.webrtcmeetpro.application.admin.ErrorLogService
@@ -23,20 +24,6 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * 웹·앱 화면 오류 신고. 에러 코드는 화면이 만들어서 보낸다 (서버에 연결이 안 될 때도 사용자에게 바로 코드를 보여 주려고).
- * 로그인 전 화면에서도 날 수 있으므로 인증 없이 받고, 토큰이 있으면 사용자 id 를 함께 남긴다.
- */
-data class ClientErrorRequest(
-    @field:NotNull @field:Pattern(regexp = "^ERR-\\d{8}-[0-9A-F]{20}$") val errorCode: String?,
-    @field:NotNull val source: ErrorSource?,
-    val category: ErrorCategory = ErrorCategory.CLIENT,
-    @field:Size(max = 300) val name: String? = null,
-    @field:Size(max = 4000) val message: String? = null,
-    @field:Size(max = 32000) val stack: String? = null,
-    @field:Size(max = 1000) val path: String? = null,
-)
-
 @RestController
 class ClientErrorController(
     private val errorLogs: ErrorLogService,
@@ -46,7 +33,7 @@ class ClientErrorController(
 
     @PostMapping("/api/client-errors")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun report(@Valid @RequestBody req: ClientErrorRequest, request: HttpServletRequest) {
+    fun report(@Valid @RequestBody req: ClientErrorReqDto, request: HttpServletRequest) {
         val source = req.source!!
         if (source == ErrorSource.SERVER || req.category !in CLIENT_CATEGORIES) throw BusinessException(ErrorCode.INVALID_INPUT)
         val client = ClientInfo.from(request)

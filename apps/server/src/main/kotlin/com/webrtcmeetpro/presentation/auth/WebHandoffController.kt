@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.auth
 
+import com.webrtcmeetpro.domain.auth.dto.res.WebHandoffResDto
 import com.webrtcmeetpro.application.auth.OAuthLoginCodeStore
 import com.webrtcmeetpro.common.web.userId
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -7,8 +8,6 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-
-data class WebHandoffResponse(val code: String)
 
 /**
  * 앱(Android·Windows)에서 로그인한 상태 그대로 브라우저 페이지(예: 화상회의)를 열 때 쓴다.
@@ -21,5 +20,5 @@ data class WebHandoffResponse(val code: String)
 class WebHandoffController(private val codeStore: OAuthLoginCodeStore) {
 
     @PostMapping("/web-handoff")
-    fun handoff(@AuthenticationPrincipal jwt: Jwt) = WebHandoffResponse(codeStore.issue(jwt.userId))
+    fun handoff(@AuthenticationPrincipal jwt: Jwt) = WebHandoffResDto(codeStore.issue(jwt.userId))
 }

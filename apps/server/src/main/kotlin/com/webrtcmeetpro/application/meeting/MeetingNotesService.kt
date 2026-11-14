@@ -1,5 +1,12 @@
 package com.webrtcmeetpro.application.meeting
 
+import com.webrtcmeetpro.domain.meeting.dto.res.MeetingNotesResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.MeetingUserResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.NotesActionItemResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.NotesLineResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.NotesRoomEventResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.NotesStateResDto
+import com.webrtcmeetpro.domain.meeting.dto.res.TranscriptLineResDto
 import com.webrtcmeetpro.application.chat.ChatService
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.application.plan.AiQuotaService
@@ -44,39 +51,6 @@ import java.util.concurrent.Executors
 /** 회의가 끝났다 (MeetingService 가 같은 트랜잭션 안에서 알린다) */
 data class MeetingEndedEvent(val meetingId: Long)
 
-/** /user/queue/meeting: AI 회의록이 켜지고 꺼짐 (회의실에 "AI 회의록 작성 중"). reason: QUOTA = 이번 달 시간을 다 씀 */
-data class NotesRoomEvent(val meetingId: Long, val on: Boolean, val by: String? = null, val reason: String? = null) {
-    val type: String = "AI_NOTES"
-}
-
-data class NotesActionItemView(val task: String, val owner: String?, val ownerUserId: Long?, val due: String?)
-
-data class MeetingNotesView(
-    val meetingId: Long,
-    val status: NoteStatus,
-    /** 지금 받아쓰는 중 */
-    val on: Boolean,
-    val startedBy: MeetingUserView?,
-    val title: String?,
-    val summary: List<String>,
-    val decisions: List<String>,
-    val actionItems: List<NotesActionItemView>,
-    val language: String?,
-    val generatedAt: LocalDateTime?,
-    /** 켜져 있던 시간(분, 올림) */
-    val minutes: Long,
-    val lineCount: Int,
-    /** 다시 만들기 (주최자·관리자, 끝난 회의록) */
-    val canRegenerate: Boolean,
-)
-
-data class TranscriptLineView(val id: Long, val userId: Long, val speaker: String, val text: String, val at: LocalDateTime)
-
-/** 회의실 화면용: 켜져 있는지, 켤 수 있는지, 이번 달 남은 시간 */
-data class NotesStateView(val on: Boolean, val available: Boolean, val remainingMinutes: Long, val limitMinutes: Long)
-
-data class NotesLineResult(val on: Boolean)
-
 /**
  * AI 회의록.
  * 1) 회의 중 누군가 켜면 참여자 브라우저가 각자 자기 마이크를 받아써서(Web Speech) 한 문장씩 보낸다.
@@ -115,7 +89,7 @@ class MeetingNotesService(
     fun shutdown() = executor.shutdown()
 
     /** 회의실 화면: 지금 상태와 남은 시간 */
-    fun state(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateView {
+    fun state(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         return stateOf(meeting, notes.findByMeetingId(meetingId), now)
@@ -123,7 +97,7 @@ class MeetingNotesService(
 
     /** 켜기: 회의에 들어와 있는 사람이면 누구나. 모두의 화면에 "AI 회의록 작성 중" */
     @Transactional
-    fun start(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateView {
+    fun start(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateResDto {
         val meeting = meetings.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         requireInRoom(meeting, userId)
         if (!ai.enabled) throw BusinessException(ErrorCode.AI_NOT_CONFIGURED)
@@ -139,7 +113,7 @@ class MeetingNotesService(
 
     /** 끄기 (잠깐). 켜져 있던 시간만큼 이번 달 사용량에 더한다 */
     @Transactional
-    fun stop(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateView {
+    fun stop(meetingId: Long, userId: Long, now: LocalDateTime = LocalDateTime.now()): NotesStateResDto {
         val meeting = meetings.lockMeetingById(meetingId) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)
         requireInRoom(meeting, userId)
         val note = notes.findByMeetingId(meetingId)
@@ -155,11 +129,11 @@ class MeetingNotesService(
      * 이번 달 시간을 다 쓰면 여기서 끈다.
      */
     @Transactional
-    fun addLine(meetingId: Long, userId: Long, rawText: String, lang: String?, now: LocalDateTime = LocalDateTime.now()): NotesLineResult {
+    fun addLine(meetingId: Long, userId: Long, rawText: String, lang: String?, now: LocalDateTime = LocalDateTime.now()): NotesLineResDto {
         val meeting = findMeeting(meetingId)
         val me = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).firstOrNull { it.userId == userId }
             ?: throw BusinessException(ErrorCode.NOT_IN_MEETING)
-        val note = notes.findByMeetingId(meetingId)?.takeIf { it.isOn } ?: return NotesLineResult(on = false)
+        val note = notes.findByMeetingId(meetingId)?.takeIf { it.isOn } ?: return NotesLineResDto(on = false)
         val text = rawText.replace(Regex("\\s+"), " ").trim().take(MAX_LINE)
         if (text.isNotEmpty()) {
             transcripts.save(MeetingTranscript(meetingId, userId, me.displayName.ifBlank { "?" }.take(50), lang?.take(10), text, now))
@@ -169,13 +143,13 @@ class MeetingNotesService(
         if (quota.usedSeconds(meeting.teamId, AiFeature.NOTES, now) + running >= limit) {
             quota.add(meeting.teamId, AiFeature.NOTES, note.turnOff(now), now)
             broadcast(meetingId, on = false, reason = "QUOTA")
-            return NotesLineResult(on = false)
+            return NotesLineResDto(on = false)
         }
-        return NotesLineResult(on = true)
+        return NotesLineResDto(on = true)
     }
 
     /** 회의록 (팀원이면 볼 수 있다) */
-    fun view(meetingId: Long, userId: Long): MeetingNotesView {
+    fun view(meetingId: Long, userId: Long): MeetingNotesResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         val note = notes.findByMeetingId(meetingId) ?: throw BusinessException(ErrorCode.AI_NOTES_NOT_FOUND)
@@ -183,17 +157,17 @@ class MeetingNotesService(
     }
 
     /** 받아쓴 내용 전체 (팀원) */
-    fun transcript(meetingId: Long, userId: Long): List<TranscriptLineView> {
+    fun transcript(meetingId: Long, userId: Long): List<TranscriptLineResDto> {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         if (notes.findByMeetingId(meetingId) == null) throw BusinessException(ErrorCode.AI_NOTES_NOT_FOUND)
         return transcripts.findAllByMeetingIdOrderBySpokenAtAscIdAsc(meetingId)
-            .map { TranscriptLineView(it.id!!, it.userId, it.speakerName, it.content, it.spokenAt) }
+            .map { TranscriptLineResDto(it.id!!, it.userId, it.speakerName, it.content, it.spokenAt) }
     }
 
     /** 다시 만들기: 주최자·관리자, 끝난(READY·FAILED) 회의록 */
     @Transactional
-    fun regenerate(meetingId: Long, userId: Long): MeetingNotesView {
+    fun regenerate(meetingId: Long, userId: Long): MeetingNotesResDto {
         val meeting = findMeeting(meetingId)
         teamAccess.requireMember(meeting.teamId, userId)
         if (!meetingService.canManage(meeting, userId)) throw BusinessException(ErrorCode.NOT_MEETING_HOST)
@@ -344,10 +318,10 @@ class MeetingNotesService(
 
     private fun findNote(noteId: Long): MeetingNote? = notes.findNoteById(noteId)
 
-    private fun stateOf(meeting: Meeting, note: MeetingNote?, now: LocalDateTime): NotesStateView {
+    private fun stateOf(meeting: Meeting, note: MeetingNote?, now: LocalDateTime): NotesStateResDto {
         val limit = quota.limitSeconds(meeting.teamId, AiFeature.NOTES, now)
         val used = quota.usedSeconds(meeting.teamId, AiFeature.NOTES, now) + (note?.let { it.totalSeconds(now) - it.activeSeconds } ?: 0)
-        return NotesStateView(
+        return NotesStateResDto(
             on = note?.isOn == true,
             available = ai.enabled && limit > 0,
             remainingMinutes = ((limit - used).coerceAtLeast(0)) / 60,
@@ -355,17 +329,17 @@ class MeetingNotesService(
         )
     }
 
-    private fun view(meeting: Meeting, note: MeetingNote, viewerId: Long): MeetingNotesView {
+    private fun view(meeting: Meeting, note: MeetingNote, viewerId: Long): MeetingNotesResDto {
         val stored: StoredNotes? = note.resultJson?.let { runCatching { json.readValue<StoredNotes>(it) }.getOrNull() }
-        return MeetingNotesView(
+        return MeetingNotesResDto(
             meetingId = meeting.id!!,
             status = note.status,
             on = note.isOn,
-            startedBy = users.findUserById(note.startedBy)?.let { MeetingUserView(it.id!!, it.nickname, it.profileImageUrl) },
+            startedBy = users.findUserById(note.startedBy)?.let { MeetingUserResDto(it.id!!, it.nickname, it.profileImageUrl) },
             title = note.title,
             summary = stored?.summary.orEmpty(),
             decisions = stored?.decisions.orEmpty(),
-            actionItems = stored?.actionItems.orEmpty().map { NotesActionItemView(it.task, it.owner, it.ownerUserId, it.due) },
+            actionItems = stored?.actionItems.orEmpty().map { NotesActionItemResDto(it.task, it.owner, it.ownerUserId, it.due) },
             language = note.language,
             generatedAt = note.generatedAt,
             minutes = (note.totalSeconds() + 59) / 60,
@@ -384,7 +358,7 @@ class MeetingNotesService(
 
     private fun broadcast(meetingId: Long, on: Boolean, by: String? = null, reason: String? = null) {
         val inRoom = participants.findAllByMeetingIdAndLeftAtIsNull(meetingId).map { it.userId }.distinct()
-        realtime.push(inRoom, RealtimePublisher.MEETING, NotesRoomEvent(meetingId, on, by, reason))
+        realtime.push(inRoom, RealtimePublisher.MEETING, NotesRoomEventResDto(meetingId, on, by, reason))
     }
 
     private fun findMeeting(id: Long) = meetings.findMeetingById(id) ?: throw BusinessException(ErrorCode.MEETING_NOT_FOUND)

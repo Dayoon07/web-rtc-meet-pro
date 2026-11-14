@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.meeting
 
+import com.webrtcmeetpro.domain.meeting.dto.req.FinishRecordingReqDto
 import com.webrtcmeetpro.application.meeting.RecordingService
 import com.webrtcmeetpro.common.web.userId
 import com.webrtcmeetpro.presentation.common.StoredFileResponses
@@ -24,8 +25,6 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
-data class FinishRecordingRequest(val durationSeconds: Int? = null)
 
 /**
  * 회의 녹화 API. 주최자 브라우저가 녹화하면서 조각(multipart "chunk", 0 부터 seq)을 차례로 올리고, 끝나면 finish.
@@ -55,7 +54,7 @@ class RecordingController(private val recordings: RecordingService) {
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable meetingId: Long,
         @PathVariable recordingId: Long,
-        @RequestBody(required = false) body: FinishRecordingRequest?,
+        @RequestBody(required = false) body: FinishRecordingReqDto?,
     ) = recordings.finish(meetingId, recordingId, jwt.userId, body?.durationSeconds)
 
     @DeleteMapping("/meetings/{meetingId}/recordings/{recordingId}")

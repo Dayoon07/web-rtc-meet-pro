@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.admin
 
+import com.webrtcmeetpro.domain.admin.dto.req.AdminRowValuesReqDto
 import com.webrtcmeetpro.application.admin.SystemAdminAccess
 import com.webrtcmeetpro.application.admin.table.AdminRowQuery
 import com.webrtcmeetpro.application.admin.table.AdminTableService
@@ -20,9 +21,6 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
-
-/** 고칠(추가할) 값. 컬럼 이름 → 값 (빈 문자열·null = 비우기) */
-data class AdminRowValues(val values: Map<String, Any?> = emptyMap())
 
 /**
  * 관리자 사이트 "데이터 관리" API. 어떤 테이블이든 같은 주소 모양으로 다룬다.
@@ -59,11 +57,11 @@ class AdminTableController(
         admin(jwt) { tables.row(table, id) }
 
     @PatchMapping("/{table}/rows/{id}")
-    fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable table: String, @PathVariable id: String, @RequestBody body: AdminRowValues) =
+    fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable table: String, @PathVariable id: String, @RequestBody body: AdminRowValuesReqDto) =
         admin(jwt) { tables.update(table, id, body.values, jwt.userId) }
 
     @PostMapping("/{table}/rows")
-    fun insert(@AuthenticationPrincipal jwt: Jwt, @PathVariable table: String, @RequestBody body: AdminRowValues) =
+    fun insert(@AuthenticationPrincipal jwt: Jwt, @PathVariable table: String, @RequestBody body: AdminRowValuesReqDto) =
         admin(jwt) { tables.insert(table, body.values, jwt.userId) }
 
     /** 지금 조건 그대로 CSV 로 (최대 1만 행) */

@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.application.plan
 
+import com.webrtcmeetpro.domain.plan.RefundRule
+import com.webrtcmeetpro.domain.plan.dto.res.RefundQuoteResDto
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
@@ -21,30 +23,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import kotlin.math.ceil
 import kotlin.math.roundToLong
-
-/** FULL_7_DAYS = 결제 7일 안이라 전액, PRORATED = 쓴 날수만큼 빼고, NONE = 환불할 수 없음 */
-enum class RefundRule { FULL_7_DAYS, PRORATED, NONE }
-
-/** 환불 미리 계산 (약관 제8조). 사용자·관리자가 환불하기 전에 본다 */
-data class RefundQuoteView(
-    val orderId: String,
-    val orderName: String,
-    val planName: String,
-    val paidAmount: Long,
-    val approvedAt: LocalDateTime?,
-    val periodEnd: LocalDateTime?,
-    val refundable: Boolean,
-    /** 약관대로 계산한 환불 금액 */
-    val refundAmount: Long,
-    val rule: RefundRule,
-    /** 이 결제 기간 중 쓴 날 / 전체 날 (PRORATED 일 때) */
-    val usedDays: Int,
-    val periodDays: Int,
-    /** 환불할 수 없을 때 이유 (오류 코드: REFUND_ALREADY_DONE · REFUND_NOT_LATEST · ...) */
-    val blockedBy: String?,
-    /** 환불하면 함께 끝나는 플랜이 지금 쓰이는 중인지 */
-    val cancelsPlan: Boolean,
-)
 
 /**
  * 환불 (약관 제8조).
@@ -69,14 +47,14 @@ class RefundService(
     private val tx = TransactionTemplate(transactionManager)
 
     /** 결제한 사람이 보는 미리 계산 */
-    fun quoteForUser(orderId: String, userId: Long, now: LocalDateTime = LocalDateTime.now()): RefundQuoteView =
+    fun quoteForUser(orderId: String, userId: Long, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto =
         quote(requireMine(orderId, userId), now, byAdmin = false)
 
-    fun quoteForAdmin(orderId: String, now: LocalDateTime = LocalDateTime.now()): RefundQuoteView =
+    fun quoteForAdmin(orderId: String, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto =
         quote(requirePayment(orderId), now, byAdmin = true)
 
     /** 사용자 환불: 약관대로 계산한 금액으로, 플랜은 바로 끝난다 */
-    fun refundByUser(orderId: String, userId: Long, reason: String?, now: LocalDateTime = LocalDateTime.now()): RefundQuoteView {
+    fun refundByUser(orderId: String, userId: Long, reason: String?, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto {
         val payment = requireMine(orderId, userId)
         val q = quote(payment, now, byAdmin = false)
         if (!q.refundable) throw BusinessException(ErrorCode.REFUND_NOT_ALLOWED, mapOf("reason" to (q.blockedBy ?: "")))
@@ -85,7 +63,7 @@ class RefundService(
     }
 
     /** 관리자 환불: amount 가 없으면 약관대로 계산한 금액, 있으면 그 금액 (결제 금액까지) */
-    fun refundByAdmin(orderId: String, adminId: Long, amount: Long?, reason: String?, now: LocalDateTime = LocalDateTime.now()): RefundQuoteView {
+    fun refundByAdmin(orderId: String, adminId: Long, amount: Long?, reason: String?, now: LocalDateTime = LocalDateTime.now()): RefundQuoteResDto {
         val payment = requirePayment(orderId)
         val q = quote(payment, now, byAdmin = true)
         if (q.blockedBy == ErrorCode.REFUND_ALREADY_DONE.name || q.blockedBy == ErrorCode.REFUND_NO_PAYMENT_KEY.name) {
@@ -99,11 +77,11 @@ class RefundService(
 
     // ---------------------------------------------------------------
 
-    private fun quote(payment: Payment, now: LocalDateTime, byAdmin: Boolean): RefundQuoteView {
+    private fun quote(payment: Payment, now: LocalDateTime, byAdmin: Boolean): RefundQuoteResDto {
         val plan = planService.planById(payment.planId)
         val subscription = payment.subscriptionId?.let(subscriptions::findSubscriptionById)
         val cancelsPlan = subscription?.isLive == true
-        val base = RefundQuoteView(
+        val base = RefundQuoteResDto(
             orderId = payment.orderId, orderName = payment.orderName, planName = plan.name, paidAmount = payment.amount,
             approvedAt = payment.approvedAt, periodEnd = payment.periodEnd, refundable = false, refundAmount = 0,
             rule = RefundRule.NONE, usedDays = 0, periodDays = 0, blockedBy = null, cancelsPlan = cancelsPlan,

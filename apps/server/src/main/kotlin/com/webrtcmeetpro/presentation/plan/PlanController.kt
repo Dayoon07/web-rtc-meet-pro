@@ -1,16 +1,21 @@
 package com.webrtcmeetpro.presentation.plan
 
-import com.webrtcmeetpro.application.plan.RefundQuoteView
+import com.webrtcmeetpro.domain.plan.dto.req.AutoRenewReqDto
+import com.webrtcmeetpro.domain.plan.dto.req.OverageReqDto
+import com.webrtcmeetpro.domain.plan.dto.req.PurchaseReqDto
+import com.webrtcmeetpro.domain.plan.dto.req.RefundReqDto
+import com.webrtcmeetpro.domain.plan.dto.req.RegisterCardReqDto
+import com.webrtcmeetpro.domain.plan.dto.res.CardRegistrationResDto
+import com.webrtcmeetpro.domain.plan.dto.res.CardResDto
+import com.webrtcmeetpro.domain.plan.dto.res.ExpiryNoticeResDto
+import com.webrtcmeetpro.domain.plan.dto.res.PaymentResDto
+import com.webrtcmeetpro.domain.plan.dto.res.PlanResDto
+import com.webrtcmeetpro.domain.plan.dto.res.RefundQuoteResDto
+import com.webrtcmeetpro.domain.plan.dto.res.SubscriptionResDto
 import com.webrtcmeetpro.application.plan.RefundService
 import com.webrtcmeetpro.application.plan.BillingService
 import com.webrtcmeetpro.application.plan.MemberOverageService
-import com.webrtcmeetpro.application.plan.CardRegistrationView
-import com.webrtcmeetpro.application.plan.CardView
-import com.webrtcmeetpro.application.plan.ExpiryNoticeView
-import com.webrtcmeetpro.application.plan.PaymentView
 import com.webrtcmeetpro.application.plan.PlanService
-import com.webrtcmeetpro.application.plan.PlanView
-import com.webrtcmeetpro.application.plan.SubscriptionView
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.common.web.userId
@@ -32,19 +37,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
-/** agree: 주문 내용·자동결제·환불 규정을 확인하고 결제에 동의 (전자상거래법 제8조) */
-data class PurchaseRequest(@field:NotBlank val planCode: String, val cycle: BillingCycle, val autoRenew: Boolean, val agree: Boolean = false)
-
-data class AutoRenewRequest(val autoRenew: Boolean)
-
-/** 한도 초과 허용. 켤 때는 안내(1명당 월 요금, 결제일 멤버 수 기준)에 동의(agree = true)해야 한다 */
-data class OverageRequest(val allowed: Boolean, val agree: Boolean = false)
-
-data class RegisterCardRequest(
-    @field:NotBlank @field:Size(max = 50) val customerKey: String,
-    @field:NotBlank @field:Size(max = 300) val authKey: String,
-)
-
 @RestController
 @RequestMapping("/api")
 class PlanController(
@@ -60,30 +52,30 @@ class PlanController(
 
     /** 한도 초과 허용 켜기·끄기 (소유자) */
     @PutMapping("/teams/{teamId}/overage")
-    fun setOverage(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @RequestBody body: OverageRequest) =
+    fun setOverage(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @RequestBody body: OverageReqDto) =
         overageService.setAllowed(teamId, jwt.userId, body.allowed, body.agree)
 
     @GetMapping("/plans")
-    fun plans(): List<PlanView> = planService.listPlans()
+    fun plans(): List<PlanResDto> = planService.listPlans()
 
     /** 워크스페이스(팀)의 요금제 상태. 멤버면 볼 수 있다 */
     @GetMapping("/teams/{teamId}/subscription")
-    fun workspaceSubscription(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long): SubscriptionView =
+    fun workspaceSubscription(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long): SubscriptionResDto =
         planService.workspaceSubscription(teamId, jwt.userId)
 
     /** 워크스페이스 플랜 결제 (소유자만, 등록한 카드로 월 / 연). 성공하면 바뀐 구독 상태 */
     @PostMapping("/teams/{teamId}/subscription/purchase")
-    fun purchase(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody request: PurchaseRequest): SubscriptionView {
+    fun purchase(@AuthenticationPrincipal jwt: Jwt, @PathVariable teamId: Long, @Valid @RequestBody request: PurchaseReqDto): SubscriptionResDto {
         if (!request.agree) throw BusinessException(ErrorCode.PAYMENT_CONSENT_REQUIRED)
         return billingService.purchase(jwt.userId, teamId, request.planCode, request.cycle, request.autoRenew)
     }
 
     /** 내가 결제한 구독 중 아직 확인하지 않은 만료 ("플랜이 만료됐어요" 창) */
     @GetMapping("/subscriptions/notices")
-    fun expiryNotices(@AuthenticationPrincipal jwt: Jwt): List<ExpiryNoticeView> = planService.expiryNotices(jwt.userId)
+    fun expiryNotices(@AuthenticationPrincipal jwt: Jwt): List<ExpiryNoticeResDto> = planService.expiryNotices(jwt.userId)
 
     @PatchMapping("/subscriptions/{id}")
-    fun setAutoRenew(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: Long, @RequestBody request: AutoRenewRequest): SubscriptionView =
+    fun setAutoRenew(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: Long, @RequestBody request: AutoRenewReqDto): SubscriptionResDto =
         planService.setAutoRenew(jwt.userId, id, request.autoRenew)
 
     /** "플랜이 만료됐어요" 창 닫기 */
@@ -93,11 +85,11 @@ class PlanController(
 
     /** 토스 카드 등록창을 열 값 (clientKey, customerKey) */
     @PostMapping("/billing/card/prepare")
-    fun prepareCard(@AuthenticationPrincipal jwt: Jwt): CardRegistrationView = billingService.prepareCard(jwt.userId)
+    fun prepareCard(@AuthenticationPrincipal jwt: Jwt): CardRegistrationResDto = billingService.prepareCard(jwt.userId)
 
     /** 카드 등록창에서 돌아온 authKey 로 카드 등록 (전에 등록한 카드는 바뀐다) */
     @PostMapping("/billing/card")
-    fun registerCard(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: RegisterCardRequest): CardView =
+    fun registerCard(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: RegisterCardReqDto): CardResDto =
         billingService.registerCard(jwt.userId, request.customerKey, request.authKey)
 
     @DeleteMapping("/billing/card")
@@ -105,19 +97,17 @@ class PlanController(
     fun removeCard(@AuthenticationPrincipal jwt: Jwt) = billingService.removeCard(jwt.userId)
 
     @GetMapping("/billing/payments")
-    fun payments(@AuthenticationPrincipal jwt: Jwt): List<PaymentView> = billingService.history(jwt.userId)
+    fun payments(@AuthenticationPrincipal jwt: Jwt): List<PaymentResDto> = billingService.history(jwt.userId)
 
     /** 환불 미리 계산 (내가 결제한 것만) */
     @GetMapping("/billing/payments/{orderId}/refund")
-    fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteView = refunds.quoteForUser(orderId, jwt.userId)
+    fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteResDto = refunds.quoteForUser(orderId, jwt.userId)
 
     /** 환불: 약관대로 계산한 금액, 그 플랜은 바로 끝난다. agree = 플랜이 바로 끝나는 것에 동의 */
     @PostMapping("/billing/payments/{orderId}/refund")
-    fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @Valid @RequestBody request: RefundRequest): RefundQuoteView {
+    fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @Valid @RequestBody request: RefundReqDto): RefundQuoteResDto {
         if (request.agree != true) throw BusinessException(ErrorCode.REFUND_NOT_ALLOWED, mapOf("reason" to "AGREE_REQUIRED"))
         return refunds.refundByUser(orderId, jwt.userId, request.reason)
     }
 }
 
-/** 환불 요청. reason = 사유(선택), agree = "환불하면 플랜이 바로 끝나요" 확인 */
-data class RefundRequest(@field:Size(max = 200) val reason: String? = null, val agree: Boolean? = null)

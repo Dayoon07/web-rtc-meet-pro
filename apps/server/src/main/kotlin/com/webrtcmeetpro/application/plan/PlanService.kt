@@ -1,5 +1,11 @@
 package com.webrtcmeetpro.application.plan
 
+import com.webrtcmeetpro.domain.plan.dto.res.CardResDto
+import com.webrtcmeetpro.domain.plan.dto.res.ExpiryNoticeResDto
+import com.webrtcmeetpro.domain.plan.dto.res.PlanResDto
+import com.webrtcmeetpro.domain.plan.dto.res.SubscriptionItemResDto
+import com.webrtcmeetpro.domain.plan.dto.res.SubscriptionResDto
+import com.webrtcmeetpro.domain.plan.dto.res.WorkspaceRefResDto
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.config.properties.AiProperties
@@ -20,104 +26,6 @@ import com.webrtcmeetpro.domain.team.TeamStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-
-data class PlanView(
-    val code: String,
-    val name: String,
-    val description: String?,
-    val monthlyPrice: Long,
-    /** 연 결제 금액 (월 가격 × 12 × 0.9) */
-    val yearlyPrice: Long,
-    val maxMembersPerTeam: Int,
-    /** 워크스페이스당 채널 수. null = 제한 없음 */
-    val maxGroupRoomsPerTeam: Int?,
-    val maxMeetingParticipants: Int,
-    val recordingEnabled: Boolean,
-    val recordingStorageGb: Int,
-    val recordingRetentionDays: Int,
-    /** 한 달 AI 회의록 시간(분). 0 = 없음 */
-    val aiNotesMinutes: Int,
-    /** 한 달 실시간 자막·번역 시간(분). 0 = 없음 */
-    val liveCaptionMinutes: Int,
-    /** 멤버 한도를 넘은 1명당 한 달 요금 (소유자가 허용했을 때) */
-    val overagePricePerMember: Long,
-    /** 클수록 높은 플랜 */
-    val rank: Int,
-) {
-    companion object {
-        fun from(plan: Plan) = PlanView(
-            code = plan.code,
-            name = plan.name,
-            description = plan.description,
-            monthlyPrice = plan.monthlyPrice,
-            yearlyPrice = plan.price(BillingCycle.YEARLY),
-            maxMembersPerTeam = plan.maxMembersPerTeam,
-            maxGroupRoomsPerTeam = plan.maxGroupRoomsPerTeam,
-            maxMeetingParticipants = plan.maxMeetingParticipants,
-            recordingEnabled = plan.recordingEnabled,
-            recordingStorageGb = plan.recordingStorageGb,
-            recordingRetentionDays = plan.recordingRetentionDays,
-            aiNotesMinutes = plan.aiNotesMinutes,
-            liveCaptionMinutes = plan.liveCaptionMinutes,
-            overagePricePerMember = plan.overagePricePerMember,
-            rank = plan.sortOrder,
-        )
-    }
-}
-
-/** 워크스페이스의 유료 구독 하나 (기간이 남았거나 자동결제를 다시 시도 중인 것) */
-data class SubscriptionItemView(
-    val id: Long,
-    val plan: PlanView,
-    val status: SubscriptionStatus,
-    val billingCycle: BillingCycle?,
-    val autoRenew: Boolean,
-    val startedAt: LocalDateTime,
-    val currentPeriodEnd: LocalDateTime?,
-    /** 지금 적용 중인 구독인지 (여러 개면 가장 높은 플랜 하나) */
-    val inUse: Boolean,
-    val failedAttempts: Int,
-    val nextRetryAt: LocalDateTime?,
-    /** 보는 사람이 결제한 구독인지 (자동결제를 켜고 끌 수 있는 사람) */
-    val mine: Boolean,
-)
-
-/** 아직 확인하지 않은 만료 → 웹·앱이 "플랜이 만료됐어요" 창을 띄운다 */
-data class ExpiryNoticeView(
-    val subscriptionId: Long,
-    val plan: PlanView,
-    val expiredAt: LocalDateTime?,
-    val teamId: Long?,
-    val teamName: String?,
-    /** 그 워크스페이스에 지금 적용 중인 플랜 */
-    val currentPlan: PlanView,
-)
-
-data class CardView(val company: String?, val numberMasked: String?, val registeredAt: LocalDateTime)
-
-data class WorkspaceRef(val id: Long, val name: String)
-
-/** 요금제 상태 (플랜은 팀 소유자의 것이라 그 사람이 만든 모든 팀에 같다) */
-data class SubscriptionView(
-    val team: WorkspaceRef,
-    /** 이 플랜이 적용되는 팀 = 소유자가 만든 모든 팀 */
-    val appliesTo: List<WorkspaceRef>,
-    /** 지금 적용 중인 플랜 (유료 구독이 없으면 FREE) */
-    val plan: PlanView,
-    val status: SubscriptionStatus,
-    val startedAt: LocalDateTime?,
-    /** 적용 중인 구독의 기간 끝 (FREE 는 null) */
-    val currentPeriodEnd: LocalDateTime?,
-    /** 소유자의 모든 팀 사람 수 (여러 팀에 있어도 한 명) */
-    val memberCount: Long,
-    val subscriptions: List<SubscriptionItemView>,
-    /** 결제할 수 있는 사람 (워크스페이스 소유자) */
-    val canManage: Boolean,
-    /** 보는 사람이 등록한 카드 */
-    val card: CardView?,
-    /** 토스 키가 설정돼 있어서 결제할 수 있는지 */
-    val paymentsEnabled: Boolean,
-)
 
 /**
  * 요금제와 구독. **플랜은 팀 소유자(회사 계정)에게** 붙는다: 한 번 결제하면 그 사람이 만든 모든 팀에 적용.
@@ -140,10 +48,10 @@ class PlanService(
 ) {
 
     /** 화면에 보낼 플랜. 실시간 자막을 꺼 두었으면(app.ai.live-captions) 자막 시간을 0 으로 (요금제 카드에서 빠진다) */
-    fun view(plan: Plan): PlanView =
-        PlanView.from(plan).let { if (aiProperties.liveCaptions) it else it.copy(liveCaptionMinutes = 0) }
+    fun view(plan: Plan): PlanResDto =
+        PlanResDto.from(plan).let { if (aiProperties.liveCaptions) it else it.copy(liveCaptionMinutes = 0) }
 
-    fun listPlans(): List<PlanView> =
+    fun listPlans(): List<PlanResDto> =
         planRepository.findAllByActiveTrueOrderBySortOrderAsc().map(::view)
 
     fun findPlan(code: String): Plan =
@@ -180,7 +88,7 @@ class PlanService(
     fun ownerMemberCount(ownerId: Long): Long = ownerMemberIds(ownerId).size.toLong()
 
     /** 요금제 화면 (그 팀 소유자의 플랜). 멤버면 볼 수 있고, 결제는 소유자만 */
-    fun workspaceSubscription(teamId: Long, viewerId: Long, now: LocalDateTime = LocalDateTime.now()): SubscriptionView {
+    fun workspaceSubscription(teamId: Long, viewerId: Long, now: LocalDateTime = LocalDateTime.now()): SubscriptionResDto {
         val team = requireMemberTeam(teamId, viewerId)
         val live = liveOfOwner(team.ownerId)
         val current = inUse(live, now)
@@ -190,7 +98,7 @@ class PlanService(
         val items = live.filter { it.currentPeriodEnd != null }
             .sortedWith(compareByDescending<Subscription> { planOf(it.planId).sortOrder }.thenBy { it.currentPeriodEnd })
             .map {
-                SubscriptionItemView(
+                SubscriptionItemResDto(
                     id = it.id!!,
                     plan = view(planOf(it.planId)),
                     status = it.status,
@@ -204,9 +112,9 @@ class PlanService(
                     mine = it.userId == viewerId,
                 )
             }
-        return SubscriptionView(
-            team = WorkspaceRef(team.id!!, team.name),
-            appliesTo = ownedTeams(team.ownerId).map { WorkspaceRef(it.id!!, it.name) },
+        return SubscriptionResDto(
+            team = WorkspaceRefResDto(team.id!!, team.name),
+            appliesTo = ownedTeams(team.ownerId).map { WorkspaceRefResDto(it.id!!, it.name) },
             plan = view(current?.second ?: freePlan()),
             status = current?.first?.status ?: SubscriptionStatus.ACTIVE,
             startedAt = current?.first?.startedAt,
@@ -220,13 +128,13 @@ class PlanService(
     }
 
     /** 내가 결제한 구독 중 아직 확인하지 않은 만료 (최근 30일). 가장 최근 것부터 */
-    fun expiryNotices(userId: Long, now: LocalDateTime = LocalDateTime.now()): List<ExpiryNoticeView> =
+    fun expiryNotices(userId: Long, now: LocalDateTime = LocalDateTime.now()): List<ExpiryNoticeResDto> =
         subscriptionRepository.findAllByUserIdAndStatusIn(userId, listOf(SubscriptionStatus.EXPIRED))
             .filter { it.expiryAcknowledgedAt == null && it.expiredAt?.isAfter(now.minusDays(NOTICE_DAYS)) == true }
             .sortedByDescending { it.expiredAt }
             .map {
                 val team = it.teamId?.let(teamRepository::findTeamById)
-                ExpiryNoticeView(
+                ExpiryNoticeResDto(
                     subscriptionId = it.id!!,
                     plan = view(planById(it.planId)),
                     expiredAt = it.expiredAt,
@@ -267,7 +175,7 @@ class PlanService(
 
     /** 자동결제 켜기·끄기 (결제한 사람만). 끄면 기간이 끝날 때 결제하지 않고 만료된다. 켜려면 카드가 있어야 한다 */
     @Transactional
-    fun setAutoRenew(userId: Long, subscriptionId: Long, autoRenew: Boolean): SubscriptionView {
+    fun setAutoRenew(userId: Long, subscriptionId: Long, autoRenew: Boolean): SubscriptionResDto {
         val subscription = subscriptionRepository.findSubscriptionById(subscriptionId)
             ?.takeIf { it.userId == userId && it.isLive && it.currentPeriodEnd != null && it.teamId != null }
             ?: throw BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND)
@@ -319,7 +227,7 @@ class PlanService(
     /** 워크스페이스 멤버만 (요금제·초과 인원 화면) */
     fun requireMemberTeamOf(teamId: Long, userId: Long): Team = requireMemberTeam(teamId, userId)
 
-    fun cardView(key: BillingKey) = CardView(key.cardCompany, key.cardNumberMasked, key.createdDt)
+    fun cardView(key: BillingKey) = CardResDto(key.cardCompany, key.cardNumberMasked, key.createdDt)
 
     // ---------------------------------------------------------------
 

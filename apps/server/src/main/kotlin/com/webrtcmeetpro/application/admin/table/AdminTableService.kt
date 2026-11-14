@@ -1,5 +1,11 @@
 package com.webrtcmeetpro.application.admin.table
 
+import com.webrtcmeetpro.domain.admin.dto.res.AdminColumnKind
+import com.webrtcmeetpro.domain.admin.dto.res.AdminColumnRefResDto
+import com.webrtcmeetpro.domain.admin.dto.res.AdminColumnResDto
+import com.webrtcmeetpro.domain.admin.dto.res.AdminRowPageResDto
+import com.webrtcmeetpro.domain.admin.dto.res.AdminTableMetaResDto
+import com.webrtcmeetpro.domain.admin.dto.res.AdminTableSummaryResDto
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.config.properties.AdminProperties
@@ -18,58 +24,6 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
-
-/** 화면이 값을 어떻게 보여 주고 입력받을지 */
-enum class AdminColumnKind { TEXT, LONG_TEXT, NUMBER, DATETIME, YN, ENUM, BINARY }
-
-data class AdminColumnRef(val table: String, val column: String)
-
-data class AdminColumn(
-    val name: String,
-    /** DB 주석(COMMENT ON COLUMN). 없으면 null */
-    val comment: String?,
-    val kind: AdminColumnKind,
-    /** 예: VARCHAR2(255 CHAR), NUMBER(19), TIMESTAMP(6) */
-    val dbType: String,
-    /** 글자 컬럼의 최대 길이 */
-    val maxLength: Int?,
-    val nullable: Boolean,
-    val primaryKey: Boolean,
-    val editable: Boolean,
-    /** 비밀값: 값 대신 있음(true)/없음(false) 만 내려간다 */
-    val secret: Boolean,
-    /** CHECK (col IN (...)) 에서 읽은 허용 값 */
-    val options: List<String>,
-    /** FK 가 가리키는 테이블.컬럼 (화면에서 눌러서 이동) */
-    val references: AdminColumnRef?,
-    /** 이 컬럼을 가리키는 다른 테이블들 (PK 에서 "이 회원의 팀원 기록 보기" 같은 이동) */
-    val referencedBy: List<AdminColumnRef>,
-)
-
-data class AdminTableSummary(
-    val name: String,
-    val label: String,
-    val group: String,
-    val description: String?,
-    val rowCount: Long,
-    val readOnly: Boolean,
-    val insertable: Boolean,
-)
-
-data class AdminTableMeta(
-    val name: String,
-    val label: String,
-    val group: String,
-    val description: String?,
-    val primaryKey: String?,
-    val readOnly: Boolean,
-    val insertable: Boolean,
-    /** deleted_yn 컬럼이 있어서 "사용/미사용" 필터를 쓸 수 있는지 */
-    val softDelete: Boolean,
-    val columns: List<AdminColumn>,
-)
-
-data class AdminRowPage(val rows: List<Map<String, Any?>>, val total: Long, val page: Int, val size: Int)
 
 /** 목록 조회 조건. filters 는 컬럼 = 값 (값이 빈 문자열이면 IS NULL) */
 data class AdminRowQuery(
@@ -101,16 +55,16 @@ class AdminTableService(
     private val json: JsonMapper,
 ) {
     private val zone = ZoneId.systemDefault()
-    private val metaCache = ConcurrentHashMap<String, Pair<Instant, AdminTableMeta>>()
+    private val metaCache = ConcurrentHashMap<String, Pair<Instant, AdminTableMetaResDto>>()
 
     // ---------------------------------------------------------------- 목록·구조
 
-    fun tables(): List<AdminTableSummary> =
+    fun tables(): List<AdminTableSummaryResDto> =
         tableNames().map { name ->
             val key = policyKey(name)
             val info = AdminTablePolicy.infoOf(key)
             val count = jdbc.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM ${q(name)}", java.lang.Long::class.java)?.toLong() ?: 0L
-            AdminTableSummary(
+            AdminTableSummaryResDto(
                 name = name,
                 label = info?.label ?: tableComment(name) ?: name,
                 group = info?.group ?: "기타",
@@ -122,7 +76,7 @@ class AdminTableService(
         }.sortedWith(compareBy({ AdminTablePolicy.order(policyKey(it.name)) }, { it.name }))
 
     /** 30초 동안 캐시한다 (사전 조회가 여러 번 필요해서). 새 컬럼은 길어야 30초 뒤에 보인다 */
-    fun meta(table: String): AdminTableMeta {
+    fun meta(table: String): AdminTableMetaResDto {
         val name = table.lowercase()
         metaCache[name]?.let { (at, meta) -> if (at.plusSeconds(30).isAfter(Instant.now())) return meta }
         if (name !in tableNames()) throw BusinessException(ErrorCode.ADMIN_TABLE_NOT_FOUND)
@@ -142,7 +96,7 @@ class AdminTableService(
         String::class.java,
     ).firstOrNull()?.takeIf { it.isNotBlank() }
 
-    private fun loadMeta(name: String): AdminTableMeta {
+    private fun loadMeta(name: String): AdminTableMetaResDto {
         val t = mapOf("t" to name.uppercase())
         val key = policyKey(name)
         val pk = jdbc.queryForList(
@@ -159,7 +113,7 @@ class AdminTableService(
                JOIN user_cons_columns rcc ON rcc.constraint_name = rc.constraint_name AND rcc.position = a.position
                WHERE c.table_name = :t AND c.constraint_type = 'R'""",
             t,
-        ) { rs, _ -> rs.getString("col") to AdminColumnRef(rs.getString("rt"), rs.getString("rcol")) }.toMap()
+        ) { rs, _ -> rs.getString("col") to AdminColumnRefResDto(rs.getString("rt"), rs.getString("rcol")) }.toMap()
         val referencedBy = jdbc.query(
             """SELECT LOWER(a.column_name) col, LOWER(c.table_name) tbl, LOWER(pcc.column_name) pcol
                FROM user_constraints c
@@ -169,7 +123,7 @@ class AdminTableService(
                WHERE p.table_name = :t AND c.constraint_type = 'R'
                ORDER BY c.table_name""",
             t,
-        ) { rs, _ -> rs.getString("pcol") to AdminColumnRef(rs.getString("tbl"), rs.getString("col")) }
+        ) { rs, _ -> rs.getString("pcol") to AdminColumnRefResDto(rs.getString("tbl"), rs.getString("col")) }
             .groupBy({ it.first }, { it.second })
         val options = jdbc.queryForList(
             "SELECT search_condition_vc FROM user_constraints WHERE table_name = :t AND constraint_type = 'C' AND search_condition_vc IS NOT NULL",
@@ -202,7 +156,7 @@ class AdminTableService(
                 rs.getString("identity_column") != "YES" &&
                 col !in AdminTablePolicy.auditColumns && col !in extraReadOnly &&
                 kind != AdminColumnKind.BINARY && kind != AdminColumnKind.LONG_TEXT
-            AdminColumn(
+            AdminColumnResDto(
                 name = col,
                 comment = rs.getString("comments")?.takeIf { it.isNotBlank() },
                 kind = kind,
@@ -218,7 +172,7 @@ class AdminTableService(
             )
         }
         val info = AdminTablePolicy.infoOf(key)
-        return AdminTableMeta(
+        return AdminTableMetaResDto(
             name = name,
             label = info?.label ?: tableComment(name) ?: name,
             group = info?.group ?: "기타",
@@ -234,7 +188,7 @@ class AdminTableService(
 
     // ---------------------------------------------------------------- 조회
 
-    fun rows(table: String, query: AdminRowQuery): AdminRowPage {
+    fun rows(table: String, query: AdminRowQuery): AdminRowPageResDto {
         val meta = meta(table)
         val size = query.size.coerceIn(1, 200)
         val page = query.page.coerceAtLeast(0)
@@ -244,7 +198,7 @@ class AdminTableService(
         params.addValue("offset", page.toLong() * size).addValue("limit", size)
         val sql = "SELECT ${selectList(meta, full = false)} FROM ${q(meta.name)}$where ORDER BY ${orderOf(meta, query)} " +
             "OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"
-        return AdminRowPage(jdbc.query(sql, params) { rs, _ -> readRow(meta, rs) }, total, page, size)
+        return AdminRowPageResDto(jdbc.query(sql, params) { rs, _ -> readRow(meta, rs) }, total, page, size)
     }
 
     fun row(table: String, id: String): Map<String, Any?> {
@@ -336,7 +290,7 @@ class AdminTableService(
     }
 
     /** 자기 자신의 관리자 권한을 빼면 관리자 사이트에 다시 들어올 수 없다 → 막는다 */
-    private fun guardSelfLockout(meta: AdminTableMeta, col: AdminColumn, id: String, raw: Any?, adminId: Long) {
+    private fun guardSelfLockout(meta: AdminTableMetaResDto, col: AdminColumnResDto, id: String, raw: Any?, adminId: Long) {
         val key = policyKey(meta.name)
         if (key == "users" && id == adminId.toString() &&
             ((col.name == "system_role" && raw != "ADMIN") || (col.name == "status" && raw != "ACTIVE") || (col.name == "deleted_yn" && raw != "N"))
@@ -367,7 +321,7 @@ class AdminTableService(
 
     // ---------------------------------------------------------------- SQL 조립
 
-    private fun whereOf(meta: AdminTableMeta, query: AdminRowQuery, params: MapSqlParameterSource): String {
+    private fun whereOf(meta: AdminTableMetaResDto, query: AdminRowQuery, params: MapSqlParameterSource): String {
         val conds = mutableListOf<String>()
         query.filters.forEach { (name, value) ->
             val col = meta.columnOrNull(name)?.takeIf { !it.secret && it.kind != AdminColumnKind.BINARY && it.kind != AdminColumnKind.LONG_TEXT }
@@ -412,7 +366,7 @@ class AdminTableService(
         return if (conds.isEmpty()) "" else " WHERE " + conds.joinToString(" AND ")
     }
 
-    private fun orderOf(meta: AdminTableMeta, query: AdminRowQuery): String {
+    private fun orderOf(meta: AdminTableMetaResDto, query: AdminRowQuery): String {
         val col = query.sort?.let { meta.columnOrNull(it) }?.takeIf { !it.secret && it.kind != AdminColumnKind.LONG_TEXT && it.kind != AdminColumnKind.BINARY }
             ?: meta.primaryKey?.let { meta.column(it) }
             ?: meta.columns.first()
@@ -423,7 +377,7 @@ class AdminTableService(
     }
 
     /** 목록에서는 긴 글(CLOB)을 앞부분만, 바이너리는 크기만, 비밀값은 있음/없음만 */
-    private fun selectList(meta: AdminTableMeta, full: Boolean): String = meta.columns.joinToString(", ") { c ->
+    private fun selectList(meta: AdminTableMetaResDto, full: Boolean): String = meta.columns.joinToString(", ") { c ->
         val n = q(c.name)
         when {
             c.secret -> "CASE WHEN $n IS NULL THEN 0 ELSE 1 END AS $n"
@@ -433,7 +387,7 @@ class AdminTableService(
         }
     }
 
-    private fun readRow(meta: AdminTableMeta, rs: ResultSet): Map<String, Any?> = meta.columns.associate { c ->
+    private fun readRow(meta: AdminTableMetaResDto, rs: ResultSet): Map<String, Any?> = meta.columns.associate { c ->
         val v: Any? = when {
             c.secret -> rs.getInt(c.name) == 1
             c.kind == AdminColumnKind.NUMBER || c.kind == AdminColumnKind.BINARY -> rs.getBigDecimal(c.name)?.let(::compactNumber)
@@ -446,7 +400,7 @@ class AdminTableService(
     // ---------------------------------------------------------------- 값 변환
 
     /** 화면 입력(JSON 값)을 DB 값으로. 길이·허용 값·필수 여부를 먼저 확인한다 */
-    private fun convertInput(col: AdminColumn, raw: Any?): Any? {
+    private fun convertInput(col: AdminColumnResDto, raw: Any?): Any? {
         val text = raw?.toString()
         if (text == null || (text.isEmpty() && col.kind != AdminColumnKind.TEXT)) {
             if (!col.nullable) throw invalid(col.name, "비워 둘 수 없습니다.")
@@ -466,7 +420,7 @@ class AdminTableService(
     }
 
     /** 필터·PK 값처럼 글자로 온 값을 컬럼 형식으로 */
-    private fun convert(col: AdminColumn, text: String): Any = when (col.kind) {
+    private fun convert(col: AdminColumnResDto, text: String): Any = when (col.kind) {
         AdminColumnKind.NUMBER -> text.trim().toBigDecimalOrNull() ?: throw invalid(col.name, "숫자를 입력해 주세요.")
         AdminColumnKind.DATETIME -> Timestamp.valueOf(parseDateTime(text) ?: throw invalid(col.name, "날짜·시간 형식이 올바르지 않습니다. 예: 2026-11-07T09:30"))
         else -> text
@@ -480,7 +434,7 @@ class AdminTableService(
             ?: runCatching { java.time.LocalDate.parse(s).atStartOfDay() }.getOrNull()
     }
 
-    private fun sameValue(col: AdminColumn, before: Any?, after: Any?): Boolean = when {
+    private fun sameValue(col: AdminColumnResDto, before: Any?, after: Any?): Boolean = when {
         before == null || after == null -> before == after
         col.kind == AdminColumnKind.NUMBER -> BigDecimal(before.toString()).compareTo(after as BigDecimal) == 0
         col.kind == AdminColumnKind.DATETIME -> (before as LocalDateTime) == (after as Timestamp).toLocalDateTime()
@@ -522,8 +476,8 @@ class AdminTableService(
         return if (values.isEmpty()) null else m.groupValues[1].lowercase() to values
     }
 
-    private fun AdminTableMeta.columnOrNull(name: String) = columns.firstOrNull { it.name == name.lowercase() }
-    private fun AdminTableMeta.column(name: String) = columnOrNull(name) ?: throw invalid(name, "없는 컬럼입니다.")
+    private fun AdminTableMetaResDto.columnOrNull(name: String) = columns.firstOrNull { it.name == name.lowercase() }
+    private fun AdminTableMetaResDto.column(name: String) = columnOrNull(name) ?: throw invalid(name, "없는 컬럼입니다.")
 
     /** 사전에서 읽은 이름만 들어온다. 큰따옴표로 감싸 대문자 이름으로 정확히 가리킨다 */
     private fun q(identifier: String): String {

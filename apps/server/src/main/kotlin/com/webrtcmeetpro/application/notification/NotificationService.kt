@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.application.notification
 
+import com.webrtcmeetpro.domain.notification.dto.res.NotificationResDto
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
@@ -11,15 +12,6 @@ import org.springframework.transaction.annotation.Transactional
 import com.webrtcmeetpro.application.push.PushNotifier
 import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
-
-data class NotificationView(
-    val id: Long,
-    val type: NotificationType,
-    val params: Map<String, Any?>,
-    val link: String?,
-    val read: Boolean,
-    val createdAt: LocalDateTime,
-)
 
 @Service
 @Transactional(readOnly = true)
@@ -41,7 +33,7 @@ class NotificationService(
         push.notification(userIds, type, params, link)
     }
 
-    fun recent(userId: Long): List<NotificationView> = repository.findTop30ByUserIdOrderByIdDesc(userId).map(::toView)
+    fun recent(userId: Long): List<NotificationResDto> = repository.findTop30ByUserIdOrderByIdDesc(userId).map(::toView)
 
     fun unreadCount(userId: Long): Long = repository.countByUserIdAndReadAtIsNull(userId)
 
@@ -59,7 +51,7 @@ class NotificationService(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun toView(n: Notification) = NotificationView(
+    private fun toView(n: Notification) = NotificationResDto(
         id = n.id!!,
         type = n.type,
         params = n.params?.let { json.readValue(it, Map::class.java) as Map<String, Any?> } ?: emptyMap(),

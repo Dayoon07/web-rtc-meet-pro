@@ -1,8 +1,9 @@
 package com.webrtcmeetpro.presentation.admin
 
+import com.webrtcmeetpro.domain.admin.dto.req.AdminRefundReqDto
+import com.webrtcmeetpro.domain.plan.dto.res.RefundQuoteResDto
 import com.webrtcmeetpro.application.admin.AdminPaymentService
 import com.webrtcmeetpro.domain.admin.dto.res.AdminPaymentResDto
-import com.webrtcmeetpro.application.plan.RefundQuoteView
 import com.webrtcmeetpro.application.plan.RefundService
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -44,14 +45,14 @@ class AdminController(
 
     /** 환불 미리 계산 (약관대로 계산한 금액) */
     @GetMapping("/payments/{orderId}/refund")
-    fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteView {
+    fun refundQuote(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String): RefundQuoteResDto {
         admins.require(jwt.userId)
         return refunds.quoteForAdmin(orderId)
     }
 
     /** 관리자 환불: amount 가 없으면 약관대로 계산한 금액. 그 플랜은 바로 끝난다 */
     @PostMapping("/payments/{orderId}/refund")
-    fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @RequestBody body: AdminRefundRequest): RefundQuoteView {
+    fun refund(@AuthenticationPrincipal jwt: Jwt, @PathVariable orderId: String, @RequestBody body: AdminRefundReqDto): RefundQuoteResDto {
         admins.require(jwt.userId)
         return refunds.refundByAdmin(orderId, jwt.userId, body.amount, body.reason)
     }
@@ -96,5 +97,3 @@ class AdminController(
     fun resolve(@AuthenticationPrincipal jwt: Jwt, @PathVariable errorCode: String) = errorLogs.resolve(jwt.userId, errorCode)
 }
 
-/** 관리자 환불: amount = 환불 금액 (없으면 약관대로 계산한 금액), reason = 사유 */
-data class AdminRefundRequest(val amount: Long? = null, val reason: String? = null)

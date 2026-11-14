@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.presence
 
+import com.webrtcmeetpro.domain.presence.dto.req.PresenceReqDto
 import com.webrtcmeetpro.application.presence.PresenceService
 import com.webrtcmeetpro.common.web.userId
 import jakarta.validation.Valid
@@ -20,9 +21,6 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.socket.messaging.SessionConnectedEvent
 import org.springframework.web.socket.messaging.SessionDisconnectEvent
 
-/** away = true 면 자리 비움, false 면 돌아옴 */
-data class PresenceRequest(@field:NotNull val away: Boolean?)
-
 @RestController
 @RequestMapping("/api")
 class PresenceController(private val presence: PresenceService) {
@@ -34,7 +32,7 @@ class PresenceController(private val presence: PresenceService) {
     /** 내 상태: 창을 안 보거나 한동안 움직임이 없으면 자리 비움 */
     @PutMapping("/presence")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun set(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: PresenceRequest) = presence.setAway(jwt.userId, req.away!!)
+    fun set(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: PresenceReqDto) = presence.setAway(jwt.userId, req.away!!)
 }
 
 /** 실시간 연결(STOMP)이 붙고 끊길 때 접속 상태를 바꾼다. 연결의 사용자 이름 = user_id (WebSocketConfig) */

@@ -1,7 +1,7 @@
 package com.webrtcmeetpro.presentation.admin
 
+import com.webrtcmeetpro.domain.monitoring.dto.res.HealthReportResDto
 import com.webrtcmeetpro.application.admin.SystemAdminAccess
-import com.webrtcmeetpro.application.monitoring.HealthReport
 import com.webrtcmeetpro.application.monitoring.HealthReportService
 import com.webrtcmeetpro.common.web.userId
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.RestController
 class AdminMonitoringController(private val admins: SystemAdminAccess, private val reports: HealthReportService) {
 
     @GetMapping("/health")
-    fun health(@AuthenticationPrincipal jwt: Jwt): HealthReport {
+    fun health(@AuthenticationPrincipal jwt: Jwt): HealthReportResDto {
         admins.require(jwt.userId)
         return reports.collect()
     }
 
     @PostMapping("/report")
-    fun sendNow(@AuthenticationPrincipal jwt: Jwt): HealthReport {
+    fun sendNow(@AuthenticationPrincipal jwt: Jwt): HealthReportResDto {
         admins.require(jwt.userId)
         return reports.sendReport()
     }

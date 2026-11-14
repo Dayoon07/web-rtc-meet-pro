@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.application.user
 
+import com.webrtcmeetpro.domain.user.dto.res.MeResDto
 import org.springframework.security.crypto.password.PasswordEncoder
 import com.webrtcmeetpro.domain.team.TeamStatus
 import com.webrtcmeetpro.domain.team.TeamRepository
@@ -14,7 +15,6 @@ import com.webrtcmeetpro.domain.auth.SocialAccountRepository
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.application.plan.PlanService
-import com.webrtcmeetpro.application.plan.PlanView
 import com.webrtcmeetpro.domain.user.Gender
 import com.webrtcmeetpro.domain.user.ProfileImageStorage
 import com.webrtcmeetpro.domain.user.User
@@ -22,30 +22,6 @@ import com.webrtcmeetpro.domain.user.UserProfile
 import com.webrtcmeetpro.domain.user.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-
-data class MeView(
-    val id: Long,
-    val email: String,
-    val nickname: String,
-    val realName: String?,
-    val phoneNumber: String?,
-    val countryCode: String?,
-    val birthYear: Int?,
-    val gender: Gender?,
-    val profileImageUrl: String?,
-    val marketingAgreed: Boolean,
-    /** false 면 프론트가 온보딩(추가 정보 입력)으로 보낸다 */
-    val profileCompleted: Boolean,
-    val hasPassword: Boolean,
-    /** false 면 프론트가 "이메일을 확인해 주세요" 화면으로 보낸다 */
-    val emailVerified: Boolean,
-    val linkedProviders: List<String>,
-    val plan: PlanView,
-    /** 방해 금지 시간 (HH:mm) · 시간대. 안 쓰면 null */
-    val dndStart: String? = null,
-    val dndEnd: String? = null,
-    val dndTimeZone: String? = null,
-)
 
 data class UpdateProfileCommand(
     val profile: UserProfile,
@@ -73,10 +49,10 @@ class UserService(
     private val subscriptionRepository: SubscriptionRepository,
     private val billingKeyRepository: BillingKeyRepository,
 ) {
-    fun me(userId: Long): MeView = toView(findUser(userId))
+    fun me(userId: Long): MeResDto = toView(findUser(userId))
 
     @Transactional
-    fun updateProfile(userId: Long, command: UpdateProfileCommand): MeView {
+    fun updateProfile(userId: Long, command: UpdateProfileCommand): MeResDto {
         val user = findUser(userId)
         if (user.termsAgreedAt == null && (!command.termsAgreed || !command.privacyAgreed)) {
             throw BusinessException(ErrorCode.TERMS_NOT_AGREED)
@@ -89,7 +65,7 @@ class UserService(
     }
 
     @Transactional
-    fun changeProfileImage(userId: Long, upload: ImageUpload): MeView {
+    fun changeProfileImage(userId: Long, upload: ImageUpload): MeResDto {
         val extension = detectImageExtension(upload) ?: throw BusinessException(ErrorCode.INVALID_IMAGE)
         val user = findUser(userId)
         val previous = user.profileImageUrl
@@ -99,7 +75,7 @@ class UserService(
     }
 
     @Transactional
-    fun removeProfileImage(userId: Long): MeView {
+    fun removeProfileImage(userId: Long): MeResDto {
         val user = findUser(userId)
         user.profileImageUrl?.let(profileImageStorage::deleteIfOwned)
         user.changeProfileImage(null)
@@ -167,7 +143,7 @@ class UserService(
     private fun findUser(userId: Long): User =
         userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
-    private fun toView(user: User) = MeView(
+    private fun toView(user: User) = MeResDto(
         id = user.id!!,
         email = user.email,
         nickname = user.nickname,
@@ -191,7 +167,7 @@ class UserService(
 
     /** 방해 금지 시간 (이 시간에는 브라우저 푸시를 보내지 않는다). start·end 가 비면 끄기 */
     @Transactional
-    fun updateQuietHours(userId: Long, start: String?, end: String?, timeZone: String?): MeView {
+    fun updateQuietHours(userId: Long, start: String?, end: String?, timeZone: String?): MeResDto {
         val user = userRepository.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
         if (!user.setQuietHours(start, end, timeZone)) throw BusinessException(ErrorCode.INVALID_QUIET_HOURS)
         return toView(user)

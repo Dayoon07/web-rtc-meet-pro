@@ -1,16 +1,13 @@
 package com.webrtcmeetpro.application.presence
 
+import com.webrtcmeetpro.domain.presence.PresenceStatus
+import com.webrtcmeetpro.domain.presence.dto.res.PresenceResDto
 import com.webrtcmeetpro.application.team.TeamAccess
 import com.webrtcmeetpro.domain.team.TeamMemberRepository
 import com.webrtcmeetpro.domain.team.TeamMemberStatus
 import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
-
-/** ONLINE = 접속 중, AWAY = 자리 비움(창을 보지 않거나 한동안 움직임 없음), OFFLINE = 접속 안 함 */
-enum class PresenceStatus { ONLINE, AWAY, OFFLINE }
-
-data class PresenceView(val userId: Long, val status: PresenceStatus)
 
 /**
  * 접속 상태 (서버 메모리). 실시간 연결(STOMP) 하나 = 세션 하나.
@@ -50,9 +47,9 @@ class PresenceService(
     }
 
     /** 워크스페이스 사람들 중 접속 중이거나 자리 비움인 사람 */
-    fun team(teamId: Long, userId: Long): List<PresenceView> {
+    fun team(teamId: Long, userId: Long): List<PresenceResDto> {
         teamAccess.requireMember(teamId, userId)
-        return teamAccess.activeMemberIds(teamId).map { PresenceView(it, status(it)) }.filter { it.status != PresenceStatus.OFFLINE }
+        return teamAccess.activeMemberIds(teamId).map { PresenceResDto(it, status(it)) }.filter { it.status != PresenceStatus.OFFLINE }
     }
 
     private fun changing(userId: Long, change: () -> Unit) {
@@ -66,6 +63,6 @@ class PresenceService(
     private fun broadcast(userId: Long, status: PresenceStatus) {
         val teams = teamMembers.findAllByUserIdAndStatus(userId, TeamMemberStatus.ACTIVE).map { it.teamId }
         val audience = teams.flatMap { teamAccess.activeMemberIds(it) }.toSet()
-        realtime.push(audience, RealtimePublisher.PRESENCE, PresenceView(userId, status))
+        realtime.push(audience, RealtimePublisher.PRESENCE, PresenceResDto(userId, status))
     }
 }

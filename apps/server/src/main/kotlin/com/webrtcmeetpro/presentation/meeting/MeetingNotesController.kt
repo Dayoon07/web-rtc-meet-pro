@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.meeting
 
+import com.webrtcmeetpro.domain.meeting.dto.req.NotesLineReqDto
 import com.webrtcmeetpro.application.meeting.MeetingNotesService
 import com.webrtcmeetpro.common.web.userId
 import jakarta.validation.Valid
@@ -13,11 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-
-data class NotesLineRequest(
-    @field:NotBlank @field:Size(max = 2000) val text: String,
-    @field:Size(max = 10) val lang: String? = null,
-)
 
 /**
  * AI 회의록. 회의 중에 켜고(start)·끄고(stop), 켜져 있는 동안 각 참여자 브라우저가 받아쓴 문장을 lines 로 보낸다.
@@ -43,7 +39,7 @@ class MeetingNotesController(private val notes: MeetingNotesService) {
     fun stop(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long) = notes.stop(meetingId, jwt.userId)
 
     @PostMapping("/lines")
-    fun line(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @Valid @RequestBody body: NotesLineRequest) =
+    fun line(@AuthenticationPrincipal jwt: Jwt, @PathVariable meetingId: Long, @Valid @RequestBody body: NotesLineReqDto) =
         notes.addLine(meetingId, jwt.userId, body.text, body.lang)
 
     @PostMapping("/regenerate")

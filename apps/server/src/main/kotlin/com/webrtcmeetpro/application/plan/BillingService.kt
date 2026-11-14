@@ -1,5 +1,9 @@
 package com.webrtcmeetpro.application.plan
 
+import com.webrtcmeetpro.domain.plan.dto.res.CardRegistrationResDto
+import com.webrtcmeetpro.domain.plan.dto.res.CardResDto
+import com.webrtcmeetpro.domain.plan.dto.res.PaymentResDto
+import com.webrtcmeetpro.domain.plan.dto.res.SubscriptionResDto
 import com.webrtcmeetpro.application.mail.MailLanguage
 import com.webrtcmeetpro.application.mail.MailService
 import com.webrtcmeetpro.application.mail.MailTemplates
@@ -35,43 +39,6 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.LocalDateTime
 import java.util.UUID
 
-/** 카드 등록창을 열 때 필요한 값 (웹이 토스 SDK 에 넘긴다) */
-data class CardRegistrationView(val clientKey: String, val customerKey: String, val customerEmail: String, val customerName: String)
-
-/** 결제 내역 한 줄 + 영수증 창에 보여 줄 값 */
-data class PaymentView(
-    val orderId: String,
-    val orderName: String,
-    val planCode: String,
-    val planName: String,
-    val amount: Long,
-    /** 공급가액 = 금액 × 10/11 (원 단위 반올림), 부가세 = 금액 - 공급가액 */
-    val supplyAmount: Long,
-    val vat: Long,
-    val status: PaymentStatus,
-    val billingCycle: BillingCycle?,
-    val method: String?,
-    val cardCompany: String?,
-    val cardNumberMasked: String?,
-    val approveNo: String?,
-    val receiptUrl: String?,
-    val failureMessage: String?,
-    val approvedAt: LocalDateTime?,
-    val periodEnd: LocalDateTime?,
-    val createdAt: LocalDateTime,
-    val teamId: Long?,
-    val teamName: String?,
-    /** PLAN = 플랜 (+ 초과 인원), OVERAGE = 초과 인원 요금만 */
-    val kind: PaymentKind = PaymentKind.PLAN,
-    /** 이 결제에 들어간 초과 인원과 그 금액 (영수증에 따로) */
-    val overageMembers: Int = 0,
-    val overageAmount: Long = 0,
-    /** 환불한 금액 · 시각 · 사유 (환불 안 했으면 0 · null) */
-    val refundedAmount: Long = 0,
-    val refundedAt: LocalDateTime? = null,
-    val refundReason: String? = null,
-)
-
 /**
  * 토스페이먼츠 자동결제(빌링).
  * 1) 카드 등록: 웹이 토스 카드 등록창을 띄우고, 돌아온 authKey 로 빌링키를 받아 암호화해 저장한다.
@@ -102,14 +69,14 @@ class BillingService(
 
     // ----------------------------------------------------------------- 카드
 
-    fun prepareCard(userId: Long): CardRegistrationView {
+    fun prepareCard(userId: Long): CardRegistrationResDto {
         requireEnabled()
         val user = users.findUserById(userId) ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-        return CardRegistrationView(tossProperties.clientKey, cipher.newCustomerKey(userId), user.email, user.realName ?: user.nickname)
+        return CardRegistrationResDto(tossProperties.clientKey, cipher.newCustomerKey(userId), user.email, user.realName ?: user.nickname)
     }
 
     /** 카드 등록창에서 돌아옴 → 빌링키 발급. 전에 등록한 카드는 해지 (한 사람당 카드 하나) */
-    fun registerCard(userId: Long, customerKey: String, authKey: String): CardView {
+    fun registerCard(userId: Long, customerKey: String, authKey: String): CardResDto {
         requireEnabled()
         if (!cipher.isOwnCustomerKey(userId, customerKey)) throw BusinessException(ErrorCode.BILLING_CARD_INVALID)
         val issued = try {
@@ -141,7 +108,7 @@ class BillingService(
      * 워크스페이스 플랜 결제 (소유자만). 같은 플랜을 이미 쓰고 있으면 남은 기간 뒤로 늘어나고, 다른 플랜이면 따로 새 구독이 생긴다
      * (가장 높은 플랜이 적용되고, 그게 끝나면 남은 낮은 플랜으로).
      */
-    fun purchase(userId: Long, teamId: Long, planCode: String, cycle: BillingCycle, autoRenew: Boolean): SubscriptionView {
+    fun purchase(userId: Long, teamId: Long, planCode: String, cycle: BillingCycle, autoRenew: Boolean): SubscriptionResDto {
         requireEnabled()
         val team = planService.requireOwnedTeam(teamId, userId)
         val plan = planService.findPlan(planCode)
@@ -163,13 +130,13 @@ class BillingService(
         return planService.workspaceSubscription(teamId, userId)
     }
 
-    fun history(userId: Long): List<PaymentView> {
+    fun history(userId: Long): List<PaymentResDto> {
         val plans = mutableMapOf<Long, Plan>()
         val teamNames = mutableMapOf<Long, String?>()
         return payments.findTop50ByUserIdOrderByCreatedDtDesc(userId).map {
             val plan = plans.getOrPut(it.planId) { planService.planById(it.planId) }
             val supply = Math.round(it.amount * 10.0 / 11.0)
-            PaymentView(
+            PaymentResDto(
                 orderId = it.orderId,
                 orderName = it.orderName,
                 planCode = plan.code,

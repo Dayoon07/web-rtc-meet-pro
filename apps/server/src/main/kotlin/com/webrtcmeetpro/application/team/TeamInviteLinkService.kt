@@ -1,5 +1,8 @@
 package com.webrtcmeetpro.application.team
 
+import com.webrtcmeetpro.domain.team.dto.res.InviteLinkJoinedResDto
+import com.webrtcmeetpro.domain.team.dto.res.InviteLinkPreviewResDto
+import com.webrtcmeetpro.domain.team.dto.res.InviteLinkResDto
 import com.webrtcmeetpro.application.notification.NotificationService
 import com.webrtcmeetpro.application.plan.MemberOverageService
 import com.webrtcmeetpro.application.plan.PlanService
@@ -24,29 +27,6 @@ import java.security.SecureRandom
 import java.time.LocalDateTime
 import java.util.Base64
 
-/** 팀 화면 "멤버 초대" 탭의 링크 한 줄 (팀 소유자·관리자만 본다) */
-data class InviteLinkView(
-    val id: Long,
-    val token: String,
-    val hasPassword: Boolean,
-    val joinCount: Int,
-    val createdByName: String?,
-    val createdAt: LocalDateTime,
-)
-
-/** 링크로 들어온 사람이 보는 팀 소개 */
-data class InviteLinkPreviewView(
-    val teamId: Long,
-    val teamName: String,
-    val teamDescription: String?,
-    val memberCount: Int,
-    val hasPassword: Boolean,
-    /** 이미 이 팀 멤버면 수락 대신 "채팅으로 가기" */
-    val alreadyMember: Boolean,
-)
-
-data class InviteLinkJoinedView(val teamId: Long, val teamName: String)
-
 /**
  * 팀 초대 링크: 이메일 초대 없이 링크만 나눠 주면 받은 사람이 팀에 들어온다.
  * - 팀 소유자·관리자(INVITE_MEMBER)가 만들고 지운다. 기간 제한은 없다.
@@ -68,7 +48,7 @@ class TeamInviteLinkService(
 ) {
     private val random = SecureRandom()
 
-    fun list(teamId: Long, userId: Long): List<InviteLinkView> {
+    fun list(teamId: Long, userId: Long): List<InviteLinkResDto> {
         access.requirePermission(teamId, userId, TeamPermission.INVITE_MEMBER)
         val list = links.findAllByTeamIdAndDeletedFalseOrderByIdDesc(teamId)
         val names = users.findAllByIdIn(list.map { it.createdBy }.distinct()).associate { it.id!! to it.nickname }
@@ -77,7 +57,7 @@ class TeamInviteLinkService(
 
     /** 링크 만들기. password 가 비어 있으면 링크만으로 들어올 수 있다 */
     @Transactional
-    fun create(teamId: Long, userId: Long, password: String?): InviteLinkView {
+    fun create(teamId: Long, userId: Long, password: String?): InviteLinkResDto {
         access.requirePermission(teamId, userId, TeamPermission.INVITE_MEMBER)
         access.requireTeam(teamId)
         val pw = password?.takeIf { it.isNotBlank() }
@@ -95,9 +75,9 @@ class TeamInviteLinkService(
     }
 
     /** 링크를 연 사람에게 보여 줄 팀 소개 (로그인한 사람이면 누구나) */
-    fun preview(token: String, userId: Long): InviteLinkPreviewView {
+    fun preview(token: String, userId: Long): InviteLinkPreviewResDto {
         val (link, team) = requireLink(token)
-        return InviteLinkPreviewView(
+        return InviteLinkPreviewResDto(
             teamId = team.id!!,
             teamName = team.name,
             teamDescription = team.description,
@@ -109,10 +89,10 @@ class TeamInviteLinkService(
 
     /** 수락: 비밀번호를 걸었으면 맞아야 하고, 멤버 한도 안이면 바로 팀 멤버가 된다. 이미 멤버면 그대로 */
     @Transactional
-    fun join(token: String, userId: Long, password: String?): InviteLinkJoinedView {
+    fun join(token: String, userId: Long, password: String?): InviteLinkJoinedResDto {
         val (link, team) = requireLink(token)
         val teamId = team.id!!
-        if (access.isMember(teamId, userId)) return InviteLinkJoinedView(teamId, team.name)
+        if (access.isMember(teamId, userId)) return InviteLinkJoinedResDto(teamId, team.name)
         if (link.hasPassword()) {
             if (password.isNullOrEmpty()) throw BusinessException(ErrorCode.INVITE_LINK_PASSWORD_REQUIRED)
             if (!passwordEncoder.matches(password, link.passwordHash)) throw BusinessException(ErrorCode.INVITE_LINK_WRONG_PASSWORD)
@@ -137,7 +117,7 @@ class TeamInviteLinkService(
             mapOf("teamName" to team.name, "memberName" to (me?.nickname ?: "")),
             "/app/teams/$teamId",
         )
-        return InviteLinkJoinedView(teamId, team.name)
+        return InviteLinkJoinedResDto(teamId, team.name)
     }
 
     private fun requireLink(token: String): Pair<TeamInviteLink, Team> {
@@ -147,7 +127,7 @@ class TeamInviteLinkService(
     }
 
     private fun view(link: TeamInviteLink, createdByName: String?) =
-        InviteLinkView(link.id!!, link.token, link.hasPassword(), link.joinCount, createdByName, link.createdDt)
+        InviteLinkResDto(link.id!!, link.token, link.hasPassword(), link.joinCount, createdByName, link.createdDt)
 
     private fun newToken() = ByteArray(24).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 

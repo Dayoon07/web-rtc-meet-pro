@@ -1,7 +1,8 @@
 package com.webrtcmeetpro.application.push
 
+import com.webrtcmeetpro.domain.presence.PresenceStatus
+import com.webrtcmeetpro.domain.push.dto.res.PushConfigResDto
 import com.webrtcmeetpro.application.presence.PresenceService
-import com.webrtcmeetpro.application.presence.PresenceStatus
 import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.config.properties.PushProperties
@@ -27,9 +28,6 @@ fun interface PushNotifier {
     fun notification(userIds: Collection<Long>, type: NotificationType, params: Map<String, Any?>, link: String?)
 }
 
-/** 화면이 구독할 때 쓰는 값. enabled=false 면 서버에 VAPID 키가 없어 푸시를 못 보낸다 */
-data class PushConfigView(val enabled: Boolean, val publicKey: String?)
-
 /** 서비스 워커(public/sw.js)가 받아서 띄우는 값 */
 data class PushPayload(val title: String, val body: String, val link: String?, val tag: String?)
 
@@ -53,7 +51,7 @@ class PushService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val executor = Executors.newVirtualThreadPerTaskExecutor()
 
-    fun config() = PushConfigView(props.enabled, props.vapidPublicKey.takeIf { props.enabled })
+    fun config() = PushConfigResDto(props.enabled, props.vapidPublicKey.takeIf { props.enabled })
 
     @Transactional
     fun subscribe(userId: Long, endpoint: String, p256dh: String, auth: String, lang: String?, userAgent: String?) {
