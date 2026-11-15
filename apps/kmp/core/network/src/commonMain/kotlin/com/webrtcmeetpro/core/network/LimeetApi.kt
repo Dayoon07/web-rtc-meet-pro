@@ -1,6 +1,7 @@
 package com.webrtcmeetpro.core.network
 
 import com.webrtcmeetpro.core.model.MeetingNotes
+import com.webrtcmeetpro.core.model.PresenceRequest
 import com.webrtcmeetpro.core.model.QuietHoursRequest
 import com.webrtcmeetpro.core.model.UpdateProfileRequest
 import com.webrtcmeetpro.core.model.ChatThread
@@ -282,6 +283,11 @@ class LimeetApi(private val client: HttpClient) {
 
     /** 워크스페이스에서 접속 중·자리 비움인 사람 */
     suspend fun presence(teamId: Long): List<PresenceView> = client.get("api/teams/$teamId/presence").body()
+
+    /** 서버는 세션을 구분하지 않고 이 사람의 모든 연결에 적용한다 */
+    suspend fun setAway(away: Boolean) {
+        client.put("api/presence") { setBody(PresenceRequest(away)) }
+    }
 
     /**
      * 파일 보내기 (multipart): files 여러 개 + content(함께 보낼 글, 선택) = FILE 메시지 1개.

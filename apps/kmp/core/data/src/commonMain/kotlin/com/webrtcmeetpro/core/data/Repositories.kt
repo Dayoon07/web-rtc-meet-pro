@@ -157,6 +157,8 @@ class ChatRepository(private val api: LimeetApi) {
     suspend fun setMuted(roomId: Long, muted: Boolean): ChatRoom = api.setMuted(roomId, muted)
     suspend fun typing(roomId: Long) = api.typing(roomId)
     suspend fun presence(teamId: Long): List<PresenceView> = api.presence(teamId)
+
+    suspend fun setAway(away: Boolean) = api.setAway(away)
     suspend fun sendFiles(roomId: Long, files: List<UploadFile>, content: String?, threadRootId: Long? = null): ChatMessage =
         api.sendFiles(roomId, files, content?.trim()?.ifEmpty { null }, threadRootId)
     suspend fun markRead(roomId: Long, messageId: Long) = api.markRead(roomId, messageId)

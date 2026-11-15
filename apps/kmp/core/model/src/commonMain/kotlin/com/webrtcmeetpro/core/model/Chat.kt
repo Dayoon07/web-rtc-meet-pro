@@ -141,6 +141,10 @@ enum class PresenceStatus { ONLINE, AWAY, OFFLINE }
 @Serializable
 data class PresenceView(val userId: Long, val status: PresenceStatus)
 
+/** PUT /api/presence */
+@Serializable
+data class PresenceRequest(val away: Boolean)
+
 @Serializable
 data class OpenDirectRequest(val userId: Long)
 

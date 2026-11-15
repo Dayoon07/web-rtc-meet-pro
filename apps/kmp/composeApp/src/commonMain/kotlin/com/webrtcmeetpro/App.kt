@@ -8,6 +8,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.webrtcmeetpro.core.data.ChatRepository
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -61,6 +73,7 @@ class AppViewModel(
     private val badges: BadgeRepository,
     private val notifier: SystemNotifier,
     private val presence: ChatPresence,
+    private val chat: ChatRepository,
 ) : ViewModel() {
     val loggedIn: StateFlow<Boolean?> = auth.isLoggedIn.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val settings: StateFlow<AppSettings?> = settingsStore.settings.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -74,7 +87,12 @@ class AppViewModel(
                     return@collectLatest
                 }
                 coroutineScope {
+                    away = false
+                    lastActive = TimeSource.Monotonic.markNow()
                     launch { runCatching { users.refresh() } }
+                    launch { watchIdle() }
+                    // 다시 연결되면 서버는 새 연결을 "접속 중"으로 시작하므로 자리 비움이었으면 다시 알린다
+                    launch { realtime.connected.collect { connected -> if (connected && away) sendAway(true) } }
                     launch { badges.refresh() }
                     launch { realtime.run() }
                     launch {
@@ -104,6 +122,40 @@ class AppViewModel(
         }
     }
 
+    private var foreground = true
+    private var away = false
+    private var lastActive = TimeSource.Monotonic.markNow()
+
+    /** Android 는 다른 앱으로 가면, Windows 는 창을 최소화하면 false */
+    fun onForeground(visible: Boolean) {
+        foreground = visible
+        if (visible) onActivity() else setAway(true)
+    }
+
+    /** 화면을 만지거나 키를 누를 때마다 불린다. 자주 불리므로 시각만 적고, 자리 비움일 때만 서버에 알린다 */
+    fun onActivity() {
+        lastActive = TimeSource.Monotonic.markNow()
+        if (away && foreground) setAway(false)
+    }
+
+    /** 웹과 같이 5분 동안 입력이 없으면 자리 비움 */
+    private suspend fun watchIdle() {
+        while (true) {
+            delay(30.seconds)
+            if (foreground && lastActive.elapsedNow() >= 5.minutes) setAway(true)
+        }
+    }
+
+    private fun setAway(next: Boolean) {
+        if (next == away || loggedIn.value != true) return
+        away = next
+        viewModelScope.launch { sendAway(next) }
+    }
+
+    private suspend fun sendAway(next: Boolean) {
+        runCatching { chat.setAway(next) }.onFailure { if (away == next) away = !next }
+    }
+
     /** 웹 푸시와 같이, 방해 금지 시간에는 시스템 알림만 띄우지 않는다 (알림 목록에는 쌓인다) */
     private fun quietNow(): Boolean {
         val me = users.me.value ?: return false
@@ -130,12 +182,28 @@ fun App() {
                 ThemeMode.DARK -> true
             }
             LimeetTheme(darkTheme = dark) {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    Modifier.fillMaxSize()
+                        // Initial 단계에서 보기만 하고 소비하지 않아 화면 안의 버튼·스크롤은 그대로 동작한다
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    awaitPointerEvent(PointerEventPass.Initial)
+                                    viewModel.onActivity()
+                                }
+                            }
+                        }
+                        .onPreviewKeyEvent { viewModel.onActivity(); false },
+                    color = MaterialTheme.colorScheme.background,
+                ) {
                     when (if (settings == null) null else loggedIn) {
                         null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                         false -> AuthFlow(LocalAppLocale.current)
                         // 이메일 가입 후 인증 전이면 메인 화면 대신 인증 안내
-                        true -> EmailVerifiedGate { MainScreen() }
+                        true -> {
+                            AwayTracker(viewModel)
+                            EmailVerifiedGate { MainScreen() }
+                        }
                     }
                     // 서버 500: 에러 코드 + 문의 이메일 안내 (로그인 전후 어느 화면에서든)
                     UnexpectedErrorHost()
@@ -143,6 +211,15 @@ fun App() {
             }
         }
     }
+}
+
+/** 앱이 화면에서 사라지면(Android 백그라운드, Windows 최소화) 자리 비움으로 알린다 */
+@Composable
+private fun AwayTracker(viewModel: AppViewModel) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val state by lifecycle.currentStateFlow.collectAsState()
+    val visible = state.isAtLeast(Lifecycle.State.STARTED)
+    LaunchedEffect(visible) { viewModel.onForeground(visible) }
 }
 
 // 네비게이션 경로는 private 이면 안 된다 (직렬화기를 리플렉션으로 찾다가 실패)
