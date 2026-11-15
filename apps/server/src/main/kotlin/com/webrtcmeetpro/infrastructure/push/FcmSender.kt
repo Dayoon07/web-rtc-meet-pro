@@ -57,7 +57,7 @@ class FcmSender(private val props: PushProperties, private val json: JsonMapper)
             when {
                 res.statusCode() in 200..299 -> PushResult.SENT
                 // 앱을 지웠거나 토큰이 바뀌어 다시는 쓸 수 없는 토큰
-                res.statusCode() == 404 || "UNREGISTERED" in res.body() -> PushResult.GONE
+                res.statusCode() == 404 || "UNREGISTERED" in res.body() || "not a valid FCM registration token" in res.body() -> PushResult.GONE
                 else -> {
                     log.warn("FCM 응답 {}: {}", res.statusCode(), res.body().take(300))
                     PushResult.FAILED
