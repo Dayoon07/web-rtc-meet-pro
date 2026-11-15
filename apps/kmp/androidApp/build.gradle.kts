@@ -66,3 +66,17 @@ android {
 dependencies {
     implementation(projects.composeApp)
 }
+
+/** deploy/app-build.bat 이 쓴다. 서명된 release APK 를 저장소 맨 위 dist/ 에 mq-release-<버전>.apk 로 */
+tasks.register<Copy>("distApk") {
+    val version = libs.versions.appVersionName.get()
+    val signed = layout.buildDirectory.file("outputs/apk/release/androidApp-release.apk")
+    dependsOn("assembleRelease")
+    // 서명 설정(mq.signing.*)이 없으면 설치할 수 없는 unsigned APK 만 나오므로 dist 에 넣지 않고 멈춘다
+    doFirst {
+        check(signed.get().asFile.isFile) { "서명된 APK 가 없습니다. ~/.gradle/gradle.properties 의 mq.signing.* 를 확인하세요" }
+    }
+    from(signed)
+    into(rootProject.layout.projectDirectory.dir("../../dist"))
+    rename { "mq-release-$version.apk" }
+}

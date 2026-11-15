@@ -106,7 +106,8 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "MQ"
-            packageVersion = "1.0.0"
+            // Android 와 같은 버전. Windows 설치 파일은 MAJOR.MINOR.BUILD 숫자만 받고, 올려야 기존 설치 위에 업데이트된다
+            packageVersion = libs.versions.appVersionName.get()
             windows {
                 menu = true
                 shortcut = true
@@ -115,4 +116,13 @@ compose.desktop {
             }
         }
     }
+}
+
+/** deploy/app-build.bat 이 쓴다. Windows 설치 파일을 저장소 맨 위 dist/ 에 mq-release-<버전>.exe 로 */
+tasks.register<Copy>("distExe") {
+    val version = libs.versions.appVersionName.get()
+    dependsOn("packageExe")
+    from(layout.buildDirectory.dir("compose/binaries/main/exe")) { include("*.exe") }
+    into(rootProject.layout.projectDirectory.dir("../../dist"))
+    rename { "mq-release-$version.exe" }
 }

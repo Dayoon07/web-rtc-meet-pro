@@ -43,3 +43,6 @@ local.properties
 /deploy/deploy.log
 # 서비스 계정 키 같은 비밀 파일
 /deploy/secrets/
+
+# 앱 빌드 결과 (deploy/app-build.bat): APK·exe
+/dist/

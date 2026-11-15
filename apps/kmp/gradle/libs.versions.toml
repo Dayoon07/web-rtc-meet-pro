@@ -1,5 +1,5 @@
 [versions]
-appVersionName = "0.1.0"
+appVersionName = "1.0.0"
 appVersionCode = "1"
 
 # === Kotlin ===
