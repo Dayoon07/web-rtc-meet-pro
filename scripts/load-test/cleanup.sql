@@ -1,6 +1,6 @@
 -- 부하 테스트 데이터 지우기: 테스트 계정(load####@mq-load.test)과 그 계정들이 만든 팀·채팅방·회의·메시지·알림·결제 구독.
 -- 범위는 이메일로 찾는다 (다른 회원 데이터는 건드리지 않는다). 하나라도 실패하면 전부 되돌린다
---   sqlplus -S limeet/limeet@//localhost:1521/XEPDB1 @scripts/load-test/cleanup.sql
+--   sqlplus -S mq/mq@//localhost:1521/XEPDB1 @scripts/load-test/cleanup.sql
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 SET FEEDBACK ON
 

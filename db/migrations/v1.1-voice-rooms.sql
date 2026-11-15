@@ -4,7 +4,7 @@
 --     채널마다 진행 중인 음성방은 하나 (모두 나가면 끝나고, 다음에 누가 들어오면 새로 열린다)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 

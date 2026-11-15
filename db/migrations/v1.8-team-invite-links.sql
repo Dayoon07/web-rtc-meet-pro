@@ -1,5 +1,5 @@
 -- v1.8: 팀 초대 링크 (링크만 있으면 팀에 들어온다. 비밀번호는 선택, 기간 제한 없음, 팀 소유자·관리자가 만들고 지운다)
---   NLS_LANG=KOREAN_KOREA.AL32UTF8 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.8-team-invite-links.sql'
+--   NLS_LANG=KOREAN_KOREA.AL32UTF8 sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.8-team-invite-links.sql'
 --   (NLS_LANG 이 UTF-8 이 아니면 한글 주석에서 ORA-01756 이 난다)
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 

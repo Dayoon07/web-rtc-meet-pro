@@ -112,7 +112,7 @@ SERVER_PORT=8082 MAIL_HOST= STORAGE_TYPE=local java -Xmx1152m -XX:ActiveProcesso
 #    또는 ./scripts/load-test/server.sh (8082 로 다시 켜고 CPU 2개로 묶는다. DB_POOL_SIZE 등은 환경변수로)
 # 2) 테스트 계정·팀
 node scripts/load-test/setup.mjs signup 2000
-sqlplus -S limeet/limeet@//localhost:1521/XEPDB1 @scripts/load-test/verify.sql
+sqlplus -S mq/mq@//localhost:1521/XEPDB1 @scripts/load-test/verify.sql
 node scripts/load-test/setup.mjs teams
 # 3) 단계별: 접두어, 사용자 수들, 유지 초, 들어오는 초, 메시지 간격 초
 ./scripts/load-test/stages.sh load "100 250 500 1000" 120 60 60
@@ -121,7 +121,7 @@ node scripts/load-test/setup.mjs teams
 ./scripts/load-test/recovery.sh
 node scripts/load-test/meeting.mjs --people 8 --seconds 60   # 미디어 서버·웹(5175)을 8082 에 붙여서
 # 4) 지우기 (테스트 이메일 load…@mq-load.test 로 범위를 찾는다)
-sqlplus -S limeet/limeet@//localhost:1521/XEPDB1 @scripts/load-test/cleanup.sql
+sqlplus -S mq/mq@//localhost:1521/XEPDB1 @scripts/load-test/cleanup.sql
 ```
 
 결과(JSON)는 `scripts/load-test/results/` 에 쌓인다 (테스트 계정 토큰이 있어서 git 에 올리지 않는다).

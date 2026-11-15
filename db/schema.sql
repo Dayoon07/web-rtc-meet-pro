@@ -1,5 +1,5 @@
 -- =====================================================================
--- web-rtc-meet-pro  DB schema v1.10  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: limeet)
+-- web-rtc-meet-pro  DB schema v1.10  (Oracle 19c+ / 21c XE / 23ai, 스키마(계정) 이름: mq)
 --   v1.10: 채팅 스레드(chat_messages.thread_root_id, reply_count, last_reply_at, thread_user_ids), 스레드 답글 알림(THREAD_REPLY). 기존 DB 는 db/migrations/v1.10-chat-threads.sql
 --   v1.9: 환불(payments.refunded_amount, refund_reason, refunded_by), 환불 알림(PAYMENT_REFUNDED). 기존 DB 는 db/migrations/v1.9-refunds.sql
 --   v1.8: 팀 초대 링크(team_invite_links). 기존 DB 는 db/migrations/v1.8-team-invite-links.sql

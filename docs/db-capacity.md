@@ -35,7 +35,7 @@
 ## 지금 실제로 얼마나 쓰고 있는지 보기
 
 ```sql
--- limeet 계정으로 접속해서: 테이블·인덱스별 용량 (MB)
+-- mq 계정으로 접속해서: 테이블·인덱스별 용량 (MB)
 SELECT segment_name, ROUND(SUM(bytes) / 1024 / 1024, 1) AS mb
 FROM user_segments GROUP BY segment_name ORDER BY mb DESC FETCH FIRST 15 ROWS ONLY;
 

@@ -1,5 +1,5 @@
 -- v1.9: 환불 (결제 취소). 환불 금액·사유·한 사람을 남기고, 환불 알림(PAYMENT_REFUNDED)을 더한다. 환불 시각은 기존 canceled_at
---   NLS_LANG=KOREAN_KOREA.AL32UTF8 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.9-refunds.sql'
+--   NLS_LANG=KOREAN_KOREA.AL32UTF8 sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.9-refunds.sql'
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 ALTER TABLE payments ADD (

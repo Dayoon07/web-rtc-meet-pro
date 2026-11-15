@@ -3,7 +3,7 @@
 --   이미 있는 회원은 모두 "인증됨"으로 둔다 (이 기능 전에 가입한 사람이 갑자기 막히지 않게)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
 -- 다른 창에서 users 행을 고치고 COMMIT 하지 않았다면 UPDATE 가 기다린다 → 그 창에서 먼저 COMMIT
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE

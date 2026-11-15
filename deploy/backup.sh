@@ -2,23 +2,23 @@
 # =====================================================================
 # 매일 백업 (cron 으로 새벽에): DB 볼륨 + 채팅 첨부파일 + 프로필 사진 → BACKUP_DIR (+ 선택: S3)
 #   sudo crontab -e
-#   0 4 * * * /home/ubuntu/web-rtc-meet-pro/deploy/backup.sh >> /var/log/limeet-backup.log 2>&1
+#   0 4 * * * /home/ubuntu/web-rtc-meet-pro/deploy/backup.sh >> /var/log/mq-backup.log 2>&1
 #
 # - DB(oracle-data)는 쓰이는 중에 복사하면 깨질 수 있어서 server·oracle 을 잠깐(1~2분) 멈추고 압축한다
 # - chat-files, uploads 는 켜 둔 채로 압축한다 (파일이 새로 생기기만 해서 괜찮다)
-# - 환경변수: BACKUP_DIR(기본 /var/backups/limeet), KEEP_DAYS(기본 7)
-# - deploy/.env 에 BACKUP_S3_URI=s3://버킷/limeet 가 있고 aws CLI 가 설정돼 있으면 S3 에도 올린다
+# - 환경변수: BACKUP_DIR(기본 /var/backups/mq), KEEP_DAYS(기본 7)
+# - deploy/.env 에 BACKUP_S3_URI=s3://버킷/mq 가 있고 aws CLI 가 설정돼 있으면 S3 에도 올린다
 # 복구 방법은 deploy/README.md 의 "5. 백업" 참고
 # =====================================================================
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/limeet}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/mq}"
 KEEP_DAYS="${KEEP_DAYS:-7}"
 STAMP="$(date +%Y%m%d-%H%M)"
 COMPOSE=(docker compose -f "$DEPLOY_DIR/docker-compose.yml" --env-file "$DEPLOY_DIR/.env")
-# 도커 볼륨 이름 = compose 프로젝트 이름(docker-compose.yml 의 name: limeet) + "_" + 볼륨 이름
-PROJECT="limeet"
+# 도커 볼륨 이름 = compose 프로젝트 이름(docker-compose.yml 의 name: mq) + "_" + 볼륨 이름
+PROJECT="mq"
 BACKUP_S3_URI="${BACKUP_S3_URI:-$(grep -E '^BACKUP_S3_URI=' "$DEPLOY_DIR/.env" 2>/dev/null | cut -d= -f2- || true)}"
 
 log() { echo "[$(date '+%F %T')] $*"; }

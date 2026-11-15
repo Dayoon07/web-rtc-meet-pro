@@ -8,7 +8,7 @@
 --   기존 유료 플랜 구독(지금까지 0원으로 바꾼 것)은 오늘부터 30일짜리 월 구독으로 바꾼다 (자동결제 꺼짐)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 

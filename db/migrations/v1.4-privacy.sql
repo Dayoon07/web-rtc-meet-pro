@@ -5,7 +5,7 @@
 --                                 접속기록을 1년 이상(5만 명 이상이면 2년) 보관, 월 1회 이상 점검. 서버는 2년 지나면 지운다)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.4-privacy.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.4-privacy.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 

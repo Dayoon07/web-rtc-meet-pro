@@ -8,7 +8,7 @@
 --   - plans: 채널(그룹 채팅방) 개수 제한 없음, 설명을 워크스페이스 기준으로
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 

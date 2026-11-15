@@ -1,7 +1,7 @@
 -- v1.10: 채팅 스레드 (슬랙·매터모스트처럼 메시지 아래에 답글 대화를 이어 간다).
 --   답글은 thread_root_id 로 원래 메시지(스레드 시작 글)를 가리키고 채널 본문에는 보이지 않는다.
 --   시작 글에는 답글 수·마지막 답글 시각·답글 단 사람(최근 순, 쉼표)을 모아 둔다. 스레드 답글 알림(THREAD_REPLY)을 더한다
---   NLS_LANG=KOREAN_KOREA.AL32UTF8 sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.10-chat-threads.sql'
+--   NLS_LANG=KOREAN_KOREA.AL32UTF8 sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.10-chat-threads.sql'
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 ALTER TABLE chat_messages ADD (

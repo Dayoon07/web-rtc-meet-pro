@@ -1,6 +1,6 @@
 # 운영 배포 (서버 한 대: iwinv 2 vCPU · 8GB 기준). 사용법은 deploy/README.md
 #   cp deploy/.env.example deploy/.env  →  값 채우기  →  docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
-name: limeet
+name: mq
 
 # 켜고 끄는 묶음 (.env 의 COMPOSE_PROFILES): oracle = DB 도 컨테이너로 (서버에 Oracle 을 직접 설치했으면 빼기), ollama = 무료 AI
 services:
@@ -11,7 +11,7 @@ services:
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:?ORACLE_PASSWORD 를 .env 에 넣어 주세요}
       # 서비스와 관리자 사이트(별도 서브도메인)가 함께 쓰는 스키마. 빈 볼륨으로 처음 뜰 때만 만들어진다
-      APP_USER: limeet
+      APP_USER: mq
       APP_USER_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 를 .env 에 넣어 주세요}
     volumes:
       - oracle-data:/opt/oracle/oradata
@@ -42,7 +42,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       DB_URL: ${DB_URL:-jdbc:oracle:thin:@//oracle:1521/FREEPDB1}
-      DB_USERNAME: limeet
+      DB_USERNAME: mq
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 를 .env 에 넣어 주세요}
       ALLOWED_ORIGINS: https://${DOMAIN},https://${ADMIN_DOMAIN}

@@ -2,8 +2,8 @@
 -- v0.5 → v0.6: 관리자 사이트 데이터 관리의 변경 기록 테이블 추가 (기존 데이터는 그대로)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
--- 운영 DB 도 같은 파일을 limeet 계정으로 실행하면 된다.
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
+-- 운영 DB 도 같은 파일을 mq 계정으로 실행하면 된다.
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 -- 관리자 사이트 "데이터 관리"에서 바꾼 기록. 행 1개를 고치거나 추가할 때마다 1행.

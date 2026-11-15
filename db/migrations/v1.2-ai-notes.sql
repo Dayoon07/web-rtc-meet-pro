@@ -8,7 +8,7 @@
 --   - notifications.type 에 MEETING_NOTES_READY (회의록이 준비됨)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 

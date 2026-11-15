@@ -2,7 +2,7 @@
 
 > 로컬에서 서버·웹·사이드카를 켜고 개발할 때 보는 자세한 안내. 프로젝트 소개는 [README](../README.md).
 
-**MQ** — 채팅 중심 팀 협업 서비스 (워크스페이스 → 부서 채널 → 채팅, 필요하면 채팅 속 음성·화상, AI 회의록). limeet-app(P2P, DB 없음)을 서비스형으로 확장한 모노레포. 회원 / 팀·초대 / 1:1·그룹 채팅 / mediasoup SFU 화상회의 / 회의 예약·알림 / 플랜을 Oracle 에 기록한다.
+**MQ** — 채팅 중심 팀 협업 서비스 (워크스페이스 → 부서 채널 → 채팅, 필요하면 채팅 속 음성·화상, AI 회의록). mq-app(P2P, DB 없음)을 서비스형으로 확장한 모노레포. 회원 / 팀·초대 / 1:1·그룹 채팅 / mediasoup SFU 화상회의 / 회의 예약·알림 / 플랜을 Oracle 에 기록한다.
 화면은 한국어 · English · 日本語 · 简体中文 4개 언어를 지원한다.
 
 ```
@@ -17,8 +17,8 @@ web-rtc-meet-pro/
 │  ├─ schema.sql       Oracle DDL v1.10 (19c 이상)
 │  ├─ migrations/      이미 있는 DB 에 바뀐 부분만 적용 (데이터 유지). 예: v0.6-admin-data-changes.sql
 │  ├─ seed.sql         플랜 초기값
-│  ├─ local-setup.sql  로컬 Oracle XE 에 limeet 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
-│  └─ local-reset.sql  limeet 테이블을 지우고 다시 만들기 (스키마가 바뀌었을 때, SYSTEM 필요 없음)
+│  ├─ local-setup.sql  로컬 Oracle XE 에 mq 계정 + 테이블 만들기 (SYSTEM 으로 한 번만)
+│  └─ local-reset.sql  mq 테이블을 지우고 다시 만들기 (스키마가 바뀌었을 때, SYSTEM 필요 없음)
 ├─ deploy/             운영 배포 (Docker Compose · Caddy) — 도커는 배포에만 쓴다
 ├─ docs/legal/         운영 전 법적 점검표 · 해킹/유출 대응 절차, docs/db-capacity.md (DB 용량 추정)
 └─ scripts/            oss-licenses.py — 오픈소스 라이선스 목록(/licenses 화면) 다시 만들기
@@ -42,8 +42,8 @@ web-rtc-meet-pro/
 
 로컬 개발은 PC 에 설치된 **Oracle XE 21c** (`localhost:1521/XEPDB1`)를 쓴다. 도커는 운영 배포에만 쓴다.
 
-처음 한 번, 저장소 루트에서 SYSTEM 계정으로 아래를 실행하면 `limeet`/`limeet` 계정(= 스키마)을 만들고 테이블과 플랜 초기값을 넣는다 (SYSTEM 비밀번호는 XE 설치 때 정한 것).
-서비스와 관리자 사이트(별도 서브도메인)가 이 `limeet` 스키마 하나를 같이 쓴다.
+처음 한 번, 저장소 루트에서 SYSTEM 계정으로 아래를 실행하면 `mq`/`mq` 계정(= 스키마)을 만들고 테이블과 플랜 초기값을 넣는다 (SYSTEM 비밀번호는 XE 설치 때 정한 것).
+서비스와 관리자 사이트(별도 서브도메인)가 이 `mq` 스키마 하나를 같이 쓴다.
 **`NLS_LANG` 을 먼저 설정해야 한글(플랜 이름)이 깨지지 않는다.** PowerShell 은 `set` 이 아니라 `$env:` 로 설정한다 (cmd 라면 `set NLS_LANG=KOREAN_KOREA.AL32UTF8`).
 
 ```powershell
@@ -56,34 +56,34 @@ sqlplus system@//localhost:1521/XEPDB1 '@db/local-setup.sql'
 
 SQL Developer 를 쓰면 SYSTEM 으로 XEPDB1 에 접속해 `db/local-setup.sql` 을 열고 *스크립트 실행*(F5)해도 된다.
 
-> **반드시 XEPDB1(PDB)에 접속해서 만든다.** `sqlplus / as sysdba` 나 서비스 `XE` 는 CDB 루트라서 `CREATE USER limeet` 이 ORA-65096 으로 실패하고,
-> `C##limeet` 같은 공통 사용자를 만들어도 앱이 쓰는 XEPDB1 에는 로그인할 수 없다 (CREATE SESSION 이 루트에만 생김).
+> **반드시 XEPDB1(PDB)에 접속해서 만든다.** `sqlplus / as sysdba` 나 서비스 `XE` 는 CDB 루트라서 `CREATE USER mq` 이 ORA-65096 으로 실패하고,
+> `C##mq` 같은 공통 사용자를 만들어도 앱이 쓰는 XEPDB1 에는 로그인할 수 없다 (CREATE SESSION 이 루트에만 생김).
 > 이미 루트에 접속한 창이라면 먼저 `ALTER SESSION SET CONTAINER = XEPDB1;` 을 실행한다. `local-setup.sql` 은 루트에서 실행하면 바로 멈추고 이 안내를 보여 준다.
 
 `db/schema.sql` 이 바뀌었을 때 데이터를 지키려면 `db/migrations/` 의 해당 파일만 실행한다 (예: v0.5 → v0.6):
 
 ```powershell
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.3-member-overage.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.4-privacy.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.5-chat-notice.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.6-chat-replies-reactions.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.7-push-mute-dnd.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.8-team-invite-links.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.9-refunds.sql'
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.10-chat-threads.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.6-admin-data-changes.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.7-email-verification.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.9-plans-billing.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.0-workspaces.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.1-voice-rooms.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.2-ai-notes.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.3-member-overage.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.4-privacy.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.5-chat-notice.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.6-chat-replies-reactions.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.7-push-mute-dnd.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.8-team-invite-links.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.9-refunds.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.10-chat-threads.sql'
 ```
 
-데이터가 없어져도 되면 SYSTEM 없이 limeet 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
+데이터가 없어져도 되면 SYSTEM 없이 mq 계정으로 테이블만 다시 만든다 (로컬 데이터는 모두 지워진다).
 
 ```powershell
-sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
+sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 ```
 
 예전 `wrmp` 계정은 더 이상 쓰지 않는다. 지우려면 SYSTEM 으로 `DROP USER wrmp CASCADE;`.
@@ -102,7 +102,7 @@ sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/local-reset.sql'
 | 환경변수 | 기본값 |
 |---|---|
 | `DB_URL` | `jdbc:oracle:thin:@//localhost:1521/XEPDB1` (로컬 Oracle XE) |
-| `DB_USERNAME` / `DB_PASSWORD` | `limeet` / `limeet` |
+| `DB_USERNAME` / `DB_PASSWORD` | `mq` / `mq` |
 | `JWT_SECRET` | 개발용 값 (운영에서 반드시 교체, 32바이트 이상) |
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` (웹, 관리자 사이트) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 비어 있음 → 구글 로그인 비활성 (버튼이 회색으로 표시) |

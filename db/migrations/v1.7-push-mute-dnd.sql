@@ -1,5 +1,5 @@
 -- v1.7: 브라우저 푸시 알림(웹 푸시) · 채널 알림 끄기 · 방해 금지 시간
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.7-push-mute-dnd.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.7-push-mute-dnd.sql'
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 -- 웹 푸시 구독: 브라우저(기기)마다 하나. endpoint 는 브라우저 회사(구글·모질라·애플)의 푸시 서버 주소

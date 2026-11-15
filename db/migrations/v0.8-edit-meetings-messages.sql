@@ -4,7 +4,7 @@
 --   - chat_messages.content_edited_at: 보낸 사람이 글을 고친 시각 ("수정됨")
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v0.8-edit-meetings-messages.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 

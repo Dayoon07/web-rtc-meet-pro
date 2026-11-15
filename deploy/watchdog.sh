@@ -2,7 +2,7 @@
 # 서버가 죽었을 때 바로 알림 (5분마다, cron). 12시간 상태 보고는 서버가 보내지만 서버가 죽으면 못 보내서 따로 둔다.
 #   확인: 서버 · DB (/api/health 가 DB 까지 본다) · 미디어 사이드카 (/health) · 디스크 90% · 메모리 95%
 #   문제가 새로 생기거나 다시 괜찮아질 때만 메일 (같은 문제로 5분마다 메일이 오지 않게)
-#   설치 (서버에서 한 번):  crontab -e  →  */5 * * * * /opt/limeet/deploy/watchdog.sh >> /var/log/limeet-watchdog.log 2>&1
+#   설치 (서버에서 한 번):  crontab -e  →  */5 * * * * /home/ubuntu/web-rtc-meet-pro/deploy/watchdog.sh >> /var/log/mq-watchdog.log 2>&1
 #   메일 설정은 deploy/.env 의 MAIL_HOST · MAIL_PORT · MAIL_USERNAME · MAIL_PASSWORD 를 쓴다 (curl 로 SMTP)
 #   시험: WATCHDOG_DRY_RUN=1 이면 메일 대신 화면에 찍는다
 set -u
@@ -18,7 +18,7 @@ TO=${HEALTH_REPORT_TO:-$(envval HEALTH_REPORT_TO)}
 TO=${TO:-gangd0642@gmail.com}
 SERVER_HEALTH_URL=${SERVER_HEALTH_URL:-http://127.0.0.1:8080/api/health}
 MEDIA_HEALTH_URL=${MEDIA_HEALTH_URL:-http://127.0.0.1:4000/health}
-STATE=${WATCHDOG_STATE:-/var/lib/limeet-watchdog.state}
+STATE=${WATCHDOG_STATE:-/var/lib/mq-watchdog.state}
 HOST=$(hostname)
 
 problems=()

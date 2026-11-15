@@ -1,5 +1,5 @@
 -- v1.6: 채팅 답장 · 이모지 반응 · @멘션 (+ 멘션 알림)
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.6-chat-replies-reactions.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.6-chat-replies-reactions.sql'
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 -- 답장: 어느 메시지에 답했는지 / 멘션: 부른 사람들 (쉼표로 이은 user_id) · @모두

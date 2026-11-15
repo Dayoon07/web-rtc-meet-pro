@@ -115,7 +115,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs -f serve
 ```
 
 처음에는 Oracle 이 스키마를 만드는 데 몇 분 걸린다 (server 는 DB 가 healthy 가 된 뒤 뜬다).
-DB 스키마(계정) 이름은 `limeet` 이다. 이 계정과 테이블은 `oracle-data` 볼륨이 비어 있을 때 한 번만 만들어진다.
+DB 스키마(계정) 이름은 `mq` 이다. 이 계정과 테이블은 `oracle-data` 볼륨이 비어 있을 때 한 번만 만들어진다.
 `https://<DOMAIN>` 접속 → 회원가입 → 회의 만들기 → 다른 기기에서 입장해 영상이 오가면 끝.
 
 업데이트:
@@ -131,7 +131,7 @@ git pull && docker compose -f deploy/docker-compose.yml --env-file deploy/.env u
 
 ```bash
 # 비밀번호는 deploy/.env 의 DB_PASSWORD
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec oracle sqlplus limeet@//localhost/FREEPDB1
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec oracle sqlplus mq@//localhost/FREEPDB1
 ```
 
 ```sql
@@ -145,8 +145,8 @@ iwinv 는 서버에 저장된 데이터의 백업을 **고객 책임**으로 둔
 
 - DB 는 파일이 쓰이는 중에 복사하면 깨질 수 있어서 **서버와 DB 를 1~2분 멈추고** `oracle-data` 볼륨을 통째로 압축한다 (새벽 4시 권장)
 - 채팅 첨부파일(`chat-files`), 프로필 사진(`uploads`) 은 켜 둔 채로 압축한다
-- 결과는 `/var/backups/limeet` 에 쌓이고 7일 지난 것은 지운다 (`BACKUP_DIR`, `KEEP_DAYS` 로 바꿀 수 있다)
-- `deploy/.env` 에 `BACKUP_S3_URI=s3://버킷이름/limeet` 를 넣고 서버에 `aws` CLI 를 설정해 두면 S3 에도 올린다.
+- 결과는 `/var/backups/mq` 에 쌓이고 7일 지난 것은 지운다 (`BACKUP_DIR`, `KEEP_DAYS` 로 바꿀 수 있다)
+- `deploy/.env` 에 `BACKUP_S3_URI=s3://버킷이름/mq` 를 넣고 서버에 `aws` CLI 를 설정해 두면 S3 에도 올린다.
   같은 서버 디스크에만 두면 서버가 사라질 때 같이 사라지므로 S3(또는 다른 곳) 보관을 권장한다.
   S3 버킷에는 수명 주기 규칙(예: 30일 뒤 삭제)을 걸어 둔다.
 
@@ -154,19 +154,19 @@ iwinv 는 서버에 저장된 데이터의 백업을 **고객 책임**으로 둔
 chmod +x deploy/backup.sh
 sudo deploy/backup.sh          # 한 번 직접 돌려 보고
 sudo crontab -e                # 매일 새벽 4시
-# 0 4 * * * /home/ubuntu/web-rtc-meet-pro/deploy/backup.sh >> /var/log/limeet-backup.log 2>&1
+# 0 4 * * * /home/ubuntu/web-rtc-meet-pro/deploy/backup.sh >> /var/log/mq-backup.log 2>&1
 ```
 
 복구 (예: `oracle-20261201-0400.tgz` 로 되돌리기):
 
 ```bash
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env stop server oracle
-docker run --rm -v limeet_oracle-data:/data -v /var/backups/limeet:/backup debian:12-slim \
+docker run --rm -v mq_oracle-data:/data -v /var/backups/mq:/backup debian:12-slim \
   sh -c 'find /data -mindepth 1 -delete && tar --numeric-owner -xzf /backup/oracle-20261201-0400.tgz -C /data'
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env start oracle server
 ```
 
-채팅 첨부파일·프로필 사진도 볼륨 이름만 `limeet_chat-files`, `limeet_uploads` 로 바꿔 같은 방법으로 되돌린다.
+채팅 첨부파일·프로필 사진도 볼륨 이름만 `mq_chat-files`, `mq_uploads` 로 바꿔 같은 방법으로 되돌린다.
 
 ## 5-1. 상태 메일 (모니터링)
 
@@ -180,7 +180,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env start oracle 
 ```bash
 sudo deploy/watchdog.sh        # 한 번 직접 돌려 보고 (정상이면 아무것도 안 나온다)
 sudo crontab -e                # 5분마다
-# */5 * * * * /home/ubuntu/web-rtc-meet-pro/deploy/watchdog.sh >> /var/log/limeet-watchdog.log 2>&1
+# */5 * * * * /home/ubuntu/web-rtc-meet-pro/deploy/watchdog.sh >> /var/log/mq-watchdog.log 2>&1
 ```
 
 - 시험: `WATCHDOG_DRY_RUN=1 SERVER_HEALTH_URL=http://127.0.0.1:9/ deploy/watchdog.sh` → 경고 메일 내용을 화면에만 찍는다.
@@ -192,11 +192,11 @@ sudo crontab -e                # 5분마다
 
 ```bash
 cd apps/kmp
-./gradlew :androidApp:assembleRelease -Plimeet.apiUrl=https://<DOMAIN>
-./gradlew :composeApp:packageMsi -Plimeet.apiUrl=https://<DOMAIN>
+./gradlew :androidApp:assembleRelease -Pmq.apiUrl=https://<DOMAIN>
+./gradlew :composeApp:packageMsi -Pmq.apiUrl=https://<DOMAIN>
 ```
 
-- 웹 주소(`-Plimeet.webUrl`)를 생략하면 API 주소와 같게 쓴다 (Caddy 가 한 도메인에서 둘 다 서비스하므로).
+- 웹 주소(`-Pmq.webUrl`)를 생략하면 API 주소와 같게 쓴다 (Caddy 가 한 도메인에서 둘 다 서비스하므로).
 - Android 릴리스 APK 는 서명 설정(keystore)을 `androidApp/build.gradle.kts` 의 `signingConfigs` 에 추가해야 설치·배포할 수 있다.
 
 ## 운영 체크리스트
@@ -206,7 +206,7 @@ cd apps/kmp
 - [ ] iwinv 방화벽(ELCAP)과 서버 안 ufw(켜져 있다면) 둘 다 UDP 40000-40200 이 열려 있다 (영상이 안 보이면 대부분 여기)
 - [ ] SSH(22)는 내 IP 만 허용했다
 - [ ] `/internal/*` 은 Caddy 에서 막혀 있다 (사이드카 → 서버 콜백 전용)
-- [ ] `deploy/watchdog.sh` 가 cron 으로 5분마다 돈다 (`/var/log/limeet-watchdog.log`), 오전 9시·오후 9시 상태 보고 메일이 온다
-- [ ] `deploy/backup.sh` 가 cron 으로 매일 돈다 (`/var/log/limeet-backup.log` 확인), 가능하면 S3 에도 올라간다
+- [ ] `deploy/watchdog.sh` 가 cron 으로 5분마다 돈다 (`/var/log/mq-watchdog.log`), 오전 9시·오후 9시 상태 보고 메일이 온다
+- [ ] `deploy/backup.sh` 가 cron 으로 매일 돈다 (`/var/log/mq-backup.log` 확인), 가능하면 S3 에도 올라간다
 - [ ] iwinv 콘솔에서 월 트래픽 사용량을 가끔 본다 (600GB 초과분은 따로 청구)
 - [ ] 회사망 등 UDP 가 막힌 곳에서도 써야 하면 TURN 서버(coturn) 추가가 필요하다

@@ -9,8 +9,8 @@ spring:
       - optional:file:apps/server/.env.local[.properties]
   datasource:
     url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
-    username: ${DB_USERNAME:limeet}
-    password: ${DB_PASSWORD:limeet}
+    username: ${DB_USERNAME:mq}
+    password: ${DB_PASSWORD:mq}
     # 부하 테스트(CPU 2개)에서 20 보다 10 이 나았다. DB 도 CPU 2개라 동시에 많이 시키면 오히려 느려진다
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}

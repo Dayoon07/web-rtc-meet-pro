@@ -7,7 +7,7 @@
 --   - notifications.type 에 MEMBER_OVERAGE(한도 초과 경고), OVERAGE_CHARGE_SOON(3일 뒤 결제 안내)
 -- 실행 (저장소 루트에서):
 --   PowerShell:  $env:NLS_LANG = "KOREAN_KOREA.AL32UTF8"
---   sqlplus limeet/limeet@//localhost:1521/XEPDB1 '@db/migrations/v1.3-member-overage.sql'
+--   sqlplus mq/mq@//localhost:1521/XEPDB1 '@db/migrations/v1.3-member-overage.sql'
 -- =====================================================================
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 
