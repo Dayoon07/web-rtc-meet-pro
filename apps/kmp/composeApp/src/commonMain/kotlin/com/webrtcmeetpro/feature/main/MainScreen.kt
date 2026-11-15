@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.feature.main
 
+import com.webrtcmeetpro.feature.notifications.linkTarget
+import com.webrtcmeetpro.platform.PendingLinks
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.webrtcmeetpro.core.data.TeamRepository
@@ -234,6 +236,19 @@ private fun TabIcon(tab: Tab, count: Long) {
 @Composable
 private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
     val back: () -> Unit = { nav.popBackStack() }
+    val open: (NotificationTarget) -> Unit = { target ->
+        when (target) {
+            is NotificationTarget.Meeting -> nav.navigate(MeetingDetailRoute(target.id))
+            is NotificationTarget.ChatRoom -> nav.navigate(target.threadId?.let(::ThreadRoute) ?: ChatRoomRoute(target.id))
+            is NotificationTarget.Team -> nav.navigate(TeamDetailRoute(target.id))
+            NotificationTarget.Invitations -> nav.openTab(Tab.INVITATIONS)
+        }
+    }
+    // 시스템 알림을 눌러서 앱이 열리면 그 화면으로
+    val pendingLink by PendingLinks.link.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingLink) {
+        if (pendingLink != null) PendingLinks.consume()?.let(::linkTarget)?.let(open)
+    }
     NavHost(nav, startDestination = ChatRoute, modifier = modifier) {
         composable<HomeRoute> {
             HomeScreen(
@@ -309,17 +324,7 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
         }
         composable<TeamDetailRoute> { TeamDetailScreen(it.toRoute<TeamDetailRoute>().teamId, onBack = back) }
         composable<NotificationsRoute> {
-            NotificationsScreen(
-                onBack = back,
-                onOpen = { target ->
-                    when (target) {
-                        is NotificationTarget.Meeting -> nav.navigate(MeetingDetailRoute(target.id))
-                        is NotificationTarget.ChatRoom -> nav.navigate(target.threadId?.let(::ThreadRoute) ?: ChatRoomRoute(target.id))
-                        is NotificationTarget.Team -> nav.navigate(TeamDetailRoute(target.id))
-                        NotificationTarget.Invitations -> nav.openTab(Tab.INVITATIONS)
-                    }
-                },
-            )
+            NotificationsScreen(onBack = back, onOpen = open)
         }
     }
 }

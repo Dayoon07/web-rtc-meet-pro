@@ -9,6 +9,14 @@ data class LoginRequest(val email: String, val password: String)
 @Serializable
 data class RefreshRequest(val refreshToken: String)
 
+/** GET /api/auth/providers. 서버에 구글 키가 있어야 구글 로그인 버튼을 보여 준다 */
+@Serializable
+data class AuthProviders(val google: Boolean = false)
+
+/** POST /api/auth/oauth/exchange. 구글 로그인이 끝나고 받은 1회용 코드를 토큰으로 바꾼다 */
+@Serializable
+data class OAuthExchangeRequest(val code: String)
+
 @Serializable
 enum class Gender { MALE, FEMALE, OTHER }
 

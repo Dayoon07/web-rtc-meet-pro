@@ -17,6 +17,16 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = libs.versions.appVersionCode.get().toInt()
         versionName = libs.versions.appVersionName.get()
+
+        // google-services.json 대신 ~/.gradle/gradle.properties 의 mq.firebase.* 로 Firebase 를 켠다 (값이 없으면 앱 푸시만 꺼진다).
+        // FirebaseInitProvider 가 이 리소스 이름들을 읽어서 자동으로 초기화한다
+        val firebase = mapOf(
+            "google_app_id" to "mq.firebase.appId",
+            "google_api_key" to "mq.firebase.apiKey",
+            "gcm_defaultSenderId" to "mq.firebase.senderId",
+            "project_id" to "mq.firebase.projectId",
+        ).mapValues { providers.gradleProperty(it.value).orNull }
+        if (firebase.values.all { it != null }) firebase.forEach { (name, value) -> resValue("string", name, value!!) }
     }
 
     // 서명 키와 비밀번호는 저장소에 두지 않고 ~/.gradle/gradle.properties 에서 읽는다. 없으면 서명 안 된 APK 가 나온다
@@ -37,6 +47,10 @@ android {
             isMinifyEnabled = false
             if (storeFilePath != null) signingConfig = signingConfigs.getByName("release")
         }
+    }
+
+    buildFeatures {
+        resValues = true
     }
 
     compileOptions {

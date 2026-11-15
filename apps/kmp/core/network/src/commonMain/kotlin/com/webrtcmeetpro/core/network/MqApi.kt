@@ -1,7 +1,11 @@
 package com.webrtcmeetpro.core.network
 
 import com.webrtcmeetpro.core.model.MeetingNotes
+import com.webrtcmeetpro.core.model.AuthProviders
+import com.webrtcmeetpro.core.model.OAuthExchangeRequest
 import com.webrtcmeetpro.core.model.PresenceRequest
+import com.webrtcmeetpro.core.model.PushDeviceRemoveRequest
+import com.webrtcmeetpro.core.model.PushDeviceRequest
 import com.webrtcmeetpro.core.model.QuietHoursRequest
 import com.webrtcmeetpro.core.model.UpdateProfileRequest
 import com.webrtcmeetpro.core.model.ChatThread
@@ -83,6 +87,19 @@ class MqApi(private val client: HttpClient) {
 
     suspend fun logout(refreshToken: String) {
         client.post("api/auth/logout") { setBody(RefreshRequest(refreshToken)) }
+    }
+
+    suspend fun authProviders(): AuthProviders = client.get("api/auth/providers").body()
+
+    suspend fun exchangeOAuthCode(code: String): AuthTokens =
+        client.post("api/auth/oauth/exchange") { setBody(OAuthExchangeRequest(code)) }.body()
+
+    suspend fun registerPushDevice(token: String, lang: String?) {
+        client.post("api/push/devices") { setBody(PushDeviceRequest(token, lang = lang)) }
+    }
+
+    suspend fun unregisterPushDevice(token: String) {
+        client.delete("api/push/devices") { setBody(PushDeviceRemoveRequest(token)) }
     }
 
     /** 앱 → 브라우저로 로그인 상태를 넘기는 1회용 코드 (화상회의 입장용) */

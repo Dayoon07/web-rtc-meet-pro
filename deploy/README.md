@@ -107,6 +107,28 @@ nano deploy/.env
 - 구글 로그인: Google Cloud Console 의 승인된 리디렉션 URI 에 `https://<DOMAIN>/login/oauth2/code/google` 추가 후 ID/Secret 입력
 - (선택) `BACKUP_S3_URI`: 백업을 S3 에도 올릴 때 (아래 5번)
 
+### 구글 로그인 (웹·앱 공통)
+
+- Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트(웹 애플리케이션)
+  - 승인된 리디렉션 URI: `https://<DOMAIN>/login/oauth2/code/google`
+  - 앱(Android·Windows)도 이 주소 하나로 된다. 구글 로그인이 끝나면 서버가 앱으로 돌려보낸다 (Android `mq://oauth/callback`, Windows `http://127.0.0.1:<임시 포트>/oauth/callback`)
+- `.env` 에 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` 을 넣고 `docker compose ... up -d server`
+
+### 앱 푸시 (Android, 앱이 꺼져 있어도 채팅·알림)
+
+1. Firebase 콘솔에서 프로젝트를 만들고 Android 앱(패키지 이름 `com.webrtcmeetpro`)을 추가한다
+2. 서버: 프로젝트 설정 → 서비스 계정 → 새 비공개 키(JSON) 를 서버의 `deploy/secrets/fcm-service-account.json` 에 두고,
+   `.env` 에 `FCM_CREDENTIALS_FILE=/app/secrets/fcm-service-account.json` 을 넣은 뒤 `up -d server`
+3. 앱 빌드: 내려받은 `google-services.json` 의 값을 빌드하는 PC 의 `~/.gradle/gradle.properties` 에 넣는다 (저장소에는 두지 않는다)
+   ```
+   mq.firebase.appId=<client[0].client_info.mobilesdk_app_id>
+   mq.firebase.apiKey=<client[0].api_key[0].current_key>
+   mq.firebase.senderId=<project_info.project_number>
+   mq.firebase.projectId=<project_info.project_id>
+   ```
+   값이 없으면 앱 푸시만 꺼지고 나머지는 그대로 빌드된다.
+- Windows 앱은 OS 푸시가 없어서 창을 닫으면 트레이로 숨어 연결을 유지한다 (트레이 아이콘 → 종료로 끈다)
+
 ## 4. 실행
 
 ```bash

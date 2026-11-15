@@ -278,7 +278,7 @@ internal fun FormPicker(label: String, value: String, options: List<Pair<String,
 }
 
 @Composable
-private fun Agree(checked: Boolean, label: StringResource, doc: String? = null, onChange: (Boolean) -> Unit) {
+internal fun Agree(checked: Boolean, label: StringResource, doc: String? = null, onChange: (Boolean) -> Unit) {
     val uriHandler = LocalUriHandler.current
     val webUrl = koinInject<ApiConfig>().webUrl.trimEnd('/')
     Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {

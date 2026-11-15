@@ -41,3 +41,5 @@ local.properties
 # 내 PC 에서만 쓰는 배포 스크립트 (서버 주소·키 경로가 들어 있다)
 /deploy/local-deploy.*
 /deploy/deploy.log
+# 서비스 계정 키 같은 비밀 파일
+/deploy/secrets/

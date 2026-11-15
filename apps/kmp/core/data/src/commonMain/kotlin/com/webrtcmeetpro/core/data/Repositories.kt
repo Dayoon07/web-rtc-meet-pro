@@ -34,6 +34,7 @@ class AuthRepository(
     private val api: MqApi,
     private val session: SessionStore,
     private val users: UserRepository,
+    private val pushDevices: PushDevices,
 ) {
     val isLoggedIn: Flow<Boolean> = session.isLoggedIn
 
@@ -47,11 +48,20 @@ class AuthRepository(
         api.resetAuth()
     }
 
+    /** 구글 로그인이 끝나고 서버가 앱으로 돌려준 1회용 코드 */
+    suspend fun loginWithOAuthCode(code: String) {
+        session.save(api.exchangeOAuthCode(code))
+        api.resetAuth()
+    }
+
+    suspend fun googleLoginEnabled(): Boolean = runCatching { api.authProviders().google }.getOrDefault(false)
+
     suspend fun isEmailAvailable(email: String): Boolean = api.emailAvailable(email.trim())
 
     /** 서버 세션 폐기가 실패해도(오프라인 등) 기기에서는 로그아웃시킨다 */
     suspend fun logout() {
         val refresh = session.load()?.refreshToken
+        runCatching { pushDevices.unregister() }
         if (refresh != null) runCatching { api.logout(refresh) }
         clearLocal()
     }
@@ -67,6 +77,7 @@ class AuthRepository(
 
     /** 회원 탈퇴. 서버가 세션을 모두 끊으므로 기기에서도 바로 로그아웃시킨다 */
     suspend fun withdraw(password: String?) {
+        runCatching { pushDevices.unregister() }
         api.withdraw(password)
         clearLocal()
     }

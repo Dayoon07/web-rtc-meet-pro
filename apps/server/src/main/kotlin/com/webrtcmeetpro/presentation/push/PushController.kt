@@ -1,5 +1,7 @@
 package com.webrtcmeetpro.presentation.push
 
+import com.webrtcmeetpro.domain.push.dto.req.PushDeviceRemoveReqDto
+import com.webrtcmeetpro.domain.push.dto.req.PushDeviceReqDto
 import com.webrtcmeetpro.domain.push.dto.req.PushSubscribeReqDto
 import com.webrtcmeetpro.domain.push.dto.req.PushUnsubscribeReqDto
 import com.webrtcmeetpro.application.push.PushService
@@ -34,4 +36,13 @@ class PushController(private val push: PushService) {
     @DeleteMapping("/subscriptions")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun unsubscribe(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: PushUnsubscribeReqDto) = push.unsubscribe(jwt.userId, req.endpoint)
+
+    @PostMapping("/devices")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun registerDevice(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: PushDeviceReqDto, http: HttpServletRequest) =
+        push.registerDevice(jwt.userId, req.token, req.platform, req.lang, http.getHeader("User-Agent"))
+
+    @DeleteMapping("/devices")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun unregisterDevice(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody req: PushDeviceRemoveReqDto) = push.unregisterDevice(jwt.userId, req.token)
 }

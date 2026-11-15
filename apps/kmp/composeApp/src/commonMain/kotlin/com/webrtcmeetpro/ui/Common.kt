@@ -77,6 +77,10 @@ import com.webrtcmeetpro.resources.error_EMAIL_REGISTERED_WITH_GOOGLE
 import com.webrtcmeetpro.resources.error_FORBIDDEN
 import com.webrtcmeetpro.resources.error_INVALID_CREDENTIALS
 import com.webrtcmeetpro.resources.error_INVALID_INPUT
+import com.webrtcmeetpro.resources.error_EMAIL_REGISTERED_WITH_PASSWORD
+import com.webrtcmeetpro.resources.error_OAUTH_FAILED
+import com.webrtcmeetpro.resources.error_OAUTH_CODE_INVALID
+import com.webrtcmeetpro.resources.error_TERMS_NOT_AGREED
 import com.webrtcmeetpro.resources.error_INVALID_IMAGE
 import com.webrtcmeetpro.resources.error_INVALID_NAME
 import com.webrtcmeetpro.resources.error_INVALID_NICKNAME
@@ -111,6 +115,10 @@ fun errorMessage(code: String): String = stringResource(
         "SOCIAL_ACCOUNT_ONLY" -> Res.string.error_SOCIAL_ACCOUNT_ONLY
         "EMAIL_ALREADY_EXISTS" -> Res.string.error_EMAIL_ALREADY_EXISTS
         "EMAIL_REGISTERED_WITH_GOOGLE" -> Res.string.error_EMAIL_REGISTERED_WITH_GOOGLE
+        "EMAIL_REGISTERED_WITH_PASSWORD" -> Res.string.error_EMAIL_REGISTERED_WITH_PASSWORD
+        "OAUTH_FAILED" -> Res.string.error_OAUTH_FAILED
+        "OAUTH_CODE_INVALID" -> Res.string.error_OAUTH_CODE_INVALID
+        "TERMS_NOT_AGREED" -> Res.string.error_TERMS_NOT_AGREED
         "UNDERAGE" -> Res.string.error_UNDERAGE
         "INVALID_PHONE" -> Res.string.error_INVALID_PHONE
         "INVALID_IMAGE" -> Res.string.error_INVALID_IMAGE

@@ -19,6 +19,7 @@ import com.webrtcmeetpro.core.network.StompClient
 import com.webrtcmeetpro.core.network.TokenStorage
 import com.webrtcmeetpro.core.network.createHttpClient
 import com.webrtcmeetpro.feature.auth.LoginViewModel
+import com.webrtcmeetpro.feature.auth.OnboardingViewModel
 import com.webrtcmeetpro.feature.auth.SignupViewModel
 import com.webrtcmeetpro.feature.chat.ChatListViewModel
 import com.webrtcmeetpro.feature.chat.ChatPresence
@@ -68,6 +69,7 @@ val viewModelModule = module {
     viewModelOf(::PlanExpiryViewModel)
     viewModelOf(::LoginViewModel)
     viewModelOf(::SignupViewModel)
+    viewModelOf(::OnboardingViewModel)
     viewModelOf(::HomeViewModel)
     viewModelOf(::ChatListViewModel)
     viewModelOf(::NewChatViewModel)

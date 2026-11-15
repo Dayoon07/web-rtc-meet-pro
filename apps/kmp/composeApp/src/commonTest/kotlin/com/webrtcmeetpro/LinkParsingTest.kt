@@ -40,4 +40,18 @@ class LinkParsingTest {
         assertEquals("214,920", formatAmount(214920))
         assertEquals("1,234,567", formatAmount(1234567))
     }
+
+    @Test
+    fun `구글 로그인에서 돌아온 주소의 코드와 오류를 읽는다`() {
+        com.webrtcmeetpro.platform.OAuthCallbacks.deliver("mq://oauth/callback?code=ab%2Bc-1")
+        assertEquals(com.webrtcmeetpro.platform.OAuthResult("ab+c-1", null), com.webrtcmeetpro.platform.OAuthCallbacks.consume())
+        com.webrtcmeetpro.platform.OAuthCallbacks.deliver("/oauth/callback?error=EMAIL_REGISTERED_WITH_PASSWORD")
+        assertEquals(com.webrtcmeetpro.platform.OAuthResult(null, "EMAIL_REGISTERED_WITH_PASSWORD"), com.webrtcmeetpro.platform.OAuthCallbacks.consume())
+        assertEquals(null, com.webrtcmeetpro.platform.OAuthCallbacks.consume())
+    }
+
+    @Test
+    fun `알림을 눌렀을 때의 채팅 링크는 팀 번호 없이도 방을 찾는다`() {
+        assertEquals(NotificationTarget.ChatRoom(1106, null), com.webrtcmeetpro.feature.notifications.linkTarget("/app/chat/0/1106"))
+    }
 }

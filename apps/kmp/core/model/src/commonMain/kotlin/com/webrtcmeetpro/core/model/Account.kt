@@ -48,7 +48,7 @@ data class Me(
     val dndTimeZone: String? = null,
 )
 
-/** PUT /api/users/me/profile. 약관 동의는 가입 때 이미 했으므로 바꾸지 않는다 */
+/** PUT /api/users/me/profile. 약관 동의는 구글 가입 직후 추가 정보를 넣을 때만 필요하다 */
 @Serializable
 data class UpdateProfileRequest(
     val nickname: String,
@@ -58,7 +58,17 @@ data class UpdateProfileRequest(
     val birthYear: Int,
     val gender: Gender? = null,
     val marketingAgreed: Boolean? = null,
+    val termsAgreed: Boolean = false,
+    val privacyAgreed: Boolean = false,
 )
+
+/** POST /api/push/devices */
+@Serializable
+data class PushDeviceRequest(val token: String, val platform: String = "ANDROID", val lang: String? = null)
+
+/** DELETE /api/push/devices */
+@Serializable
+data class PushDeviceRemoveRequest(val token: String)
 
 /** PUT /api/users/me/quiet-hours. start·end 가 null 이면 끈다 */
 @Serializable

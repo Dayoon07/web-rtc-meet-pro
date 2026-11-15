@@ -41,6 +41,14 @@ import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.AuthRepository
 import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
+import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
+import com.webrtcmeetpro.platform.GoogleLoginLauncher
+import com.webrtcmeetpro.platform.OAuthCallbacks
+import com.webrtcmeetpro.platform.OAuthResult
+import com.webrtcmeetpro.resources.login_google
+import com.webrtcmeetpro.resources.login_google_waiting
+import com.webrtcmeetpro.resources.login_or
+import kotlinx.coroutines.flow.filterNotNull
 import com.webrtcmeetpro.core.network.errorCode
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.login_forgot
@@ -70,13 +78,47 @@ data class LoginUiState(
     val password: String = "",
     val submitting: Boolean = false,
     val errorCode: String? = null,
+    val googleEnabled: Boolean = false,
+    /** 브라우저에서 구글 로그인을 하는 중이거나, 돌아온 코드를 토큰으로 바꾸는 중 */
+    val googleWaiting: Boolean = false,
 ) {
     val canSubmit get() = email.isNotBlank() && password.isNotEmpty() && !submitting
 }
 
-class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
+class LoginViewModel(
+    private val auth: AuthRepository,
+    private val google: GoogleLoginLauncher,
+    private val config: ApiConfig,
+) : ViewModel() {
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val enabled = auth.googleLoginEnabled()
+            _state.update { it.copy(googleEnabled = enabled) }
+        }
+        viewModelScope.launch {
+            OAuthCallbacks.pending.filterNotNull().collect { OAuthCallbacks.consume()?.let { r -> finishGoogle(r) } }
+        }
+    }
+
+    fun googleLogin() {
+        _state.update { it.copy(googleWaiting = true, errorCode = null) }
+        google.start(config.baseUrl)
+    }
+
+    /** 성공하면 토큰이 저장되고 App 이 메인 화면(처음 가입이면 추가 정보 입력)으로 바꾼다 */
+    private suspend fun finishGoogle(result: OAuthResult) {
+        val code = result.code
+        if (code == null) {
+            _state.update { it.copy(googleWaiting = false, errorCode = result.error ?: "OAUTH_FAILED") }
+            return
+        }
+        _state.update { it.copy(googleWaiting = true, errorCode = null) }
+        runCatching { auth.loginWithOAuthCode(code) }
+            .onFailure { e -> _state.update { it.copy(googleWaiting = false, errorCode = e.errorCode) } }
+    }
 
     fun onEmailChange(value: String) = _state.update { it.copy(email = value, errorCode = null) }
     fun onPasswordChange(value: String) = _state.update { it.copy(password = value, errorCode = null) }
@@ -171,6 +213,29 @@ fun LoginScreen(onSignup: () -> Unit, viewModel: LoginViewModel = koinViewModel(
                         loading = state.submitting,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (state.googleEnabled) {
+                        Text(
+                            stringResource(Res.string.login_or),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                        // 브라우저에서 돌아오지 않고 앱으로 왔을 때 다시 누를 수 있게 막지 않는다
+                        SecondaryButton(
+                            stringResource(Res.string.login_google),
+                            onClick = viewModel::googleLogin,
+                            enabled = !state.submitting,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        if (state.googleWaiting) {
+                            Text(
+                                stringResource(Res.string.login_google_waiting),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            )
+                        }
+                    }
                 }
             }
             Text(

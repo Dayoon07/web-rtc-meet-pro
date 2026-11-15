@@ -57,6 +57,8 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@localhost}
+      # 앱 푸시(FCM). deploy/secrets/ 에 서비스 계정 키를 두고 .env 에 경로를 넣으면 켜진다
+      FCM_CREDENTIALS_FILE: ${FCM_CREDENTIALS_FILE:-}
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
@@ -93,6 +95,8 @@ services:
       - chat-files:/data/chat-files
       # 회의 녹화 (주최자 브라우저가 올린 webm. 디스크를 많이 쓰니 남은 용량을 가끔 확인)
       - recordings:/data/recordings
+      # 앱 푸시(FCM) 서비스 계정 키 같은 비밀 파일. git 에 올리지 않는다 (.gitignore)
+      - ./secrets:/app/secrets:ro
     ports:
       # 사이드카(호스트 네트워크)가 참가 기록을 보내는 내부 콜백용. 외부에는 열리지 않도록 127.0.0.1 에만
       - "127.0.0.1:8080:8080"

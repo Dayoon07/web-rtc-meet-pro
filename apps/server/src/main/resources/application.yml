@@ -107,6 +107,8 @@ app:
     vapid-public-key: ${VAPID_PUBLIC_KEY:}
     vapid-private-key: ${VAPID_PRIVATE_KEY:}
     subject: ${VAPID_SUBJECT:mailto:admin@localhost}
+    # Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키. 비우면 앱 푸시 없이 앱이 켜져 있을 때만 알림
+    fcm-credentials-file: ${FCM_CREDENTIALS_FILE:}
   mail:
     # 비우면 보내지 않고 서버 로그에 링크를 남긴다 (로컬은 로그의 링크로 확인)
     host: ${MAIL_HOST:}

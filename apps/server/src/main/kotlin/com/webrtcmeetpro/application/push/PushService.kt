@@ -7,9 +7,13 @@ import com.webrtcmeetpro.common.error.BusinessException
 import com.webrtcmeetpro.common.error.ErrorCode
 import com.webrtcmeetpro.config.properties.PushProperties
 import com.webrtcmeetpro.domain.notification.NotificationType
+import com.webrtcmeetpro.domain.push.DevicePlatform
+import com.webrtcmeetpro.domain.push.PushDevice
+import com.webrtcmeetpro.domain.push.PushDeviceRepository
 import com.webrtcmeetpro.domain.push.PushSubscription
 import com.webrtcmeetpro.domain.push.PushSubscriptionRepository
 import com.webrtcmeetpro.domain.user.UserRepository
+import com.webrtcmeetpro.infrastructure.push.FcmSender
 import com.webrtcmeetpro.infrastructure.push.PushResult
 import com.webrtcmeetpro.infrastructure.push.PushTarget
 import com.webrtcmeetpro.infrastructure.push.WebPushSender
@@ -32,14 +36,16 @@ fun interface PushNotifier {
 data class PushPayload(val title: String, val body: String, val link: String?, val tag: String?)
 
 /**
- * 창을 닫아도 오는 알림. 접속 중인 사람에게는 화면 알림이 이미 뜨므로 보내지 않고,
- * 방해 금지 시간인 사람은 빼고, 사라진 구독(404·410)은 지운다.
+ * 창을 닫거나 앱을 꺼도 오는 알림 (브라우저는 웹 푸시, Android 앱은 FCM).
+ * 접속 중인 사람에게는 화면 알림이 이미 뜨므로 보내지 않고, 방해 금지 시간인 사람은 빼고, 사라진 구독·토큰은 지운다.
  * 요청을 늦추지 않게 커밋 뒤 별도 스레드에서 보낸다.
  */
 @Service
 class PushService(
     private val subscriptions: PushSubscriptionRepository,
+    private val devices: PushDeviceRepository,
     private val sender: WebPushSender,
+    private val fcm: FcmSender,
     private val props: PushProperties,
     private val presence: PresenceService,
     private val users: UserRepository,
@@ -65,6 +71,19 @@ class PushService(
         subscriptions.findByEndpoint(endpoint)?.takeIf { it.userId == userId }?.cancel()
     }
 
+    @Transactional
+    fun registerDevice(userId: Long, token: String, platform: DevicePlatform, lang: String?, userAgent: String?) {
+        val existing = devices.findByToken(token)
+        if (existing != null) existing.renew(userId, lang?.take(10), userAgent?.take(500))
+        else devices.save(PushDevice(userId, platform, token, lang?.take(10), userAgent?.take(500)))
+    }
+
+    /** 로그아웃한 기기에 다른 사람의 알림이 가지 않게 지운다 */
+    @Transactional
+    fun unregisterDevice(userId: Long, token: String) {
+        devices.findByToken(token)?.takeIf { it.userId == userId }?.cancel()
+    }
+
     fun chatMessage(recipients: Collection<Long>, title: String, link: String, tag: String, body: (lang: String?) -> String) = afterCommit {
         dispatch(recipients.filter { presence.status(it) != PresenceStatus.ONLINE }, "high") { lang -> PushPayload(title, body(lang), link, tag) }
     }
@@ -83,7 +102,7 @@ class PushService(
     }
 
     private fun dispatch(userIds: Collection<Long>, urgency: String, build: (lang: String?) -> PushPayload) {
-        if (!props.enabled || userIds.isEmpty()) return
+        if ((!props.enabled && !fcm.enabled) || userIds.isEmpty()) return
         val ids = userIds.toSet()
         executor.execute {
             try {
@@ -92,21 +111,38 @@ class PushService(
                 if (awake.isEmpty()) return@execute
                 val gone = mutableListOf<String>()
                 val sent = mutableListOf<String>()
-                subscriptions.findAllByUserIdInAndDeletedFalse(awake).forEach { s ->
-                    when (sender.send(PushTarget(s.endpoint, s.p256dh, s.authSecret), json.writeValueAsBytes(build(s.lang)), urgency)) {
-                        PushResult.SENT -> sent += s.endpoint
-                        PushResult.GONE -> gone += s.endpoint
-                        PushResult.FAILED -> Unit
+                if (props.enabled) {
+                    subscriptions.findAllByUserIdInAndDeletedFalse(awake).forEach { s ->
+                        when (sender.send(PushTarget(s.endpoint, s.p256dh, s.authSecret), json.writeValueAsBytes(build(s.lang)), urgency)) {
+                            PushResult.SENT -> sent += s.endpoint
+                            PushResult.GONE -> gone += s.endpoint
+                            PushResult.FAILED -> Unit
+                        }
                     }
                 }
-                if (gone.isNotEmpty() || sent.isNotEmpty()) {
+                val goneTokens = mutableListOf<String>()
+                val sentTokens = mutableListOf<String>()
+                if (fcm.enabled) {
+                    devices.findAllByUserIdInAndDeletedFalse(awake).forEach { d ->
+                        val p = build(d.lang)
+                        val data = listOfNotNull("title" to p.title, "body" to p.body, p.link?.let { "link" to it }, p.tag?.let { "tag" to it }).toMap()
+                        when (fcm.send(d.token, data, high = urgency == "high")) {
+                            PushResult.SENT -> sentTokens += d.token
+                            PushResult.GONE -> goneTokens += d.token
+                            PushResult.FAILED -> Unit
+                        }
+                    }
+                }
+                if (gone.isNotEmpty() || sent.isNotEmpty() || goneTokens.isNotEmpty() || sentTokens.isNotEmpty()) {
                     tx.executeWithoutResult {
                         gone.forEach { subscriptions.findByEndpoint(it)?.cancel() }
                         sent.forEach { subscriptions.findByEndpoint(it)?.sent() }
+                        goneTokens.forEach { devices.findByToken(it)?.cancel() }
+                        sentTokens.forEach { devices.findByToken(it)?.sent() }
                     }
                 }
             } catch (e: Exception) {
-                log.warn("웹 푸시 보내기 실패: {}", e.message)
+                log.warn("푸시 보내기 실패: {}", e.message)
             }
         }
     }

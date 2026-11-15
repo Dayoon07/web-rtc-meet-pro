@@ -1,5 +1,8 @@
 package com.webrtcmeetpro
 
+import android.content.Intent
+import com.webrtcmeetpro.platform.OAuthCallbacks
+import com.webrtcmeetpro.platform.PendingLinks
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
@@ -30,7 +33,24 @@ class MainActivity : ComponentActivity() {
         ) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        handle(intent)
         setContent { App() }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handle(intent)
+    }
+
+    /** 구글 로그인에서 돌아왔거나(mq://oauth) 알림을 눌러서 열렸을 때 */
+    private fun handle(intent: Intent?) {
+        val data = intent?.data
+        if (data?.scheme == "mq" && data.host == "oauth") OAuthCallbacks.deliver(data.toString())
+        PendingLinks.open(intent?.getStringExtra(EXTRA_LINK))
+    }
+
+    companion object {
+        const val EXTRA_LINK = "com.webrtcmeetpro.link"
     }
 }
 

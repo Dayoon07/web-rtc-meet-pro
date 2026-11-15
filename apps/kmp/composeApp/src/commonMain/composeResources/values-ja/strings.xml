@@ -84,7 +84,7 @@
     <string name="chat_input_hint">メッセージを入力</string>
     <string name="chat_send">送信</string>
     <string name="error_EMAIL_ALREADY_EXISTS">このメールアドレスは登録済みです。メールアドレスでログインしてください。</string>
-    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">このメールアドレスはGoogleで登録済みです。WebからGoogleでログインしてください。</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">このメールアドレスはGoogleで登録済みです。Googleでログインしてください。</string>
     <string name="error_UNDERAGE">14歳以上のみ登録できます。</string>
     <string name="error_INVALID_PHONE">電話番号の形式が正しくありません。</string>
     <string name="error_INVALID_INPUT">入力内容を確認してください。</string>
@@ -392,4 +392,17 @@
     <string name="error_INVALID_NAME">氏名は1〜50文字で入力してください。</string>
     <string name="error_INVALID_NICKNAME">表示名は1〜50文字で入力してください。</string>
     <string name="error_INVALID_COUNTRY">国・地域をもう一度選択してください。</string>
+    <string name="login_google">Google で続ける</string>
+    <string name="login_google_waiting">ブラウザでログインを完了してください。</string>
+    <string name="login_or">または</string>
+    <string name="onboarding_title">あと少しです!</string>
+    <string name="onboarding_subtitle">%1$s · ご利用に必要な情報を入力してください。</string>
+    <string name="onboarding_submit">はじめる</string>
+    <string name="error_EMAIL_REGISTERED_WITH_PASSWORD">このメールアドレスはパスワードで登録されたアカウントです。メールアドレスとパスワードでログインしてください。</string>
+    <string name="error_OAUTH_FAILED">Google ログインに失敗しました。もう一度お試しください。</string>
+    <string name="error_OAUTH_CODE_INVALID">ログインの有効期限が切れました。もう一度お試しください。</string>
+    <string name="error_TERMS_NOT_AGREED">必須の規約に同意してください。</string>
+    <string name="tray_open">MQ を開く</string>
+    <string name="tray_quit">終了</string>
+    <string name="tray_running">通知を受け取るため MQ はトレイで動作し続けます。終了するにはトレイアイコンから「終了」を選んでください。</string>
 </resources>

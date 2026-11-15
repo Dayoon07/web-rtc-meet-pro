@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import com.webrtcmeetpro.BuildEnv
 import com.webrtcmeetpro.MainActivity
 import com.webrtcmeetpro.core.data.PREFERENCES_FILE_NAME
+import com.webrtcmeetpro.core.data.PushDevices
 import com.webrtcmeetpro.core.data.createPreferencesDataStore
 import com.webrtcmeetpro.core.network.ApiConfig
 import org.koin.dsl.module
@@ -53,13 +54,17 @@ class AndroidNotifier(private val context: Context) : SystemNotifier {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    override fun show(title: String, body: String) {
+    override fun show(title: String, body: String, link: String?, tag: String?) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
+        // requestCode 가 같으면 PendingIntent 가 하나로 합쳐져 다른 방의 링크로 열리므로 알림마다 다르게 준다
+        val id = tag?.let { 0 } ?: ids.getAndIncrement()
         val open = PendingIntent.getActivity(
-            context, 0,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            context, tag?.hashCode() ?: id,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(MainActivity.EXTRA_LINK, link),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL)
@@ -70,7 +75,7 @@ class AndroidNotifier(private val context: Context) : SystemNotifier {
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(ids.getAndIncrement(), notification)
+        NotificationManagerCompat.from(context).notify(tag, id, notification)
     }
 
     private companion object {
@@ -96,4 +101,6 @@ fun androidPlatformModule(context: Context) = module {
     }
     single { createPreferencesDataStore(context.filesDir.resolve(PREFERENCES_FILE_NAME).absolutePath) }
     single<SystemNotifier> { AndroidNotifier(context) }
+    single<GoogleLoginLauncher> { AndroidGoogleLogin(context) }
+    single<PushDevices> { FcmPushDevices(context, get(), get()) }
 }

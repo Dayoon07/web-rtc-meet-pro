@@ -85,7 +85,7 @@
     <string name="chat_input_hint">Write a message</string>
     <string name="chat_send">Send</string>
     <string name="error_EMAIL_ALREADY_EXISTS">This email is already registered. Please log in with your email.</string>
-    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">This email is already registered with Google. Please continue with Google on the web.</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">This email is already registered with Google. Please continue with Google.</string>
     <string name="error_UNDERAGE">You must be 14 or older to sign up.</string>
     <string name="error_INVALID_PHONE">Check the phone number format.</string>
     <string name="error_INVALID_INPUT">Please check what you entered.</string>
@@ -393,4 +393,17 @@
     <string name="error_INVALID_NAME">Full name must be 1–50 characters.</string>
     <string name="error_INVALID_NICKNAME">Display name must be 1–50 characters.</string>
     <string name="error_INVALID_COUNTRY">Please select your country again.</string>
+    <string name="login_google">Continue with Google</string>
+    <string name="login_google_waiting">Finish signing in in your browser.</string>
+    <string name="login_or">or</string>
+    <string name="onboarding_title">Almost there!</string>
+    <string name="onboarding_subtitle">%1$s · Please fill in the details we need to get you started.</string>
+    <string name="onboarding_submit">Get started</string>
+    <string name="error_EMAIL_REGISTERED_WITH_PASSWORD">This email already has an account with a password. Please log in with your email and password.</string>
+    <string name="error_OAUTH_FAILED">Google sign-in failed. Please try again.</string>
+    <string name="error_OAUTH_CODE_INVALID">Your sign-in expired. Please try again.</string>
+    <string name="error_TERMS_NOT_AGREED">Please agree to the required terms.</string>
+    <string name="tray_open">Open MQ</string>
+    <string name="tray_quit">Quit</string>
+    <string name="tray_running">MQ keeps running in the tray so you still get notifications. Choose Quit from the tray icon to close it.</string>
 </resources>

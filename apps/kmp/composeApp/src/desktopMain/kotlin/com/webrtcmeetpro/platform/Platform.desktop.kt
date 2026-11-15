@@ -8,10 +8,10 @@ import com.webrtcmeetpro.core.data.PREFERENCES_FILE_NAME
 import com.webrtcmeetpro.core.data.createPreferencesDataStore
 import com.webrtcmeetpro.core.network.ApiConfig
 import org.koin.dsl.module
-import java.awt.SystemTray
-import java.awt.Toolkit
-import java.awt.TrayIcon
-import java.awt.image.BufferedImage
+import androidx.compose.ui.window.Notification
+import androidx.compose.ui.window.TrayState
+import com.webrtcmeetpro.core.data.NoPushDevices
+import com.webrtcmeetpro.core.data.PushDevices
 import java.io.File
 import java.util.Locale
 
@@ -31,22 +31,15 @@ actual object LocalAppLocale {
     }
 }
 
-/** Windows 알림 센터 풍선. 트레이를 지원하지 않는 환경이면 조용히 무시 */
-class DesktopNotifier : SystemNotifier {
-    private val icon: TrayIcon? by lazy {
-        if (!SystemTray.isSupported()) return@lazy null
-        runCatching {
-            val image = javaClass.getResource("/tray.png")?.let { Toolkit.getDefaultToolkit().getImage(it) }
-                ?: BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB).apply {
-                    // 리소스가 없으면 보라색 사각형
-                    for (x in 0 until 16) for (y in 0 until 16) setRGB(x, y, 0xFF7C3AED.toInt())
-                }
-            TrayIcon(image, "MQ").apply { isImageAutoSize = true }.also { SystemTray.getSystemTray().add(it) }
-        }.getOrNull()
-    }
+/** main.kt 의 트레이 아이콘과 같은 것을 써야 아이콘이 두 개 생기지 않는다 */
+object DesktopTray {
+    val state = TrayState()
+}
 
-    override fun show(title: String, body: String) {
-        icon?.displayMessage(title, body, TrayIcon.MessageType.INFO)
+/** Windows 알림 센터. 창을 닫아도 트레이에서 계속 돌아서 알림을 받는다 (Windows 는 앱이 꺼지면 받을 방법이 없다) */
+class DesktopNotifier : SystemNotifier {
+    override fun show(title: String, body: String, link: String?, tag: String?) {
+        DesktopTray.state.sendNotification(Notification(title, body, Notification.Type.Info))
     }
 }
 
@@ -75,4 +68,6 @@ fun desktopPlatformModule() = module {
     }
     single { createPreferencesDataStore(File(appDataDir(), PREFERENCES_FILE_NAME).absolutePath) }
     single<SystemNotifier> { DesktopNotifier() }
+    single<GoogleLoginLauncher> { DesktopGoogleLogin() }
+    single<PushDevices> { NoPushDevices }
 }

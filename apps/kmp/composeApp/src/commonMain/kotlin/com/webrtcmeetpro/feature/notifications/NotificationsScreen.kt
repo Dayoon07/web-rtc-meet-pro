@@ -112,8 +112,10 @@ sealed interface NotificationTarget {
     data object Invitations : NotificationTarget
 }
 
-fun AppNotification.target(): NotificationTarget? {
-    // 예: /app/chat/1/1106?thread=1131 (주소 뒤 ?thread= 는 스레드)
+fun AppNotification.target(): NotificationTarget? = linkTarget(link)
+
+/** 웹과 같은 주소를 앱 화면으로. 예: /app/chat/1/1106?thread=1131 (주소 뒤 ?thread= 는 스레드) */
+fun linkTarget(link: String?): NotificationTarget? {
     val path = link.orEmpty().substringBefore('?')
     val thread = Regex("[?&]thread=(\\d+)").find(link.orEmpty())?.groupValues?.get(1)?.toLongOrNull()
     val parts = path.trim('/').split('/')

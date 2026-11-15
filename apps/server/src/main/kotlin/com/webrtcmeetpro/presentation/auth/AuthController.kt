@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.presentation.auth
 
+import jakarta.servlet.http.HttpServletResponse
 import com.webrtcmeetpro.domain.auth.dto.req.EmailVerificationConfirmReqDto
 import com.webrtcmeetpro.domain.auth.dto.req.LoginReqDto
 import com.webrtcmeetpro.domain.auth.dto.req.OAuthExchangeReqDto
@@ -104,6 +105,19 @@ class AuthController(
     @PostMapping("/email-verification/confirm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun confirmEmail(@Valid @RequestBody request: EmailVerificationConfirmReqDto) = emailVerification.confirm(request.token.trim())
+
+    /** 앱의 구글 로그인 시작. 돌려보낼 곳을 세션에 적어 두고 스프링의 구글 로그인으로 넘긴다 */
+    @GetMapping("/oauth/app")
+    fun startAppOAuth(
+        @RequestParam platform: String,
+        @RequestParam(required = false) port: Int?,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
+        val target = OAuthAppRedirect.target(platform, port) ?: throw BusinessException(ErrorCode.INVALID_INPUT)
+        request.getSession(true).setAttribute(OAuthAppRedirect.SESSION_KEY, target)
+        response.sendRedirect("/oauth2/authorization/google")
+    }
 
     @PostMapping("/oauth/exchange")
     fun exchange(@Valid @RequestBody request: OAuthExchangeReqDto, http: HttpServletRequest): AuthTokensResDto {

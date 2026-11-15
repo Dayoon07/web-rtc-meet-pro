@@ -16,6 +16,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.webrtcmeetpro.core.data.ChatRepository
+import com.webrtcmeetpro.core.data.PushDevices
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -74,6 +75,7 @@ class AppViewModel(
     private val notifier: SystemNotifier,
     private val presence: ChatPresence,
     private val chat: ChatRepository,
+    private val pushDevices: PushDevices,
 ) : ViewModel() {
     val loggedIn: StateFlow<Boolean?> = auth.isLoggedIn.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val settings: StateFlow<AppSettings?> = settingsStore.settings.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -90,6 +92,7 @@ class AppViewModel(
                     away = false
                     lastActive = TimeSource.Monotonic.markNow()
                     launch { runCatching { users.refresh() } }
+                    launch { pushEnabled = runCatching { pushDevices.register() }.getOrDefault(false) }
                     launch { watchIdle() }
                     // 다시 연결되면 서버는 새 연결을 "접속 중"으로 시작하므로 자리 비움이었으면 다시 알린다
                     launch { realtime.connected.collect { connected -> if (connected && away) sendAway(true) } }
@@ -100,7 +103,7 @@ class AppViewModel(
                             badges.refresh()
                             // 지금 보고 있는 스레드의 답글은 띄우지 않는다
                             val watching = n.type == "THREAD_REPLY" && n.param("rootId").toLongOrNull() == presence.activeThreadId.value
-                            if (!watching && !quietNow()) notifier.show(getString(Res.string.app_name), notificationTextAsync(n))
+                            if (!watching && !quietNow()) notifier.show(getString(Res.string.app_name), notificationTextAsync(n), n.link, n.type)
                         }
                     }
                     launch {
@@ -112,8 +115,10 @@ class AppViewModel(
                             val myId = users.me.value?.id
                             val mine = message.sender?.id == myId
                             val mentioned = message.mentionAll || (myId != null && myId in message.mentions)
-                            if (!mine && !mentioned && message.threadRootId == null && presence.activeRoomId.value != event.roomId && message.sender != null && !quietNow()) {
-                                notifier.show(message.sender!!.nickname, messagePreviewAsync(message))
+                            // 앱이 뒤에 있으면 서버가 FCM 으로 보내므로 여기서도 띄우면 두 번 온다
+                            val pushCovers = !foreground && pushEnabled
+                            if (!mine && !mentioned && message.threadRootId == null && presence.activeRoomId.value != event.roomId && message.sender != null && !quietNow() && !pushCovers) {
+                                notifier.show(message.sender!!.nickname, messagePreviewAsync(message), "/app/chat/0/${event.roomId}", "room-${event.roomId}")
                             }
                         }
                     }
@@ -124,6 +129,7 @@ class AppViewModel(
 
     private var foreground = true
     private var away = false
+    private var pushEnabled = false
     private var lastActive = TimeSource.Monotonic.markNow()
 
     /** Android 는 다른 앱으로 가면, Windows 는 창을 최소화하면 false */

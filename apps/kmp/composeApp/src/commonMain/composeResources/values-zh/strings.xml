@@ -84,7 +84,7 @@
     <string name="chat_input_hint">输入消息</string>
     <string name="chat_send">发送</string>
     <string name="error_EMAIL_ALREADY_EXISTS">该邮箱已注册，请使用邮箱登录。</string>
-    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">该邮箱已通过 Google 注册，请在网页上使用 Google 登录。</string>
+    <string name="error_EMAIL_REGISTERED_WITH_GOOGLE">该邮箱已通过 Google 注册，请使用 Google 登录。</string>
     <string name="error_UNDERAGE">年满 14 岁才能注册。</string>
     <string name="error_INVALID_PHONE">手机号格式不正确。</string>
     <string name="error_INVALID_INPUT">请检查输入内容。</string>
@@ -392,4 +392,17 @@
     <string name="error_INVALID_NAME">姓名需为 1~50 个字符。</string>
     <string name="error_INVALID_NICKNAME">昵称需为 1~50 个字符。</string>
     <string name="error_INVALID_COUNTRY">请重新选择国家/地区。</string>
+    <string name="login_google">使用 Google 继续</string>
+    <string name="login_google_waiting">请在浏览器中完成登录。</string>
+    <string name="login_or">或</string>
+    <string name="onboarding_title">马上就好！</string>
+    <string name="onboarding_subtitle">%1$s · 请填写使用服务所需的信息。</string>
+    <string name="onboarding_submit">开始使用</string>
+    <string name="error_EMAIL_REGISTERED_WITH_PASSWORD">该邮箱已注册为密码账号，请使用邮箱和密码登录。</string>
+    <string name="error_OAUTH_FAILED">Google 登录失败，请重试。</string>
+    <string name="error_OAUTH_CODE_INVALID">登录已过期，请重试。</string>
+    <string name="error_TERMS_NOT_AGREED">请同意必选条款。</string>
+    <string name="tray_open">打开 MQ</string>
+    <string name="tray_quit">退出</string>
+    <string name="tray_running">为接收通知，MQ 会在托盘中继续运行。要关闭请在托盘图标中选择“退出”。</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.webrtcmeetpro.feature.auth
 
+import com.webrtcmeetpro.platform.LocalAppLocale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -134,6 +135,8 @@ fun EmailVerifiedGate(content: @Composable () -> Unit) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { ErrorState(state.loadError!!, onRetry = viewModel::load) }
         current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         !current.emailVerified -> VerifyEmailScreen(current, state, viewModel)
+        // 구글로 처음 가입하면 실명·전화번호·약관 동의가 비어 있다
+        !current.profileCompleted -> OnboardingScreen(current, LocalAppLocale.current)
         else -> content()
     }
 }

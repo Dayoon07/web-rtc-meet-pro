@@ -51,5 +51,9 @@ expect fun inQuietHours(start: String, end: String, timeZone: String?): Boolean
 
 /** 시스템 알림 (Android 알림 / Windows 트레이 풍선). 앱이 켜져 있는 동안만 */
 interface SystemNotifier {
-    fun show(title: String, body: String)
+    /**
+     * @param link 눌렀을 때 갈 화면 (웹과 같은 주소, 예: /app/chat/1/1106)
+     * @param tag 같은 tag 의 알림은 새 것으로 바꿔 끼운다 (채팅방마다 하나만 보이게)
+     */
+    fun show(title: String, body: String, link: String? = null, tag: String? = null)
 }
