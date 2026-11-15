@@ -14,7 +14,7 @@ import com.webrtcmeetpro.core.data.SessionStore
 import com.webrtcmeetpro.core.data.SettingsStore
 import com.webrtcmeetpro.core.data.TeamRepository
 import com.webrtcmeetpro.core.data.UserRepository
-import com.webrtcmeetpro.core.network.LimeetApi
+import com.webrtcmeetpro.core.network.MqApi
 import com.webrtcmeetpro.core.network.StompClient
 import com.webrtcmeetpro.core.network.TokenStorage
 import com.webrtcmeetpro.core.network.createHttpClient
@@ -48,7 +48,7 @@ val dataModule = module {
     singleOf(::SessionStore) bind TokenStorage::class
     singleOf(::SettingsStore)
     single { createHttpClient(get(), get()) }
-    singleOf(::LimeetApi)
+    singleOf(::MqApi)
     singleOf(::StompClient)
     singleOf(::RealtimeRepository)
     singleOf(::BadgeRepository)

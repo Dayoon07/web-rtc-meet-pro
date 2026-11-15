@@ -37,8 +37,8 @@ data class ApiConfig(
     val baseUrl: String,
     val webUrl: String,
     val language: () -> String = { "ko" },
-    /** 서버 기록(로그인 기록·에러 기록)에 남는 앱 이름. 예: Limeet-App (Android 14; Pixel 7) */
-    val userAgent: String = "Limeet-App",
+    /** 서버 기록(로그인 기록·에러 기록)에 남는 앱 이름. 예: MQ-App (Android 14; Pixel 7) */
+    val userAgent: String = "MQ-App",
 ) {
     /** 프로필 이미지처럼 "/uploads/..." 로 오는 경로를 절대 URL 로 */
     fun resolve(pathOrUrl: String?): String? = when {

@@ -19,7 +19,7 @@ class AdminEmailVerificationService(
     private val usersTable get() = props.tablePrefix + "users"
 
     fun pending(q: String?): List<PendingSignupResDto> =
-        queries.findPendingSignups(props.tablePrefix, q?.trim()?.takeIf { it.isNotEmpty() }?.let(::likeUpper))
+        queries.findPendingSignups(q?.trim()?.takeIf { it.isNotEmpty() }?.let(::likeUpper))
 
     @Transactional
     fun approve(userId: Long, adminId: Long) {

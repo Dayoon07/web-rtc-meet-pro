@@ -37,7 +37,7 @@ import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.Badge
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.SectionHeader
 import com.webrtcmeetpro.core.model.Me
 import com.webrtcmeetpro.core.model.Meeting
@@ -139,7 +139,7 @@ fun HomeScreen(
         }
         if (data.upcoming.isEmpty()) {
             item {
-                LimeetCard(Modifier.fillMaxWidth()) {
+                MqCard(Modifier.fillMaxWidth()) {
                     EmptyState(
                         Icons.Outlined.EventAvailable,
                         stringResource(Res.string.home_no_meetings),
@@ -158,7 +158,7 @@ fun HomeScreen(
         }
         if (data.teams.isEmpty()) {
             item {
-                LimeetCard(Modifier.fillMaxWidth()) {
+                MqCard(Modifier.fillMaxWidth()) {
                     EmptyState(
                         Icons.Outlined.GroupAdd,
                         stringResource(Res.string.home_no_teams),

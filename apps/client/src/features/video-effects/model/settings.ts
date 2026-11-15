@@ -1,6 +1,6 @@
 import { BACKGROUNDS, type EffectSettings, NO_EFFECTS, STICKERS } from './presets'
 
-const KEY = 'limeet.videoEffects'
+const KEY = 'mq.videoEffects'
 
 export function loadEffectSettings(): EffectSettings {
   try {

@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.Badge
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.theme.Live
 import com.webrtcmeetpro.core.model.Meeting
 import com.webrtcmeetpro.core.model.MeetingStatus
@@ -61,7 +61,7 @@ fun resolveImageUrl(path: String?): String? {
 
 @Composable
 fun MeetingCard(meeting: Meeting, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
-    LimeetCard(modifier.fillMaxWidth()) {
+    MqCard(modifier.fillMaxWidth()) {
         Row(Modifier.clickableIf(onClick).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             // 왼쪽 아이콘 칸
             Box(
@@ -130,7 +130,7 @@ fun MeetingStatusBadge(status: MeetingStatus) {
 
 @Composable
 fun TeamCard(team: TeamSummary, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
-    LimeetCard(modifier.fillMaxWidth()) {
+    MqCard(modifier.fillMaxWidth()) {
         Row(Modifier.clickableIf(onClick).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             // 팀 첫 글자 (보라 사각형)
             Box(

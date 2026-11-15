@@ -31,7 +31,7 @@ import com.webrtcmeetpro.core.data.RealtimeRepository
 import com.webrtcmeetpro.core.data.SettingsStore
 import com.webrtcmeetpro.core.data.TeamRepository
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.designsystem.component.SectionHeader
 import com.webrtcmeetpro.core.model.Invitation
@@ -190,7 +190,7 @@ fun InvitationsScreen(onJoined: (teamId: Long) -> Unit, viewModel: TeamsViewMode
         when {
             invitations == null -> loadingItem()
             invitations.isEmpty() -> item {
-                LimeetCard(Modifier.fillMaxWidth()) {
+                MqCard(Modifier.fillMaxWidth()) {
                     EmptyState(Icons.Outlined.MailOutline, stringResource(Res.string.invitations_empty))
                 }
             }
@@ -237,7 +237,7 @@ fun TeamStartScreen(onReady: () -> Unit, viewModel: TeamsViewModel = koinViewMod
         item { JoinByLinkCard(state.linkPreview, state.linkBusy, onCheck = viewModel::checkLink, onJoin = viewModel::joinByLink) }
         item { SectionHeader(stringResource(Res.string.start_create_title)) }
         item {
-            LimeetCard(Modifier.fillMaxWidth()) {
+            MqCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = name,
@@ -268,7 +268,7 @@ fun TeamStartScreen(onReady: () -> Unit, viewModel: TeamsViewModel = koinViewMod
 
 @Composable
 private fun InvitationCard(inv: Invitation, onAccept: () -> Unit, onDecline: () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(inv.teamName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

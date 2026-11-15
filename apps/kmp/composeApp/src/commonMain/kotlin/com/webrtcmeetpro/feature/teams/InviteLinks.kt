@@ -36,7 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.model.InviteLink
 import com.webrtcmeetpro.core.model.InviteLinkPreview
@@ -81,7 +81,7 @@ fun InviteLinksSection(
     var confirmDelete by remember { mutableStateOf<InviteLink?>(null) }
 
     Text(stringResource(Res.string.invite_link_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = usePassword, onCheckedChange = { usePassword = it; if (!it) password = "" })
@@ -112,7 +112,7 @@ fun InviteLinksSection(
             )
         }
     }
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         if (links.isEmpty()) {
             Text(
                 stringResource(Res.string.invite_link_empty),
@@ -175,7 +175,7 @@ fun JoinByLinkCard(
 ) {
     var link by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(Res.string.invite_link_join_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

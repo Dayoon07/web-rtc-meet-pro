@@ -69,7 +69,7 @@ import io.ktor.client.request.setBody
  * 서버 REST API (apps/server 의 presentation 컨트롤러와 1:1).
  * 얇은 호출만 있어서 한 클래스에 두고, 도메인별 묶음은 core:data 의 리포지토리가 맡는다.
  */
-class LimeetApi(private val client: HttpClient) {
+class MqApi(private val client: HttpClient) {
 
     // auth
     suspend fun login(email: String, password: String): AuthTokens =

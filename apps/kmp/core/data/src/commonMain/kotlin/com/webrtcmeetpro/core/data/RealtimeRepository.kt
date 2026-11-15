@@ -4,7 +4,7 @@ import com.webrtcmeetpro.core.model.AppNotification
 import com.webrtcmeetpro.core.model.ChatEvent
 import com.webrtcmeetpro.core.model.PresenceView
 import com.webrtcmeetpro.core.network.ApiJson
-import com.webrtcmeetpro.core.network.LimeetApi
+import com.webrtcmeetpro.core.network.MqApi
 import com.webrtcmeetpro.core.network.StompClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.mapNotNull
  */
 class RealtimeRepository(
     private val stomp: StompClient,
-    private val api: LimeetApi,
+    private val api: MqApi,
 ) {
     val connected: StateFlow<Boolean> = stomp.connected
 

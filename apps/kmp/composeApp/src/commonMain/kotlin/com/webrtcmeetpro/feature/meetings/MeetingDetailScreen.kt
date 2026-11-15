@@ -49,7 +49,7 @@ import com.webrtcmeetpro.core.data.MeetingRepository
 import com.webrtcmeetpro.core.data.RealtimeRepository
 import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.core.model.Meeting
@@ -208,7 +208,7 @@ fun MeetingDetailScreen(
                     Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    LimeetCard(Modifier.fillMaxWidth()) {
+                    MqCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(meeting.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))

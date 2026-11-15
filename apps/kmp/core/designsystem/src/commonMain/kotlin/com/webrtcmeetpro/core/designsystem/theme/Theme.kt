@@ -63,7 +63,7 @@ private val DarkColors: ColorScheme = darkColorScheme(
     onError = Zinc.Z950,
 )
 
-private val LimeetShapes = Shapes(
+private val MqShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(12.dp),
@@ -73,10 +73,10 @@ private val LimeetShapes = Shapes(
 
 /** 흰 배경 + 보라 포인트. darkTheme 은 설정(시스템/라이트/다크)에 따라 앱이 정한다 */
 @Composable
-fun LimeetTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun MqTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
-        shapes = LimeetShapes,
+        shapes = MqShapes,
         content = content,
     )
 }

@@ -89,7 +89,7 @@ import com.webrtcmeetpro.core.data.TeamRepository
 import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.model.ChatRoom
 import com.webrtcmeetpro.resources.chat_directs
 import com.webrtcmeetpro.resources.chat_channels
@@ -318,7 +318,7 @@ fun ChatListScreen(
         when {
             teams == null -> state.teams.errorCode?.let { code -> item { ErrorState(code, onRetry = viewModel::refresh) } } ?: loadingItem()
             teams.isEmpty() -> item {
-                LimeetCard(Modifier.fillMaxWidth()) {
+                MqCard(Modifier.fillMaxWidth()) {
                     EmptyState(Icons.Outlined.Groups, stringResource(Res.string.home_no_teams), body = stringResource(Res.string.home_no_teams_body))
                 }
             }
@@ -326,7 +326,7 @@ fun ChatListScreen(
                 when {
                     rooms == null -> state.rooms.errorCode?.let { code -> item { ErrorState(code, onRetry = viewModel::refresh) } } ?: loadingItem()
                     rooms.isEmpty() -> item {
-                        LimeetCard(Modifier.fillMaxWidth()) {
+                        MqCard(Modifier.fillMaxWidth()) {
                             EmptyState(
                                 Icons.Outlined.ChatBubbleOutline,
                                 stringResource(Res.string.chat_empty),
@@ -471,7 +471,7 @@ private fun SearchDialog(state: ChatListUiState, onQuery: (String) -> Unit, onOp
 /** presence: 1:1 방 상대의 접속 상태 (채널이면 null) */
 @Composable
 private fun RoomRow(room: ChatRoom, myId: Long, presence: PresenceStatus?, typing: List<ChatUser>, onClick: () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Row(
             Modifier.clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,

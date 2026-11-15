@@ -20,7 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.model.ExpiryNotice
 import com.webrtcmeetpro.core.network.ApiConfig
-import com.webrtcmeetpro.core.network.LimeetApi
+import com.webrtcmeetpro.core.network.MqApi
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.plan_expired_body
 import com.webrtcmeetpro.resources.plan_expired_data_kept
@@ -38,7 +38,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /** 앱으로 돌아올 때마다 내가 결제한 워크스페이스 플랜의 만료를 확인해서, 확인하지 않은 것이 있으면 창을 띄운다 */
-class PlanExpiryViewModel(private val api: LimeetApi) : ViewModel() {
+class PlanExpiryViewModel(private val api: MqApi) : ViewModel() {
     private val _notices = MutableStateFlow<List<ExpiryNotice>>(emptyList())
     val notices: StateFlow<List<ExpiryNotice>> = _notices.asStateFlow()
 

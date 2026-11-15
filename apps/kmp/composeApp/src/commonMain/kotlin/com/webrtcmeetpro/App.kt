@@ -38,7 +38,7 @@ import com.webrtcmeetpro.core.data.RealtimeRepository
 import com.webrtcmeetpro.core.data.SettingsStore
 import com.webrtcmeetpro.core.data.ThemeMode
 import com.webrtcmeetpro.core.data.UserRepository
-import com.webrtcmeetpro.core.designsystem.theme.LimeetTheme
+import com.webrtcmeetpro.core.designsystem.theme.MqTheme
 import com.webrtcmeetpro.feature.auth.LoginScreen
 import com.webrtcmeetpro.feature.auth.SignupScreen
 import com.webrtcmeetpro.feature.chat.ChatPresence
@@ -181,7 +181,7 @@ fun App() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-            LimeetTheme(darkTheme = dark) {
+            MqTheme(darkTheme = dark) {
                 Surface(
                     Modifier.fillMaxSize()
                         // Initial 단계에서 보기만 하고 소비하지 않아 화면 안의 버튼·스크롤은 그대로 동작한다

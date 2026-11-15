@@ -1,4 +1,4 @@
-rootProject.name = "limeet-pro-kmp"
+rootProject.name = "web-rtc-meet-pro-kmp"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

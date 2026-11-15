@@ -45,7 +45,7 @@ import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.TeamRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.Badge
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.model.Invitation
 import com.webrtcmeetpro.core.model.InviteLink
 import com.webrtcmeetpro.resources.invite_link_copied
@@ -331,7 +331,7 @@ fun TeamDetailScreen(
                         }
                         if (state.pending.isNotEmpty()) {
                             Text(stringResource(Res.string.team_pending), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            LimeetCard(Modifier.fillMaxWidth()) {
+                            MqCard(Modifier.fillMaxWidth()) {
                                 Column {
                                     state.pending.forEachIndexed { i, inv ->
                                         if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -365,7 +365,7 @@ fun TeamDetailScreen(
                         )
                     }
 
-                    LimeetCard(Modifier.fillMaxWidth()) {
+                    MqCard(Modifier.fillMaxWidth()) {
                         Column {
                             detail.members.forEachIndexed { i, m ->
                                 if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

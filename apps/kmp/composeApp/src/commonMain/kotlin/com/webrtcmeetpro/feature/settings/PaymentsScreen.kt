@@ -32,7 +32,7 @@ import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.BillingRepository
 import com.webrtcmeetpro.core.designsystem.component.Badge
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.model.Payment
 import com.webrtcmeetpro.core.model.RefundQuote
 import com.webrtcmeetpro.core.network.errorCode
@@ -156,7 +156,7 @@ fun PaymentsScreen(onBack: () -> Unit, viewModel: PaymentsViewModel = koinViewMo
             when {
                 payments == null -> loadingItem()
                 payments.isEmpty() -> item {
-                    LimeetCard(Modifier.fillMaxWidth()) { EmptyState(Icons.AutoMirrored.Outlined.ReceiptLong, stringResource(Res.string.payments_empty)) }
+                    MqCard(Modifier.fillMaxWidth()) { EmptyState(Icons.AutoMirrored.Outlined.ReceiptLong, stringResource(Res.string.payments_empty)) }
                 }
                 else -> items(payments, key = { it.orderId }) { p -> PaymentRow(p, onRefund = { viewModel.openRefund(p) }) }
             }
@@ -175,7 +175,7 @@ private fun paymentStatusLabel(status: String) = when (status) {
 
 @Composable
 private fun PaymentRow(p: Payment, onRefund: () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(p.orderName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

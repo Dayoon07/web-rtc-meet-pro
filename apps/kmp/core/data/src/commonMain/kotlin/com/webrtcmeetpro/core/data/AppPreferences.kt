@@ -14,11 +14,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import okio.Path.Companion.toPath
 
-/** 파일 위치만 플랫폼이 정한다 (Android: filesDir, Desktop: %APPDATA%/LimeetPro) */
+/** 파일 위치만 플랫폼이 정한다 (Android: filesDir, Desktop: %APPDATA%/MQ) */
 fun createPreferencesDataStore(filePath: String): DataStore<Preferences> =
     PreferenceDataStoreFactory.createWithPath(produceFile = { filePath.toPath() })
 
-const val PREFERENCES_FILE_NAME = "limeet.preferences_pb"
+const val PREFERENCES_FILE_NAME = "mq.preferences_pb"
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 

@@ -342,7 +342,7 @@ cd apps/kmp
 gradlew :composeApp:run
 ```
 
-위는 데스크톱 실행. 서버 주소는 `-Dlimeet.api=…` 또는 `LIMEET_API_URL` 로 바꾼다(기본 `http://localhost:8080`).
+위는 데스크톱 실행. 서버 주소는 `-Dmq.api=…` 또는 `MQ_API_URL` 로 바꾼다(기본 `http://localhost:8080`).
 
 ```bash
 cd apps/kmp

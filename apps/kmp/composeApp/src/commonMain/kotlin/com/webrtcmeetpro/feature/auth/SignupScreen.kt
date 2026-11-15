@@ -49,7 +49,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.AuthRepository
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.model.Gender
 import com.webrtcmeetpro.core.model.SignUpRequest
@@ -163,7 +163,7 @@ fun SignupScreen(onBack: () -> Unit, languageTag: String, viewModel: SignupViewM
                 }
                 BrandLogo()
             }
-            LimeetCard(Modifier.fillMaxWidth()) {
+            MqCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(Res.string.signup_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(stringResource(Res.string.signup_subtitle), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

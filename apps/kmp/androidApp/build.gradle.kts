@@ -20,14 +20,14 @@ android {
     }
 
     // 서명 키와 비밀번호는 저장소에 두지 않고 ~/.gradle/gradle.properties 에서 읽는다. 없으면 서명 안 된 APK 가 나온다
-    val storeFilePath = providers.gradleProperty("limeet.signing.storeFile").orNull
+    val storeFilePath = providers.gradleProperty("mq.signing.storeFile").orNull
     signingConfigs {
         if (storeFilePath != null) {
             create("release") {
                 storeFile = file(storeFilePath)
-                storePassword = providers.gradleProperty("limeet.signing.storePassword").get()
-                keyAlias = providers.gradleProperty("limeet.signing.keyAlias").get()
-                keyPassword = providers.gradleProperty("limeet.signing.keyPassword").get()
+                storePassword = providers.gradleProperty("mq.signing.storePassword").get()
+                keyAlias = providers.gradleProperty("mq.signing.keyAlias").get()
+                keyPassword = providers.gradleProperty("mq.signing.keyPassword").get()
             }
         }
     }

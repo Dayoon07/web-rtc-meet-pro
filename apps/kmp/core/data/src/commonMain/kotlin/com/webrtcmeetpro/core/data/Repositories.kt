@@ -22,7 +22,7 @@ import com.webrtcmeetpro.core.model.SignUpRequest
 import com.webrtcmeetpro.core.model.TeamDetail
 import com.webrtcmeetpro.core.model.TeamSummary
 import com.webrtcmeetpro.core.network.ApiConfig
-import com.webrtcmeetpro.core.network.LimeetApi
+import com.webrtcmeetpro.core.network.MqApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class AuthRepository(
-    private val api: LimeetApi,
+    private val api: MqApi,
     private val session: SessionStore,
     private val users: UserRepository,
 ) {
@@ -79,7 +79,7 @@ class AuthRepository(
 }
 
 /** 내 정보는 여러 화면(채팅 방 이름, 회의 주최자 판단 등)이 쓰므로 한 번 받아 두고 공유 */
-class UserRepository(private val api: LimeetApi) {
+class UserRepository(private val api: MqApi) {
     private val _me = MutableStateFlow<Me?>(null)
     val me: StateFlow<Me?> = _me.asStateFlow()
 
@@ -101,7 +101,7 @@ class UserRepository(private val api: LimeetApi) {
     }
 }
 
-class TeamRepository(private val api: LimeetApi, private val config: ApiConfig) {
+class TeamRepository(private val api: MqApi, private val config: ApiConfig) {
     private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** 팀을 만들거나·초대를 수락하거나·나가거나·삭제하면 알린다 (팀 목록이 다시 불러오게) */
     val changed: SharedFlow<Unit> = _changed
@@ -131,7 +131,7 @@ class TeamRepository(private val api: LimeetApi, private val config: ApiConfig) 
         api.joinByInviteLink(token, password?.ifEmpty { null }).also { _changed.tryEmit(Unit) }
 }
 
-class ChatRepository(private val api: LimeetApi) {
+class ChatRepository(private val api: MqApi) {
     suspend fun rooms(teamId: Long): List<ChatRoom> = api.chatRooms(teamId)
     suspend fun categories(teamId: Long): List<ChatCategory> = api.chatCategories(teamId)
     suspend fun room(roomId: Long): ChatRoom = api.chatRoom(roomId)
@@ -167,7 +167,7 @@ class ChatRepository(private val api: LimeetApi) {
 }
 
 class MeetingRepository(
-    private val api: LimeetApi,
+    private val api: MqApi,
     private val config: ApiConfig,
 ) {
     suspend fun upcoming(): List<Meeting> = api.meetings(past = false)
@@ -201,20 +201,20 @@ class MeetingRepository(
 }
 
 /** 내 결제 내역 · 환불 (새 결제는 웹 요금제 화면) */
-class BillingRepository(private val api: LimeetApi) {
+class BillingRepository(private val api: MqApi) {
     suspend fun payments() = api.payments()
     suspend fun refundQuote(orderId: String) = api.refundQuote(orderId)
     suspend fun refund(orderId: String, reason: String?) = api.refund(orderId, reason?.trim()?.ifEmpty { null })
 }
 
-class NotificationRepository(private val api: LimeetApi) {
+class NotificationRepository(private val api: MqApi) {
     suspend fun recent(): List<AppNotification> = api.notifications()
     suspend fun markRead(id: Long) = api.markNotificationRead(id)
     suspend fun markAllRead() = api.markAllNotificationsRead()
 }
 
 /** 탭 배지 (안 읽은 채팅 / 알림 수). 실시간 이벤트가 오거나 읽음 처리 후 refresh() */
-class BadgeRepository(private val api: LimeetApi) {
+class BadgeRepository(private val api: MqApi) {
     private val _chatUnread = MutableStateFlow(0L)
     val chatUnread: StateFlow<Long> = _chatUnread.asStateFlow()
 

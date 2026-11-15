@@ -79,7 +79,7 @@ fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modi
 
 /** 테두리만 있는 카드 (웹의 rounded-2xl border 카드와 같은 모양) */
 @Composable
-fun LimeetCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun MqCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,

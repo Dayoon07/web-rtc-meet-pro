@@ -18,7 +18,7 @@ import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.MeetingRepository
 import com.webrtcmeetpro.core.data.RealtimeRepository
 import com.webrtcmeetpro.core.designsystem.component.EmptyState
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.core.model.Meeting
 import com.webrtcmeetpro.core.network.errorCode
@@ -120,7 +120,7 @@ fun MeetingsScreen(
         when {
             list == null -> state.list.errorCode?.let { code -> item { ErrorState(code, onRetry = viewModel::refresh) } } ?: loadingItem()
             list.isEmpty() -> item {
-                LimeetCard(Modifier.fillMaxWidth()) {
+                MqCard(Modifier.fillMaxWidth()) {
                     EmptyState(Icons.Outlined.EventAvailable, stringResource(Res.string.meetings_empty))
                 }
             }

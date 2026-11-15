@@ -24,7 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.core.model.Gender
@@ -268,7 +268,7 @@ fun ProfileEditScreen(onBack: () -> Unit, viewModel: ProfileEditViewModel = koin
 
 @Composable
 private fun Section(title: String, desc: String, content: @Composable () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

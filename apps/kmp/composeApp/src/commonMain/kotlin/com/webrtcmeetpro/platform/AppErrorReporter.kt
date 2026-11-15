@@ -2,7 +2,7 @@ package com.webrtcmeetpro.platform
 
 import com.webrtcmeetpro.core.model.ClientErrorRequest
 import com.webrtcmeetpro.core.network.ApiJson
-import com.webrtcmeetpro.core.network.LimeetApi
+import com.webrtcmeetpro.core.network.MqApi
 import com.webrtcmeetpro.core.network.UnexpectedError
 import com.webrtcmeetpro.core.network.UnexpectedErrors
 import com.webrtcmeetpro.core.network.UnknownErrors
@@ -26,16 +26,16 @@ private data class PendingError(val request: ClientErrorRequest, val crashed: Bo
  */
 object AppErrorReporter {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var api: LimeetApi? = null
+    private var api: MqApi? = null
     private var pendingFile: String? = null
     private var platform: String = "app"
 
     /**
      * 앱 시작 때 한 번 (Koin 을 만든 직후).
-     * @param dataDir 앱 전용 저장 폴더 (Android filesDir, Windows %APPDATA%\LimeetPro)
+     * @param dataDir 앱 전용 저장 폴더 (Android filesDir, Windows %APPDATA%\MQ)
      * @param platform 에러 기록의 "경로" 칸에 남길 이름 (예: android, windows)
      */
-    fun install(api: LimeetApi, dataDir: String, platform: String) {
+    fun install(api: MqApi, dataDir: String, platform: String) {
         this.api = api
         this.pendingFile = "$dataDir/$PENDING_FILE"
         this.platform = platform

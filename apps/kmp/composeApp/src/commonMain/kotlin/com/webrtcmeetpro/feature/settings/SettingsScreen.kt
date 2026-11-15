@@ -79,7 +79,7 @@ import com.webrtcmeetpro.core.data.ThemeMode
 import com.webrtcmeetpro.core.data.UserRepository
 import com.webrtcmeetpro.core.designsystem.component.Avatar
 import com.webrtcmeetpro.core.designsystem.component.Badge
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.SecondaryButton
 import com.webrtcmeetpro.core.model.Me
 import com.webrtcmeetpro.resources.Res
@@ -439,7 +439,7 @@ private fun WithdrawDialog(hasPassword: Boolean, viewModel: SettingsViewModel, o
 
 @Composable
 private fun ProfileCard(me: Me, onClick: () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    MqCard(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Avatar(me.nickname, resolveImageUrl(me.profileImageUrl), size = 52.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -502,7 +502,7 @@ private fun QuietHoursSection(viewModel: SettingsViewModel) {
 
 @Composable
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             content()

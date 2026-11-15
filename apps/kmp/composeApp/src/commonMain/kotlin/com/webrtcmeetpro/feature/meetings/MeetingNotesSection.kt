@@ -24,7 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.model.MeetingNotes
 import com.webrtcmeetpro.platform.formatDateTime
 import com.webrtcmeetpro.resources.Res
@@ -44,7 +44,7 @@ import org.jetbrains.compose.resources.stringResource
 /** 회의 상세의 AI 회의록: 요약·결정 사항·할 일(담당자·기한). 웹 MeetingNotesCard 와 같은 내용 */
 @Composable
 fun MeetingNotesSection(notes: MeetingNotes, regenerating: Boolean, onRegenerate: () -> Unit) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+    MqCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Outlined.EventNote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)

@@ -89,7 +89,7 @@ web-rtc-meet-pro/
 
 ## 설치 (Android · Windows 앱 빌드)
 
-앱은 소스에서 직접 빌드해서 씁니다. 빌드할 때 **접속할 서버 주소**를 넣습니다 (`-Plimeet.apiUrl`, 웹 주소가 다르면 `-Plimeet.webUrl`).
+앱은 소스에서 직접 빌드해서 씁니다. 빌드할 때 **접속할 서버 주소**를 넣습니다 (`-Pmq.apiUrl`, 웹 주소가 다르면 `-Pmq.webUrl`).
 
 준비물
 
@@ -101,7 +101,7 @@ web-rtc-meet-pro/
 
 ```bash
 cd apps/kmp
-./gradlew :androidApp:assembleRelease -Plimeet.apiUrl=https://<서버 도메인>
+./gradlew :androidApp:assembleRelease -Pmq.apiUrl=https://<서버 도메인>
 ```
 
 - 결과: `apps/kmp/androidApp/build/outputs/apk/release/` 의 APK (서명 전).
@@ -112,12 +112,12 @@ cd apps/kmp
 
 ```bash
 cd apps/kmp
-./gradlew :composeApp:packageMsi -Plimeet.apiUrl=https://<서버 도메인>
+./gradlew :composeApp:packageMsi -Pmq.apiUrl=https://<서버 도메인>
 ```
 
 - 결과: `apps/kmp/composeApp/build/compose/binaries/main/msi/MQ-1.0.0.msi` (설치하면 시작 메뉴·바탕화면 바로가기가 생깁니다).
   `.exe` 설치 파일이 필요하면 `packageExe`.
-- 설치한 뒤에도 서버 주소를 바꿀 수 있습니다: 실행 옵션 `-Dlimeet.api=…` 또는 환경변수 `LIMEET_API_URL`.
+- 설치한 뒤에도 서버 주소를 바꿀 수 있습니다: 실행 옵션 `-Dmq.api=…` 또는 환경변수 `MQ_API_URL`.
 
 ## 라이선스
 
@@ -143,4 +143,4 @@ cd apps/kmp
 | 구글 로그인 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud Console → OAuth 클라이언트 ID (웹). 리디렉션 URI `https://<도메인>/login/oauth2/code/google` |
 | 화상회의 사이드카 | `MEDIA_JWT_SECRET`, `MEDIA_INTERNAL_SECRET` | 서버와 사이드카에 **같은 값**을 넣습니다 (긴 무작위 문자열) |
 
-앱 빌드 설정: 위 [설치](#설치-android--windows-앱-빌드)의 `-Plimeet.apiUrl` / `-Plimeet.webUrl` (빌드한 앱이 붙을 서버 주소).
+앱 빌드 설정: 위 [설치](#설치-android--windows-앱-빌드)의 `-Pmq.apiUrl` / `-Pmq.webUrl` (빌드한 앱이 붙을 서버 주소).

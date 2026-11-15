@@ -8,7 +8,7 @@ import { Button, ErrorDetails, FullPageSpinner, LinkButton } from '@/shared/ui'
 import { ROUTES } from '@/shared/config/routes'
 
 const CHUNK_ERROR = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Outdated Optimize Dep/i
-const RELOAD_KEY = 'limeet.chunkReloadAt'
+const RELOAD_KEY = 'mq.chunkReloadAt'
 
 function errorText(error: unknown): string {
   if (isRouteErrorResponse(error)) return `${error.status} ${error.statusText}`

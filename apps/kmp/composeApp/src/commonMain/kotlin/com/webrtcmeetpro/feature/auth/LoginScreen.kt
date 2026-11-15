@@ -39,7 +39,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.webrtcmeetpro.core.data.AuthRepository
-import com.webrtcmeetpro.core.designsystem.component.LimeetCard
+import com.webrtcmeetpro.core.designsystem.component.MqCard
 import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
 import com.webrtcmeetpro.core.network.errorCode
 import com.webrtcmeetpro.resources.Res
@@ -108,7 +108,7 @@ fun LoginScreen(onSignup: () -> Unit, viewModel: LoginViewModel = koinViewModel(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             BrandLogo(size = 40.dp)
-            LimeetCard(Modifier.fillMaxWidth()) {
+            MqCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(stringResource(Res.string.login_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

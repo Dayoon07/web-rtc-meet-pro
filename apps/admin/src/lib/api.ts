@@ -20,7 +20,7 @@ export const useSession = create<SessionState>()(
       setTokens: ({ accessToken, refreshToken }) => set({ accessToken, refreshToken }),
       clear: () => set({ accessToken: null, refreshToken: null }),
     }),
-    { name: 'limeet-admin-session' },
+    { name: 'mq-admin-session' },
   ),
 )
 
