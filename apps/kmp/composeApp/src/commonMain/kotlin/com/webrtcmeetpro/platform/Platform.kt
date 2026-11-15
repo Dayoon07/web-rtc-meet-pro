@@ -43,6 +43,12 @@ expect fun countryName(code: String): String
 /** 올해 (출생년도 목록용) */
 expect fun currentYear(): Int
 
+/** 기기 시간대 (예: Asia/Seoul). 방해 금지 시간을 서버에 저장할 때 같이 보낸다 */
+expect fun deviceTimeZone(): String
+
+/** 지금이 방해 금지 시간인지. 서버 User.inQuietHours 와 같은 규칙: 끝이 시작보다 이르면 다음 날까지 */
+expect fun inQuietHours(start: String, end: String, timeZone: String?): Boolean
+
 /** 시스템 알림 (Android 알림 / Windows 트레이 풍선). 앱이 켜져 있는 동안만 */
 interface SystemNotifier {
     fun show(title: String, body: String)

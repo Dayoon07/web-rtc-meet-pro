@@ -77,6 +77,10 @@ import com.webrtcmeetpro.resources.error_EMAIL_REGISTERED_WITH_GOOGLE
 import com.webrtcmeetpro.resources.error_FORBIDDEN
 import com.webrtcmeetpro.resources.error_INVALID_CREDENTIALS
 import com.webrtcmeetpro.resources.error_INVALID_INPUT
+import com.webrtcmeetpro.resources.error_INVALID_IMAGE
+import com.webrtcmeetpro.resources.error_INVALID_NAME
+import com.webrtcmeetpro.resources.error_INVALID_NICKNAME
+import com.webrtcmeetpro.resources.error_INVALID_COUNTRY
 import com.webrtcmeetpro.resources.error_INVALID_PHONE
 import com.webrtcmeetpro.resources.error_INVITATION_ALREADY_PENDING
 import com.webrtcmeetpro.resources.error_MEETING_NOT_JOINABLE
@@ -109,6 +113,10 @@ fun errorMessage(code: String): String = stringResource(
         "EMAIL_REGISTERED_WITH_GOOGLE" -> Res.string.error_EMAIL_REGISTERED_WITH_GOOGLE
         "UNDERAGE" -> Res.string.error_UNDERAGE
         "INVALID_PHONE" -> Res.string.error_INVALID_PHONE
+        "INVALID_IMAGE" -> Res.string.error_INVALID_IMAGE
+        "INVALID_NAME" -> Res.string.error_INVALID_NAME
+        "INVALID_NICKNAME" -> Res.string.error_INVALID_NICKNAME
+        "INVALID_COUNTRY" -> Res.string.error_INVALID_COUNTRY
         "INVALID_INPUT" -> Res.string.error_INVALID_INPUT
         "FORBIDDEN", "NOT_TEAM_OWNER", "CANNOT_INVITE", "NOT_MEETING_HOST" -> Res.string.error_FORBIDDEN
         "PLAN_TEAM_LIMIT" -> Res.string.error_PLAN_TEAM_LIMIT

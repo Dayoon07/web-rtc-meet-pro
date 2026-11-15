@@ -1,6 +1,20 @@
 package com.webrtcmeetpro.feature.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Switch
+import com.webrtcmeetpro.core.designsystem.component.PrimaryButton
+import com.webrtcmeetpro.core.model.QuietHoursRequest
+import com.webrtcmeetpro.feature.auth.FormPicker
+import com.webrtcmeetpro.platform.deviceTimeZone
+import com.webrtcmeetpro.resources.common_save
+import com.webrtcmeetpro.resources.profile_edit
+import com.webrtcmeetpro.resources.quiet_desc
+import com.webrtcmeetpro.resources.quiet_end
+import com.webrtcmeetpro.resources.quiet_saved
+import com.webrtcmeetpro.resources.quiet_start
+import com.webrtcmeetpro.resources.quiet_title
+import com.webrtcmeetpro.ui.ErrorSnackbarEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -100,15 +114,45 @@ class SettingsViewModel(
     private val auth: AuthRepository,
     private val settingsStore: SettingsStore,
 ) : ViewModel() {
-    private val _me = MutableStateFlow<Me?>(null)
-    val me: StateFlow<Me?> = _me.asStateFlow()
+    /** 프로필 수정 화면에서 바꾼 내용도 바로 보이게 저장소의 값을 그대로 쓴다 */
+    val me: StateFlow<Me?> = users.me
     val settings: StateFlow<AppSettings> = settingsStore.settings.stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
     init { loadMe() }
 
     fun loadMe() {
-        viewModelScope.launch { runCatching { users.me() }.onSuccess { _me.value = it } }
+        viewModelScope.launch { runCatching { users.refresh() }.onSuccess(::resetQuiet) }
     }
+
+    private val _quiet = MutableStateFlow(QuietState())
+    val quiet: StateFlow<QuietState> = _quiet.asStateFlow()
+
+    private fun resetQuiet(me: Me) {
+        _quiet.value = QuietState(
+            enabled = me.dndStart != null,
+            start = me.dndStart ?: "22:00",
+            end = me.dndEnd ?: "08:00",
+            savedStart = me.dndStart,
+            savedEnd = me.dndEnd,
+        )
+    }
+
+    fun editQuiet(block: QuietState.() -> QuietState) = _quiet.update { it.block().copy(errorCode = null) }
+
+    fun saveQuiet() {
+        val q = _quiet.value
+        if (!q.changed || q.saving) return
+        _quiet.update { it.copy(saving = true) }
+        viewModelScope.launch {
+            val request = if (q.enabled) QuietHoursRequest(q.start, q.end, deviceTimeZone()) else QuietHoursRequest()
+            runCatching { users.updateQuietHours(request) }
+                .onSuccess { me -> resetQuiet(me); _quiet.update { it.copy(saved = true) } }
+                .onFailure { e -> _quiet.update { it.copy(saving = false, errorCode = e.errorCode) } }
+        }
+    }
+
+    fun quietSavedShown() = _quiet.update { it.copy(saved = false) }
+    fun quietErrorShown() = _quiet.update { it.copy(errorCode = null) }
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { settingsStore.setTheme(mode) }
     fun setLanguage(language: AppLanguage?) = viewModelScope.launch { settingsStore.setLanguage(language) }
@@ -150,6 +194,23 @@ class SettingsViewModel(
     fun resetPassword() { _password.value = PasswordState() }
 }
 
+/** savedStart·savedEnd 는 서버에 저장된 값. 바뀐 게 있을 때만 저장 버튼을 켠다 */
+data class QuietState(
+    val enabled: Boolean = false,
+    val start: String = "22:00",
+    val end: String = "08:00",
+    val savedStart: String? = null,
+    val savedEnd: String? = null,
+    val saving: Boolean = false,
+    val saved: Boolean = false,
+    val errorCode: String? = null,
+) {
+    val changed: Boolean
+        get() = enabled != (savedStart != null) || (enabled && (start != savedStart || end != savedEnd))
+    /** 서버가 시작과 끝이 같으면 거절한다 */
+    val valid: Boolean get() = !enabled || start != end
+}
+
 data class WithdrawState(val running: Boolean = false, val errorCode: String? = null)
 
 /** 비밀번호 바꾸기 창 상태. done 이면 창을 닫고 스낵바로 알린다 (만들었으면 created) */
@@ -168,6 +229,7 @@ private val languageNames = linkedMapOf(
 fun SettingsScreen(
     /** 결제 내역 · 환불 화면 */
     onOpenPayments: () -> Unit = {},
+    onEditProfile: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val me by viewModel.me.collectAsStateWithLifecycle()
@@ -176,7 +238,8 @@ fun SettingsScreen(
     ScreenList(refreshing = false, onRefresh = viewModel::loadMe) {
         item { ScreenTitle(stringResource(Res.string.settings_title)) }
 
-        me?.let { user -> item { ProfileCard(user) } }
+        me?.let { user -> item { ProfileCard(user, onClick = onEditProfile) } }
+        me?.let { item { QuietHoursSection(viewModel) } }
 
         // 요금제 결제·자동결제·카드 관리는 웹에서 (앱 안 결제는 스토어 정책 검토 후)
         item {
@@ -375,8 +438,8 @@ private fun WithdrawDialog(hasPassword: Boolean, viewModel: SettingsViewModel, o
 }
 
 @Composable
-private fun ProfileCard(me: Me) {
-    LimeetCard(Modifier.fillMaxWidth()) {
+private fun ProfileCard(me: Me, onClick: () -> Unit) {
+    LimeetCard(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Avatar(me.nickname, resolveImageUrl(me.profileImageUrl), size = 52.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -384,6 +447,55 @@ private fun ProfileCard(me: Me) {
                 Text(me.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Badge(stringResource(Res.string.settings_plan, me.plan.name))
+        }
+        TextButton(onClick = onClick, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)) {
+            Text(stringResource(Res.string.profile_edit))
+        }
+    }
+}
+
+/** 웹과 같이 30분 단위로 고른다 */
+private val QUIET_TIMES: List<String> = (0 until 48).map { i -> "${(i / 2).toString().padStart(2, '0')}:${if (i % 2 == 0) "00" else "30"}" }
+
+@Composable
+private fun QuietHoursSection(viewModel: SettingsViewModel) {
+    val q by viewModel.quiet.collectAsStateWithLifecycle()
+    val snackbar = LocalSnackbar.current
+    ErrorSnackbarEffect(q.errorCode, viewModel::quietErrorShown)
+    LaunchedEffect(q.saved) {
+        if (q.saved) {
+            viewModel.quietSavedShown()
+            snackbar.showSnackbar(getString(Res.string.quiet_saved))
+        }
+    }
+    SettingsSection(stringResource(Res.string.quiet_title)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(Res.string.quiet_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(checked = q.enabled, onCheckedChange = { on -> viewModel.editQuiet { copy(enabled = on) } })
+        }
+        if (q.enabled) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) {
+                    FormPicker(stringResource(Res.string.quiet_start), q.start, QUIET_TIMES.map { it to it }) { t -> viewModel.editQuiet { copy(start = t) } }
+                }
+                Box(Modifier.weight(1f)) {
+                    FormPicker(stringResource(Res.string.quiet_end), q.end, QUIET_TIMES.map { it to it }) { t -> viewModel.editQuiet { copy(end = t) } }
+                }
+            }
+        }
+        if (q.changed) {
+            PrimaryButton(
+                stringResource(Res.string.common_save),
+                onClick = viewModel::saveQuiet,
+                enabled = q.valid,
+                loading = q.saving,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

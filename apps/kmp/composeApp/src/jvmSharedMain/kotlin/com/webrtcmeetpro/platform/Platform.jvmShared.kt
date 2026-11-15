@@ -55,6 +55,16 @@ actual fun countryName(code: String): String =
 
 actual fun currentYear(): Int = LocalDate.now().year
 
+actual fun deviceTimeZone(): String = ZoneId.systemDefault().id
+
+actual fun inQuietHours(start: String, end: String, timeZone: String?): Boolean = runCatching {
+    val zone = timeZone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
+    val now = java.time.LocalTime.now(zone)
+    val from = java.time.LocalTime.parse(start)
+    val to = java.time.LocalTime.parse(end)
+    if (from < to) now >= from && now < to else now >= from || now < to
+}.getOrDefault(false)
+
 // ---------------------------------------------------------------- 앱 오류 신고 (AppErrorReporter)
 
 actual fun todayYmd(): String = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)

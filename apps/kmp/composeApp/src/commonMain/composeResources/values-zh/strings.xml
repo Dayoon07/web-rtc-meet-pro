@@ -372,4 +372,24 @@
     <string name="error_REFUND_FAILED">退款失败，请稍后再试</string>
     <string name="error_REFUND_NOT_ALLOWED">该付款无法退款</string>
     <string name="error_MESSAGE_NOT_FOUND">找不到消息（可能已被删除）</string>
+    <string name="profile_edit">编辑个人资料</string>
+    <string name="profile_photo_title">头像</string>
+    <string name="profile_photo_change">更换照片</string>
+    <string name="profile_photo_remove">删除照片</string>
+    <string name="profile_photo_hint">JPG、PNG、WEBP、GIF · 最大 5MB</string>
+    <string name="profile_photo_changed">已更换头像。</string>
+    <string name="profile_info_title">个人信息</string>
+    <string name="profile_info_desc">姓名和联系方式不会对成员公开。</string>
+    <string name="profile_marketing">接收活动与优惠信息（可选）</string>
+    <string name="profile_save">保存更改</string>
+    <string name="profile_saved">已保存。</string>
+    <string name="quiet_title">免打扰时间</string>
+    <string name="quiet_desc">在此时间内不显示通知 (仍会显示在通知列表中)</string>
+    <string name="quiet_start">开始</string>
+    <string name="quiet_end">结束</string>
+    <string name="quiet_saved">已保存免打扰时间</string>
+    <string name="error_INVALID_IMAGE">仅支持 5MB 以内的 JPG、PNG、WEBP、GIF 图片。</string>
+    <string name="error_INVALID_NAME">姓名需为 1~50 个字符。</string>
+    <string name="error_INVALID_NICKNAME">昵称需为 1~50 个字符。</string>
+    <string name="error_INVALID_COUNTRY">请重新选择国家/地区。</string>
 </resources>

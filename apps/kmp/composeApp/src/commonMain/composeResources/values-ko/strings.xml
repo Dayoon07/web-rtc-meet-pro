@@ -372,4 +372,24 @@
     <string name="error_REFUND_FAILED">환불하지 못했어요. 잠시 후 다시 시도해 주세요</string>
     <string name="error_REFUND_NOT_ALLOWED">환불할 수 없는 결제예요</string>
     <string name="error_MESSAGE_NOT_FOUND">메시지를 찾을 수 없어요 (지워졌을 수 있어요)</string>
+    <string name="profile_edit">프로필 수정</string>
+    <string name="profile_photo_title">프로필 사진</string>
+    <string name="profile_photo_change">사진 바꾸기</string>
+    <string name="profile_photo_remove">사진 삭제</string>
+    <string name="profile_photo_hint">JPG, PNG, WEBP, GIF · 최대 5MB</string>
+    <string name="profile_photo_changed">프로필 사진을 바꿨어요.</string>
+    <string name="profile_info_title">개인 정보</string>
+    <string name="profile_info_desc">이름과 연락처는 멤버에게 공개되지 않아요.</string>
+    <string name="profile_marketing">이벤트·혜택 정보 수신 동의 (선택)</string>
+    <string name="profile_save">변경사항 저장</string>
+    <string name="profile_saved">저장했어요.</string>
+    <string name="quiet_title">방해 금지 시간</string>
+    <string name="quiet_desc">이 시간에는 알림을 띄우지 않아요 (알림 목록에는 쌓여요)</string>
+    <string name="quiet_start">시작</string>
+    <string name="quiet_end">끝</string>
+    <string name="quiet_saved">방해 금지 시간을 저장했어요</string>
+    <string name="error_INVALID_IMAGE">JPG, PNG, WEBP, GIF 이미지(5MB 이하)만 올릴 수 있어요.</string>
+    <string name="error_INVALID_NAME">이름은 1~50자로 입력해 주세요.</string>
+    <string name="error_INVALID_NICKNAME">닉네임은 1~50자로 입력해 주세요.</string>
+    <string name="error_INVALID_COUNTRY">국가를 다시 선택해 주세요.</string>
 </resources>

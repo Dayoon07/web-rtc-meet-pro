@@ -1,6 +1,8 @@
 package com.webrtcmeetpro.core.network
 
 import com.webrtcmeetpro.core.model.MeetingNotes
+import com.webrtcmeetpro.core.model.QuietHoursRequest
+import com.webrtcmeetpro.core.model.UpdateProfileRequest
 import com.webrtcmeetpro.core.model.ChatThread
 import com.webrtcmeetpro.core.model.InviteLink
 import com.webrtcmeetpro.core.model.InviteLinkJoined
@@ -100,6 +102,30 @@ class LimeetApi(private val client: HttpClient) {
     suspend fun withdraw(password: String?) {
         client.post("api/users/me/withdraw") { setBody(WithdrawRequest(password)) }
     }
+
+    suspend fun updateProfile(request: UpdateProfileRequest): Me =
+        client.put("api/users/me/profile") { setBody(request) }.body()
+
+    /** 서버가 내용(매직 바이트)으로 형식을 다시 확인하므로 이름·형식은 참고용이다 */
+    suspend fun uploadProfileImage(bytes: ByteArray, fileName: String, contentType: String): Me =
+        client.submitFormWithBinaryData(
+            url = "api/users/me/profile-image",
+            formData = formData {
+                append(
+                    "file",
+                    bytes,
+                    Headers.build {
+                        append(HttpHeaders.ContentType, contentType)
+                        append(HttpHeaders.ContentDisposition, "filename=\"${asciiFileName(fileName)}\"")
+                    },
+                )
+            },
+        ).body()
+
+    suspend fun removeProfileImage(): Me = client.delete("api/users/me/profile-image").body()
+
+    suspend fun updateQuietHours(request: QuietHoursRequest): Me =
+        client.put("api/users/me/quiet-hours") { setBody(request) }.body()
 
     /** 내가 결제한 워크스페이스 플랜 중 확인하지 않은 만료 (결제·구독 관리는 웹에서) */
     suspend fun expiryNotices(): List<ExpiryNotice> = client.get("api/subscriptions/notices").body()

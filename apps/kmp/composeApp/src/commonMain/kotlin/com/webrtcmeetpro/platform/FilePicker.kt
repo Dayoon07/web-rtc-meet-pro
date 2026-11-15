@@ -36,3 +36,13 @@ object ChatFileLimits {
  */
 @Composable
 expect fun rememberFilePicker(title: String, onPicked: (List<PickedFile>) -> Unit): () -> Unit
+
+/** 서버 UserService 와 같은 한도 */
+const val PROFILE_IMAGE_MAX_BYTES = 5L * 1024 * 1024
+
+/**
+ * 이미지 한 장 고르기. 한도를 넘으면 bytes 가 null 이다.
+ * Android: 사진 선택기 / Windows: 이미지 파일만 보이는 열기 대화상자
+ */
+@Composable
+expect fun rememberImagePicker(title: String, onPicked: (PickedFile) -> Unit): () -> Unit

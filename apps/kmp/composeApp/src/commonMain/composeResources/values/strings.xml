@@ -373,4 +373,24 @@
     <string name="error_REFUND_FAILED">Couldn\'t refund. Please try again shortly</string>
     <string name="error_REFUND_NOT_ALLOWED">This payment can\'t be refunded</string>
     <string name="error_MESSAGE_NOT_FOUND">Message not found (it may have been deleted)</string>
+    <string name="profile_edit">Edit profile</string>
+    <string name="profile_photo_title">Profile photo</string>
+    <string name="profile_photo_change">Change photo</string>
+    <string name="profile_photo_remove">Remove photo</string>
+    <string name="profile_photo_hint">JPG, PNG, WEBP, GIF · up to 5 MB</string>
+    <string name="profile_photo_changed">Profile photo updated.</string>
+    <string name="profile_info_title">Personal info</string>
+    <string name="profile_info_desc">Your name and contact details are not visible to members.</string>
+    <string name="profile_marketing">Receive news and offers (optional)</string>
+    <string name="profile_save">Save changes</string>
+    <string name="profile_saved">Saved.</string>
+    <string name="quiet_title">Quiet hours</string>
+    <string name="quiet_desc">No notifications during these hours (they still appear in your list)</string>
+    <string name="quiet_start">Start</string>
+    <string name="quiet_end">End</string>
+    <string name="quiet_saved">Quiet hours saved</string>
+    <string name="error_INVALID_IMAGE">Only JPG, PNG, WEBP or GIF images up to 5 MB are allowed.</string>
+    <string name="error_INVALID_NAME">Full name must be 1–50 characters.</string>
+    <string name="error_INVALID_NICKNAME">Display name must be 1–50 characters.</string>
+    <string name="error_INVALID_COUNTRY">Please select your country again.</string>
 </resources>

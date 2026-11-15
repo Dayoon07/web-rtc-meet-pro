@@ -372,4 +372,24 @@
     <string name="error_REFUND_FAILED">返金できませんでした。しばらくしてからもう一度お試しください</string>
     <string name="error_REFUND_NOT_ALLOWED">返金できない決済です</string>
     <string name="error_MESSAGE_NOT_FOUND">メッセージが見つかりません（削除された可能性があります）</string>
+    <string name="profile_edit">プロフィールを編集</string>
+    <string name="profile_photo_title">プロフィール写真</string>
+    <string name="profile_photo_change">写真を変更</string>
+    <string name="profile_photo_remove">写真を削除</string>
+    <string name="profile_photo_hint">JPG・PNG・WEBP・GIF · 最大5MB</string>
+    <string name="profile_photo_changed">プロフィール写真を変更しました。</string>
+    <string name="profile_info_title">個人情報</string>
+    <string name="profile_info_desc">氏名と連絡先はメンバーに公開されません。</string>
+    <string name="profile_marketing">お知らせ・キャンペーン情報の受け取り(任意)</string>
+    <string name="profile_save">変更を保存</string>
+    <string name="profile_saved">保存しました。</string>
+    <string name="quiet_title">おやすみ時間</string>
+    <string name="quiet_desc">この時間は通知を表示しません (通知一覧には残ります)</string>
+    <string name="quiet_start">開始</string>
+    <string name="quiet_end">終了</string>
+    <string name="quiet_saved">おやすみ時間を保存しました</string>
+    <string name="error_INVALID_IMAGE">JPG・PNG・WEBP・GIF 画像(5MB 以下)のみアップロードできます。</string>
+    <string name="error_INVALID_NAME">氏名は1〜50文字で入力してください。</string>
+    <string name="error_INVALID_NICKNAME">表示名は1〜50文字で入力してください。</string>
+    <string name="error_INVALID_COUNTRY">国・地域をもう一度選択してください。</string>
 </resources>

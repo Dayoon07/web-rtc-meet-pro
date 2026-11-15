@@ -37,7 +37,32 @@ data class Me(
     val emailVerified: Boolean = true,
     val linkedProviders: List<String> = emptyList(),
     val plan: Plan,
+    /** E.164 (+821012345678) */
+    val phoneNumber: String? = null,
+    val birthYear: Int? = null,
+    val gender: Gender? = null,
+    val marketingAgreed: Boolean = false,
+    /** 방해 금지 시간 "HH:mm". 안 쓰면 null */
+    val dndStart: String? = null,
+    val dndEnd: String? = null,
+    val dndTimeZone: String? = null,
 )
+
+/** PUT /api/users/me/profile. 약관 동의는 가입 때 이미 했으므로 바꾸지 않는다 */
+@Serializable
+data class UpdateProfileRequest(
+    val nickname: String,
+    val realName: String,
+    val phoneNumber: String,
+    val countryCode: String,
+    val birthYear: Int,
+    val gender: Gender? = null,
+    val marketingAgreed: Boolean? = null,
+)
+
+/** PUT /api/users/me/quiet-hours. start·end 가 null 이면 끈다 */
+@Serializable
+data class QuietHoursRequest(val start: String? = null, val end: String? = null, val timeZone: String? = null)
 
 /** POST /api/users/me/password. 비밀번호가 없는(구글 전용) 계정은 currentPassword 없이 */
 @Serializable

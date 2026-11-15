@@ -1,6 +1,8 @@
 package com.webrtcmeetpro.core.data
 
 import com.webrtcmeetpro.core.model.MeetingNotes
+import com.webrtcmeetpro.core.model.QuietHoursRequest
+import com.webrtcmeetpro.core.model.UpdateProfileRequest
 import com.webrtcmeetpro.core.model.UpdateChannelRequest
 import com.webrtcmeetpro.core.model.Recording
 import com.webrtcmeetpro.core.network.UploadFile
@@ -84,6 +86,15 @@ class UserRepository(private val api: LimeetApi) {
     suspend fun refresh(): Me = api.me().also { _me.value = it }
 
     suspend fun me(): Me = _me.value ?: refresh()
+
+    suspend fun updateProfile(request: UpdateProfileRequest): Me = api.updateProfile(request).also { _me.value = it }
+
+    suspend fun uploadProfileImage(bytes: ByteArray, fileName: String, contentType: String): Me =
+        api.uploadProfileImage(bytes, fileName, contentType).also { _me.value = it }
+
+    suspend fun removeProfileImage(): Me = api.removeProfileImage().also { _me.value = it }
+
+    suspend fun updateQuietHours(request: QuietHoursRequest): Me = api.updateQuietHours(request).also { _me.value = it }
 
     fun clear() {
         _me.value = null

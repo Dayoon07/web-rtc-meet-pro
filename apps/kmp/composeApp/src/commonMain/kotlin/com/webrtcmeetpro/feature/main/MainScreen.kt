@@ -59,6 +59,7 @@ import com.webrtcmeetpro.feature.chat.ChatListScreen
 import com.webrtcmeetpro.feature.chat.ChatRoomScreen
 import com.webrtcmeetpro.feature.chat.ThreadScreen
 import com.webrtcmeetpro.feature.settings.PaymentsScreen
+import com.webrtcmeetpro.feature.settings.ProfileEditScreen
 import com.webrtcmeetpro.feature.chat.NewChatScreen
 import com.webrtcmeetpro.feature.home.HomeScreen
 import com.webrtcmeetpro.feature.meetings.MeetingDetailScreen
@@ -104,6 +105,7 @@ import kotlin.reflect.KClass
 @Serializable data class TeamDetailRoute(val teamId: Long)
 @Serializable data object NotificationsRoute
 @Serializable data object PaymentsRoute
+@Serializable data object ProfileEditRoute
 
 private enum class Tab(val route: Any, val routeClass: KClass<*>, val label: StringResource, val icon: ImageVector) {
     // 채팅 중심: 채팅이 첫 탭이자 첫 화면
@@ -254,8 +256,9 @@ private fun MainNavHost(nav: NavHostController, modifier: Modifier) {
             MeetingsScreen(onOpen = { nav.navigate(MeetingDetailRoute(it)) }, onSchedule = { nav.navigate(ScheduleMeetingRoute) })
         }
         composable<InvitationsRoute> { InvitationsScreen(onJoined = { nav.openTab(Tab.CHAT) }) }
-        composable<SettingsRoute> { SettingsScreen(onOpenPayments = { nav.navigate(PaymentsRoute) }) }
+        composable<SettingsRoute> { SettingsScreen(onOpenPayments = { nav.navigate(PaymentsRoute) }, onEditProfile = { nav.navigate(ProfileEditRoute) }) }
         composable<PaymentsRoute> { PaymentsScreen(onBack = back) }
+        composable<ProfileEditRoute> { ProfileEditScreen(onBack = back) }
 
         composable<ChatRoomRoute> {
             ChatRoomScreen(

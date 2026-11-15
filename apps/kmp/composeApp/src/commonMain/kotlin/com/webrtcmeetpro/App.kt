@@ -35,6 +35,7 @@ import com.webrtcmeetpro.feature.main.MainScreen
 import com.webrtcmeetpro.feature.notifications.notificationTextAsync
 import com.webrtcmeetpro.platform.LocalAppLocale
 import com.webrtcmeetpro.platform.SystemNotifier
+import com.webrtcmeetpro.platform.inQuietHours
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.app_name
 import com.webrtcmeetpro.ui.UnexpectedErrorHost
@@ -81,7 +82,7 @@ class AppViewModel(
                             badges.refresh()
                             // 지금 보고 있는 스레드의 답글은 띄우지 않는다
                             val watching = n.type == "THREAD_REPLY" && n.param("rootId").toLongOrNull() == presence.activeThreadId.value
-                            if (!watching) notifier.show(getString(Res.string.app_name), notificationTextAsync(n))
+                            if (!watching && !quietNow()) notifier.show(getString(Res.string.app_name), notificationTextAsync(n))
                         }
                     }
                     launch {
@@ -93,7 +94,7 @@ class AppViewModel(
                             val myId = users.me.value?.id
                             val mine = message.sender?.id == myId
                             val mentioned = message.mentionAll || (myId != null && myId in message.mentions)
-                            if (!mine && !mentioned && message.threadRootId == null && presence.activeRoomId.value != event.roomId && message.sender != null) {
+                            if (!mine && !mentioned && message.threadRootId == null && presence.activeRoomId.value != event.roomId && message.sender != null && !quietNow()) {
                                 notifier.show(message.sender!!.nickname, messagePreviewAsync(message))
                             }
                         }
@@ -101,6 +102,14 @@ class AppViewModel(
                 }
             }
         }
+    }
+
+    /** 웹 푸시와 같이, 방해 금지 시간에는 시스템 알림만 띄우지 않는다 (알림 목록에는 쌓인다) */
+    private fun quietNow(): Boolean {
+        val me = users.me.value ?: return false
+        val start = me.dndStart ?: return false
+        val end = me.dndEnd ?: return false
+        return inQuietHours(start, end, me.dndTimeZone)
     }
 }
 

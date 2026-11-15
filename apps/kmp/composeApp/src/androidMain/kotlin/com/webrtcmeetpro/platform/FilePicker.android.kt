@@ -25,14 +25,28 @@ actual fun rememberFilePicker(title: String, onPicked: (List<PickedFile>) -> Uni
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {
-            val files = withContext(Dispatchers.IO) { uris.mapNotNull { read(context, it) } }
+            val files = withContext(Dispatchers.IO) { uris.mapNotNull { read(context, it, ChatFileLimits.MAX_FILE_BYTES) } }
             if (files.isNotEmpty()) latest(files)
         }
     }
     return { launcher.launch("*/*") }
 }
 
-private fun read(context: Context, uri: Uri): PickedFile? = runCatching {
+@Composable
+actual fun rememberImagePicker(title: String, onPicked: (PickedFile) -> Unit): () -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latest by rememberUpdatedState(onPicked)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            withContext(Dispatchers.IO) { read(context, uri, PROFILE_IMAGE_MAX_BYTES) }?.let { latest(it) }
+        }
+    }
+    return { launcher.launch("image/*") }
+}
+
+private fun read(context: Context, uri: Uri, limit: Long): PickedFile? = runCatching {
     val resolver = context.contentResolver
     var name: String? = null
     var size = -1L
@@ -43,11 +57,11 @@ private fun read(context: Context, uri: Uri): PickedFile? = runCatching {
         }
     }
     // 한도를 넘는 파일은 읽지 않는다 (크기를 모르면 한도까지만 읽어 본다)
-    val bytes = if (size > ChatFileLimits.MAX_FILE_BYTES) null else resolver.openInputStream(uri)?.use { readAtMost(it, ChatFileLimits.MAX_FILE_BYTES) }
+    val bytes = if (size > limit) null else resolver.openInputStream(uri)?.use { readAtMost(it, limit) }
     PickedFile(
         name = name ?: uri.lastPathSegment ?: "file",
         mimeType = resolver.getType(uri),
-        size = bytes?.size?.toLong() ?: maxOf(size, ChatFileLimits.MAX_FILE_BYTES + 1),
+        size = bytes?.size?.toLong() ?: maxOf(size, limit + 1),
         bytes = bytes,
     )
 }.getOrNull()

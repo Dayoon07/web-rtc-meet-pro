@@ -168,7 +168,7 @@ fun SignupScreen(onBack: () -> Unit, languageTag: String, viewModel: SignupViewM
                     Text(stringResource(Res.string.signup_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(stringResource(Res.string.signup_subtitle), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-                    Field(state.email, Res.string.login_email, KeyboardType.Email) { viewModel.update { copy(email = it.take(255)) } }
+                    FormField(state.email, Res.string.login_email, KeyboardType.Email) { viewModel.update { copy(email = it.take(255)) } }
                     OutlinedTextField(
                         value = state.password,
                         onValueChange = { v -> viewModel.update { copy(password = v.take(72)) } },
@@ -180,19 +180,19 @@ fun SignupScreen(onBack: () -> Unit, languageTag: String, viewModel: SignupViewM
                         shape = MaterialTheme.shapes.medium,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Field(state.nickname, Res.string.signup_nickname) { viewModel.update { copy(nickname = it.take(50)) } }
-                    Field(state.realName, Res.string.signup_real_name) { viewModel.update { copy(realName = it.take(50)) } }
+                    FormField(state.nickname, Res.string.signup_nickname) { viewModel.update { copy(nickname = it.take(50)) } }
+                    FormField(state.realName, Res.string.signup_real_name) { viewModel.update { copy(realName = it.take(50)) } }
 
-                    Picker(
+                    FormPicker(
                         label = stringResource(Res.string.signup_country),
                         value = "${countryName(state.country)} (+${DIAL_CODES[state.country]})",
                         options = DIAL_CODES.keys.map { code -> code to "${countryName(code)} (+${DIAL_CODES[code]})" },
                         onSelect = { code -> viewModel.update { copy(country = code) } },
                     )
-                    Field(state.phone, Res.string.signup_phone, KeyboardType.Phone) { viewModel.update { copy(phone = it.take(20)) } }
+                    FormField(state.phone, Res.string.signup_phone, KeyboardType.Phone) { viewModel.update { copy(phone = it.take(20)) } }
 
                     val thisYear = currentYear()
-                    Picker(
+                    FormPicker(
                         label = stringResource(Res.string.signup_birth_year),
                         value = state.birthYear?.toString().orEmpty(),
                         options = (thisYear - MIN_AGE - 1 downTo 1900).map { it.toString() to it.toString() },
@@ -236,7 +236,7 @@ fun SignupScreen(onBack: () -> Unit, languageTag: String, viewModel: SignupViewM
 }
 
 @Composable
-private fun Field(value: String, label: StringResource, type: KeyboardType = KeyboardType.Text, onChange: (String) -> Unit) {
+internal fun FormField(value: String, label: StringResource, type: KeyboardType = KeyboardType.Text, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -250,7 +250,7 @@ private fun Field(value: String, label: StringResource, type: KeyboardType = Key
 
 /** 읽기 전용 입력칸 + 드롭다운 (국가, 출생년도) */
 @Composable
-private fun Picker(label: String, value: String, options: List<Pair<String, String>>, onSelect: (String) -> Unit) {
+internal fun FormPicker(label: String, value: String, options: List<Pair<String, String>>, onSelect: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         OutlinedTextField(

@@ -25,6 +25,7 @@ import com.webrtcmeetpro.feature.chat.ChatPresence
 import com.webrtcmeetpro.feature.chat.ChatRoomViewModel
 import com.webrtcmeetpro.feature.chat.ThreadViewModel
 import com.webrtcmeetpro.feature.settings.PaymentsViewModel
+import com.webrtcmeetpro.feature.settings.ProfileEditViewModel
 import com.webrtcmeetpro.feature.chat.NewChatViewModel
 import com.webrtcmeetpro.feature.home.HomeViewModel
 import com.webrtcmeetpro.feature.meetings.MeetingDetailViewModel
@@ -80,6 +81,7 @@ val viewModelModule = module {
     viewModelOf(::NotificationsViewModel)
     viewModelOf(::SettingsViewModel)
     viewModelOf(::PaymentsViewModel)
+    viewModelOf(::ProfileEditViewModel)
     viewModelOf(::VerifyEmailViewModel)
 }
 
