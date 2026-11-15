@@ -36,8 +36,6 @@ mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
-    # DTO 가 val 뿐인 data class 라 생성자로 만든다: 컬럼 이름(밑줄 무시)과 생성자 파라미터 이름을 맞춘다
-    arg-name-based-constructor-auto-mapping: true
     # Oracle 은 타입 없는 null 바인딩을 거절한다
     jdbc-type-for-null: NULL
 
