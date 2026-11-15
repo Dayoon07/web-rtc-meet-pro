@@ -29,3 +29,11 @@ chat-files/
 
 # 부하 테스트 결과(테스트 계정 토큰 포함)는 올리지 않는다
 scripts/load-test/results/
+
+# Android SDK 경로 (PC 마다 다르다)
+local.properties
+# 앱 서명 키: 잃거나 새면 앱 업데이트·사칭 문제가 생기므로 저장소에 두지 않는다
+*.jks
+*.keystore
+*.p12
+/deploy/release
