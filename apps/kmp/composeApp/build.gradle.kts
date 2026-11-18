@@ -124,11 +124,46 @@ compose.desktop {
     }
 }
 
-/** deploy/app-build.bat 이 쓴다. Windows 설치 파일을 저장소 맨 위 dist/ 에 mq-release-<버전>.exe 로 */
+/**
+ * 한국어 설치 프로그램. jpackage 는 --resource-dir 안의 .wxl 문화권(ko-kr)을 먼저 써서, WiX 기본 화면(버튼·안내·오류)도 한국어가 된다.
+ * Compose 의 packageExe 는 resource-dir(compose/tmp/resources)을 작업 시작 때 비우고 다른 값으로 바꿀 길도 없어서,
+ * Compose 가 만든 앱 폴더(createDistributable)를 jpackage --app-image 로 직접 설치 파일로 만든다.
+ * 설치 옵션은 위 nativeDistributions.windows 와 같게 맞춘다.
+ */
+val packageExeKo by tasks.registering(Exec::class) {
+    val distributable = tasks.named<org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask>("createDistributable")
+    dependsOn(distributable)
+    val installerDir = project.file("installer")
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/MQ")
+    val outDir = layout.buildDirectory.dir("compose/binaries/main/exe-ko")
+    val wixDir = rootProject.layout.buildDirectory.dir("wix311")
+    val javaHome = distributable.flatMap { it.javaHome }
+    val version = libs.versions.appVersionName.get()
+    inputs.dir(installerDir)
+    inputs.dir(appImage)
+    outputs.dir(outDir)
+    doFirst {
+        val out = outDir.get().asFile.apply { deleteRecursively(); mkdirs() }
+        environment("PATH", wixDir.get().asFile.absolutePath + File.pathSeparator + System.getenv("PATH"))
+        commandLine(
+            File(javaHome.get(), "bin/jpackage").absolutePath,
+            "--type", "exe",
+            "--app-image", appImage.get().asFile.absolutePath,
+            "--name", "MQ",
+            "--app-version", version,
+            "--dest", out.absolutePath,
+            "--resource-dir", installerDir.absolutePath,
+            "--win-dir-chooser", "--win-shortcut", "--win-menu",
+            "--win-upgrade-uuid", "6c1f5f0e-8f0b-4a53-9a3e-6f2a3c7e9d41",
+        )
+    }
+}
+
+/** deploy/app-build.bat 이 쓴다. Windows 설치 파일(한국어)을 저장소 맨 위 dist/ 에 mq-release-<버전>.exe 로 */
 tasks.register<Copy>("distExe") {
     val version = libs.versions.appVersionName.get()
-    dependsOn("packageExe")
-    from(layout.buildDirectory.dir("compose/binaries/main/exe")) { include("*.exe") }
+    dependsOn(packageExeKo)
+    from(layout.buildDirectory.dir("compose/binaries/main/exe-ko")) { include("*.exe") }
     into(rootProject.layout.projectDirectory.dir("../../dist"))
     rename { "mq-release-$version.exe" }
 }

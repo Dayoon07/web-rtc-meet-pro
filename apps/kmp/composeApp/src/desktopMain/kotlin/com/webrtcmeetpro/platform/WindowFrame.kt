@@ -14,6 +14,8 @@ import com.sun.jna.platform.win32.WinDef.WPARAM
 import com.sun.jna.platform.win32.WinUser
 import com.sun.jna.win32.StdCallLibrary
 import com.sun.jna.win32.W32APIOptions
+import kotlin.concurrent.thread
+import kotlin.system.exitProcess
 
 /**
  * 타이틀 바를 앱이 직접 그리게 한다 (Windows). 창은 테두리 없이(undecorated) 만들고, 여기서 Windows 창 스타일을 되돌려
@@ -121,6 +123,13 @@ object WindowFrame {
         }
         // 활성/비활성이 바뀔 때 Windows 가 예전 타이틀 바를 잠깐 다시 그리지 않게
         WM_NCACTIVATE -> callOriginal(hwnd, msg, wParam, LPARAM(-1))
+        // 설치 프로그램(업데이트)이나 Windows 종료가 앱을 닫아 달라고 하면 트레이에 숨지 않고 끝낸다.
+        // 끝내지 않으면 설치 프로그램이 쓰는 중인 파일을 바꾸지 못해서 예전 파일이 섞여 남는다
+        WM_QUERYENDSESSION -> LRESULT(1)
+        WM_ENDSESSION -> {
+            if (wParam.toLong() != 0L) thread(name = "end-session") { exitProcess(0) }
+            LRESULT(0)
+        }
         else -> null
     }
 
@@ -221,6 +230,8 @@ object WindowFrame {
     }
 
     private const val GWLP_WNDPROC = -4
+    private const val WM_QUERYENDSESSION = 0x0011
+    private const val WM_ENDSESSION = 0x0016
     private const val WM_GETMINMAXINFO = 0x0024
     private const val WM_NCCALCSIZE = 0x0083
     private const val WM_NCHITTEST = 0x0084

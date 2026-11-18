@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Windows 설치 프로그램(MSI) 한국어 문구. build.gradle.kts 의 packageExeKo 가 이 폴더를 jpackage 의 resource-dir 로 넘긴다.
+  파일 이름이 _en 인 것은 일부러다: jpackage 가 기본으로 쓰는 영어 문구 파일을 이 파일로 바꿔 끼워서 문화권이 ko-kr 하나만 남게 한다.
+  (다른 이름으로 따로 넣으면 ko-kr;en-us 두 문화권이 함께 넘어가 WiX 3 이 "문구 ID 중복(LGHT0100)" 으로 실패한다.)
+  Culture 가 ko-kr 이라 버튼·안내·오류 같은 WiX 기본 화면도 WiX 의 한국어 번역으로 나온다.
+  원본(영어): JDK jdk.jpackage 의 MsiInstallerStrings_en.wxl
+-->
+<WixLocalization Culture="ko-kr" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="949">
+  <String Id="message.install.dir.exist">[INSTALLDIR] 폴더가 이미 있습니다. 그래도 이 폴더에 설치할까요?</String>
+  <String Id="MainFeatureTitle">기본 기능</String>
+  <String Id="DowngradeErrorMessage">더 새로운 버전의 [ProductName] 이(가) 이미 설치되어 있습니다. 예전 버전으로는 바꿀 수 없어 설치를 끝냅니다.</String>
+  <String Id="DisallowUpgradeErrorMessage">예전 버전의 [ProductName] 이(가) 설치되어 있습니다. 업데이트할 수 없어 설치를 끝냅니다.</String>
+
+  <String Id="ShortcutPromptDlg_Title">[ProductName] 설치</String>
+  <String Id="ShortcutPromptDlgTitle">{\WixUI_Font_Title}바로 가기</String>
+  <String Id="ShortcutPromptDlgBannerBitmap">WixUI_Bmp_Banner</String>
+  <String Id="ShortcutPromptDlgDescription">만들 바로 가기를 고르세요.</String>
+  <String Id="ShortcutPromptDlgDesktopShortcutControlLabel">바탕 화면에 바로 가기 만들기</String>
+  <String Id="ShortcutPromptDlgStartMenuShortcutControlLabel">시작 메뉴에 바로 가기 만들기</String>
+  <String Id="InstallDirNotEmptyDlg_Title">[ProductName] 설치</String>
+  <String Id="ContextMenuCommandLabel">[ProductName](으)로 열기</String>
+</WixLocalization>

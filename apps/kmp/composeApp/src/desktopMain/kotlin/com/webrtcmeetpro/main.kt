@@ -25,6 +25,7 @@ import com.webrtcmeetpro.di.initKoin
 import com.webrtcmeetpro.platform.AppErrorReporter
 import com.webrtcmeetpro.platform.DesktopTray
 import com.webrtcmeetpro.platform.DesktopWindow
+import com.webrtcmeetpro.platform.SingleInstance
 import com.webrtcmeetpro.platform.WindowTitleBar
 import com.webrtcmeetpro.platform.WindowFrame
 import com.webrtcmeetpro.platform.appDataDir
@@ -38,12 +39,16 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.runBlocking
 import java.awt.Dimension
+import java.awt.Frame
+import javax.swing.SwingUtilities
 
 /**
  * Windows 데스크톱 진입점. ./gradlew :composeApp:run
  * Windows 에는 앱이 꺼져 있을 때 알림을 대신 받아 주는 곳이 없어서, 창을 닫으면 트레이로 숨기고 연결을 유지한다.
  */
 fun main() {
+    // 이미 떠 있는 MQ 가 있으면 그 창을 띄우고 끝낸다
+    if (!SingleInstance.acquire()) return
     val koin = initKoin(desktopPlatformModule()).koin
     // 앱 오류를 서버 에러 기록으로 (앱이 죽으면 다음 실행 때 보낸다)
     AppErrorReporter.install(koin.get<MqApi>(), appDataDir().absolutePath, "windows")
@@ -52,6 +57,17 @@ fun main() {
         var toldAboutTray by remember { mutableStateOf(false) }
         val logo = rememberVectorPainter(MqMark)
         val trayIcon = remember(logo) { TintedPainter(logo, Color(0xFF7C1FFF)) }
+        // MQ 를 또 실행하면 새로 띄우지 않고 이 창을 앞으로
+        SingleInstance.onShow = {
+            SwingUtilities.invokeLater {
+                visible = true
+                DesktopWindow.window?.run {
+                    if (extendedState and Frame.ICONIFIED != 0) extendedState = extendedState and Frame.ICONIFIED.inv()
+                    toFront()
+                    requestFocus()
+                }
+            }
+        }
 
         Tray(
             icon = trayIcon,

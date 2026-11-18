@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  jpackage 기본 main.wxs 의 변수를 바꾼다 (원본 설명: JDK jdk.jpackage 의 overrides.wxi).
+  설치 파일의 언어를 한국어(1042)로: 기본값 1033(영어)이면 Windows 설치 관리자의 자체 안내도 영어로 나올 수 있다.
+-->
+<Include>
+  <?undef JpProductLanguage?>
+  <?define JpProductLanguage=1042 ?>
+</Include>
