@@ -109,6 +109,9 @@ compose.desktop {
             packageName = "MQ"
             // Android 와 같은 버전. Windows 설치 파일은 MAJOR.MINOR.BUILD 숫자만 받고, 올려야 기존 설치 위에 업데이트된다
             packageVersion = libs.versions.appVersionName.get()
+            // 설치 파일에 넣는 Java 는 고른 모듈만 들어간다 (./gradlew :composeApp:suggestRuntimeModules 가 알려 준 것).
+            // jdk.unsupported 가 없으면 로그인 정보를 저장(DataStore)하다가 실패해서 로그인이 안 된다
+            modules("java.instrument", "java.management", "jdk.unsupported")
             windows {
                 // 설치 파일·바로가기·작업 표시줄 아이콘 (없으면 기본 Kotlin 아이콘이 들어간다)
                 iconFile.set(project.file("icons/mq.ico"))
