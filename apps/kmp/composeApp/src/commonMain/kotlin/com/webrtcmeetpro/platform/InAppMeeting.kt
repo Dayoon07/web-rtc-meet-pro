@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 
 /**
  * 앱 안에서 화상회의 화면(웹 /meet/{id})을 띄울 수 있는지.
- * Android: 앱 안 웹뷰. Windows: 지금처럼 브라우저로 연다 (내장 브라우저를 넣으면 설치 파일이 100MB 넘게 커진다).
+ * Android: 앱 안 웹뷰. Windows: 기본으로 깔린 Edge WebView2 (없는 PC 는 브라우저로 연다).
  */
 expect val inAppMeetingSupported: Boolean
 

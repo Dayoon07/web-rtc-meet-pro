@@ -2,6 +2,8 @@ package com.webrtcmeetpro
 
 import com.webrtcmeetpro.feature.auth.EmailVerifiedGate
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,6 +50,7 @@ import com.webrtcmeetpro.feature.main.MainScreen
 import com.webrtcmeetpro.feature.notifications.notificationTextAsync
 import com.webrtcmeetpro.platform.LocalAppLocale
 import com.webrtcmeetpro.platform.SystemNotifier
+import com.webrtcmeetpro.platform.LocalHasTitleBar
 import com.webrtcmeetpro.platform.WindowChromeColors
 import com.webrtcmeetpro.platform.inQuietHours
 import com.webrtcmeetpro.resources.Res
@@ -172,9 +175,12 @@ class AppViewModel(
     }
 }
 
-/** Android(MainActivity)와 Desktop(main.kt)이 함께 쓰는 루트 화면 */
+/**
+ * Android(MainActivity)와 Desktop(main.kt)이 함께 쓰는 루트 화면.
+ * titleBar: Windows 앱이 직접 그리는 타이틀 바 (앱 테마 색을 써야 해서 테마 안쪽에 둔다)
+ */
 @Composable
-fun App() {
+fun App(titleBar: (@Composable () -> Unit)? = null) {
     val viewModel = koinViewModel<AppViewModel>()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val loggedIn by viewModel.loggedIn.collectAsStateWithLifecycle()
@@ -190,31 +196,36 @@ fun App() {
             }
             MqTheme(darkTheme = dark) {
                 MaterialTheme.colorScheme.run { WindowChromeColors(surfaceContainerLow, onSurface, outlineVariant, dark) }
-                Surface(
-                    Modifier.fillMaxSize()
-                        // Initial 단계에서 보기만 하고 소비하지 않아 화면 안의 버튼·스크롤은 그대로 동작한다
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    awaitPointerEvent(PointerEventPass.Initial)
-                                    viewModel.onActivity()
+                Column(Modifier.fillMaxSize()) {
+                    CompositionLocalProvider(LocalHasTitleBar provides (titleBar != null)) {
+                        titleBar?.invoke()
+                        Surface(
+                            Modifier.weight(1f).fillMaxWidth()
+                                // Initial 단계에서 보기만 하고 소비하지 않아 화면 안의 버튼·스크롤은 그대로 동작한다
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            awaitPointerEvent(PointerEventPass.Initial)
+                                            viewModel.onActivity()
+                                        }
+                                    }
+                                }
+                                .onPreviewKeyEvent { viewModel.onActivity(); false },
+                            color = MaterialTheme.colorScheme.background,
+                        ) {
+                            when (if (settings == null) null else loggedIn) {
+                                null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                                false -> AuthFlow(LocalAppLocale.current)
+                                // 이메일 가입 후 인증 전이면 메인 화면 대신 인증 안내
+                                true -> {
+                                    AwayTracker(viewModel)
+                                    EmailVerifiedGate { MainScreen() }
                                 }
                             }
-                        }
-                        .onPreviewKeyEvent { viewModel.onActivity(); false },
-                    color = MaterialTheme.colorScheme.background,
-                ) {
-                    when (if (settings == null) null else loggedIn) {
-                        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                        false -> AuthFlow(LocalAppLocale.current)
-                        // 이메일 가입 후 인증 전이면 메인 화면 대신 인증 안내
-                        true -> {
-                            AwayTracker(viewModel)
-                            EmailVerifiedGate { MainScreen() }
+                            // 서버 500: 에러 코드 + 문의 이메일 안내 (로그인 전후 어느 화면에서든)
+                            UnexpectedErrorHost()
                         }
                     }
-                    // 서버 500: 에러 코드 + 문의 이메일 안내 (로그인 전후 어느 화면에서든)
-                    UnexpectedErrorHost()
                 }
             }
         }

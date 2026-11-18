@@ -1,6 +1,7 @@
 package com.webrtcmeetpro
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -24,6 +25,8 @@ import com.webrtcmeetpro.di.initKoin
 import com.webrtcmeetpro.platform.AppErrorReporter
 import com.webrtcmeetpro.platform.DesktopTray
 import com.webrtcmeetpro.platform.DesktopWindow
+import com.webrtcmeetpro.platform.WindowTitleBar
+import com.webrtcmeetpro.platform.WindowFrame
 import com.webrtcmeetpro.platform.appDataDir
 import com.webrtcmeetpro.platform.desktopPlatformModule
 import com.webrtcmeetpro.resources.Res
@@ -62,23 +65,29 @@ fun main() {
             },
         )
 
+        // 창을 닫아도 앱은 트레이에 남는다 (처음 한 번만 알려 준다)
+        val hideToTray = {
+            visible = false
+            if (!toldAboutTray) {
+                toldAboutTray = true
+                val message = runBlocking { getString(Res.string.tray_running) }
+                DesktopTray.state.sendNotification(Notification("MQ", message, Notification.Type.Info))
+            }
+        }
+
         Window(
-            onCloseRequest = {
-                visible = false
-                if (!toldAboutTray) {
-                    toldAboutTray = true
-                    val message = runBlocking { getString(Res.string.tray_running) }
-                    DesktopTray.state.sendNotification(Notification("MQ", message, Notification.Type.Info))
-                }
-            },
+            onCloseRequest = hideToTray,
             visible = visible,
             title = "MQ",
+            // Windows 는 타이틀 바를 앱이 직접 그린다 (WindowFrame 이 끌기·스냅·크기 조절을 되살린다)
+            undecorated = WindowFrame.supported,
             state = rememberWindowState(size = DpSize(1180.dp, 780.dp), position = WindowPosition.Aligned(androidx.compose.ui.Alignment.Center)),
         ) {
             window.minimumSize = Dimension(400, 600)
             window.iconImages = DesktopWindow.icons
             DesktopWindow.window = window
-            App()
+            LaunchedEffect(Unit) { WindowFrame.install(window) }
+            App(titleBar = if (WindowFrame.supported) ({ WindowTitleBar(window, onClose = hideToTray) }) else null)
         }
     }
 }

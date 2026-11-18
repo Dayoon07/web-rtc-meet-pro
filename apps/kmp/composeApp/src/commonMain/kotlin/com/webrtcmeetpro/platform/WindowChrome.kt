@@ -1,6 +1,7 @@
 package com.webrtcmeetpro.platform
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -9,3 +10,6 @@ import androidx.compose.ui.graphics.Color
  */
 @Composable
 expect fun WindowChromeColors(caption: Color, text: Color, border: Color, dark: Boolean)
+
+/** 창 맨 위에 앱이 그린 타이틀 바(MQ 로고 포함)가 있는지. 있으면 왼쪽 메뉴의 로고는 빼서 두 번 보이지 않게 한다 */
+val LocalHasTitleBar = staticCompositionLocalOf { false }

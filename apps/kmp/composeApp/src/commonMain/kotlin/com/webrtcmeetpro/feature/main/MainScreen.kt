@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.Alignment
 import com.webrtcmeetpro.platform.InAppMeeting
+import com.webrtcmeetpro.platform.LocalHasTitleBar
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -202,9 +203,13 @@ private fun MainContent() {
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             windowInsets = WindowInsets(0),
                             header = {
-                                Spacer(Modifier.height(12.dp))
-                                BrandLogo(showName = false, size = 36.dp)
-                                Spacer(Modifier.height(16.dp))
+                                if (LocalHasTitleBar.current) {
+                                    Spacer(Modifier.height(8.dp))
+                                } else {
+                                    Spacer(Modifier.height(12.dp))
+                                    BrandLogo(showName = false, size = 36.dp)
+                                    Spacer(Modifier.height(16.dp))
+                                }
                             },
                         ) {
                             Tab.entries.forEach { tab ->
