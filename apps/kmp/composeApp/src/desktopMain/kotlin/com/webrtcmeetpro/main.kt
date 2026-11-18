@@ -23,6 +23,7 @@ import com.webrtcmeetpro.core.network.MqApi
 import com.webrtcmeetpro.di.initKoin
 import com.webrtcmeetpro.platform.AppErrorReporter
 import com.webrtcmeetpro.platform.DesktopTray
+import com.webrtcmeetpro.platform.DesktopWindow
 import com.webrtcmeetpro.platform.appDataDir
 import com.webrtcmeetpro.platform.desktopPlatformModule
 import com.webrtcmeetpro.resources.Res
@@ -75,6 +76,8 @@ fun main() {
             state = rememberWindowState(size = DpSize(1180.dp, 780.dp), position = WindowPosition.Aligned(androidx.compose.ui.Alignment.Center)),
         ) {
             window.minimumSize = Dimension(400, 600)
+            window.iconImages = DesktopWindow.icons
+            DesktopWindow.window = window
             App()
         }
     }

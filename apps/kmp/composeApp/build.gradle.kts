@@ -62,6 +62,7 @@ kotlin {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
+                implementation(libs.jna.platform)
             }
         }
     }
@@ -109,6 +110,8 @@ compose.desktop {
             // Android 와 같은 버전. Windows 설치 파일은 MAJOR.MINOR.BUILD 숫자만 받고, 올려야 기존 설치 위에 업데이트된다
             packageVersion = libs.versions.appVersionName.get()
             windows {
+                // 설치 파일·바로가기·작업 표시줄 아이콘 (없으면 기본 Kotlin 아이콘이 들어간다)
+                iconFile.set(project.file("icons/mq.ico"))
                 menu = true
                 shortcut = true
                 // 업그레이드 설치 시 같은 앱으로 인식되도록 고정

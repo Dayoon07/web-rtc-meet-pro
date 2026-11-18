@@ -48,6 +48,7 @@ import com.webrtcmeetpro.feature.main.MainScreen
 import com.webrtcmeetpro.feature.notifications.notificationTextAsync
 import com.webrtcmeetpro.platform.LocalAppLocale
 import com.webrtcmeetpro.platform.SystemNotifier
+import com.webrtcmeetpro.platform.WindowChromeColors
 import com.webrtcmeetpro.platform.inQuietHours
 import com.webrtcmeetpro.resources.Res
 import com.webrtcmeetpro.resources.app_name
@@ -188,6 +189,7 @@ fun App() {
                 ThemeMode.DARK -> true
             }
             MqTheme(darkTheme = dark) {
+                MaterialTheme.colorScheme.run { WindowChromeColors(surfaceContainerLow, onSurface, outlineVariant, dark) }
                 Surface(
                     Modifier.fillMaxSize()
                         // Initial 단계에서 보기만 하고 소비하지 않아 화면 안의 버튼·스크롤은 그대로 동작한다
