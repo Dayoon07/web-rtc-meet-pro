@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  jpackage 기본 main.wxs (JDK jdk.jpackage) 를 복사해서 "켜져 있는 MQ 끄기" 하나만 더했다. MQCloseApp 이 붙은 줄이 추가분.
+  jpackage 기본 main.wxs (JDK jdk.jpackage) 를 복사해서 두 가지를 더했다: 켜져 있는 MQ 끄기(MQCloseApp), 제거할 때 사용자 데이터 지우기(MQUserData).
   jpackage 는 새 버전을 넣기 전에(RemoveExistingProducts, CostInitialize 앞) 예전 버전을 화면 없이 지운다.
   이 단계는 Windows 의 "사용 중인 프로그램 닫기"가 돌지 않아서, 트레이에 MQ 가 떠 있으면 파일이 잠겨
   교체가 재부팅 뒤로 밀리고, 재부팅하면 새 버전 jar 까지 지워진다. 그래서 그 전에 MQ 를 끈다 (제거할 때도).
@@ -74,8 +74,22 @@
     <Binary Id="JpCaDll" SourceFile="wixhelper.dll"/>
 
     <!-- MQCloseApp: 켜져 있는 MQ 를 끈다. 없으면 taskkill 이 실패하지만 무시한다 -->
-    <SetProperty Id="WixQuietExecCmdLine" Value="&quot;[System64Folder]taskkill.exe&quot; /F /T /IM MQ.exe" Before="MQCloseApp" Sequence="execute"/>
+    <SetProperty Id="WixQuietExecCmdLine" Action="MQSetCloseAppCmd" Value="&quot;[System64Folder]taskkill.exe&quot; /F /T /IM MQ.exe" Before="MQCloseApp" Sequence="execute"/>
     <CustomAction Id="MQCloseApp" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="immediate" Return="ignore"/>
+
+    <!--
+      MQUserData: 제어판에서 MQ 를 지우면 앱이 만든 %APPDATA%\MQ (로그인 정보·설정·회의 화면(WebView2) 캐시·오류 기록)도 지운다.
+      Windows Installer 의 폴더 지우기(util:RemoveFolderEx)를 쓴다. 지울 폴더는 MQUSERDATADIR 로 알려 준다.
+      업데이트(새 버전이 예전 버전을 지우는 것)일 때는 UPGRADINGPRODUCTCODE 가 있어서 MQUSERDATADIR 을 비워 두고, 그러면 아무것도 안 지운다.
+      로그인이 풀리면 안 되니까. 지우는 사람의 %APPDATA% 만 지운다 (이 PC 의 다른 Windows 계정 것은 그대로).
+    -->
+    <SetProperty Id="MQUSERDATADIR" Value="[AppDataFolder]MQ\" Before="WixRemoveFoldersEx" Sequence="execute">REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE</SetProperty>
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="MQUserData" Guid="516B510A-45FE-4B5B-A4EB-ED16FCBA3580" Win64="yes">
+        <RegistryValue Root="HKLM" Key="Software\MQ" Name="RemoveUserDataOnUninstall" Type="integer" Value="1" KeyPath="yes"/>
+        <util:RemoveFolderEx On="uninstall" Property="MQUSERDATADIR"/>
+      </Component>
+    </DirectoryRef>
 
     <CustomAction Id="JpFindRelatedProducts" BinaryKey="JpCaDll" DllEntry="FindRelatedProductsEx" />
 
@@ -86,6 +100,7 @@
       <ComponentGroupRef Id="Shortcuts"/>
       <ComponentGroupRef Id="Files"/>
       <ComponentGroupRef Id="FileAssociations"/>
+      <ComponentRef Id="MQUserData"/>
     </Feature>
 
     <CustomAction Id="JpSetARPINSTALLLOCATION" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
