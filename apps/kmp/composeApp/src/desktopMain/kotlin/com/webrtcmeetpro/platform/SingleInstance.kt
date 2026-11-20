@@ -35,8 +35,8 @@ object SingleInstance {
         val dir = appDataDir()
         val lockFile = File(dir, "instance.lock").toPath()
         val portFile = File(dir, "instance.port")
-        var asked = false
-        // 예전 버전이 끝나기를 최대 10초 기다린다
+        // 예전 버전이 끝나기를 최대 10초 기다린다.
+        // 주인이 막 켜지는 중이면 instance.port 가 아직 예전 값이라 물어봐도 답이 없으니, 기다리는 동안 계속 다시 묻는다
         repeat(50) {
             val ch = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
             val l = runCatching { ch.tryLock() }.getOrNull()
@@ -47,10 +47,8 @@ object SingleInstance {
                 return true
             }
             ch.close()
-            if (!asked) {
-                asked = true
-                if (ask(portFile) == SHOW) return false
-            }
+            // SHOW 면 주인이 창을 띄웠으니 끝, BYE 면 주인(예전 버전)이 끝나는 중이니 잠금이 풀리기를 기다린다
+            if (ask(portFile) == SHOW) return false
             Thread.sleep(200)
         }
         // 주인이 응답도 없고 끝나지도 않으면, 아무것도 안 뜨는 것보다는 하나 더 띄운다
