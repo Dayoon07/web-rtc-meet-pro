@@ -1159,6 +1159,7 @@ const en: Messages = {
     BILLING_CARD_FAILED: 'Couldn\'t register the card: {{reason}}',
     PAYMENT_FAILED: 'Payment failed: {{reason}}',
     PAYMENT_UNCERTAIN: 'We couldn\'t confirm the payment. Check your payment history in a moment.',
+    PAYMENT_PENDING: 'We\'re still confirming your previous payment. Check your payment history in a few minutes.',
     MEETING_FULL: 'This meeting is full ({{max}} people, based on the team owner\'s plan).',
     RECORDING_STORAGE_FULL: 'Recording storage ({{gb}} GB) is full. Delete old recordings or upgrade.',
     TEAM_NOT_FOUND: 'Team not found.',

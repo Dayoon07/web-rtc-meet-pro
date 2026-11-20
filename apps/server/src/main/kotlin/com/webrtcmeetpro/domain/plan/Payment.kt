@@ -168,6 +168,8 @@ interface PaymentRepository {
     fun findAllByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
     fun findTop50ByUserIdOrderByCreatedDtDesc(userId: Long): List<Payment>
     fun findAllBySubscriptionIdOrderByIdDesc(subscriptionId: Long): List<Payment>
+    fun findAllByStatus(status: PaymentStatus): List<Payment>
+    fun existsByTeamIdAndStatus(teamId: Long, status: PaymentStatus): Boolean
 }
 
 /** billingKey 는 애플리케이션에서 암호화한 값 */

@@ -22,6 +22,7 @@ import com.webrtcmeetpro.domain.user.User
 import com.webrtcmeetpro.domain.user.UserRepository
 import com.webrtcmeetpro.external.toss.TossBilling
 import com.webrtcmeetpro.external.toss.TossException
+import com.webrtcmeetpro.external.toss.TossOrder
 import com.webrtcmeetpro.external.toss.TossPayment
 import com.webrtcmeetpro.external.toss.TossPaymentsClient
 import com.webrtcmeetpro.infrastructure.realtime.RealtimePublisher
@@ -80,13 +81,25 @@ class BillingServiceTest {
 
     private var failNext: TossException? = null
     private val charged = mutableListOf<Long>()
+    /** true 면 토스는 결제했는데 응답이 끊긴 것처럼: 결제는 기록하고 uncertain 예외를 낸다 */
+    private var dropAfterCharge = false
+    /** 토스에 남은 주문 (findOrder 가 돌려준다). 없으면 토스에 닿지 않은 주문 */
+    private val tossOrders = mutableMapOf<String, TossOrder>()
     private val tossClient = object : TossPaymentsClient(toss, JsonMapper.builder().build()) {
         override fun issueBillingKey(authKey: String, customerKey: String) = TossBilling("bk_$authKey", "신한", "4330****1234")
         override fun charge(billingKey: String, customerKey: String, amount: Long, orderId: String, orderName: String, email: String?, name: String?): TossPayment {
             failNext?.let { failNext = null; throw it }
             charged += amount
-            return TossPayment("pk_$orderId", "카드", "https://receipt.test/$orderId")
+            val payment = TossPayment("pk_$orderId", "카드", "https://receipt.test/$orderId")
+            tossOrders[orderId] = TossOrder("DONE", payment)
+            if (dropAfterCharge) {
+                dropAfterCharge = false
+                throw TossException("NETWORK_ERROR", "연결 끊김", uncertain = true)
+            }
+            return payment
         }
+
+        override fun findOrder(orderId: String) = tossOrders[orderId]
 
         override fun cancel(paymentKey: String, reason: String, amount: Long?, idempotencyKey: String) {
             failCancel?.let { failCancel = null; throw it }
@@ -477,6 +490,67 @@ class BillingServiceTest {
         assertFalse(team.overageAllowed)
         assertEquals(3, fakes.payments.count { it.status == PaymentStatus.FAILED })
         assertTrue(sent.any { it.type == NotificationType.PAYMENT_FAILED })
+    }
+
+    @Test
+    fun `결제는 됐는데 응답이 끊기면 다시 결제를 막고, 토스에 확인한 뒤 플랜을 반영한다`() {
+        registerCard()
+        dropAfterCharge = true
+        val first = assertThrows<BusinessException> { billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true) }
+        assertEquals(ErrorCode.PAYMENT_UNCERTAIN, first.errorCode)
+        assertEquals(PaymentStatus.READY, fakes.payments.single().status)
+        assertEquals("FREE", planService.planOfTeam(ws).code)
+
+        val again = assertThrows<BusinessException> { billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true) }
+        assertEquals(ErrorCode.PAYMENT_PENDING, again.errorCode, "결과를 모르는 동안 새로 결제하면 두 번 빠져나갈 수 있다")
+        assertEquals(0, billing.reconcilePending(LocalDateTime.now()), "막 결제한 것은 건드리지 않는다")
+
+        assertEquals(1, billing.reconcilePending(LocalDateTime.now().plusMinutes(11)))
+        val payment = fakes.payments.single()
+        assertEquals(PaymentStatus.DONE, payment.status)
+        assertEquals("pk_${payment.orderId}", payment.paymentKey)
+        assertEquals("TEAM", planService.planOfTeam(ws).code)
+        val sub = fakes.subscriptions.single { it.currentPeriodEnd != null }
+        assertEquals(sub.id, payment.subscriptionId)
+        assertFalse(sub.autoRenew, "사용자가 모르는 사이 자동결제되지 않게 끈다")
+        assertEquals(listOf(19_900L), charged, "한 번만 결제")
+    }
+
+    @Test
+    fun `토스에 닿지 않은 결제는 실패로 닫고, 그 뒤에 자동결제를 다시 한다`() {
+        registerCard()
+        val end = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true).currentPeriodEnd!!
+        failNext = TossException("NETWORK_ERROR", "연결 실패", uncertain = true)
+        billing.processRenewals(end.plusMinutes(1))
+        val lost = fakes.payments.last()
+        assertEquals(PaymentStatus.READY, lost.status)
+
+        billing.processRenewals(end.plusDays(2))
+        assertEquals(1, charged.size, "결과를 모르는 결제가 있으면 다시 결제하지 않는다")
+
+        assertEquals(1, billing.reconcilePending(LocalDateTime.now().plusMinutes(11)))
+        assertEquals(PaymentStatus.FAILED, lost.status)
+
+        billing.processRenewals(end.plusDays(2))
+        assertEquals(2, charged.size)
+        assertEquals(SubscriptionStatus.ACTIVE, fakes.subscriptions.single { it.currentPeriodEnd != null }.status)
+    }
+
+    @Test
+    fun `자동결제 갱신 중 응답이 끊겨도 토스에서 결제됐으면 기간을 늘린다`() {
+        registerCard()
+        val end = billing.purchase(uid, ws, "TEAM", BillingCycle.MONTHLY, autoRenew = true).currentPeriodEnd!!
+        dropAfterCharge = true
+        billing.processRenewals(end.plusMinutes(1))
+        val sub = fakes.subscriptions.single { it.currentPeriodEnd != null }
+        assertEquals(SubscriptionStatus.PAST_DUE, sub.status)
+
+        billing.reconcilePending(LocalDateTime.now().plusMinutes(11))
+        assertEquals(SubscriptionStatus.ACTIVE, sub.status)
+        assertTrue(sub.currentPeriodEnd!!.isAfter(end.plusDays(27)))
+        assertTrue(sub.autoRenew, "갱신이었으면 자동결제 설정은 그대로")
+        assertEquals(2, charged.size)
+        assertTrue(fakes.payments.all { it.status == PaymentStatus.DONE })
     }
 
     @Test

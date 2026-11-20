@@ -1157,6 +1157,7 @@ const ko = {
     BILLING_CARD_FAILED: '카드를 등록하지 못했어요: {{reason}}',
     PAYMENT_FAILED: '결제하지 못했어요: {{reason}}',
     PAYMENT_UNCERTAIN: '결제 결과를 확인하지 못했어요. 잠시 뒤 결제 내역을 확인해 주세요.',
+    PAYMENT_PENDING: '앞선 결제의 결과를 확인하고 있어요. 몇 분 뒤 결제 내역을 확인해 주세요.',
     MEETING_FULL: '이 회의는 {{max}}명까지 들어올 수 있어요. (팀 소유자의 플랜 기준)',
     RECORDING_STORAGE_FULL: '녹화 저장 공간({{gb}}GB)이 가득 찼어요. 지난 녹화를 지우거나 플랜을 올려 주세요.',
     TEAM_NOT_FOUND: '팀을 찾을 수 없어요.',

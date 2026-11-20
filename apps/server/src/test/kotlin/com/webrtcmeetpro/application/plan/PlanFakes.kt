@@ -5,6 +5,7 @@ import com.webrtcmeetpro.domain.plan.BillingKey
 import com.webrtcmeetpro.domain.plan.BillingKeyRepository
 import com.webrtcmeetpro.domain.plan.Payment
 import com.webrtcmeetpro.domain.plan.PaymentRepository
+import com.webrtcmeetpro.domain.plan.PaymentStatus
 import com.webrtcmeetpro.domain.plan.Plan
 import com.webrtcmeetpro.domain.plan.PlanRepository
 import com.webrtcmeetpro.domain.plan.Subscription
@@ -91,6 +92,8 @@ class PlanFakes(val plans: List<Plan>) {
         override fun findAllByUserIdOrderByCreatedDtDesc(userId: Long) = payments.filter { it.userId == userId }
         override fun findTop50ByUserIdOrderByCreatedDtDesc(userId: Long) = payments.filter { it.userId == userId }.take(50)
         override fun findAllBySubscriptionIdOrderByIdDesc(subscriptionId: Long) = payments.filter { it.subscriptionId == subscriptionId }.sortedByDescending { it.id }
+        override fun findAllByStatus(status: PaymentStatus) = payments.filter { it.status == status }
+        override fun existsByTeamIdAndStatus(teamId: Long, status: PaymentStatus) = payments.any { it.teamId == teamId && it.status == status }
     }
     val teamRepo = object : TeamRepository {
         override fun save(team: Team) = team

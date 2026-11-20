@@ -15,8 +15,21 @@ import java.util.Base64
 /**
  * message 는 토스가 보낸 한국어 문구.
  * @param uncertain 연결이 끊겨 결제 여부를 모름. 같은 orderId 로 다시 보내면 토스가 한 번만 처리한다
+ * @param httpStatus 토스가 돌려준 HTTP 상태 (연결 실패면 null)
  */
-class TossException(val code: String, override val message: String, val uncertain: Boolean = false) : RuntimeException(message)
+class TossException(
+    val code: String,
+    override val message: String,
+    val uncertain: Boolean = false,
+    val httpStatus: Int? = null,
+) : RuntimeException(message)
+
+/**
+ * 주문번호로 찾은 토스 결제.
+ * @param status 토스 상태 (DONE, ABORTED, EXPIRED, CANCELED, PARTIAL_CANCELED, IN_PROGRESS 등)
+ * @param payment status 가 DONE 일 때 승인 정보
+ */
+data class TossOrder(val status: String, val payment: TossPayment?)
 
 data class TossBilling(val billingKey: String, val cardCompany: String?, val cardNumber: String?)
 
@@ -58,6 +71,25 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         }
         val body = post("/v1/billing/${URLEncoder.encode(billingKey, Charsets.UTF_8)}", payload, orderId)
         if (body["status"] != "DONE") throw TossException(body["status"] as? String ?: "UNKNOWN", "결제가 완료되지 않았어요.")
+        return paymentOf(body)
+    }
+
+    /**
+     * 결과를 모르는 결제를 주문번호로 확인한다 (GET /v1/payments/orders/{orderId}).
+     * @return 토스에 그 주문이 없으면 null. 결제 요청이 토스에 닿지 않았다는 뜻이다
+     */
+    fun findOrder(orderId: String): TossOrder? {
+        val body = try {
+            send(request("/v1/payments/orders/${URLEncoder.encode(orderId, Charsets.UTF_8)}").GET().build())
+        } catch (e: TossException) {
+            if (e.httpStatus == 404) return null
+            throw e
+        }
+        val status = body["status"] as? String ?: throw TossException("INVALID_RESPONSE", "결제 상태를 받지 못했어요.", uncertain = true)
+        return TossOrder(status, if (status == "DONE") paymentOf(body) else null)
+    }
+
+    private fun paymentOf(body: Map<*, *>): TossPayment {
         val card = body["card"] as? Map<*, *>
         return TossPayment(
             paymentKey = body["paymentKey"] as String,
@@ -80,15 +112,22 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
         if (status != "CANCELED" && status != "PARTIAL_CANCELED") throw TossException(status ?: "UNKNOWN", "환불이 끝나지 않았어요.")
     }
 
-    private fun post(path: String, payload: Map<String, Any>, idempotencyKey: String?): Map<*, *> {
-        val auth = Base64.getEncoder().encodeToString("${props.secretKey}:".toByteArray())
-        val request = HttpRequest.newBuilder(URI.create(props.apiUrl + path))
-            .timeout(Duration.ofSeconds(60))
-            .header("Authorization", "Basic $auth")
+    private fun post(path: String, payload: Map<String, Any>, idempotencyKey: String?): Map<*, *> = send(
+        request(path)
             .header("Content-Type", "application/json")
             .apply { idempotencyKey?.let { header("Idempotency-Key", it) } }
             .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(payload)))
-            .build()
+            .build(),
+    )
+
+    private fun request(path: String): HttpRequest.Builder {
+        val auth = Base64.getEncoder().encodeToString("${props.secretKey}:".toByteArray())
+        return HttpRequest.newBuilder(URI.create(props.apiUrl + path))
+            .timeout(Duration.ofSeconds(60))
+            .header("Authorization", "Basic $auth")
+    }
+
+    private fun send(request: HttpRequest): Map<*, *> {
         val response = try {
             http.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
@@ -100,7 +139,7 @@ class TossPaymentsClient(private val props: TossProperties, private val json: Js
             val code = body["code"] as? String ?: "HTTP_${response.statusCode()}"
             val message = body["message"] as? String ?: "결제 요청이 거절됐어요."
             log.info("토스페이먼츠 거절: {} {}", code, message)
-            throw TossException(code, message, uncertain = response.statusCode() >= 500)
+            throw TossException(code, message, uncertain = response.statusCode() >= 500, httpStatus = response.statusCode())
         }
         return body
     }

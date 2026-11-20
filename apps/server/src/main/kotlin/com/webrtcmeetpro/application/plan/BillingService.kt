@@ -31,11 +31,13 @@ import com.webrtcmeetpro.domain.user.UserRepository
 import com.webrtcmeetpro.domain.team.TeamRepository
 import com.webrtcmeetpro.domain.team.TeamStatus
 import com.webrtcmeetpro.external.toss.TossException
+import com.webrtcmeetpro.external.toss.TossPayment
 import com.webrtcmeetpro.external.toss.TossPaymentsClient
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -104,6 +106,8 @@ class BillingService(
         val plan = planService.findPlan(planCode)
         if (plan.isFree) throw BusinessException(ErrorCode.PLAN_NOT_PURCHASABLE)
         val card = billingKeys.findByUserIdAndActiveTrue(userId) ?: throw BusinessException(ErrorCode.BILLING_CARD_REQUIRED)
+        // 앞선 결제가 됐는지 모르는 채로 새 주문번호로 또 결제하면 두 번 빠져나갈 수 있다 (reconcilePending 이 맞춘 뒤에 다시)
+        if (payments.existsByTeamIdAndStatus(teamId, PaymentStatus.READY)) throw BusinessException(ErrorCode.PAYMENT_PENDING)
 
         val payment = tx.execute { payments.save(newPayment(userId, teamId, team.name, plan, cycle, card)) }!!
         try {
@@ -111,7 +115,7 @@ class BillingService(
             log.info("결제 성공 (userId={}, {} {}, {}원, orderId={})", userId, plan.code, cycle, payment.amount, payment.orderId)
         } catch (e: TossException) {
             if (e.uncertain) {
-                log.error("결제 결과를 모름 (orderId={}): 토스 상점관리자에서 확인 필요", payment.orderId)
+                log.warn("결제 결과를 모름 (orderId={}): 몇 분 뒤 토스에 다시 확인", payment.orderId)
                 throw BusinessException(ErrorCode.PAYMENT_UNCERTAIN)
             }
             log.info("결제 거절 (userId={}, orderId={}): {} {}", userId, payment.orderId, e.code, e.message)
@@ -198,6 +202,10 @@ class BillingService(
             tx.executeWithoutResult { expire(reload(s), plan, now) }
             return
         }
+        if (payments.existsByTeamIdAndStatus(team.id!!, PaymentStatus.READY)) {
+            log.info("결과를 모르는 결제가 있어 자동결제를 미룸 (subscriptionId={}, teamId={})", s.id, team.id)
+            return
+        }
         // 초과 인원 요금은 가장 높은 월 자동결제 플랜의 갱신에만 붙여야 두 번 청구되지 않는다
         val excess = if (combinesOverage(s, plan, team, now)) overage.billableExcess(team, plan) else 0
         val payment = tx.execute { payments.save(newPayment(s.userId, team.id!!, team.name, plan, cycle, card, excess)) }!!
@@ -209,8 +217,8 @@ class BillingService(
             log.info("자동결제 성공 (subscriptionId={}, {} {}, 초과 {}명)", s.id, plan.code, cycle, excess)
         } catch (e: TossException) {
             if (e.uncertain) {
-                // 결제 여부를 모르니 같은 구독을 바로 다시 결제하면 이중 결제가 될 수 있다
-                log.error("자동결제 결과를 모름 (orderId={}): 토스 상점관리자에서 확인 필요", payment.orderId)
+                // 결제 여부를 모르니 같은 구독을 바로 다시 결제하면 이중 결제가 될 수 있다. reconcilePending 이 토스에 물어 맞춘다
+                log.warn("자동결제 결과를 모름 (orderId={}): 몇 분 뒤 토스에 다시 확인", payment.orderId)
             }
             tx.executeWithoutResult {
                 val sub = reload(s)
@@ -282,6 +290,10 @@ class BillingService(
 
     private fun chargeOverage(teamId: Long, plan: Plan, excess: Long, now: LocalDateTime) {
         val team = teams.findTeamById(teamId)!!
+        if (payments.existsByTeamIdAndStatus(teamId, PaymentStatus.READY)) {
+            log.info("결과를 모르는 결제가 있어 초과 인원 요금을 미룸 (teamId={})", teamId)
+            return
+        }
         val card = billingKeys.findByUserIdAndActiveTrue(team.ownerId)
         if (card == null) {
             tx.executeWithoutResult { overageFailed(teamId, plan, now, "등록된 카드가 없어요") }
@@ -344,6 +356,77 @@ class BillingService(
         val owner = users.findUserById(team.ownerId) ?: return
         if (owner.email.isNotBlank()) {
             mail.sendAfterCommit(MailTemplates.planNotice(owner.email, MailLanguage.KO, PlanMailKind.PAYMENT_FAILED, label, team.overageNextChargeAt, reason, web.link(path)))
+        }
+    }
+
+    /**
+     * 결과를 모르는 결제를 토스에 주문번호로 물어 맞춘다. 토스 연결이 끊겼거나(uncertain),
+     * 토스는 결제했는데 우리 DB 에 쓰기 전에 서버가 꺼지면 결제가 READY 로 남는다.
+     *   - 토스가 결제했으면: 승인하고 그 결제로 산 것(플랜 기간, 초과 인원 요금)을 반영
+     *   - 토스에 주문이 없거나 중단·만료됐으면: 실패로 닫는다 (구독 재시도는 원래 일정대로)
+     *   - 아직 처리 중이거나 토스에 연결이 안 되면: 다음에 다시
+     * READY 인 동안은 같은 팀을 다시 결제하지 않으니(purchase·renew·chargeOverage), 이게 돌아야 다음 결제가 이어진다.
+     * 막 결제 중인 것을 건드리지 않게 RECONCILE_AFTER 가 지난 것만 본다 (토스 호출 제한 시간은 60초).
+     * @return 정리한 결제 수
+     */
+    fun reconcilePending(now: LocalDateTime = LocalDateTime.now()): Int {
+        var settled = 0
+        val pending = payments.findAllByStatus(PaymentStatus.READY).filter { it.createdDt.isBefore(now.minus(RECONCILE_AFTER)) }
+        for (p in pending) {
+            runCatching {
+                val order = toss.findOrder(p.orderId)
+                when (order?.status) {
+                    null, "ABORTED", "EXPIRED" -> {
+                        tx.executeWithoutResult {
+                            payments.findByOrderId(p.orderId)!!.takeIf { it.status == PaymentStatus.READY }
+                                ?.fail(order?.status ?: "NOT_FOUND", "토스에서 결제되지 않은 것으로 확인했어요.")
+                        }
+                        log.info("결과를 모르던 결제는 결제되지 않았음 (orderId={}, 토스 상태={})", p.orderId, order?.status ?: "주문 없음")
+                        settled++
+                    }
+                    "DONE" -> {
+                        tx.executeWithoutResult { settleDone(p.orderId, order.payment!!) }
+                        log.info("결과를 모르던 결제는 결제됐음, 반영 (orderId={}, {}원)", p.orderId, p.amount)
+                        settled++
+                    }
+                    "CANCELED", "PARTIAL_CANCELED" -> {
+                        tx.executeWithoutResult { payments.findByOrderId(p.orderId)!!.takeIf { it.status == PaymentStatus.READY }?.cancel(now) }
+                        log.error("결과를 모르던 결제가 토스에서 이미 취소됨 (orderId={}, 토스 상태={}): 토스 상점관리자에서 확인 필요", p.orderId, order.status)
+                        settled++
+                    }
+                    // IN_PROGRESS, READY 등: 토스가 아직 처리 중
+                    else -> Unit
+                }
+            }.onFailure { log.warn("결제 결과 확인 실패, 다음에 다시 (orderId={})", p.orderId, it) }
+        }
+        return settled
+    }
+
+    private fun settleDone(orderId: String, result: TossPayment) {
+        val p = payments.findByOrderId(orderId)!!
+        if (p.status != PaymentStatus.READY) return
+        val card = p.billingKeyId?.let(billingKeys::findBillingKeyById)
+        val at = LocalDateTime.now()
+        p.approve(
+            result.paymentKey, result.method, result.receiptUrl, at,
+            cardCompany = result.cardCompany ?: card?.cardCompany,
+            cardNumberMasked = result.cardNumber ?: card?.cardNumberMasked,
+            approveNo = result.approveNo,
+        )
+        val teamId = p.teamId ?: return
+        val team = teams.findTeamById(teamId)
+        when (p.paymentKind) {
+            PaymentKind.OVERAGE -> team?.overageCharged()
+            PaymentKind.PLAN -> {
+                // 새로 산 것이든 자동결제 갱신이든, 같은 플랜 구독이 살아 있으면 그 기간 뒤에 이어 붙고 없으면 새로 만든다.
+                // 자동결제 설정은 살아 있던 구독 것을 따르고, 없으면 끈다 (사용자가 모르는 사이 결제되지 않게)
+                val plan = planService.planById(p.planId)
+                val autoRenew = subscriptions.findAllByUserIdAndStatusIn(p.userId, listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE))
+                    .firstOrNull { it.planId == plan.id && it.currentPeriodEnd != null }?.autoRenew ?: false
+                val subscription = planService.applyPurchase(teamId, p.userId, plan, p.billingCycle ?: BillingCycle.MONTHLY, autoRenew, at)
+                if (p.overageMembers > 0 && team != null) overage.settingsTeam(team).clearOverageSchedule()
+                p.linkSubscription(subscription.id!!, subscription.currentPeriodEnd)
+            }
         }
     }
 
@@ -424,5 +507,6 @@ class BillingService(
     companion object {
         const val EXPIRING_NOTICE_DAYS = 3L
         const val BILLING_PATH = "/app/billing"
+        val RECONCILE_AFTER: Duration = Duration.ofMinutes(10)
     }
 }

@@ -1159,6 +1159,7 @@ const ja: Messages = {
     BILLING_CARD_FAILED: 'カードを登録できませんでした: {{reason}}',
     PAYMENT_FAILED: '支払いできませんでした: {{reason}}',
     PAYMENT_UNCERTAIN: '支払い結果を確認できませんでした。しばらくしてから支払い履歴を確認してください。',
+    PAYMENT_PENDING: '前回の支払い結果を確認しています。数分後に支払い履歴を確認してください。',
     MEETING_FULL: 'この会議は{{max}}人まで参加できます（チームオーナーのプラン基準）。',
     RECORDING_STORAGE_FULL: '録画の保存容量（{{gb}}GB）がいっぱいです。古い録画を削除するか、プランを上げてください。',
     TEAM_NOT_FOUND: 'チームが見つかりません。',

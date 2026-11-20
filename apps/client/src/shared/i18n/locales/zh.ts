@@ -1159,6 +1159,7 @@ const zh: Messages = {
     BILLING_CARD_FAILED: '无法绑定银行卡：{{reason}}',
     PAYMENT_FAILED: '付款失败：{{reason}}',
     PAYMENT_UNCERTAIN: '无法确认付款结果，请稍后查看付款记录。',
+    PAYMENT_PENDING: '正在确认上一笔付款的结果，请几分钟后查看付款记录。',
     MEETING_FULL: '本会议最多可容纳 {{max}} 人（按团队所有者的套餐）。',
     RECORDING_STORAGE_FULL: '录制存储空间（{{gb}}GB）已满。请删除旧录制或升级套餐。',
     TEAM_NOT_FOUND: '找不到该团队。',

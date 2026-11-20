@@ -14,6 +14,10 @@ class SubscriptionScheduler(private val billingService: BillingService, private 
 
     @Scheduled(fixedDelayString = "\${app.billing.renew-interval:10m}", initialDelayString = "30s")
     fun renew() {
+        // 결과를 모르는 결제가 남아 있으면 그 팀의 다음 결제가 미뤄지므로 먼저 맞춘다
+        runCatching { billingService.reconcilePending() }
+            .onSuccess { if (it > 0) log.info("결과를 모르던 결제 {}건 확인", it) }
+            .onFailure { log.error("결제 결과 확인 실패", it) }
         runCatching { billingService.processRenewals() }
             .onSuccess { if (it > 0) log.info("구독 갱신·만료 {}건 처리", it) }
             .onFailure { log.error("구독 갱신 실패", it) }

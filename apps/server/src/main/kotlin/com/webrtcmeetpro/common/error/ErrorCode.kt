@@ -76,6 +76,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     BILLING_CARD_FAILED(HttpStatus.BAD_REQUEST, "카드를 등록하지 못했습니다: {{reason}}"),
     PAYMENT_FAILED(HttpStatus.PAYMENT_REQUIRED, "결제하지 못했습니다: {{reason}}"),
     PAYMENT_UNCERTAIN(HttpStatus.BAD_GATEWAY, "결제 결과를 확인하지 못했습니다. 잠시 뒤 결제 내역을 확인해 주세요."),
+    PAYMENT_PENDING(HttpStatus.CONFLICT, "앞선 결제의 결과를 확인하고 있습니다. 몇 분 뒤 결제 내역을 확인해 주세요."),
 
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "팀을 찾을 수 없습니다."),
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "이 팀의 팀원이 아닙니다."),
