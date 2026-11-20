@@ -392,6 +392,9 @@ class ChatMessageFile(
     var id: Long? = null
         protected set
 
+    /** 메시지나 방을 지운 뒤 실제 파일을 지울 때 ([ChatFileStorage.delete] 다음에) */
+    fun delete() = markDeleted()
+
     /** SVG 는 스크립트를 품을 수 있어서 뺀다 */
     val isPreviewableImage: Boolean get() = contentType in PREVIEWABLE_IMAGES
 
@@ -404,6 +407,9 @@ interface ChatMessageFileRepository {
     fun save(file: ChatMessageFile): ChatMessageFile
     fun findFileById(id: Long): ChatMessageFile?
     fun findAllByMessageIdIn(messageIds: Collection<Long>): List<ChatMessageFile>
+
+    /** 아직 지우지 않은 첨부파일 중, 메시지나 방이 before 전에 지워진 것 */
+    fun findOrphanedBefore(before: LocalDateTime): List<ChatMessageFile>
 }
 
 interface ChatFileStorage {
